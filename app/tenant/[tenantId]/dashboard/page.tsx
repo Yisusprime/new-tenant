@@ -16,18 +16,23 @@ export default function TenantDashboard() {
   const { user, userProfile, loading: authLoading } = useAuth()
   const [tenantData, setTenantData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [authChecked, setAuthChecked] = useState(false)
 
   useEffect(() => {
-    // Verificar si el usuario está autenticado
-    if (!authLoading && !user) {
-      console.log("Usuario no autenticado, redirigiendo a login")
-      router.push(`/tenant/${tenantId}/login`)
-      return
+    // Solo verificar autenticación una vez que authLoading sea false
+    if (!authLoading) {
+      if (!user) {
+        console.log("Usuario no autenticado, redirigiendo a login")
+        router.push(`/tenant/${tenantId}/login`)
+      }
+      setAuthChecked(true)
     }
+  }, [user, authLoading, tenantId, router])
 
-    // Cargar datos del tenant
+  useEffect(() => {
+    // Cargar datos del tenant solo si el usuario está autenticado
     async function fetchTenantData() {
-      if (!tenantId) return
+      if (!tenantId || !authChecked || !user) return
 
       try {
         console.log("Fetching tenant data for:", tenantId)
@@ -46,12 +51,11 @@ export default function TenantDashboard() {
       }
     }
 
-    if (user) {
-      fetchTenantData()
-    }
-  }, [user, authLoading, tenantId, router])
+    fetchTenantData()
+  }, [tenantId, authChecked, user])
 
-  if (authLoading || loading) {
+  // Mostrar estado de carga mientras se verifica la autenticación
+  if (authLoading || (loading && user)) {
     return (
       <div className="flex flex-col min-h-screen">
         <TenantNavbar tenantId={tenantId} />
@@ -62,8 +66,9 @@ export default function TenantDashboard() {
     )
   }
 
+  // Si no hay usuario autenticado, no renderizar nada (la redirección ya se maneja en useEffect)
   if (!user) {
-    return null // La redirección ya se maneja en el useEffect
+    return null
   }
 
   return (

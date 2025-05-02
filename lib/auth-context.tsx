@@ -8,12 +8,14 @@ import {
   onAuthStateChanged,
   updateProfile,
   sendPasswordResetEmail,
+  setPersistence,
+  browserLocalPersistence,
 } from "firebase/auth"
 import { auth, db } from "./firebase"
 import { setDoc, doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore"
 import { useRouter } from "next/navigation"
 
-export type UserRole = "admin" | "client" | "waiter" | "delivery" | "manager" | "user"
+export type UserRole = "superadmin" | "admin" | "client" | "waiter" | "delivery" | "manager" | "user"
 
 // Crear un tipo para el contexto de autenticación
 type AuthContextType = {
@@ -68,13 +70,30 @@ export const AuthProvider = ({ children }) => {
     return null
   }
 
+  // Configurar persistencia de sesión
+  useEffect(() => {
+    const setupPersistence = async () => {
+      try {
+        await setPersistence(auth, browserLocalPersistence)
+        console.log("Persistencia de sesión configurada correctamente")
+      } catch (error) {
+        console.error("Error al configurar persistencia:", error)
+      }
+    }
+
+    setupPersistence()
+  }, [])
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log("Estado de autenticación cambiado:", user ? "Usuario autenticado" : "Usuario no autenticado")
+
       if (user) {
         setUser(user)
         // Fetch user profile
         try {
           const profile = await getUserProfileData(user.uid)
+          console.log("Perfil obtenido desde onAuthStateChanged:", profile)
 
           // Si estamos en un subdominio, verificar que el usuario pertenece a este tenant
           const currentTenantId = getCurrentTenantId()
@@ -109,8 +128,19 @@ export const AuthProvider = ({ children }) => {
 
   const signIn = async (email, password) => {
     try {
-      await signInWithEmailAndPassword(auth, email, password)
-      // No redirigimos aquí, la redirección se maneja en la página de login
+      console.log("Iniciando sesión con:", email)
+      const userCredential = await signInWithEmailAndPassword(auth, email, password)
+      console.log("Inicio de sesión exitoso:", userCredential.user.uid)
+
+      // Obtener el perfil del usuario inmediatamente después de iniciar sesión
+      const profile = await getUserProfileData(userCredential.user.uid)
+      console.log("Perfil obtenido después de iniciar sesión:", profile)
+
+      if (profile) {
+        setUserProfile(profile)
+      }
+
+      return userCredential.user
     } catch (error) {
       console.error("Error signing in:", error)
       throw error
@@ -140,7 +170,7 @@ export const AuthProvider = ({ children }) => {
         name,
         companyName,
         subdomain,
-        role: "user", // Por defecto, asignar rol de usuario
+        role: "admin", // Cambiado de "user" a "admin" para propietarios de tenant
         isTenantOwner: true,
         tenantId: subdomain,
         createdAt: new Date().toISOString(),
@@ -164,7 +194,7 @@ export const AuthProvider = ({ children }) => {
       await setDoc(doc(db, "tenants", subdomain), tenantData)
       console.log("7. Tenant creado exitosamente")
 
-      // 5. Verificar si es el primer usuario (para asignar rol de admin)
+      // 5. Verificar si es el primer usuario (para asignar rol de superadmin)
       let isFirstUser = false
       try {
         const systemRef = doc(db, "system", "stats")
@@ -173,9 +203,9 @@ export const AuthProvider = ({ children }) => {
         isFirstUser = !systemDoc.exists() || !systemDoc.data()?.userCount
 
         if (isFirstUser) {
-          console.log("8. Es el primer usuario, asignando rol de admin")
+          console.log("8. Es el primer usuario, asignando rol de superadmin")
           await updateDoc(doc(db, "users", user.uid), {
-            role: "admin",
+            role: "superadmin", // El primer usuario será superadmin
           })
         }
 
@@ -199,7 +229,7 @@ export const AuthProvider = ({ children }) => {
       // Actualizar el estado local con el nuevo usuario
       setUserProfile({
         ...userData,
-        role: isFirstUser ? "admin" : "user",
+        role: isFirstUser ? "superadmin" : "admin", // Actualizado para reflejar el rol correcto
       })
 
       // IMPORTANTE: Redirigir al subdominio del tenant
@@ -259,18 +289,22 @@ export const AuthProvider = ({ children }) => {
       const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
       const isSubdomain = hostname.endsWith(`.${rootDomain}`) && !hostname.startsWith("www.") && hostname !== rootDomain
 
+      // Guardar el subdominio actual antes de cerrar sesión
+      const currentSubdomain = getCurrentTenantId()
+
       // Limpiar el estado de autenticación
       await firebaseSignOut(auth)
       setUser(null)
       setUserProfile(null)
 
       // Redirigir según el contexto
-      if (isSubdomain) {
-        // Si estamos en un subdominio, redirigir a la página principal del subdominio
-        router.push("/")
+      if (isSubdomain && currentSubdomain) {
+        // Si estamos en un subdominio, redirigir a la página de login del mismo subdominio
+        console.log(`Redirigiendo a login del subdominio actual: ${currentSubdomain}`)
+        router.push(`/tenant/${currentSubdomain}/login`)
       } else {
         // Si estamos en el dominio principal, redirigir a la página principal
-        router.push("/")
+        router.push("/login")
       }
     } catch (error) {
       console.error("Error al cerrar sesión:", error)
@@ -317,6 +351,7 @@ export const AuthProvider = ({ children }) => {
     try {
       // Primero intentamos obtener el perfil principal del usuario
       const profile = await getUserProfileData(user.uid)
+      console.log("Perfil obtenido desde getUserProfile:", profile)
 
       // Si estamos en un subdominio, verificar que el usuario pertenece a este tenant
       const currentTenantId = getCurrentTenantId()

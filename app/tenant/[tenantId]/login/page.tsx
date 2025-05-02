@@ -23,8 +23,16 @@ export default function TenantLogin() {
   const [loading, setLoading] = useState(false)
   const [tenantData, setTenantData] = useState<any>(null)
   const [loadingTenant, setLoadingTenant] = useState(true)
-  const { signIn, getUserProfile } = useAuth()
+  const { user, signIn, getUserProfile } = useAuth()
   const router = useRouter()
+
+  // Verificar si el usuario ya está autenticado
+  useEffect(() => {
+    if (user) {
+      console.log("Usuario ya autenticado, redirigiendo al dashboard")
+      router.push(`/dashboard`)
+    }
+  }, [user, router])
 
   useEffect(() => {
     async function fetchTenantData() {
@@ -55,7 +63,7 @@ export default function TenantLogin() {
 
     try {
       console.log("Intentando iniciar sesión con:", email)
-      await signIn(email, password)
+      const userCredential = await signIn(email, password)
       console.log("Autenticación exitosa, obteniendo perfil...")
 
       // Obtener el perfil del usuario para determinar su rol y tenant
@@ -84,31 +92,18 @@ export default function TenantLogin() {
       }
 
       // Redirección basada en rol
-      switch (userProfile.role) {
-        case "admin":
-          router.push(`/dashboard`)
-          break
-        case "client":
-          router.push(`/tenant/${tenantId}/client`)
-          break
-        case "delivery":
-          router.push(`/tenant/${tenantId}/delivery`)
-          break
-        case "waiter":
-          router.push(`/tenant/${tenantId}/waiter`)
-          break
-        case "manager":
-          router.push(`/tenant/${tenantId}/manager`)
-          break
-        default:
-          router.push(`/dashboard`)
-      }
+      console.log("Redirigiendo al dashboard")
+      router.push(`/dashboard`)
     } catch (error: any) {
       console.error("Error completo:", error)
       setError(error.message || "Error al iniciar sesión")
     } finally {
       setLoading(false)
     }
+  }
+
+  if (user) {
+    return null // Si el usuario ya está autenticado, no mostrar nada (la redirección ya se maneja en useEffect)
   }
 
   if (loadingTenant) {
