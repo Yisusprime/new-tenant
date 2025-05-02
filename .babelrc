@@ -1,0 +1,16 @@
+{
+  "presets": ["next/babel"],
+  "plugins": [
+    [
+      "module-resolver",
+      {
+        "alias": {
+          "node:process": "process",
+          "node:stream": "stream-browserify",
+          "node:buffer": "buffer",
+          "node:util": "util"
+        }
+      }
+    ]
+  ]
+}

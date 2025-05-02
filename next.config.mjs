@@ -41,30 +41,6 @@ const nextConfig = {
       ],
     };
   },
-  // Resolver el problema de node:process
-  webpack: (config, { isServer }) => {
-    // Resolver los imports con prefijo node:
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      'node:process': 'process',
-      'node:stream': 'stream-browserify',
-      'node:buffer': 'buffer',
-      'node:util': 'util',
-    };
-
-    // Añadir fallbacks para módulos de Node.js en el navegador
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        process: 'process/browser',
-        stream: 'stream-browserify',
-        buffer: 'buffer/',
-        util: 'util/',
-      };
-    }
-
-    return config;
-  },
 };
 
 export default nextConfig;
