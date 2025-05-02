@@ -5,10 +5,10 @@
       "has": [
         {
           "type": "host",
-          "value": "(?<subdomain>[^.]+).(?<domain>.+)"
+          "value": "(?<subdomain>[^.]+).gastroo.online"
         }
       ],
-      "destination": "/tenant/:path*"
+      "destination": "/tenant/:subdomain/:path*"
     }
   ],
   "headers": [

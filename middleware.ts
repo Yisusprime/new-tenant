@@ -19,75 +19,67 @@ export default async function middleware(req: NextRequest) {
   const hostname = req.headers.get("host") || ""
   const path = url.pathname
 
-  // Verificar si estamos usando la ruta /tenant/[tenant-name]
-  const tenantPathMatch = path.match(/^\/tenant\/([^/]+)/)
-  if (tenantPathMatch) {
-    const tenantId = tenantPathMatch[1]
+  console.log(`Middleware processing: ${hostname}${path}`) // Añadir log para depuración
 
-    // Si estamos en la ruta raíz del tenant, redirigir al dashboard
-    if (path === `/tenant/${tenantId}`) {
-      return NextResponse.redirect(new URL(`/tenant/${tenantId}/dashboard`, req.url))
+  // Obtener el dominio raíz (ej., gastroo.online)
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+  console.log(`Root domain: ${rootDomain}`)
+
+  // Verificar si es un subdominio del dominio raíz
+  let subdomain: string | null = null
+
+  if (hostname.endsWith(`.${rootDomain}`)) {
+    subdomain = hostname.replace(`.${rootDomain}`, "")
+    console.log(`Subdomain detected: ${subdomain}`)
+
+    if (subdomain !== "www" && subdomain !== "app") {
+      // Si estamos en la ruta raíz del subdominio, redirigir al dashboard
+      if (path === "/") {
+        console.log(`Redirecting to dashboard for subdomain: ${subdomain}`)
+        return NextResponse.redirect(new URL(`/dashboard`, req.url))
+      }
+
+      // Para cualquier otra ruta, reescribir a la ruta del tenant
+      const newPath = `/tenant/${subdomain}${path}`
+      console.log(`Rewriting to: ${newPath}`)
+
+      // Crear una nueva URL con la ruta reescrita
+      const newUrl = new URL(newPath, req.url)
+      return NextResponse.rewrite(newUrl)
     }
-
-    // Continuar con la solicitud
-    return NextResponse.next()
-  }
-
-  // Implementar la lógica de domainInfo directamente en el middleware
-  // en lugar de llamar a la API
-  const domainInfo = {
-    domain: hostname,
-    tenantId: null,
-    isCustomDomain: false,
-    isSubdomain: false,
   }
 
   // Para desarrollo local
   if (hostname.includes("localhost")) {
-    // Verificar si es un formato de subdominio como tenant-name.localhost:3000
     const subdomainMatch = hostname.match(/^([^.]+)\.localhost/)
     if (subdomainMatch) {
-      const subdomain = subdomainMatch[1]
+      subdomain = subdomainMatch[1]
+      console.log(`Local subdomain detected: ${subdomain}`)
+
       if (subdomain !== "www" && subdomain !== "app") {
-        domainInfo.isSubdomain = true
-        domainInfo.tenantId = subdomain
+        // Si estamos en la ruta raíz del subdominio, redirigir al dashboard
+        if (path === "/") {
+          console.log(`Redirecting to dashboard for local subdomain: ${subdomain}`)
+          return NextResponse.redirect(new URL(`/dashboard`, req.url))
+        }
+
+        // Para cualquier otra ruta, reescribir a la ruta del tenant
+        const newPath = `/tenant/${subdomain}${path}`
+        console.log(`Rewriting to: ${newPath}`)
+
+        // Crear una nueva URL con la ruta reescrita
+        const newUrl = new URL(newPath, req.url)
+        return NextResponse.rewrite(newUrl)
       }
     }
-  } else {
-    // Obtener el dominio raíz (ej., gastroo.online)
-    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-
-    // Verificar si es un subdominio del dominio raíz
-    if (hostname.endsWith(`.${rootDomain}`)) {
-      const subdomain = hostname.replace(`.${rootDomain}`, "")
-      if (subdomain !== "www" && subdomain !== "app") {
-        domainInfo.isSubdomain = true
-        domainInfo.tenantId = subdomain
-      }
-    }
-
-    // No podemos verificar dominios personalizados en el middleware
-    // porque requeriría acceso a Firebase, lo cual no es posible en el middleware
-    // Los dominios personalizados se verificarán en la página del tenant
   }
 
-  // Define the paths that are only accessible on the main domain
-  const mainDomainPaths = ["/", "/login", "/register", "/pricing"]
-
-  // If it's a custom domain or subdomain
-  if (domainInfo.isCustomDomain || domainInfo.isSubdomain) {
-    // If trying to access main domain paths on a custom domain, redirect to dashboard
-    if (mainDomainPaths.includes(url.pathname)) {
-      return NextResponse.redirect(new URL("/dashboard", req.url))
-    }
-
-    // Rewrite to the tenant path
-    url.pathname = `/tenant${url.pathname}`
-    return NextResponse.rewrite(url)
-  }
-
-  // If trying to access tenant paths on the main domain, redirect to home
-  if (url.pathname.startsWith("/dashboard") || url.pathname.startsWith("/settings")) {
+  // Si intentamos acceder a rutas de tenant desde el dominio principal
+  if (
+    (!subdomain || subdomain === "www" || subdomain === "app") &&
+    (path.startsWith("/dashboard") || path.startsWith("/settings"))
+  ) {
+    console.log(`Redirecting from tenant path to main domain`)
     return NextResponse.redirect(new URL("/", req.url))
   }
 
