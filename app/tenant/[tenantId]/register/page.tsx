@@ -7,13 +7,12 @@ import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { doc, getDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
-import { useAuth, type UserRole } from "@/lib/auth-context"
+import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function TenantRegister() {
   const params = useParams()
@@ -21,7 +20,6 @@ export default function TenantRegister() {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [role, setRole] = useState<UserRole>("client")
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const [loading, setLoading] = useState(false)
@@ -59,7 +57,8 @@ export default function TenantRegister() {
     setLoading(true)
 
     try {
-      await signUpTenantUser(email, password, name, role, tenantId)
+      // Registrar al usuario como cliente de este tenant específico
+      await signUpTenantUser(email, password, name, "client", tenantId)
       setSuccess("Registro exitoso. Ahora puedes iniciar sesión.")
 
       // Redirigir a la página de login después de un registro exitoso
@@ -76,7 +75,7 @@ export default function TenantRegister() {
   if (loadingTenant) {
     return (
       <div className="container flex items-center justify-center min-h-screen">
-        <p>Cargando información del tenant...</p>
+        <p>Cargando información del restaurante...</p>
       </div>
     )
   }
@@ -85,7 +84,7 @@ export default function TenantRegister() {
     return (
       <div className="container flex items-center justify-center min-h-screen">
         <Alert variant="destructive" className="max-w-md">
-          <AlertDescription>{error || `No se encontró el tenant: ${tenantId}`}</AlertDescription>
+          <AlertDescription>{error || `No se encontró el restaurante: ${tenantId}`}</AlertDescription>
         </Alert>
       </div>
     )
@@ -95,8 +94,8 @@ export default function TenantRegister() {
     <div className="container flex items-center justify-center min-h-screen py-12">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl">Registrarse en {tenantData.name}</CardTitle>
-          <CardDescription>Crea una cuenta para acceder a los servicios de {tenantData.name}</CardDescription>
+          <CardTitle className="text-2xl">Crear cuenta en {tenantData.name}</CardTitle>
+          <CardDescription>Regístrate para acceder a los servicios de {tenantData.name}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -118,20 +117,6 @@ export default function TenantRegister() {
                 required
                 minLength={6}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="role">Tipo de cuenta</Label>
-              <Select value={role} onValueChange={(value) => setRole(value as UserRole)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona tu rol" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="client">Cliente</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Por defecto, te registrarás como cliente. Otros roles son asignados por el administrador.
-              </p>
             </div>
             {error && (
               <Alert variant="destructive">

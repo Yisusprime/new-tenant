@@ -206,9 +206,12 @@ export const AuthProvider = ({ children }) => {
 
   const signUpTenantUser = async (email: string, password: string, name: string, role: UserRole, tenantId: string) => {
     try {
+      console.log(`Registrando usuario ${name} como ${role} en tenant ${tenantId}`)
+
       // 1. Crear el usuario en Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
+      console.log("Usuario creado en Auth:", user.uid)
 
       // 2. Crear el perfil de usuario en Firestore
       const userData = {
@@ -217,9 +220,13 @@ export const AuthProvider = ({ children }) => {
         role,
         tenantId,
         createdAt: new Date().toISOString(),
+        // Si es cliente, no es dueño del tenant
+        isTenantOwner: false,
       }
 
+      console.log("Creando perfil de usuario:", userData)
       await setDoc(doc(db, "users", user.uid), userData)
+      console.log("Perfil de usuario creado exitosamente")
 
       return user
     } catch (error) {

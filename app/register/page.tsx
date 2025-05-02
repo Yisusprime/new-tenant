@@ -41,8 +41,8 @@ export default function Register() {
     <div className="container flex items-center justify-center min-h-screen py-12">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl">Crear cuenta</CardTitle>
-          <CardDescription>Ingresa tus datos para registrarte en la plataforma</CardDescription>
+          <CardTitle className="text-2xl">Crear cuenta de restaurante</CardTitle>
+          <CardDescription>Registra tu restaurante en la plataforma</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -51,7 +51,7 @@ export default function Register() {
               <Input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="companyName">Nombre de la empresa</Label>
+              <Label htmlFor="companyName">Nombre del restaurante</Label>
               <Input
                 id="companyName"
                 type="text"
@@ -84,7 +84,7 @@ export default function Register() {
               </Alert>
             )}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Registrando..." : "Registrarse"}
+              {loading ? "Registrando..." : "Registrar restaurante"}
             </Button>
           </form>
         </CardContent>

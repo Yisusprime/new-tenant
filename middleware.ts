@@ -9,9 +9,8 @@ export const config = {
      * 3. /static (public files)
      * 4. /_vercel (Vercel internals)
      * 5. all root files inside /public (robots.txt, favicon.ico, etc.)
-     * 6. /login and /register routes
      */
-    "/((?!api|_next|static|_vercel|login|register|[\\w-]+\\.\\w+).*)",
+    "/((?!api|_next|static|_vercel|[\\w-]+\\.\\w+).*)",
   ],
 }
 
@@ -41,6 +40,18 @@ export default async function middleware(req: NextRequest) {
         return NextResponse.redirect(new URL(`/dashboard`, req.url))
       }
 
+      // Si intentamos acceder a /register desde un subdominio, redirigir a /tenant/[subdomain]/register
+      if (path === "/register") {
+        console.log(`[Middleware] Redirecting register to tenant-specific register: ${subdomain}`)
+        return NextResponse.redirect(new URL(`/tenant/${subdomain}/register`, req.url))
+      }
+
+      // Si intentamos acceder a /login desde un subdominio, redirigir a /tenant/[subdomain]/login
+      if (path === "/login") {
+        console.log(`[Middleware] Redirecting login to tenant-specific login: ${subdomain}`)
+        return NextResponse.redirect(new URL(`/tenant/${subdomain}/login`, req.url))
+      }
+
       // No reescribimos las rutas para que Next.js pueda manejarlas directamente
       console.log(`[Middleware] Allowing direct access to: ${path} for subdomain: ${subdomain}`)
       return NextResponse.next()
@@ -59,6 +70,18 @@ export default async function middleware(req: NextRequest) {
         if (path === "/") {
           console.log(`[Middleware] Redirecting to dashboard for local subdomain: ${subdomain}`)
           return NextResponse.redirect(new URL(`/dashboard`, req.url))
+        }
+
+        // Si intentamos acceder a /register desde un subdominio, redirigir a /tenant/[subdomain]/register
+        if (path === "/register") {
+          console.log(`[Middleware] Redirecting register to tenant-specific register: ${subdomain}`)
+          return NextResponse.redirect(new URL(`/tenant/${subdomain}/register`, req.url))
+        }
+
+        // Si intentamos acceder a /login desde un subdominio, redirigir a /tenant/[subdomain]/login
+        if (path === "/login") {
+          console.log(`[Middleware] Redirecting login to tenant-specific login: ${subdomain}`)
+          return NextResponse.redirect(new URL(`/tenant/${subdomain}/login`, req.url))
         }
 
         // No reescribimos las rutas para que Next.js pueda manejarlas directamente
