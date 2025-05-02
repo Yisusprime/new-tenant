@@ -1,24 +1,62 @@
-import { redirect } from "next/navigation"
-import DashboardLayout from "@/components/dashboard-layout"
-import { db } from "@/lib/firebase"
+"use client"
+
+import { useEffect, useState } from "react"
+import { useParams } from "next/navigation"
 import { doc, getDoc } from "firebase/firestore"
+import { db } from "@/lib/firebase"
+import DashboardLayout from "@/components/dashboard-layout"
 
-export default async function TenantDashboard({ params }: { params: { tenantId: string } }) {
-  const tenantId = params.tenantId
+export default function TenantDashboard() {
+  const params = useParams()
+  const tenantId = params?.tenantId as string
+  const [tenantData, setTenantData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  if (!tenantId) {
-    redirect("/")
+  useEffect(() => {
+    async function fetchTenantData() {
+      if (!tenantId) return
+
+      try {
+        console.log("Fetching tenant data for:", tenantId)
+        const tenantDoc = await getDoc(doc(db, "tenants", tenantId))
+
+        if (tenantDoc.exists()) {
+          console.log("Tenant data found:", tenantDoc.data())
+          setTenantData(tenantDoc.data())
+        } else {
+          console.log("No tenant found with ID:", tenantId)
+          setError(`No se encontró el tenant: ${tenantId}`)
+        }
+      } catch (err) {
+        console.error("Error fetching tenant data:", err)
+        setError("Error al cargar los datos del tenant")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchTenantData()
+  }, [tenantId])
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="container py-12">
+          <p>Cargando datos del tenant...</p>
+        </div>
+      </DashboardLayout>
+    )
   }
 
-  // Intentar obtener datos del tenant para mostrar
-  let tenantData = null
-  try {
-    const tenantDoc = await getDoc(doc(db, "tenants", tenantId))
-    if (tenantDoc.exists()) {
-      tenantData = tenantDoc.data()
-    }
-  } catch (error) {
-    console.error("Error fetching tenant data:", error)
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="container py-12">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</div>
+        </div>
+      </DashboardLayout>
+    )
   }
 
   return (

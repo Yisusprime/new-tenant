@@ -8,7 +8,7 @@
           "value": "(?<subdomain>[^.]+).gastroo.online"
         }
       ],
-      "destination": "/tenant/:subdomain/:path*"
+      "destination": "/:path*"
     }
   ],
   "headers": [

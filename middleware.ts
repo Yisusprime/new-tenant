@@ -19,33 +19,30 @@ export default async function middleware(req: NextRequest) {
   const hostname = req.headers.get("host") || ""
   const path = url.pathname
 
-  console.log(`Middleware processing: ${hostname}${path}`) // Añadir log para depuración
+  console.log(`[Middleware] Processing: ${hostname}${path}`)
 
   // Obtener el dominio raíz (ej., gastroo.online)
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-  console.log(`Root domain: ${rootDomain}`)
+  console.log(`[Middleware] Root domain: ${rootDomain}`)
 
   // Verificar si es un subdominio del dominio raíz
   let subdomain: string | null = null
 
+  // Verificar si es un subdominio del dominio raíz
   if (hostname.endsWith(`.${rootDomain}`)) {
     subdomain = hostname.replace(`.${rootDomain}`, "")
-    console.log(`Subdomain detected: ${subdomain}`)
+    console.log(`[Middleware] Subdomain detected: ${subdomain}`)
 
     if (subdomain !== "www" && subdomain !== "app") {
       // Si estamos en la ruta raíz del subdominio, redirigir al dashboard
       if (path === "/") {
-        console.log(`Redirecting to dashboard for subdomain: ${subdomain}`)
+        console.log(`[Middleware] Redirecting to dashboard for subdomain: ${subdomain}`)
         return NextResponse.redirect(new URL(`/dashboard`, req.url))
       }
 
-      // Para cualquier otra ruta, reescribir a la ruta del tenant
-      const newPath = `/tenant/${subdomain}${path}`
-      console.log(`Rewriting to: ${newPath}`)
-
-      // Crear una nueva URL con la ruta reescrita
-      const newUrl = new URL(newPath, req.url)
-      return NextResponse.rewrite(newUrl)
+      // No reescribimos las rutas para que Next.js pueda manejarlas directamente
+      console.log(`[Middleware] Allowing direct access to: ${path} for subdomain: ${subdomain}`)
+      return NextResponse.next()
     }
   }
 
@@ -54,24 +51,36 @@ export default async function middleware(req: NextRequest) {
     const subdomainMatch = hostname.match(/^([^.]+)\.localhost/)
     if (subdomainMatch) {
       subdomain = subdomainMatch[1]
-      console.log(`Local subdomain detected: ${subdomain}`)
+      console.log(`[Middleware] Local subdomain detected: ${subdomain}`)
 
       if (subdomain !== "www" && subdomain !== "app") {
         // Si estamos en la ruta raíz del subdominio, redirigir al dashboard
         if (path === "/") {
-          console.log(`Redirecting to dashboard for local subdomain: ${subdomain}`)
+          console.log(`[Middleware] Redirecting to dashboard for local subdomain: ${subdomain}`)
           return NextResponse.redirect(new URL(`/dashboard`, req.url))
         }
 
-        // Para cualquier otra ruta, reescribir a la ruta del tenant
-        const newPath = `/tenant/${subdomain}${path}`
-        console.log(`Rewriting to: ${newPath}`)
-
-        // Crear una nueva URL con la ruta reescrita
-        const newUrl = new URL(newPath, req.url)
-        return NextResponse.rewrite(newUrl)
+        // No reescribimos las rutas para que Next.js pueda manejarlas directamente
+        console.log(`[Middleware] Allowing direct access to: ${path} for local subdomain: ${subdomain}`)
+        return NextResponse.next()
       }
     }
+  }
+
+  // Verificar si estamos accediendo a una ruta de tenant específica
+  const tenantPathMatch = path.match(/^\/tenant\/([^/]+)/)
+  if (tenantPathMatch) {
+    const tenantId = tenantPathMatch[1]
+    console.log(`[Middleware] Tenant path detected: ${tenantId}`)
+
+    // Si estamos en la ruta raíz del tenant, redirigir al dashboard
+    if (path === `/tenant/${tenantId}`) {
+      console.log(`[Middleware] Redirecting to dashboard for tenant path: ${tenantId}`)
+      return NextResponse.redirect(new URL(`/tenant/${tenantId}/dashboard`, req.url))
+    }
+
+    // Continuar con la solicitud
+    return NextResponse.next()
   }
 
   // Si intentamos acceder a rutas de tenant desde el dominio principal
@@ -79,8 +88,8 @@ export default async function middleware(req: NextRequest) {
     (!subdomain || subdomain === "www" || subdomain === "app") &&
     (path.startsWith("/dashboard") || path.startsWith("/settings"))
   ) {
-    console.log(`Redirecting from tenant path to main domain`)
-    return NextResponse.redirect(new URL("/", req.url))
+    // Permitir el acceso a estas rutas desde el dominio principal
+    return NextResponse.next()
   }
 
   return NextResponse.next()
