@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
@@ -10,17 +11,17 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import Link from "next/link"
 
-export default function LoginPage() {
+export default function Login() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const { signIn, user, userProfile } = useAuth()
+  const [loading, setLoading] = useState(false)
+  const [hostname, setHostname] = useState("")
+  const { signIn, getUserProfile, user } = useAuth()
   const router = useRouter()
 
-  // Función para verificar si estamos en un subdominio
+  // Verificar si estamos en un subdominio
   const isSubdomain = () => {
     if (typeof window === "undefined") return false
 
@@ -43,71 +44,122 @@ export default function LoginPage() {
     return false
   }
 
-  // Función para obtener el dominio principal
-  const getMainDomain = () => {
-    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-    return window.location.protocol + "//" + rootDomain
-  }
-
-  // Redirigir si ya está autenticado
+  // Usamos useEffect para detectar el subdominio
   useEffect(() => {
-    if (user && userProfile) {
-      const { role } = userProfile
+    if (typeof window !== "undefined") {
+      // Detectar si estamos en un subdominio
+      const host = window.location.hostname
+      setHostname(host)
 
-      // Si el usuario es superadmin y está en un subdominio, redirigirlo al dominio principal
-      if (role === "superadmin" && isSubdomain()) {
-        console.log("Usuario superadmin en subdominio, redirigiendo al dominio principal")
-        window.location.href = `${getMainDomain()}/superadmin/dashboard`
-        return
+      // Si estamos en un subdominio, redirigir a la página de login específica del tenant
+      if (isSubdomain()) {
+        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+        const subdomain = host.replace(`.${rootDomain}`, "")
+        router.push(`/tenant/${subdomain}/login`)
       }
-
-      router.push("/dashboard")
     }
-  }, [user, userProfile, router])
+  }, [router])
+
+  // Si el usuario ya está autenticado, redirigirlo
+  useEffect(() => {
+    if (user) {
+      getUserProfile().then((profile) => {
+        if (profile) {
+          // Redirección basada en rol
+          switch (profile.role) {
+            case "superadmin":
+              router.push("/superadmin/dashboard")
+              break
+            case "admin":
+              // Si el usuario es admin y tiene un tenant, redirigirlo a su subdominio
+              if (profile.tenantId) {
+                const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+                window.location.href = `https://${profile.tenantId}.${rootDomain}/admin/dashboard`
+              } else {
+                router.push("/admin/dashboard")
+              }
+              break
+            default:
+              router.push("/dashboard")
+          }
+        }
+      })
+    }
+  }, [user, router, getUserProfile])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    setIsLoading(true)
+    setLoading(true)
 
     try {
+      console.log("Intentando iniciar sesión con:", email)
       await signIn(email, password)
-      // La redirección se maneja en el useEffect
+      console.log("Autenticación exitosa, obteniendo perfil...")
+
+      // Obtener el perfil del usuario para determinar su rol y tenant
+      let userProfile
+      try {
+        userProfile = await getUserProfile()
+        console.log("Perfil obtenido:", userProfile)
+      } catch (profileError: any) {
+        console.error("Error al obtener perfil:", profileError)
+        setError("No se pudo obtener el perfil del usuario. Por favor, intenta de nuevo.")
+        setLoading(false)
+        return
+      }
+
+      if (!userProfile) {
+        setError("No se encontró el perfil del usuario. Por favor, contacta al administrador.")
+        setLoading(false)
+        return
+      }
+
+      // Lógica de redirección basada en el rol
+      switch (userProfile.role) {
+        case "superadmin":
+          router.push("/superadmin/dashboard")
+          break
+        case "admin":
+          // Si el usuario es admin y tiene un tenant, redirigirlo a su subdominio
+          if (userProfile.tenantId) {
+            const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+            window.location.href = `https://${userProfile.tenantId}.${rootDomain}/admin/dashboard`
+          } else {
+            router.push("/admin/dashboard")
+          }
+          break
+        default:
+          router.push("/dashboard")
+      }
     } catch (error: any) {
-      console.error("Error al iniciar sesión:", error)
-      setError(error.message || "Error al iniciar sesión. Verifica tus credenciales.")
+      console.error("Error completo:", error)
+      setError(error.message || "Error al iniciar sesión")
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
+  // Si estamos en un subdominio, no mostrar esta página (la redirección se maneja en useEffect)
+  if (isSubdomain()) {
+    return null
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
+    <div className="container flex items-center justify-center min-h-screen py-12">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl">Iniciar sesión</CardTitle>
-          <CardDescription>Ingresa tus credenciales para acceder a tu cuenta</CardDescription>
+          <CardDescription>Ingresa tus credenciales para acceder al panel de administración</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Correo electrónico</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="correo@ejemplo.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Contraseña</Label>
-                <Link href="/reset-password" className="text-sm text-primary hover:underline">
-                  ¿Olvidaste tu contraseña?
-                </Link>
-              </div>
+              <Label htmlFor="password">Contraseña</Label>
               <Input
                 id="password"
                 type="password"
@@ -115,24 +167,29 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
+              <div className="text-right">
+                <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
             </div>
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Iniciando sesión..." : "Iniciar sesión"}
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Iniciando sesión..." : "Iniciar sesión"}
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-4">
-          <div className="text-center text-sm">
+        <CardFooter className="flex justify-center">
+          <p className="text-sm text-muted-foreground">
             ¿No tienes una cuenta?{" "}
             <Link href="/register" className="text-primary hover:underline">
-              Regístrate
+              Registrarse
             </Link>
-          </div>
+          </p>
         </CardFooter>
       </Card>
     </div>

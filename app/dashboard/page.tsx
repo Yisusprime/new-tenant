@@ -17,7 +17,7 @@ export default function DashboardRedirect() {
       return
     }
 
-    // Función para verificar si estamos en un subdominio
+    // Verificar si estamos en un subdominio
     const isSubdomain = () => {
       if (typeof window === "undefined") return false
 
@@ -40,28 +40,61 @@ export default function DashboardRedirect() {
       return false
     }
 
-    // Función para obtener el dominio principal
-    const getMainDomain = () => {
+    // Obtener el subdominio actual
+    const getCurrentSubdomain = () => {
+      if (typeof window === "undefined") return null
+
+      const hostname = window.location.hostname
       const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-      return window.location.protocol + "//" + rootDomain
+
+      if (hostname.endsWith(`.${rootDomain}`)) {
+        return hostname.replace(`.${rootDomain}`, "")
+      }
+
+      if (hostname.includes("localhost")) {
+        const subdomainMatch = hostname.match(/^([^.]+)\.localhost/)
+        if (subdomainMatch) {
+          return subdomainMatch[1]
+        }
+      }
+
+      return null
     }
 
     // Redirigir según el rol del usuario
     if (userProfile) {
-      const { role } = userProfile
+      const { role, tenantId } = userProfile
+      const currentSubdomain = getCurrentSubdomain()
+      const isOnSubdomain = isSubdomain()
+
+      console.log("Redirección del dashboard:", {
+        role,
+        tenantId,
+        currentSubdomain,
+        isOnSubdomain,
+      })
 
       // Si el usuario es superadmin y está en un subdominio, redirigirlo al dominio principal
-      if (role === "superadmin" && isSubdomain()) {
+      if (role === "superadmin" && isOnSubdomain) {
         console.log("Usuario superadmin en subdominio, redirigiendo al dominio principal")
-        window.location.href = `${getMainDomain()}/superadmin/dashboard`
+        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+        window.location.href = `https://www.${rootDomain}/superadmin/dashboard`
         return
       }
 
-      // Si no estamos en un subdominio, manejar la redirección normal
+      // Si estamos en un subdominio pero el usuario pertenece a otro tenant
+      if (isOnSubdomain && currentSubdomain !== tenantId && role !== "superadmin" && role !== "admin") {
+        console.log("Usuario en subdominio incorrecto, redirigiendo a su tenant")
+        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+        window.location.href = `https://${tenantId}.${rootDomain}/dashboard`
+        return
+      }
+
+      // Redirección basada en rol
       switch (role) {
         case "superadmin":
           // Solo redirigir a superadmin dashboard si estamos en el dominio principal
-          if (!isSubdomain()) {
+          if (!isOnSubdomain) {
             router.push("/superadmin/dashboard")
           } else {
             // Si por alguna razón un superadmin está en un subdominio, tratarlo como admin

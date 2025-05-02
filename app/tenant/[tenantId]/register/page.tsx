@@ -25,8 +25,15 @@ export default function TenantRegister() {
   const [loading, setLoading] = useState(false)
   const [tenantData, setTenantData] = useState<any>(null)
   const [loadingTenant, setLoadingTenant] = useState(true)
-  const { signUpTenantUser } = useAuth()
+  const { signUpTenantUser, user } = useAuth()
   const router = useRouter()
+
+  // Si el usuario ya está autenticado, redirigirlo
+  useEffect(() => {
+    if (user) {
+      router.push(`/dashboard`)
+    }
+  }, [user, router])
 
   useEffect(() => {
     async function fetchTenantData() {
@@ -70,6 +77,10 @@ export default function TenantRegister() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (user) {
+    return null // Si el usuario ya está autenticado, no mostrar nada
   }
 
   if (loadingTenant) {

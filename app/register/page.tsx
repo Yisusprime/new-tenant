@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
@@ -19,8 +19,48 @@ export default function Register() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-  const { signUp } = useAuth()
+  const { signUp, user } = useAuth()
   const router = useRouter()
+
+  // Verificar si estamos en un subdominio
+  const isSubdomain = () => {
+    if (typeof window === "undefined") return false
+
+    const hostname = window.location.hostname
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+
+    // Verificar si es un subdominio del dominio raíz
+    if (hostname.endsWith(`.${rootDomain}`) && hostname !== `www.${rootDomain}`) {
+      return true
+    }
+
+    // Para desarrollo local
+    if (hostname.includes("localhost")) {
+      const subdomainMatch = hostname.match(/^([^.]+)\.localhost/)
+      if (subdomainMatch && subdomainMatch[1] !== "www" && subdomainMatch[1] !== "app") {
+        return true
+      }
+    }
+
+    return false
+  }
+
+  // Si estamos en un subdominio, redirigir a la página de registro específica del tenant
+  useEffect(() => {
+    if (isSubdomain()) {
+      const hostname = window.location.hostname
+      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+      const subdomain = hostname.replace(`.${rootDomain}`, "")
+      router.push(`/tenant/${subdomain}/register`)
+    }
+  }, [router])
+
+  // Si el usuario ya está autenticado, redirigirlo
+  useEffect(() => {
+    if (user) {
+      router.push("/dashboard")
+    }
+  }, [user, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,12 +69,21 @@ export default function Register() {
 
     try {
       await signUp(email, password, name, companyName)
-      router.push("/dashboard")
+
+      // Después del registro exitoso, redirigir al usuario a su nuevo subdominio
+      const tenantId = companyName.toLowerCase().replace(/[^a-z0-9]/g, "-")
+      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+      window.location.href = `https://${tenantId}.${rootDomain}/admin/dashboard`
     } catch (error: any) {
       setError(error.message || "Error al registrarse")
     } finally {
       setLoading(false)
     }
+  }
+
+  // Si estamos en un subdominio, no mostrar esta página (la redirección se maneja en useEffect)
+  if (isSubdomain()) {
+    return null
   }
 
   return (

@@ -51,7 +51,7 @@ export default async function middleware(req: NextRequest) {
   }
 
   // REGLA 2: Si estamos en un subdominio e intentamos acceder a /login o /register, redirigir a la versión específica del tenant
-  if (isSubdomain) {
+  if (isSubdomain && subdomain) {
     if (path === "/login") {
       console.log(`[Middleware] Redirecting login to tenant-specific login: ${subdomain}`)
       return NextResponse.redirect(new URL(`/tenant/${subdomain}/login`, req.url))
