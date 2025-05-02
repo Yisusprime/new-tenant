@@ -30,6 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log("Auth state changed:", user ? "User logged in" : "User logged out")
       setUser(user)
       setLoading(false)
     })
@@ -98,7 +99,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
+      console.log("Attempting to sign out...")
       await firebaseSignOut(auth)
+      console.log("Sign out successful")
+      // Limpiar cualquier estado local si es necesario
+      return Promise.resolve()
     } catch (error) {
       console.error("Error signing out:", error)
       throw error

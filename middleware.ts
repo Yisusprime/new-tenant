@@ -9,8 +9,9 @@ export const config = {
      * 3. /static (public files)
      * 4. /_vercel (Vercel internals)
      * 5. all root files inside /public (robots.txt, favicon.ico, etc.)
+     * 6. /login and /register routes
      */
-    "/((?!api|_next|static|_vercel|[\\w-]+\\.\\w+).*)",
+    "/((?!api|_next|static|_vercel|login|register|[\\w-]+\\.\\w+).*)",
   ],
 }
 

@@ -3,7 +3,7 @@
 import type React from "react"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { LayoutDashboard, Settings, LogOut, Menu, X, Users, Globe } from "lucide-react"
@@ -11,15 +11,25 @@ import { useState, useEffect } from "react"
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
   const { user, getUserProfile, signOut } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function checkAdminStatus() {
       if (user) {
-        const profile = await getUserProfile()
-        setIsAdmin(profile?.role === "admin")
+        try {
+          const profile = await getUserProfile()
+          setIsAdmin(profile?.role === "admin")
+        } catch (error) {
+          console.error("Error checking admin status:", error)
+        } finally {
+          setLoading(false)
+        }
+      } else {
+        setLoading(false)
       }
     }
 
@@ -36,8 +46,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: "Dominios", href: "/admin/domains", icon: Globe },
   ]
 
-  const handleSignOut = () => {
-    signOut()
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+      console.log("Usuario cerró sesión correctamente")
+      router.push("/login")
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error)
+    }
   }
 
   return (
@@ -161,7 +177,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Button
                 variant="ghost"
                 className="flex items-center justify-start space-x-2 px-3 py-2 w-full"
-                onClick={() => handleSignOut()}
+                onClick={handleSignOut}
               >
                 <LogOut className="h-5 w-5" />
                 <span>Cerrar sesión</span>
