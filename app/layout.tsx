@@ -1,28 +1,32 @@
 import type React from "react"
-import "./globals.css"
+import type { Metadata } from "next"
 import { Inter } from "next/font/google"
+import "./globals.css"
 import { AuthProvider } from "@/lib/auth-context"
-import { ThemeProvider } from "@/components/theme-provider"
+import FirebaseProvider from "@/components/firebase-provider"
+import ErrorBoundary from "@/components/error-boundary"
 
 const inter = Inter({ subsets: ["latin"] })
 
-export const metadata = {
-  title: "Multi-Cliente SaaS",
-  description: "Plataforma SaaS multi-cliente con subdominios personalizados",
+export const metadata: Metadata = {
+  title: "Multi-tenant SaaS",
+  description: "Plataforma multi-tenant para restaurantes",
     generator: 'v0.dev'
 }
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode
-}) {
+}>) {
   return (
     <html lang="es">
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <AuthProvider>{children}</AuthProvider>
-        </ThemeProvider>
+        <ErrorBoundary>
+          <FirebaseProvider>
+            <AuthProvider>{children}</AuthProvider>
+          </FirebaseProvider>
+        </ErrorBoundary>
       </body>
     </html>
   )

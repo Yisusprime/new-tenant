@@ -17,7 +17,7 @@ import {
   OAuthProvider,
 } from "firebase/auth"
 import { getFirestore, doc, setDoc, getDoc, updateDoc } from "firebase/firestore"
-import { getApp } from "firebase/app"
+import { app } from "@/lib/firebase/client"
 
 export type UserRole = "superadmin" | "admin" | "manager" | "waiter" | "delivery" | "client" | "user"
 
@@ -74,24 +74,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [userProfile, setUserProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  // Solo inicializar Firebase en el cliente
-  const [auth, setAuth] = useState<any>(null)
-  const [db, setDb] = useState<any>(null)
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setAuth(getAuth(getApp()))
-      setDb(getFirestore(getApp()))
-    }
-  }, [])
+  // Usar Firebase directamente desde el módulo client
+  const auth = getAuth(app)
+  const db = getFirestore(app)
 
   useEffect(() => {
     if (!auth) {
+      console.error("Auth no está disponible")
       setLoading(false)
-      return
+      return () => {}
     }
 
+    console.log("Configurando listener de autenticación")
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log("Estado de autenticación cambiado:", user ? "Usuario autenticado" : "No autenticado")
       if (user) {
         setUser(user)
         try {
@@ -112,6 +108,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const getUserProfileData = async (uid: string) => {
     try {
+      if (!db) {
+        console.error("Firestore no está disponible")
+        return null
+      }
+
       const userDoc = await getDoc(doc(db, "users", uid))
       if (userDoc.exists()) {
         return {
@@ -130,6 +131,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signUp = async (email: string, password: string, displayName: string, companyName: string) => {
     try {
+      if (!auth || !db) {
+        throw new Error("Firebase no está inicializado correctamente")
+      }
+
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
 
@@ -205,6 +210,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     tenantId: string,
   ) => {
     try {
+      if (!auth || !db) {
+        throw new Error("Firebase no está inicializado correctamente")
+      }
+
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
 
@@ -229,6 +238,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
+      if (!auth) {
+        throw new Error("Firebase Auth no está inicializado correctamente")
+      }
+
       await signInWithEmailAndPassword(auth, email, password)
     } catch (error: any) {
       console.error("Error signing in:", error)
@@ -238,6 +251,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signOutUser = async () => {
     try {
+      if (!auth) {
+        throw new Error("Firebase Auth no está inicializado correctamente")
+      }
+
       await signOut(auth)
       setUser(null)
       setUserProfile(null)
@@ -249,6 +266,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const updateUserProfile = async (displayName: string) => {
     try {
+      if (!auth || !db) {
+        throw new Error("Firebase no está inicializado correctamente")
+      }
+
       if (auth.currentUser) {
         await updateProfile(auth.currentUser, { displayName })
         await updateDoc(doc(db, "users", auth.currentUser.uid), {
@@ -266,6 +287,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const updateUserRole = async (userId: string, role: UserRole) => {
     try {
+      if (!db) {
+        throw new Error("Firestore no está inicializado correctamente")
+      }
+
       await updateDoc(doc(db, "users", userId), {
         role: role,
       })
@@ -277,6 +302,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const resetPassword = async (email: string) => {
     try {
+      if (!auth) {
+        throw new Error("Firebase Auth no está inicializado correctamente")
+      }
+
       await sendPasswordResetEmail(auth, email)
     } catch (error: any) {
       console.error("Error sending password reset email:", error)
@@ -286,6 +315,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const confirmPasswordResetUser = async (code: string, newPassword: string) => {
     try {
+      if (!auth) {
+        throw new Error("Firebase Auth no está inicializado correctamente")
+      }
+
       await confirmPasswordReset(auth, code, newPassword)
     } catch (error: any) {
       console.error("Error confirming password reset:", error)
@@ -295,6 +328,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signInWithGoogle = async () => {
     try {
+      if (!auth) {
+        throw new Error("Firebase Auth no está inicializado correctamente")
+      }
+
       const provider = new GoogleAuthProvider()
       await signInWithPopup(auth, provider)
     } catch (error: any) {
@@ -305,6 +342,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signInWithFacebook = async () => {
     try {
+      if (!auth) {
+        throw new Error("Firebase Auth no está inicializado correctamente")
+      }
+
       const provider = new FacebookAuthProvider()
       await signInWithPopup(auth, provider)
     } catch (error: any) {
@@ -315,6 +356,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signInWithMicrosoft = async () => {
     try {
+      if (!auth) {
+        throw new Error("Firebase Auth no está inicializado correctamente")
+      }
+
       const provider = new OAuthProvider("microsoft.com")
       await signInWithPopup(auth, provider)
     } catch (error: any) {
@@ -324,17 +369,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }
 
   const getUserProfile = async () => {
-    if (auth.currentUser) {
-      try {
-        const profile = await getUserProfileData(auth.currentUser.uid)
-        setUserProfile(profile)
-        return profile
-      } catch (error) {
-        console.error("Error getting user profile:", error)
-        return null
-      }
+    if (!auth || !auth.currentUser) {
+      return null
     }
-    return null
+
+    try {
+      const profile = await getUserProfileData(auth.currentUser.uid)
+      setUserProfile(profile)
+      return profile
+    } catch (error) {
+      console.error("Error getting user profile:", error)
+      return null
+    }
   }
 
   const value = {
@@ -355,5 +401,5 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loading,
   }
 
-  return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
