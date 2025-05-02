@@ -69,6 +69,36 @@ interface AuthProviderProps {
   children: ReactNode
 }
 
+// Función para eliminar todas las cookies
+const deleteAllCookies = () => {
+  const cookies = document.cookie.split(";")
+
+  for (let i = 0; i < cookies.length; i++) {
+    const cookie = cookies[i]
+    const eqPos = cookie.indexOf("=")
+    const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim()
+
+    // Eliminar todas las cookies relacionadas con Firebase
+    if (name.includes("firebase") || name.includes("__session") || name.includes("auth")) {
+      document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=" + window.location.hostname
+
+      // También intentar eliminar la cookie sin el dominio específico
+      document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/"
+
+      // Intentar con diferentes dominios (para cubrir subdominios)
+      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+      document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=." + rootDomain
+      document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=" + rootDomain
+    }
+  }
+
+  // Limpiar localStorage y sessionStorage
+  localStorage.clear()
+  sessionStorage.clear()
+
+  console.log("Todas las cookies y almacenamiento local han sido eliminados")
+}
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState(null)
   const [userProfile, setUserProfile] = useState<any>(null)
@@ -277,9 +307,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw new Error("Firebase Auth no está inicializado correctamente")
       }
 
+      // Primero, cerrar sesión en Firebase
       await signOut(auth)
+
+      // Luego, eliminar todas las cookies y almacenamiento local
+      deleteAllCookies()
+
+      // Actualizar el estado local
       setUser(null)
       setUserProfile(null)
+
+      console.log("Sesión cerrada y cookies eliminadas")
+
+      // Forzar recarga de la página para asegurar que todo se limpie
+      if (typeof window !== "undefined") {
+        // Guardar la URL actual para redirigir después de la recarga
+        const currentUrl = window.location.href
+
+        // Si estamos en un subdominio y queremos ir al dominio principal
+        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+        if (currentUrl.includes(`.${rootDomain}`) && !currentUrl.includes(`www.${rootDomain}`)) {
+          // Redirigir al dominio principal
+          window.location.href = `https://www.${rootDomain}/login?clean=true`
+        } else {
+          // Recargar la página actual con un parámetro para evitar caché
+          window.location.href = currentUrl.includes("?") ? `${currentUrl}&clean=true` : `${currentUrl}?clean=true`
+        }
+      }
     } catch (error: any) {
       console.error("Error signing out:", error)
       throw error

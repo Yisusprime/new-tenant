@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,13 +12,43 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
+// Función para eliminar todas las cookies de Firebase
+const deleteFirebaseCookies = () => {
+  const cookies = document.cookie.split(";")
+
+  for (let i = 0; i < cookies.length; i++) {
+    const cookie = cookies[i]
+    const eqPos = cookie.indexOf("=")
+    const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim()
+
+    // Eliminar todas las cookies relacionadas con Firebase
+    if (name.includes("firebase") || name.includes("__session") || name.includes("auth")) {
+      document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=" + window.location.hostname
+      document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/"
+
+      // Intentar con diferentes dominios (para cubrir subdominios)
+      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+      document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=." + rootDomain
+      document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=" + rootDomain
+    }
+  }
+
+  // Limpiar localStorage y sessionStorage
+  localStorage.clear()
+  sessionStorage.clear()
+
+  console.log("Todas las cookies de Firebase han sido eliminadas")
+}
+
 export default function Login() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [cleaningSession, setCleaningSession] = useState(false)
   const { signIn, getUserProfile, user, signOut } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   // Verificar si estamos en un subdominio
   const isSubdomain = () => {
@@ -45,17 +75,35 @@ export default function Login() {
 
   // Limpiar cualquier estado persistente al cargar la página
   useEffect(() => {
-    // Limpiar cualquier cookie o localStorage que pueda estar causando redirecciones incorrectas
-    if (typeof window !== "undefined") {
-      // Limpiar localStorage
-      localStorage.removeItem("lastTenant")
-      localStorage.removeItem("lastRole")
+    // Si hay un parámetro clean=true, limpiar las cookies
+    const clean = searchParams.get("clean")
 
-      // Limpiar sessionStorage
-      sessionStorage.removeItem("lastTenant")
-      sessionStorage.removeItem("lastRole")
+    if (clean === "true") {
+      setCleaningSession(true)
 
-      // Forzar la recarga de la página si venimos de un subdominio
+      // Eliminar todas las cookies de Firebase
+      deleteFirebaseCookies()
+
+      // Esperar un momento y luego recargar sin el parámetro clean
+      setTimeout(() => {
+        const url = new URL(window.location.href)
+        url.searchParams.delete("clean")
+        window.location.href = url.toString()
+      }, 500)
+
+      return
+    }
+
+    // Si detectamos que el usuario está autenticado pero estamos en la página de login,
+    // probablemente sea una sesión persistente que debemos limpiar
+    if (user && !cleaningSession) {
+      console.log("Usuario autenticado detectado en página de login, cerrando sesión...")
+      signOut()
+      return
+    }
+
+    // Verificar si venimos de un subdominio
+    if (typeof window !== "undefined" && !cleaningSession) {
       const referrer = document.referrer
       const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
 
@@ -65,17 +113,23 @@ export default function Login() {
         !referrer.includes("localhost:3000") &&
         (referrer.includes(`.${rootDomain}`) || referrer.includes(".localhost"))
       ) {
-        // Si venimos de un subdominio y estamos en el dominio principal, forzar recarga
-        if (!isSubdomain() && !window.location.href.includes("?reloaded=true")) {
-          window.location.href = window.location.href + "?reloaded=true"
-        }
+        console.log("Detectada navegación desde subdominio, limpiando sesión...")
+        setCleaningSession(true)
+
+        // Eliminar todas las cookies de Firebase
+        deleteFirebaseCookies()
+
+        // Recargar la página para asegurar que todo se limpie
+        setTimeout(() => {
+          window.location.href = window.location.href + "?clean=true"
+        }, 100)
       }
     }
-  }, [])
+  }, [user, signOut, searchParams, cleaningSession])
 
   // Si el usuario ya está autenticado, redirigirlo
   useEffect(() => {
-    if (user) {
+    if (user && !cleaningSession) {
       getUserProfile().then((profile) => {
         if (profile) {
           // Solo permitir superadmin en el dominio principal
@@ -99,7 +153,7 @@ export default function Login() {
         }
       })
     }
-  }, [user, router, getUserProfile])
+  }, [user, router, getUserProfile, cleaningSession])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -150,6 +204,23 @@ export default function Login() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Si estamos limpiando la sesión, mostrar un mensaje de carga
+  if (cleaningSession) {
+    return (
+      <div className="container flex items-center justify-center min-h-screen py-12">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-2xl">Limpiando sesión anterior...</CardTitle>
+            <CardDescription>Por favor espera un momento</CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center py-6">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   // Si estamos en un subdominio, no mostrar esta página
