@@ -21,8 +21,39 @@ export default function DashboardRedirect() {
     if (userProfile) {
       const { role } = userProfile
 
+      // Verificar si estamos en un subdominio de tenant
+      const isSubdomain = () => {
+        if (typeof window === "undefined") return false
+
+        const hostname = window.location.hostname
+        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+
+        // Verificar si es un subdominio del dominio raíz
+        if (hostname.endsWith(`.${rootDomain}`) && hostname !== `www.${rootDomain}`) {
+          return true
+        }
+
+        // Para desarrollo local
+        if (hostname.includes("localhost")) {
+          const subdomainMatch = hostname.match(/^([^.]+)\.localhost/)
+          if (subdomainMatch && subdomainMatch[1] !== "www" && subdomainMatch[1] !== "app") {
+            return true
+          }
+        }
+
+        return false
+      }
+
+      // Si estamos en un subdominio y el usuario es superadmin, tratarlo como admin normal
+      if (isSubdomain() && role === "superadmin") {
+        console.log("Usuario superadmin en subdominio, redirigiendo a admin dashboard")
+        router.push("/admin/dashboard")
+        return
+      }
+
       switch (role) {
         case "superadmin":
+          // Solo redirigir a superadmin dashboard si estamos en el dominio principal
           router.push("/superadmin/dashboard")
           break
         case "admin":

@@ -34,6 +34,12 @@ export default async function middleware(req: NextRequest) {
     console.log(`[Middleware] Subdomain detected: ${subdomain}`)
 
     if (subdomain !== "www" && subdomain !== "app") {
+      // Si intentamos acceder a rutas de superadmin desde un subdominio, redirigir a unauthorized
+      if (path.startsWith("/superadmin")) {
+        console.log(`[Middleware] Blocking access to superadmin routes from subdomain: ${subdomain}`)
+        return NextResponse.redirect(new URL(`/unauthorized`, req.url))
+      }
+
       // Si estamos en la ruta raíz del subdominio, redirigir al dashboard
       if (path === "/") {
         console.log(`[Middleware] Redirecting to dashboard for subdomain: ${subdomain}`)
@@ -83,6 +89,12 @@ export default async function middleware(req: NextRequest) {
       console.log(`[Middleware] Local subdomain detected: ${subdomain}`)
 
       if (subdomain !== "www" && subdomain !== "app") {
+        // Si intentamos acceder a rutas de superadmin desde un subdominio, redirigir a unauthorized
+        if (path.startsWith("/superadmin")) {
+          console.log(`[Middleware] Blocking access to superadmin routes from subdomain: ${subdomain}`)
+          return NextResponse.redirect(new URL(`/unauthorized`, req.url))
+        }
+
         // Si estamos en la ruta raíz del subdominio, redirigir al dashboard
         if (path === "/") {
           console.log(`[Middleware] Redirecting to dashboard for local subdomain: ${subdomain}`)

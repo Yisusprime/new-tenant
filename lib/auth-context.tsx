@@ -1,120 +1,90 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect } from "react"
+import type React from "react"
+import { createContext, useState, useEffect, useContext, type ReactNode } from "react"
 import {
+  getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signOut as firebaseSignOut,
+  signOut,
   onAuthStateChanged,
   updateProfile,
   sendPasswordResetEmail,
-  setPersistence,
-  browserLocalPersistence,
+  confirmPasswordReset,
+  signInWithPopup,
+  GoogleAuthProvider,
+  FacebookAuthProvider,
+  OAuthProvider,
 } from "firebase/auth"
-import { auth, db } from "./firebase"
-import { setDoc, doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore"
-import { useRouter } from "next/navigation"
+import { getFirestore, doc, setDoc, getDoc, updateDoc } from "firebase/firestore"
+import { getApp } from "firebase/app"
 
-export type UserRole = "superadmin" | "admin" | "client" | "waiter" | "delivery" | "manager" | "user"
+export type UserRole = "superadmin" | "admin" | "manager" | "waiter" | "delivery" | "client" | "user"
 
-// Crear un tipo para el contexto de autenticación
-type AuthContextType = {
+interface AuthContextProps {
   user: any
   userProfile: any
-  loading: boolean
+  signUp: (email: string, password: string, displayName: string, companyName: string) => Promise<void>
+  signUpTenantUser: (
+    email: string,
+    password: string,
+    displayName: string,
+    role: UserRole,
+    tenantId: string,
+  ) => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, name: string, companyName: string) => Promise<void>
-  signUpTenantUser: (email: string, password: string, name: string, role: UserRole, tenantId: string) => Promise<any>
   signOut: () => Promise<void>
-  resetPassword: (email: string) => Promise<void>
-  updateUserProfile: (displayName: string, photoURL: string) => Promise<void>
+  updateUserProfile: (displayName: string) => Promise<void>
   updateUserRole: (userId: string, role: UserRole) => Promise<void>
+  resetPassword: (email: string) => Promise<void>
+  confirmPasswordResetUser: (code: string, newPassword: string) => Promise<void>
+  signInWithGoogle: () => Promise<void>
+  signInWithFacebook: () => Promise<void>
+  signInWithMicrosoft: () => Promise<void>
   getUserProfile: () => Promise<any>
+  loading: boolean
 }
 
-// Crear el contexto con un valor por defecto
-const AuthContext = createContext<AuthContextType>({} as AuthContextType)
+const AuthContext = createContext<AuthContextProps>({
+  user: null,
+  userProfile: null,
+  signUp: async () => {},
+  signUpTenantUser: async () => {},
+  signIn: async () => {},
+  signOut: async () => {},
+  updateUserProfile: async () => {},
+  updateUserRole: async () => {},
+  resetPassword: async () => {},
+  confirmPasswordResetUser: async () => {},
+  signInWithGoogle: async () => {},
+  signInWithFacebook: async () => {},
+  signInWithMicrosoft: async () => {},
+  getUserProfile: async () => {},
+  loading: true,
+})
 
-export const AuthProvider = ({ children }) => {
+export const useAuth = () => useContext(AuthContext)
+
+interface AuthProviderProps {
+  children: ReactNode
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState(null)
   const [userProfile, setUserProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const router = useRouter()
-
-  // Función para detectar el subdominio actual
-  const getCurrentTenantId = () => {
-    if (typeof window === "undefined") return null
-
-    const hostname = window.location.hostname
-    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-
-    // Verificar si es un subdominio del dominio raíz
-    if (hostname.endsWith(`.${rootDomain}`)) {
-      const subdomain = hostname.replace(`.${rootDomain}`, "")
-      if (subdomain !== "www" && subdomain !== "app") {
-        return subdomain
-      }
-    }
-
-    // Para desarrollo local
-    if (hostname.includes("localhost")) {
-      const subdomainMatch = hostname.match(/^([^.]+)\.localhost/)
-      if (subdomainMatch) {
-        const subdomain = subdomainMatch[1]
-        if (subdomain !== "www" && subdomain !== "app") {
-          return subdomain
-        }
-      }
-    }
-
-    return null
-  }
-
-  // Configurar persistencia de sesión
-  useEffect(() => {
-    const setupPersistence = async () => {
-      try {
-        await setPersistence(auth, browserLocalPersistence)
-        console.log("Persistencia de sesión configurada correctamente")
-      } catch (error) {
-        console.error("Error al configurar persistencia:", error)
-      }
-    }
-
-    setupPersistence()
-  }, [])
+  const auth = getAuth(getApp())
+  const db = getFirestore(getApp())
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      console.log("Estado de autenticación cambiado:", user ? "Usuario autenticado" : "Usuario no autenticado")
-
       if (user) {
         setUser(user)
-        // Fetch user profile
         try {
           const profile = await getUserProfileData(user.uid)
-          console.log("Perfil obtenido desde onAuthStateChanged:", profile)
-
-          // Si estamos en un subdominio, verificar que el usuario pertenece a este tenant
-          const currentTenantId = getCurrentTenantId()
-          if (currentTenantId && profile && profile.tenantId !== currentTenantId) {
-            console.log(`Usuario no pertenece al tenant ${currentTenantId}. Buscando perfil alternativo...`)
-
-            // Buscar si el usuario tiene un perfil asociado a este tenant
-            const tenantProfile = await getUserProfileForTenant(user.uid, currentTenantId)
-
-            if (tenantProfile) {
-              console.log("Perfil encontrado para este tenant:", tenantProfile)
-              setUserProfile(tenantProfile)
-            } else {
-              console.log("Usuario no tiene acceso a este tenant")
-              setUserProfile(profile) // Usar el perfil original
-            }
-          } else {
-            setUserProfile(profile)
-          }
+          setUserProfile(profile)
         } catch (error) {
-          console.error("Error al obtener perfil de usuario:", error)
+          console.error("Error loading user profile on auth change:", error)
         }
       } else {
         setUser(null)
@@ -124,75 +94,43 @@ export const AuthProvider = ({ children }) => {
     })
 
     return () => unsubscribe()
-  }, [])
+  }, [auth])
 
-  const signIn = async (email, password) => {
+  const getUserProfileData = async (uid: string) => {
     try {
-      console.log("Iniciando sesión con:", email)
-      const userCredential = await signInWithEmailAndPassword(auth, email, password)
-      console.log("Inicio de sesión exitoso:", userCredential.user.uid)
-
-      // Obtener el perfil del usuario inmediatamente después de iniciar sesión
-      const profile = await getUserProfileData(userCredential.user.uid)
-      console.log("Perfil obtenido después de iniciar sesión:", profile)
-
-      if (profile) {
-        setUserProfile(profile)
+      const userDoc = await getDoc(doc(db, "users", uid))
+      if (userDoc.exists()) {
+        return {
+          id: userDoc.id,
+          ...userDoc.data(),
+        }
+      } else {
+        console.warn("No user profile found in Firestore")
+        return null
       }
-
-      return userCredential.user
     } catch (error) {
-      console.error("Error signing in:", error)
+      console.error("Error fetching user profile:", error)
       throw error
     }
   }
 
-  // Modificar la función signUp para asegurar que el perfil se crea correctamente
-  const signUp = async (email: string, password: string, name: string, companyName: string) => {
+  const signUp = async (email: string, password: string, displayName: string, companyName: string) => {
     try {
-      console.log("1. Iniciando registro...")
-
-      // 1. Crear el usuario en Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
-      console.log("2. Usuario creado en Auth:", user.uid)
 
-      // 2. Generate a unique subdomain from company name
-      const subdomain = companyName
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, "")
-        .substring(0, 20)
-      console.log("3. Subdomain generado:", subdomain)
+      await updateProfile(user, { displayName })
 
-      // 3. Crear el perfil de usuario en Firestore
-      const userData = {
-        email,
-        name,
-        companyName,
-        subdomain,
-        role: "admin", // Cambiado de "user" a "admin" para propietarios de tenant
-        isTenantOwner: true,
-        tenantId: subdomain,
-        createdAt: new Date().toISOString(),
-      }
-
-      console.log("4. Creando perfil de usuario:", userData)
-      await setDoc(doc(db, "users", user.uid), userData)
-      console.log("5. Perfil de usuario creado exitosamente")
-
-      // 4. Crear el tenant
+      // Crear tenant
+      const tenantId = companyName.toLowerCase().replace(/[^a-z0-9]/g, "-")
       const tenantData = {
-        ownerId: user.uid,
         name: companyName,
-        subdomain,
-        customDomain: null,
-        active: true,
+        subdomain: tenantId,
+        ownerId: user.uid,
         createdAt: new Date().toISOString(),
       }
 
-      console.log("6. Creando tenant:", tenantData)
-      await setDoc(doc(db, "tenants", subdomain), tenantData)
-      console.log("7. Tenant creado exitosamente")
+      await setDoc(doc(db, "tenants", tenantId), tenantData)
 
       // 5. Verificar si es el primer usuario (para asignar rol de superadmin)
       let isFirstUser = false
@@ -200,6 +138,7 @@ export const AuthProvider = ({ children }) => {
         const systemRef = doc(db, "system", "stats")
         const systemDoc = await getDoc(systemRef)
 
+        // Solo asignar superadmin si es el primer usuario
         isFirstUser = !systemDoc.exists() || !systemDoc.data()?.userCount
 
         if (isFirstUser) {
@@ -214,6 +153,7 @@ export const AuthProvider = ({ children }) => {
           systemRef,
           {
             userCount: (systemDoc.exists() ? systemDoc.data()?.userCount || 0 : 0) + 1,
+            tenantCount: (systemDoc.exists() ? systemDoc.data()?.tenantCount || 0 : 0) + 1,
             lastRegistration: new Date().toISOString(),
           },
           { merge: true },
@@ -224,111 +164,87 @@ export const AuthProvider = ({ children }) => {
         // No interrumpir el proceso por este error
       }
 
-      console.log("10. Registro completado con éxito")
-
-      // Actualizar el estado local con el nuevo usuario
-      setUserProfile({
-        ...userData,
-        role: isFirstUser ? "superadmin" : "admin", // Actualizado para reflejar el rol correcto
+      await setDoc(doc(db, "users", user.uid), {
+        displayName,
+        email,
+        role: isFirstUser ? "superadmin" : "user",
+        tenantId: tenantId,
+        isTenantOwner: true,
+        companyName: companyName,
+        createdAt: new Date().toISOString(),
       })
 
-      // IMPORTANTE: Redirigir al subdominio del tenant
-      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-
-      // Usar window.location.href para una redirección completa al subdominio
-      if (typeof window !== "undefined") {
-        window.location.href = `https://${subdomain}.${rootDomain}/dashboard`
-      }
-
-      // No usar router.push aquí, ya que necesitamos cambiar de dominio
-      return
-    } catch (error) {
+      setUser(user)
+      const profile = await getUserProfileData(user.uid)
+      setUserProfile(profile)
+    } catch (error: any) {
       console.error("Error signing up:", error)
       throw error
     }
   }
 
-  const signUpTenantUser = async (email: string, password: string, name: string, role: UserRole, tenantId: string) => {
+  const signUpTenantUser = async (
+    email: string,
+    password: string,
+    displayName: string,
+    role: UserRole,
+    tenantId: string,
+  ) => {
     try {
-      console.log(`Registrando usuario ${name} como ${role} en tenant ${tenantId}`)
-
-      // 1. Crear el usuario en Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
-      console.log("Usuario creado en Auth:", user.uid)
 
-      // 2. Crear el perfil de usuario en Firestore
-      const userData = {
+      await updateProfile(user, { displayName })
+
+      await setDoc(doc(db, "users", user.uid), {
+        displayName,
         email,
-        name,
-        role,
-        tenantId,
+        role: role,
+        tenantId: tenantId,
         createdAt: new Date().toISOString(),
-        // Si es cliente, no es dueño del tenant
-        isTenantOwner: false,
-      }
+      })
 
-      console.log("Creando perfil de usuario:", userData)
-      await setDoc(doc(db, "users", user.uid), userData)
-      console.log("Perfil de usuario creado exitosamente")
-
-      return user
-    } catch (error) {
-      console.error("Error signing up tenant user:", error)
+      setUser(user)
+      const profile = await getUserProfileData(user.uid)
+      setUserProfile(profile)
+    } catch (error: any) {
+      console.error("Error signing up:", error)
       throw error
     }
   }
 
-  // Renombrar a signOut para consistencia y usar firebaseSignOut para evitar conflictos
-  const signOut = async () => {
+  const signIn = async (email: string, password: string) => {
     try {
-      console.log("Cerrando sesión...")
+      await signInWithEmailAndPassword(auth, email, password)
+    } catch (error: any) {
+      console.error("Error signing in:", error)
+      throw error
+    }
+  }
 
-      // Obtener el hostname actual para determinar si estamos en un subdominio
-      const hostname = typeof window !== "undefined" ? window.location.hostname : ""
-      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-      const isSubdomain = hostname.endsWith(`.${rootDomain}`) && !hostname.startsWith("www.") && hostname !== rootDomain
-
-      // Guardar el subdominio actual antes de cerrar sesión
-      const currentSubdomain = getCurrentTenantId()
-
-      // Limpiar el estado de autenticación
-      await firebaseSignOut(auth)
+  const signOutUser = async () => {
+    try {
+      await signOut(auth)
       setUser(null)
       setUserProfile(null)
+    } catch (error: any) {
+      console.error("Error signing out:", error)
+      throw error
+    }
+  }
 
-      // Redirigir según el contexto
-      if (isSubdomain && currentSubdomain) {
-        // Si estamos en un subdominio, redirigir a la página de login del mismo subdominio
-        console.log(`Redirigiendo a login del subdominio actual: ${currentSubdomain}`)
-        router.push(`/tenant/${currentSubdomain}/login`)
-      } else {
-        // Si estamos en el dominio principal, redirigir a la página principal
-        router.push("/login")
+  const updateUserProfile = async (displayName: string) => {
+    try {
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, { displayName })
+        await updateDoc(doc(db, "users", auth.currentUser.uid), {
+          displayName,
+        })
+        setUser(auth.currentUser)
+        const profile = await getUserProfileData(auth.currentUser.uid)
+        setUserProfile(profile)
       }
-    } catch (error) {
-      console.error("Error al cerrar sesión:", error)
-      throw error
-    }
-  }
-
-  const resetPassword = async (email) => {
-    try {
-      await sendPasswordResetEmail(auth, email)
-    } catch (error) {
-      console.error("Error sending password reset email:", error)
-      throw error
-    }
-  }
-
-  const updateUserProfile = async (displayName, photoURL) => {
-    try {
-      await updateProfile(auth.currentUser, {
-        displayName: displayName,
-        photoURL: photoURL,
-      })
-      setUser(auth.currentUser) // Update local state
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating profile:", error)
       throw error
     }
@@ -339,102 +255,91 @@ export const AuthProvider = ({ children }) => {
       await updateDoc(doc(db, "users", userId), {
         role: role,
       })
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating user role:", error)
       throw error
     }
   }
 
-  const getUserProfile = async () => {
-    if (!user) return null
-
+  const resetPassword = async (email: string) => {
     try {
-      // Primero intentamos obtener el perfil principal del usuario
-      const profile = await getUserProfileData(user.uid)
-      console.log("Perfil obtenido desde getUserProfile:", profile)
-
-      // Si estamos en un subdominio, verificar que el usuario pertenece a este tenant
-      const currentTenantId = getCurrentTenantId()
-      if (currentTenantId && profile && profile.tenantId !== currentTenantId) {
-        console.log(`Usuario no pertenece al tenant ${currentTenantId}. Buscando perfil alternativo...`)
-
-        // Buscar si el usuario tiene un perfil asociado a este tenant
-        const tenantProfile = await getUserProfileForTenant(user.uid, currentTenantId)
-
-        if (tenantProfile) {
-          console.log("Perfil encontrado para este tenant:", tenantProfile)
-          return tenantProfile
-        }
-      }
-
-      return profile
-    } catch (error) {
-      console.error("Error getting user profile:", error)
-      return null
+      await sendPasswordResetEmail(auth, email)
+    } catch (error: any) {
+      console.error("Error sending password reset email:", error)
+      throw error
     }
   }
 
-  const getUserProfileData = async (uid: string) => {
+  const confirmPasswordResetUser = async (code: string, newPassword: string) => {
     try {
-      console.log(`Obteniendo perfil para usuario: ${uid}`)
-      const userDoc = await getDoc(doc(db, "users", uid))
+      await confirmPasswordReset(auth, code, newPassword)
+    } catch (error: any) {
+      console.error("Error confirming password reset:", error)
+      throw error
+    }
+  }
 
-      if (userDoc.exists()) {
-        console.log("Perfil encontrado:", userDoc.data())
-        return userDoc.data()
-      } else {
-        console.log("No se encontró el documento del usuario")
+  const signInWithGoogle = async () => {
+    try {
+      const provider = new GoogleAuthProvider()
+      await signInWithPopup(auth, provider)
+    } catch (error: any) {
+      console.error("Error signing in with Google:", error)
+      throw error
+    }
+  }
+
+  const signInWithFacebook = async () => {
+    try {
+      const provider = new FacebookAuthProvider()
+      await signInWithPopup(auth, provider)
+    } catch (error: any) {
+      console.error("Error signing in with Facebook:", error)
+      throw error
+    }
+  }
+
+  const signInWithMicrosoft = async () => {
+    try {
+      const provider = new OAuthProvider("microsoft.com")
+      await signInWithPopup(auth, provider)
+    } catch (error: any) {
+      console.error("Error signing in with Microsoft:", error)
+      throw error
+    }
+  }
+
+  const getUserProfile = async () => {
+    if (auth.currentUser) {
+      try {
+        const profile = await getUserProfileData(auth.currentUser.uid)
+        setUserProfile(profile)
+        return profile
+      } catch (error) {
+        console.error("Error getting user profile:", error)
         return null
       }
-    } catch (error) {
-      console.error("Error getting document:", error)
-      return null
     }
-  }
-
-  // Nueva función para buscar perfiles de usuario asociados a un tenant específico
-  const getUserProfileForTenant = async (uid: string, tenantId: string) => {
-    try {
-      console.log(`Buscando perfil para usuario ${uid} en tenant ${tenantId}`)
-
-      // Buscar en la colección de usuarios por UID y tenantId
-      const usersRef = collection(db, "users")
-      const q = query(usersRef, where("tenantId", "==", tenantId))
-      const querySnapshot = await getDocs(q)
-
-      // Verificar si hay algún documento que coincida
-      for (const doc of querySnapshot.docs) {
-        if (doc.id === uid) {
-          console.log("Perfil encontrado para este tenant:", doc.data())
-          return doc.data()
-        }
-      }
-
-      console.log("No se encontró perfil para este tenant")
-      return null
-    } catch (error) {
-      console.error("Error buscando perfil para tenant:", error)
-      return null
-    }
+    return null
   }
 
   const value = {
     user,
     userProfile,
-    signIn,
     signUp,
     signUpTenantUser,
-    signOut, // Usar signOut en lugar de logOut
-    loading,
-    resetPassword,
+    signIn,
+    signOut: signOutUser,
     updateUserProfile,
     updateUserRole,
+    resetPassword,
+    confirmPasswordResetUser,
+    signInWithGoogle,
+    signInWithFacebook,
+    signInWithMicrosoft,
     getUserProfile,
+    loading,
   }
 
   return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>
-}
-
-export const useAuth = () => {
-  return useContext(AuthContext)
 }
