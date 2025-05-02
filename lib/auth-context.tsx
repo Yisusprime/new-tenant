@@ -73,10 +73,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState(null)
   const [userProfile, setUserProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const auth = getAuth(getApp())
-  const db = getFirestore(getApp())
+
+  // Solo inicializar Firebase en el cliente
+  const [auth, setAuth] = useState<any>(null)
+  const [db, setDb] = useState<any>(null)
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      setAuth(getAuth(getApp()))
+      setDb(getFirestore(getApp()))
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!auth) {
+      setLoading(false)
+      return
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUser(user)

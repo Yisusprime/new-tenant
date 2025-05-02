@@ -1,6 +1,4 @@
-"use client"
-
-export default function NotFound() {
+export default function NotFoundPage() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4">
       <h1 className="text-6xl font-bold mb-4">404</h1>
@@ -12,12 +10,6 @@ export default function NotFound() {
         <a href="/" className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
           Volver al inicio
         </a>
-        <button
-          className="px-4 py-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-md"
-          onClick={() => window.history.back()}
-        >
-          Volver atrás
-        </button>
       </div>
     </div>
   )
