@@ -129,12 +129,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }
 
+  // Función para verificar si estamos en el dominio principal
+  const isMainDomain = () => {
+    if (typeof window === "undefined") return true // Por defecto en SSR
+
+    const hostname = window.location.hostname
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+
+    // Es dominio principal si es exactamente el dominio raíz o www.dominio
+    return hostname === rootDomain || hostname === `www.${rootDomain}` || hostname === "localhost"
+  }
+
   const signUp = async (email: string, password: string, displayName: string, companyName: string) => {
     try {
       if (!auth || !db) {
         throw new Error("Firebase no está inicializado correctamente")
       }
 
+      console.log("Iniciando registro de usuario")
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
 
@@ -149,10 +161,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         createdAt: new Date().toISOString(),
       }
 
+      console.log("Creando tenant:", tenantId)
       await setDoc(doc(db, "tenants", tenantId), tenantData)
 
-      // 5. Verificar si es el primer usuario (para asignar rol de superadmin)
+      // Verificar si estamos en el dominio principal
+      const mainDomain = isMainDomain()
+      console.log("¿Es dominio principal?", mainDomain)
+
+      // Verificar si es el primer usuario (para asignar rol de superadmin)
       let isFirstUser = false
+      let userRole: UserRole = "user"
+
       try {
         const systemRef = doc(db, "system", "stats")
         const systemDoc = await getDoc(systemRef)
@@ -161,10 +180,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         isFirstUser = !systemDoc.exists() || !systemDoc.data()?.userCount
 
         if (isFirstUser) {
-          console.log("8. Es el primer usuario, asignando rol de superadmin")
-          await updateDoc(doc(db, "users", user.uid), {
-            role: "superadmin", // El primer usuario será superadmin
-          })
+          console.log("Es el primer usuario, asignando rol de superadmin")
+          userRole = "superadmin"
+        } else if (mainDomain) {
+          // Si estamos en el dominio principal y no es el primer usuario, asignar rol de admin
+          console.log("Registro en dominio principal, asignando rol de admin")
+          userRole = "admin"
         }
 
         // Actualizar estadísticas
@@ -177,16 +198,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           },
           { merge: true },
         )
-        console.log("9. Estadísticas actualizadas")
+        console.log("Estadísticas actualizadas")
       } catch (statsError) {
         console.error("Error al actualizar estadísticas:", statsError)
         // No interrumpir el proceso por este error
       }
 
+      console.log("Guardando perfil de usuario con rol:", userRole)
       await setDoc(doc(db, "users", user.uid), {
         displayName,
         email,
-        role: isFirstUser ? "superadmin" : "user",
+        role: userRole,
         tenantId: tenantId,
         isTenantOwner: true,
         companyName: companyName,

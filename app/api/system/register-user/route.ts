@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     }
 
     const userId = decodedToken.uid
-    const { isFirstUser } = await request.json()
+    const { isFirstUser, isMainDomain } = await request.json()
 
     const db = getFirebaseAdmin().firestore()
 
@@ -69,16 +69,26 @@ export async function POST(request: Request) {
       { merge: true },
     )
 
-    // Si es el primer usuario, asignarle rol de admin
+    // Determinar el rol apropiado
+    let role = "user"
+
     if (isActuallyFirstUser) {
-      await db.collection("users").doc(userId).update({
-        role: "admin",
-      })
+      // Si es el primer usuario, asignarle rol de superadmin
+      role = "superadmin"
+    } else if (isMainDomain) {
+      // Si no es el primer usuario pero está en el dominio principal, asignarle rol de admin
+      role = "admin"
     }
+
+    // Actualizar el rol del usuario
+    await db.collection("users").doc(userId).update({
+      role: role,
+    })
 
     return NextResponse.json({
       success: true,
       isFirstUser: isActuallyFirstUser,
+      role: role,
     })
   } catch (error) {
     console.error("Error in register-user API:", error)
