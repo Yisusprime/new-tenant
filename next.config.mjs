@@ -41,6 +41,21 @@ const nextConfig = {
       ],
     };
   },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // No intentar importar módulos de Node.js en el cliente
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        crypto: false,
+        os: false,
+        path: false,
+      };
+    }
+    return config;
+  },
 };
 
 export default nextConfig;

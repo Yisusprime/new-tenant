@@ -1,9 +1,10 @@
 import { headers } from "next/headers"
 import { getDomainFromRequest } from "@/lib/domains"
-import { adminDb } from "@/lib/firebase-admin"
+import { getAdminDb } from "@/lib/firebase-admin"
 
 async function getTenantData(tenantId: string) {
   try {
+    const adminDb = await getAdminDb()
     const tenantDoc = await adminDb.collection("tenants").doc(tenantId).get()
     if (tenantDoc.exists) {
       return tenantDoc.data()
@@ -43,7 +44,7 @@ export default async function TenantHome() {
               <strong>Nombre:</strong> {tenantData.name}
             </p>
             <p>
-              <strong>Subdominio:</strong> {tenantData.subdomain}.ejemplo.cl
+              <strong>Subdominio:</strong> {tenantData.subdomain}.gastroo.online
             </p>
             {tenantData.customDomain && (
               <p>

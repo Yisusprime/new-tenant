@@ -1,5 +1,4 @@
-import { adminDb } from "./firebase-admin"
-import { getCachedDomainInfo, setCachedDomainInfo } from "./domains-cache"
+import { getAdminDb } from "./firebase-admin"
 
 export type DomainInfo = {
   domain: string
@@ -9,12 +8,6 @@ export type DomainInfo = {
 }
 
 export async function getDomainFromRequest(hostname: string): Promise<DomainInfo> {
-  // Verificar si la información está en caché
-  const cachedInfo = getCachedDomainInfo(hostname)
-  if (cachedInfo) {
-    return cachedInfo
-  }
-
   // Default domain info
   const domainInfo: DomainInfo = {
     domain: hostname,
@@ -34,7 +27,6 @@ export async function getDomainFromRequest(hostname: string): Promise<DomainInfo
         domainInfo.tenantId = subdomain
       }
     }
-    setCachedDomainInfo(hostname, domainInfo)
     return domainInfo
   }
 
@@ -48,13 +40,13 @@ export async function getDomainFromRequest(hostname: string): Promise<DomainInfo
       domainInfo.isSubdomain = true
       domainInfo.tenantId = subdomain
     }
-    setCachedDomainInfo(hostname, domainInfo)
     return domainInfo
   }
 
   // Verificar si es un dominio personalizado consultando Firestore
   try {
-    // Usar adminDb para consultas del servidor
+    // Usar getAdminDb para consultas del servidor
+    const adminDb = await getAdminDb()
     const domainsRef = adminDb.collection("domains")
     const querySnapshot = await domainsRef.where("domain", "==", hostname).get()
 
@@ -66,9 +58,6 @@ export async function getDomainFromRequest(hostname: string): Promise<DomainInfo
   } catch (error) {
     console.error("Error checking custom domain:", error)
   }
-
-  // Guardar en caché
-  setCachedDomainInfo(hostname, domainInfo)
 
   return domainInfo
 }

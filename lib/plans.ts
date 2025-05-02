@@ -1,3 +1,5 @@
+import { getAdminDb } from "./firebase-admin"
+
 export type PlanType = "free" | "basic" | "pro" | "enterprise"
 
 export interface PlanLimits {
@@ -40,7 +42,7 @@ export async function checkDomainLimit(tenantId: string, plan: PlanType): Promis
   const { customDomains } = PLAN_LIMITS[plan]
 
   // Contar dominios actuales del tenant
-  const { adminDb } = await import("./firebase-admin")
+  const adminDb = await getAdminDb()
   const domainsRef = adminDb.collection("domains")
   const querySnapshot = await domainsRef.where("tenantId", "==", tenantId).get()
 

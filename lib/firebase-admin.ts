@@ -1,23 +1,33 @@
-import * as admin from "firebase-admin"
+// Función para obtener la instancia de Firebase Admin
+let adminDb: any = null
 
-// Verificar si Firebase Admin ya está inicializado
-function getFirebaseAdmin() {
-  if (!admin.apps.length) {
-    // Inicializar Firebase Admin con credenciales
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: "multi-cliente",
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL || "",
-        // Reemplazar los caracteres de escape con saltos de línea reales
-        privateKey: (process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
-      }),
-      databaseURL: "https://multi-cliente-default-rtdb.firebaseio.com",
-    })
+export async function getAdminDb() {
+  if (adminDb) {
+    return adminDb
   }
 
-  return admin
+  try {
+    const admin = await import("firebase-admin")
+
+    if (!admin.apps.length) {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: "multi-cliente",
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL || "",
+          privateKey: (process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
+        }),
+        databaseURL: "https://multi-cliente-default-rtdb.firebaseio.com",
+      })
+    }
+
+    adminDb = admin.firestore()
+    return adminDb
+  } catch (error) {
+    console.error("Error initializing Firebase Admin:", error)
+    throw error
+  }
 }
 
-// Exportar la instancia de Firestore para el servidor
-export const adminApp = getFirebaseAdmin()
-export const adminDb = getFirebaseAdmin().firestore()
+// Para mantener compatibilidad con el código existente
+export const adminApp = null // Será reemplazado por la importación dinámica
+//export const adminDb = null; // Será reemplazado por la importación dinámica
