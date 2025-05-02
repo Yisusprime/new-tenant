@@ -1,6 +1,5 @@
 import type React from "react"
 import { redirect } from "next/navigation"
-import TenantNavbar from "@/components/tenant-navbar"
 
 export default async function TenantLayout({
   children,
@@ -18,7 +17,7 @@ export default async function TenantLayout({
 
   return (
     <div className="flex flex-col min-h-screen">
-      <TenantNavbar tenantId={tenantId} />
+      {/* No renderizamos el TenantNavbar aquí para evitar duplicación */}
       <main className="flex-1">{children}</main>
     </div>
   )

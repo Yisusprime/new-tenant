@@ -86,7 +86,7 @@ export default function TenantLogin() {
       // Redirección basada en rol
       switch (userProfile.role) {
         case "admin":
-          router.push(`/tenant/${tenantId}/dashboard`)
+          router.push(`/dashboard`)
           break
         case "client":
           router.push(`/tenant/${tenantId}/client`)
@@ -101,7 +101,7 @@ export default function TenantLogin() {
           router.push(`/tenant/${tenantId}/manager`)
           break
         default:
-          router.push(`/tenant/${tenantId}/dashboard`)
+          router.push(`/dashboard`)
       }
     } catch (error: any) {
       console.error("Error completo:", error)

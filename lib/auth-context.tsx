@@ -110,7 +110,7 @@ export const AuthProvider = ({ children }) => {
   const signIn = async (email, password) => {
     try {
       await signInWithEmailAndPassword(auth, email, password)
-      // No need to redirect here, useEffect will handle user state change
+      // No redirigimos aquí, la redirección se maneja en la página de login
     } catch (error) {
       console.error("Error signing in:", error)
       throw error

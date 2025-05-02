@@ -5,9 +5,9 @@ import { useParams, useRouter } from "next/navigation"
 import { doc, getDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { useAuth } from "@/lib/auth-context"
-import DashboardLayout from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import TenantNavbar from "@/components/tenant-navbar"
 
 export default function TenantDashboard() {
   const params = useParams()
@@ -53,11 +53,12 @@ export default function TenantDashboard() {
 
   if (authLoading || loading) {
     return (
-      <DashboardLayout>
+      <div className="flex flex-col min-h-screen">
+        <TenantNavbar tenantId={tenantId} />
         <div className="container py-12">
           <p>Cargando...</p>
         </div>
-      </DashboardLayout>
+      </div>
     )
   }
 
@@ -66,7 +67,8 @@ export default function TenantDashboard() {
   }
 
   return (
-    <DashboardLayout>
+    <div className="flex flex-col min-h-screen">
+      <TenantNavbar tenantId={tenantId} />
       <div className="container py-12">
         <h1 className="text-3xl font-bold mb-8">Dashboard de {tenantData?.name || tenantId}</h1>
 
@@ -122,6 +124,6 @@ export default function TenantDashboard() {
           </Card>
         </div>
       </div>
-    </DashboardLayout>
+    </div>
   )
 }
