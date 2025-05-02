@@ -35,12 +35,29 @@ export default function Register() {
     setLoading(true)
 
     try {
+      // Registrar al usuario
       await signUp(email, password, name, companyName)
 
-      // Después del registro exitoso, redirigir al usuario a su dashboard
-      // El rol ya debería estar asignado correctamente en auth-context.tsx
-      router.push("/dashboard")
+      // Crear el subdominio a partir del nombre de la compañía
+      const tenantId = companyName.toLowerCase().replace(/[^a-z0-9]/g, "-")
+
+      // Redirigir al subdominio creado
+      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+
+      // Construir la URL del subdominio
+      let subdomainUrl
+      if (window.location.hostname === "localhost") {
+        // Para desarrollo local
+        subdomainUrl = `http://${tenantId}.localhost:3000/admin/dashboard`
+      } else {
+        // Para producción
+        subdomainUrl = `https://${tenantId}.${rootDomain}/admin/dashboard`
+      }
+
+      console.log("Redirigiendo a:", subdomainUrl)
+      window.location.href = subdomainUrl
     } catch (error: any) {
+      console.error("Error en registro:", error)
       setError(error.message || "Error al registrarse")
     } finally {
       setLoading(false)

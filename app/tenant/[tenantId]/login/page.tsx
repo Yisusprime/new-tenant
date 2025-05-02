@@ -6,7 +6,8 @@ import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { doc, getDoc } from "firebase/firestore"
-import { db } from "@/lib/firebase"
+import { getFirestore } from "firebase/firestore"
+import { app } from "@/lib/firebase/client"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,16 +24,56 @@ export default function TenantLogin() {
   const [loading, setLoading] = useState(false)
   const [tenantData, setTenantData] = useState<any>(null)
   const [loadingTenant, setLoadingTenant] = useState(true)
-  const { user, signIn, getUserProfile } = useAuth()
+  const { user, signIn, getUserProfile, signOut } = useAuth()
   const router = useRouter()
+  const db = getFirestore(app)
 
   // Verificar si el usuario ya está autenticado
   useEffect(() => {
     if (user) {
-      console.log("Usuario ya autenticado, redirigiendo al dashboard")
-      router.push(`/dashboard`)
+      getUserProfile().then((profile) => {
+        if (profile) {
+          // Verificar si el usuario pertenece a este tenant
+          if (profile.tenantId !== tenantId) {
+            setError(`No tienes acceso al tenant ${tenantId}. Tu tenant es: ${profile.tenantId}`)
+            // Cerrar sesión automáticamente si no pertenece a este tenant
+            setTimeout(() => {
+              signOut()
+            }, 2000)
+            return
+          }
+
+          // Si es superadmin, redirigir al dominio principal
+          if (profile.role === "superadmin") {
+            const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+            window.location.href = `https://www.${rootDomain}/superadmin/dashboard`
+            return
+          }
+
+          // Redirección basada en rol dentro del tenant
+          switch (profile.role) {
+            case "admin":
+              router.push(`/admin/dashboard`)
+              break
+            case "manager":
+              router.push(`/manager/dashboard`)
+              break
+            case "waiter":
+              router.push(`/waiter/dashboard`)
+              break
+            case "delivery":
+              router.push(`/delivery/dashboard`)
+              break
+            case "client":
+              router.push(`/client/dashboard`)
+              break
+            default:
+              router.push(`/dashboard`)
+          }
+        }
+      })
     }
-  }, [user, router])
+  }, [user, router, getUserProfile, tenantId, signOut])
 
   useEffect(() => {
     async function fetchTenantData() {
@@ -54,7 +95,7 @@ export default function TenantLogin() {
     }
 
     fetchTenantData()
-  }, [tenantId])
+  }, [tenantId, db])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -63,7 +104,7 @@ export default function TenantLogin() {
 
     try {
       console.log("Intentando iniciar sesión con:", email)
-      const userCredential = await signIn(email, password)
+      await signIn(email, password)
       console.log("Autenticación exitosa, obteniendo perfil...")
 
       // Obtener el perfil del usuario para determinar su rol y tenant
@@ -84,14 +125,20 @@ export default function TenantLogin() {
         return
       }
 
-      // Verificar si el usuario pertenece a este tenant o es superadmin/admin
-      if (userProfile.tenantId !== tenantId && userProfile.role !== "superadmin" && userProfile.role !== "admin") {
-        setError(`No tienes acceso al tenant ${tenantId}`)
+      // Verificar si el usuario pertenece a este tenant
+      if (userProfile.tenantId !== tenantId) {
+        setError(`No tienes acceso al tenant ${tenantId}. Tu tenant es: ${userProfile.tenantId}`)
         setLoading(false)
+
+        // Cerrar sesión automáticamente si no pertenece a este tenant
+        setTimeout(() => {
+          signOut()
+        }, 2000)
+
         return
       }
 
-      // Si el usuario es superadmin, redirigirlo al dominio principal
+      // Si es superadmin, redirigir al dominio principal
       if (userProfile.role === "superadmin") {
         const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
         window.location.href = `https://www.${rootDomain}/superadmin/dashboard`
@@ -99,22 +146,21 @@ export default function TenantLogin() {
       }
 
       // Redirección basada en rol dentro del tenant
-      console.log("Redirigiendo al dashboard según el rol:", userProfile.role)
       switch (userProfile.role) {
         case "admin":
           router.push(`/admin/dashboard`)
           break
-        case "client":
-          router.push(`/client/dashboard`)
-          break
-        case "delivery":
-          router.push(`/delivery/dashboard`)
+        case "manager":
+          router.push(`/manager/dashboard`)
           break
         case "waiter":
           router.push(`/waiter/dashboard`)
           break
-        case "manager":
-          router.push(`/manager/dashboard`)
+        case "delivery":
+          router.push(`/delivery/dashboard`)
+          break
+        case "client":
+          router.push(`/client/dashboard`)
           break
         default:
           router.push(`/dashboard`)
@@ -125,10 +171,6 @@ export default function TenantLogin() {
     } finally {
       setLoading(false)
     }
-  }
-
-  if (user) {
-    return null // Si el usuario ya está autenticado, no mostrar nada (la redirección ya se maneja en useEffect)
   }
 
   if (loadingTenant) {

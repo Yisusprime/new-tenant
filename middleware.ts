@@ -26,7 +26,7 @@ export default async function middleware(req: NextRequest) {
   console.log(`[Middleware] Root domain: ${rootDomain}`)
 
   // Verificar si estamos en el dominio principal
-  const isMainDomain = hostname === rootDomain || hostname === `www.${rootDomain}`
+  const isMainDomain = hostname === rootDomain || hostname === `www.${rootDomain}` || hostname === "localhost"
 
   // Verificar si es un subdominio
   const isSubdomain = !isMainDomain && (hostname.endsWith(`.${rootDomain}`) || hostname.includes(".localhost"))

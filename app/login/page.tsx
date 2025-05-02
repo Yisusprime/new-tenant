@@ -17,8 +17,7 @@ export default function Login() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-  const [hostname, setHostname] = useState("")
-  const { signIn, getUserProfile, user } = useAuth()
+  const { signIn, getUserProfile, user, signOut } = useAuth()
   const router = useRouter()
 
   // Verificar si estamos en un subdominio
@@ -44,17 +43,31 @@ export default function Login() {
     return false
   }
 
+  // Obtener el subdominio actual
+  const getSubdomain = () => {
+    if (typeof window === "undefined") return null
+
+    const hostname = window.location.hostname
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+
+    if (hostname.endsWith(`.${rootDomain}`)) {
+      return hostname.replace(`.${rootDomain}`, "")
+    }
+
+    if (hostname.includes(".localhost")) {
+      const match = hostname.match(/^([^.]+)\.localhost/)
+      if (match) return match[1]
+    }
+
+    return null
+  }
+
   // Usamos useEffect para detectar el subdominio
   useEffect(() => {
     if (typeof window !== "undefined") {
-      // Detectar si estamos en un subdominio
-      const host = window.location.hostname
-      setHostname(host)
-
       // Si estamos en un subdominio, redirigir a la página de login específica del tenant
       if (isSubdomain()) {
-        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-        const subdomain = host.replace(`.${rootDomain}`, "")
+        const subdomain = getSubdomain()
         router.push(`/tenant/${subdomain}/login`)
       }
     }
@@ -65,22 +78,23 @@ export default function Login() {
     if (user) {
       getUserProfile().then((profile) => {
         if (profile) {
-          // Redirección basada en rol
-          switch (profile.role) {
-            case "superadmin":
-              router.push("/superadmin/dashboard")
-              break
-            case "admin":
-              // Si el usuario es admin y tiene un tenant, redirigirlo a su subdominio
-              if (profile.tenantId) {
-                const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-                window.location.href = `https://${profile.tenantId}.${rootDomain}/admin/dashboard`
+          // Solo permitir superadmin en el dominio principal
+          if (profile.role === "superadmin") {
+            router.push("/superadmin/dashboard")
+          } else {
+            // Si no es superadmin, redirigir a su tenant
+            if (profile.tenantId) {
+              const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+              let tenantUrl
+              if (window.location.hostname === "localhost") {
+                tenantUrl = `http://${profile.tenantId}.localhost:3000/admin/dashboard`
               } else {
-                router.push("/admin/dashboard")
+                tenantUrl = `https://${profile.tenantId}.${rootDomain}/admin/dashboard`
               }
-              break
-            default:
-              router.push("/dashboard")
+              window.location.href = tenantUrl
+            } else {
+              setError("No tienes acceso a esta área. Por favor, contacta al administrador.")
+            }
           }
         }
       })
@@ -97,7 +111,7 @@ export default function Login() {
       await signIn(email, password)
       console.log("Autenticación exitosa, obteniendo perfil...")
 
-      // Obtener el perfil del usuario para determinar su rol y tenant
+      // Obtener el perfil del usuario para determinar su rol
       let userProfile
       try {
         userProfile = await getUserProfile()
@@ -115,23 +129,21 @@ export default function Login() {
         return
       }
 
-      // Lógica de redirección basada en el rol
-      switch (userProfile.role) {
-        case "superadmin":
-          router.push("/superadmin/dashboard")
-          break
-        case "admin":
-          // Si el usuario es admin y tiene un tenant, redirigirlo a su subdominio
-          if (userProfile.tenantId) {
-            const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-            window.location.href = `https://${userProfile.tenantId}.${rootDomain}/admin/dashboard`
-          } else {
-            router.push("/admin/dashboard")
-          }
-          break
-        default:
-          router.push("/dashboard")
+      // Solo permitir superadmin en el dominio principal
+      if (userProfile.role !== "superadmin") {
+        setError("Solo los superadministradores pueden iniciar sesión en el dominio principal.")
+        setLoading(false)
+
+        // Cerrar sesión automáticamente si no es superadmin
+        setTimeout(() => {
+          signOut()
+        }, 1000)
+
+        return
       }
+
+      // Redirigir al dashboard de superadmin
+      router.push("/superadmin/dashboard")
     } catch (error: any) {
       console.error("Error completo:", error)
       setError(error.message || "Error al iniciar sesión")
@@ -149,8 +161,8 @@ export default function Login() {
     <div className="container flex items-center justify-center min-h-screen py-12">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl">Iniciar sesión</CardTitle>
-          <CardDescription>Ingresa tus credenciales para acceder al panel de administración</CardDescription>
+          <CardTitle className="text-2xl">Iniciar sesión como Superadmin</CardTitle>
+          <CardDescription>Solo los superadministradores pueden iniciar sesión en el dominio principal</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -185,7 +197,7 @@ export default function Login() {
         </CardContent>
         <CardFooter className="flex justify-center">
           <p className="text-sm text-muted-foreground">
-            ¿No tienes una cuenta?{" "}
+            ¿Quieres registrar un nuevo restaurante?{" "}
             <Link href="/register" className="text-primary hover:underline">
               Registrarse
             </Link>
