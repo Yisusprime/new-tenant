@@ -1,20 +1,6 @@
 import { headers } from "next/headers"
 import { getDomainFromRequest } from "@/lib/domains"
-import { getAdminDb } from "@/lib/firebase-admin"
-
-async function getTenantData(tenantId: string) {
-  try {
-    const adminDb = await getAdminDb()
-    const tenantDoc = await adminDb.collection("tenants").doc(tenantId).get()
-    if (tenantDoc.exists) {
-      return tenantDoc.data()
-    }
-    return null
-  } catch (error) {
-    console.error("Error getting tenant data:", error)
-    return null
-  }
-}
+import { getTenantData } from "@/lib/firebase-admin-functions"
 
 export default async function TenantHome() {
   const headersList = headers()

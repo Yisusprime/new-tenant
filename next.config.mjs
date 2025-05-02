@@ -1,7 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
+    // Esto es crucial para manejar firebase-admin correctamente
     serverComponentsExternalPackages: ['firebase-admin'],
+    // Esto ayuda a evitar problemas con módulos de Node.js
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
   },
   eslint: {
     ignoreDuringBuilds: true,
@@ -40,21 +45,6 @@ const nextConfig = {
         },
       ],
     };
-  },
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      // No intentar importar módulos de Node.js en el cliente
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-        crypto: false,
-        os: false,
-        path: false,
-      };
-    }
-    return config;
   },
 };
 

@@ -1,4 +1,4 @@
-import { getAdminDb } from "./firebase-admin"
+import { checkDomainLimit as checkDomainLimitImpl } from "./firebase-admin-functions"
 
 export type PlanType = "free" | "basic" | "pro" | "enterprise"
 
@@ -37,16 +37,5 @@ export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
 }
 
 export async function checkDomainLimit(tenantId: string, plan: PlanType): Promise<boolean> {
-  // Implementar lógica para verificar si el tenant ha alcanzado su límite de dominios
-  // según su plan
-  const { customDomains } = PLAN_LIMITS[plan]
-
-  // Contar dominios actuales del tenant
-  const adminDb = await getAdminDb()
-  const domainsRef = adminDb.collection("domains")
-  const querySnapshot = await domainsRef.where("tenantId", "==", tenantId).get()
-
-  const currentDomainCount = querySnapshot.size
-
-  return currentDomainCount < customDomains
+  return checkDomainLimitImpl(tenantId, plan)
 }
