@@ -1,5 +1,8 @@
 "use client"
 
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+
 export default function NotFound() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4">
@@ -9,15 +12,12 @@ export default function NotFound() {
         Lo sentimos, la página que estás buscando no existe o ha sido movida.
       </p>
       <div className="flex gap-4">
-        <a href="/" className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
-          Volver al inicio
-        </a>
-        <button
-          className="px-4 py-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-md"
-          onClick={() => window.history.back()}
-        >
+        <Button asChild>
+          <Link href="/">Volver al inicio</Link>
+        </Button>
+        <Button variant="outline" onClick={() => window.history.back()}>
           Volver atrás
-        </button>
+        </Button>
       </div>
     </div>
   )
