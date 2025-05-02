@@ -1,6 +1,23 @@
 import { headers } from "next/headers"
 import { getDomainFromRequest } from "@/lib/domains"
-import { getTenantData } from "@/lib/firebase-admin-functions"
+
+async function getTenantData(tenantId: string) {
+  try {
+    // Llamar a la API route para obtener los datos del tenant
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || ""}/api/tenants/${tenantId}`, {
+      cache: "no-store",
+    })
+
+    if (!response.ok) {
+      throw new Error(`Error fetching tenant data: ${response.statusText}`)
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error("Error in getTenantData:", error)
+    return null
+  }
+}
 
 export default async function TenantHome() {
   const headersList = headers()

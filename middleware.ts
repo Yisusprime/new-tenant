@@ -1,5 +1,4 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getDomainFromRequest } from "./lib/domains"
 
 export const config = {
   matcher: [
@@ -34,8 +33,17 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
-  // Get the domain information from the request
-  const domainInfo = await getDomainFromRequest(hostname)
+  // Obtener información del dominio a través de la API
+  const domainResponse = await fetch(
+    `${process.env.NEXT_PUBLIC_APP_URL || ""}/api/domains?hostname=${encodeURIComponent(hostname)}`,
+  )
+
+  if (!domainResponse.ok) {
+    // Si hay un error, continuar con la solicitud normal
+    return NextResponse.next()
+  }
+
+  const domainInfo = await domainResponse.json()
 
   // Define the paths that are only accessible on the main domain
   const mainDomainPaths = ["/", "/login", "/register", "/pricing"]

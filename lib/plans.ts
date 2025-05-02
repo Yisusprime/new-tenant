@@ -1,5 +1,3 @@
-import { checkDomainLimit as checkDomainLimitImpl } from "./firebase-admin-functions"
-
 export type PlanType = "free" | "basic" | "pro" | "enterprise"
 
 export interface PlanLimits {
@@ -37,5 +35,20 @@ export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
 }
 
 export async function checkDomainLimit(tenantId: string, plan: PlanType): Promise<boolean> {
-  return checkDomainLimitImpl(tenantId, plan)
+  try {
+    // Llamar a la API route para verificar el límite de dominios
+    const response = await fetch(
+      `/api/domains/check-limit?tenantId=${encodeURIComponent(tenantId)}&plan=${encodeURIComponent(plan)}`,
+    )
+
+    if (!response.ok) {
+      throw new Error(`Error checking domain limit: ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    return data.canAddDomain
+  } catch (error) {
+    console.error("Error in checkDomainLimit:", error)
+    return false
+  }
 }
