@@ -10,7 +10,7 @@ import {
   sendPasswordResetEmail,
 } from "firebase/auth"
 import { auth, db } from "./firebase"
-import { setDoc, doc, getDoc, updateDoc } from "firebase/firestore"
+import { setDoc, doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore"
 import { useRouter } from "next/navigation"
 
 export type UserRole = "admin" | "client" | "waiter" | "delivery" | "manager" | "user"
@@ -39,13 +39,64 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
+  // Función para detectar el subdominio actual
+  const getCurrentTenantId = () => {
+    if (typeof window === "undefined") return null
+
+    const hostname = window.location.hostname
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+
+    // Verificar si es un subdominio del dominio raíz
+    if (hostname.endsWith(`.${rootDomain}`)) {
+      const subdomain = hostname.replace(`.${rootDomain}`, "")
+      if (subdomain !== "www" && subdomain !== "app") {
+        return subdomain
+      }
+    }
+
+    // Para desarrollo local
+    if (hostname.includes("localhost")) {
+      const subdomainMatch = hostname.match(/^([^.]+)\.localhost/)
+      if (subdomainMatch) {
+        const subdomain = subdomainMatch[1]
+        if (subdomain !== "www" && subdomain !== "app") {
+          return subdomain
+        }
+      }
+    }
+
+    return null
+  }
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUser(user)
         // Fetch user profile
-        const profile = await getUserProfileData(user.uid)
-        setUserProfile(profile)
+        try {
+          const profile = await getUserProfileData(user.uid)
+
+          // Si estamos en un subdominio, verificar que el usuario pertenece a este tenant
+          const currentTenantId = getCurrentTenantId()
+          if (currentTenantId && profile && profile.tenantId !== currentTenantId) {
+            console.log(`Usuario no pertenece al tenant ${currentTenantId}. Buscando perfil alternativo...`)
+
+            // Buscar si el usuario tiene un perfil asociado a este tenant
+            const tenantProfile = await getUserProfileForTenant(user.uid, currentTenantId)
+
+            if (tenantProfile) {
+              console.log("Perfil encontrado para este tenant:", tenantProfile)
+              setUserProfile(tenantProfile)
+            } else {
+              console.log("Usuario no tiene acceso a este tenant")
+              setUserProfile(profile) // Usar el perfil original
+            }
+          } else {
+            setUserProfile(profile)
+          }
+        } catch (error) {
+          console.error("Error al obtener perfil de usuario:", error)
+        }
       } else {
         setUser(null)
         setUserProfile(null)
@@ -228,7 +279,24 @@ export const AuthProvider = ({ children }) => {
     if (!user) return null
 
     try {
-      return await getUserProfileData(user.uid)
+      // Primero intentamos obtener el perfil principal del usuario
+      const profile = await getUserProfileData(user.uid)
+
+      // Si estamos en un subdominio, verificar que el usuario pertenece a este tenant
+      const currentTenantId = getCurrentTenantId()
+      if (currentTenantId && profile && profile.tenantId !== currentTenantId) {
+        console.log(`Usuario no pertenece al tenant ${currentTenantId}. Buscando perfil alternativo...`)
+
+        // Buscar si el usuario tiene un perfil asociado a este tenant
+        const tenantProfile = await getUserProfileForTenant(user.uid, currentTenantId)
+
+        if (tenantProfile) {
+          console.log("Perfil encontrado para este tenant:", tenantProfile)
+          return tenantProfile
+        }
+      }
+
+      return profile
     } catch (error) {
       console.error("Error getting user profile:", error)
       return null
@@ -237,16 +305,44 @@ export const AuthProvider = ({ children }) => {
 
   const getUserProfileData = async (uid: string) => {
     try {
+      console.log(`Obteniendo perfil para usuario: ${uid}`)
       const userDoc = await getDoc(doc(db, "users", uid))
 
       if (userDoc.exists()) {
+        console.log("Perfil encontrado:", userDoc.data())
         return userDoc.data()
       } else {
-        console.log("No such document!")
+        console.log("No se encontró el documento del usuario")
         return null
       }
     } catch (error) {
       console.error("Error getting document:", error)
+      return null
+    }
+  }
+
+  // Nueva función para buscar perfiles de usuario asociados a un tenant específico
+  const getUserProfileForTenant = async (uid: string, tenantId: string) => {
+    try {
+      console.log(`Buscando perfil para usuario ${uid} en tenant ${tenantId}`)
+
+      // Buscar en la colección de usuarios por UID y tenantId
+      const usersRef = collection(db, "users")
+      const q = query(usersRef, where("tenantId", "==", tenantId))
+      const querySnapshot = await getDocs(q)
+
+      // Verificar si hay algún documento que coincida
+      for (const doc of querySnapshot.docs) {
+        if (doc.id === uid) {
+          console.log("Perfil encontrado para este tenant:", doc.data())
+          return doc.data()
+        }
+      }
+
+      console.log("No se encontró perfil para este tenant")
+      return null
+    } catch (error) {
+      console.error("Error buscando perfil para tenant:", error)
       return null
     }
   }

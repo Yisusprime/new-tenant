@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
@@ -23,8 +23,7 @@ export default function Login() {
   const router = useRouter()
 
   // Usamos useEffect para detectar el subdominio
-  // Este código se ejecutará en el cliente
-  useState(() => {
+  useEffect(() => {
     if (typeof window !== "undefined") {
       // Detectar si estamos en un subdominio
       const host = window.location.hostname
@@ -85,9 +84,19 @@ export default function Login() {
       // Lógica de redirección basada en el contexto y rol
       if (tenantId) {
         // Estamos en un subdominio de tenant
+        console.log(`Estamos en el subdominio ${tenantId}, verificando acceso...`)
 
         // Verificar si el usuario pertenece a este tenant
         if (userProfile.tenantId !== tenantId) {
+          console.log(`Usuario no pertenece al tenant ${tenantId}, verificando roles alternativos...`)
+
+          // Si el usuario es admin, permitir acceso a cualquier tenant
+          if (userProfile.role === "admin") {
+            console.log("Usuario es admin, permitiendo acceso")
+            router.push("/dashboard")
+            return
+          }
+
           throw new Error(`No tienes acceso al tenant ${tenantId}`)
         }
 
@@ -113,13 +122,16 @@ export default function Login() {
         }
       } else {
         // Estamos en el dominio principal
+        console.log("Estamos en el dominio principal")
 
         // Si el usuario es dueño de un tenant, redirigir a su subdominio
         if (userProfile.isTenantOwner && userProfile.tenantId) {
+          console.log(`Usuario es dueño del tenant ${userProfile.tenantId}, redirigiendo...`)
           const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
           window.location.href = `https://${userProfile.tenantId}.${rootDomain}/dashboard`
         } else {
           // Si no es dueño de un tenant, redirigir al dashboard principal
+          console.log("Usuario no es dueño de un tenant, redirigiendo al dashboard principal")
           router.push("/dashboard")
         }
       }
