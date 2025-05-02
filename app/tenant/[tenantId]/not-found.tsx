@@ -1,8 +1,5 @@
 "use client"
 
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-
 export default function TenantNotFound({ params }: { params: { tenantId: string } }) {
   const tenantId = params?.tenantId || ""
 
@@ -14,12 +11,18 @@ export default function TenantNotFound({ params }: { params: { tenantId: string 
         Lo sentimos, la página que estás buscando en el tenant {tenantId} no existe o ha sido movida.
       </p>
       <div className="flex gap-4">
-        <Button asChild>
-          <Link href={`/tenant/${tenantId}/dashboard`}>Ir al dashboard</Link>
-        </Button>
-        <Button variant="outline" onClick={() => window.history.back()}>
+        <a
+          href={`/tenant/${tenantId}/dashboard`}
+          className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+        >
+          Ir al dashboard
+        </a>
+        <button
+          className="px-4 py-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-md"
+          onClick={() => window.history.back()}
+        >
           Volver atrás
-        </Button>
+        </button>
       </div>
     </div>
   )

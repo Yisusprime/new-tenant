@@ -25,140 +25,85 @@ export default async function middleware(req: NextRequest) {
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
   console.log(`[Middleware] Root domain: ${rootDomain}`)
 
-  // Verificar si es un subdominio del dominio raíz
-  let subdomain: string | null = null
+  // Verificar si estamos en el dominio principal
+  const isMainDomain = hostname === rootDomain || hostname === `www.${rootDomain}`
 
-  // Verificar si es un subdominio del dominio raíz
+  // Verificar si es un subdominio
+  const isSubdomain = !isMainDomain && (hostname.endsWith(`.${rootDomain}`) || hostname.includes(".localhost"))
+
+  // Extraer el nombre del subdominio
+  let subdomain: string | null = null
   if (hostname.endsWith(`.${rootDomain}`)) {
     subdomain = hostname.replace(`.${rootDomain}`, "")
-    console.log(`[Middleware] Subdomain detected: ${subdomain}`)
+  } else if (hostname.includes(".localhost")) {
+    const subdomainMatch = hostname.match(/^([^.]+)\.localhost/)
+    if (subdomainMatch) {
+      subdomain = subdomainMatch[1]
+    }
+  }
 
-    if (subdomain !== "www" && subdomain !== "app") {
-      // Si estamos en la ruta raíz del subdominio, redirigir al dashboard
-      if (path === "/") {
-        console.log(`[Middleware] Redirecting to dashboard for subdomain: ${subdomain}`)
-        return NextResponse.redirect(new URL(`/dashboard`, req.url))
-      }
+  console.log(`[Middleware] Is main domain: ${isMainDomain}, Is subdomain: ${isSubdomain}, Subdomain: ${subdomain}`)
 
-      // Si intentamos acceder a /register desde un subdominio, redirigir a /tenant/[subdomain]/register
-      if (path === "/register") {
-        console.log(`[Middleware] Redirecting register to tenant-specific register: ${subdomain}`)
-        return NextResponse.redirect(new URL(`/tenant/${subdomain}/register`, req.url))
-      }
+  // REGLA 1: Si intentamos acceder a rutas de superadmin desde un subdominio, redirigir a unauthorized
+  if (isSubdomain && path.startsWith("/superadmin")) {
+    console.log(`[Middleware] Blocking access to superadmin routes from subdomain: ${subdomain}`)
+    return NextResponse.redirect(new URL(`/unauthorized`, req.url))
+  }
 
-      // Si intentamos acceder a /login desde un subdominio, redirigir a /tenant/[subdomain]/login
-      if (path === "/login") {
-        console.log(`[Middleware] Redirecting login to tenant-specific login: ${subdomain}`)
-        return NextResponse.redirect(new URL(`/tenant/${subdomain}/login`, req.url))
-      }
+  // REGLA 2: Si estamos en un subdominio e intentamos acceder a /login o /register, redirigir a la versión específica del tenant
+  if (isSubdomain) {
+    if (path === "/login") {
+      console.log(`[Middleware] Redirecting login to tenant-specific login: ${subdomain}`)
+      return NextResponse.redirect(new URL(`/tenant/${subdomain}/login`, req.url))
+    }
 
-      // Permitir acceso directo a dashboards específicos de rol
-      const roleDashboards = [
-        "/dashboard",
-        "/admin/dashboard",
-        "/manager/dashboard",
-        "/waiter/dashboard",
-        "/delivery/dashboard",
-        "/client/dashboard",
-        "/user/dashboard",
-      ]
-      const isDashboardPath = roleDashboards.some((dashboard) => path === dashboard || path.startsWith(`${dashboard}/`))
+    if (path === "/register") {
+      console.log(`[Middleware] Redirecting register to tenant-specific register: ${subdomain}`)
+      return NextResponse.redirect(new URL(`/tenant/${subdomain}/register`, req.url))
+    }
 
-      if (isDashboardPath) {
-        console.log(`[Middleware] Allowing direct access to dashboard for subdomain: ${subdomain}`)
-        return NextResponse.next()
-      }
+    // Si estamos en la ruta raíz del subdominio, redirigir al dashboard
+    if (path === "/") {
+      console.log(`[Middleware] Redirecting to dashboard for subdomain: ${subdomain}`)
+      return NextResponse.redirect(new URL(`/dashboard`, req.url))
+    }
+  }
 
-      // No reescribimos las rutas para que Next.js pueda manejarlas directamente
-      console.log(`[Middleware] Allowing direct access to: ${path} for subdomain: ${subdomain}`)
+  // REGLA 3: Si estamos en el dominio principal, permitir acceso a todas las rutas
+  if (isMainDomain) {
+    console.log(`[Middleware] Main domain access, allowing all routes`)
+    return NextResponse.next()
+  }
+
+  // REGLA 4: Para subdominios, permitir acceso a rutas específicas
+  if (isSubdomain) {
+    // Permitir acceso directo a dashboards específicos de rol (excepto superadmin)
+    const allowedDashboards = [
+      "/dashboard",
+      "/admin/dashboard",
+      "/manager/dashboard",
+      "/waiter/dashboard",
+      "/delivery/dashboard",
+      "/client/dashboard",
+      "/user/dashboard",
+    ]
+
+    const isDashboardPath = allowedDashboards.some(
+      (dashboard) => path === dashboard || path.startsWith(`${dashboard}/`),
+    )
+
+    if (isDashboardPath) {
+      console.log(`[Middleware] Allowing direct access to dashboard for subdomain: ${subdomain}`)
+      return NextResponse.next()
+    }
+
+    // Permitir acceso a rutas específicas de tenant
+    if (path.startsWith(`/tenant/${subdomain}`)) {
+      console.log(`[Middleware] Allowing access to tenant-specific route: ${path}`)
       return NextResponse.next()
     }
   }
 
-  // Para desarrollo local
-  if (hostname.includes("localhost")) {
-    const subdomainMatch = hostname.match(/^([^.]+)\.localhost/)
-    if (subdomainMatch) {
-      subdomain = subdomainMatch[1]
-      console.log(`[Middleware] Local subdomain detected: ${subdomain}`)
-
-      if (subdomain !== "www" && subdomain !== "app") {
-        // Si estamos en la ruta raíz del subdominio, redirigir al dashboard
-        if (path === "/") {
-          console.log(`[Middleware] Redirecting to dashboard for local subdomain: ${subdomain}`)
-          return NextResponse.redirect(new URL(`/dashboard`, req.url))
-        }
-
-        // Si intentamos acceder a /register desde un subdominio, redirigir a /tenant/[subdomain]/register
-        if (path === "/register") {
-          console.log(`[Middleware] Redirecting register to tenant-specific register: ${subdomain}`)
-          return NextResponse.redirect(new URL(`/tenant/${subdomain}/register`, req.url))
-        }
-
-        // Si intentamos acceder a /login desde un subdominio, redirigir a /tenant/[subdomain]/login
-        if (path === "/login") {
-          console.log(`[Middleware] Redirecting login to tenant-specific login: ${subdomain}`)
-          return NextResponse.redirect(new URL(`/tenant/${subdomain}/login`, req.url))
-        }
-
-        // Permitir acceso directo a dashboards específicos de rol
-        const roleDashboards = [
-          "/dashboard",
-          "/admin/dashboard",
-          "/manager/dashboard",
-          "/waiter/dashboard",
-          "/delivery/dashboard",
-          "/client/dashboard",
-          "/user/dashboard",
-        ]
-        const isDashboardPath = roleDashboards.some(
-          (dashboard) => path === dashboard || path.startsWith(`${dashboard}/`),
-        )
-
-        if (isDashboardPath) {
-          console.log(`[Middleware] Allowing direct access to dashboard for local subdomain: ${subdomain}`)
-          return NextResponse.next()
-        }
-
-        // No reescribimos las rutas para que Next.js pueda manejarlas directamente
-        console.log(`[Middleware] Allowing direct access to: ${path} for subdomain: ${subdomain}`)
-        return NextResponse.next()
-      }
-    }
-  }
-
-  // Verificar si estamos accediendo a una ruta de tenant específica
-  const tenantPathMatch = path.match(/^\/tenant\/([^/]+)/)
-  if (tenantPathMatch) {
-    const tenantId = tenantPathMatch[1]
-    console.log(`[Middleware] Tenant path detected: ${tenantId}`)
-
-    // Si estamos en la ruta raíz del tenant, redirigir al dashboard
-    if (path === `/tenant/${tenantId}`) {
-      console.log(`[Middleware] Redirecting to dashboard for tenant path: ${tenantId}`)
-      return NextResponse.redirect(new URL(`/tenant/${tenantId}/dashboard`, req.url))
-    }
-
-    // Continuar con la solicitud
-    return NextResponse.next()
-  }
-
-  // Si intentamos acceder a rutas de tenant desde el dominio principal
-  if (
-    (!subdomain || subdomain === "www" || subdomain === "app") &&
-    (path.startsWith("/dashboard") ||
-      path.startsWith("/settings") ||
-      path.startsWith("/admin") ||
-      path.startsWith("/superadmin") ||
-      path.startsWith("/manager") ||
-      path.startsWith("/waiter") ||
-      path.startsWith("/delivery") ||
-      path.startsWith("/client") ||
-      path.startsWith("/user"))
-  ) {
-    // Permitir el acceso a estas rutas desde el dominio principal
-    return NextResponse.next()
-  }
-
+  // Por defecto, permitir la solicitud
   return NextResponse.next()
 }

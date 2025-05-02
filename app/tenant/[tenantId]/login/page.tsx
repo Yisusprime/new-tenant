@@ -3,142 +3,118 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
-import Link from "next/link"
-import { doc, getDoc } from "firebase/firestore"
-import { db } from "@/lib/firebase"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import Link from "next/link"
 
-export default function TenantLogin() {
-  const params = useParams()
-  const tenantId = params?.tenantId as string
+export default function TenantLoginPage({ params }: { params: { tenantId: string } }) {
+  const { tenantId } = params
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [tenantData, setTenantData] = useState<any>(null)
-  const [loadingTenant, setLoadingTenant] = useState(true)
-  const { user, signIn, getUserProfile } = useAuth()
+  const [isLoading, setIsLoading] = useState(false)
+  const { signIn, user, userProfile } = useAuth()
   const router = useRouter()
 
-  // Verificar si el usuario ya está autenticado
-  useEffect(() => {
-    if (user) {
-      console.log("Usuario ya autenticado, redirigiendo al dashboard")
-      router.push(`/dashboard`)
+  // Función para verificar si estamos en un subdominio
+  const isSubdomain = () => {
+    if (typeof window === "undefined") return false
+
+    const hostname = window.location.hostname
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+
+    // Verificar si es un subdominio del dominio raíz
+    if (hostname.endsWith(`.${rootDomain}`) && hostname !== `www.${rootDomain}`) {
+      return true
     }
-  }, [user, router])
 
-  useEffect(() => {
-    async function fetchTenantData() {
-      if (!tenantId) return
-
-      try {
-        const tenantDoc = await getDoc(doc(db, "tenants", tenantId))
-        if (tenantDoc.exists()) {
-          setTenantData(tenantDoc.data())
-        } else {
-          setError(`No se encontró el tenant: ${tenantId}`)
-        }
-      } catch (err) {
-        console.error("Error fetching tenant data:", err)
-        setError("Error al cargar los datos del tenant")
-      } finally {
-        setLoadingTenant(false)
+    // Para desarrollo local
+    if (hostname.includes("localhost")) {
+      const subdomainMatch = hostname.match(/^([^.]+)\.localhost/)
+      if (subdomainMatch && subdomainMatch[1] !== "www" && subdomainMatch[1] !== "app") {
+        return true
       }
     }
 
-    fetchTenantData()
-  }, [tenantId])
+    return false
+  }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setLoading(true)
+  // Función para obtener el dominio principal
+  const getMainDomain = () => {
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+    return window.location.protocol + "//" + rootDomain
+  }
 
-    try {
-      console.log("Intentando iniciar sesión con:", email)
-      const userCredential = await signIn(email, password)
-      console.log("Autenticación exitosa, obteniendo perfil...")
+  // Redirigir si ya está autenticado
+  useEffect(() => {
+    if (user && userProfile) {
+      const { role } = userProfile
 
-      // Obtener el perfil del usuario para determinar su rol y tenant
-      let userProfile
-      try {
-        userProfile = await getUserProfile()
-        console.log("Perfil obtenido:", userProfile)
-      } catch (profileError: any) {
-        console.error("Error al obtener perfil:", profileError)
-        setError("No se pudo obtener el perfil del usuario. Por favor, intenta de nuevo.")
-        setLoading(false)
-        return
-      }
-
-      if (!userProfile) {
-        setError("No se encontró el perfil del usuario. Por favor, contacta al administrador.")
-        setLoading(false)
+      // Si el usuario es superadmin y está en un subdominio, redirigirlo al dominio principal
+      if (role === "superadmin" && isSubdomain()) {
+        console.log("Usuario superadmin en subdominio, redirigiendo al dominio principal")
+        window.location.href = `${getMainDomain()}/superadmin/dashboard`
         return
       }
 
       // Verificar si el usuario pertenece a este tenant
-      if (userProfile.tenantId !== tenantId && userProfile.role !== "admin") {
-        setError(`No tienes acceso al tenant ${tenantId}`)
-        setLoading(false)
+      if (userProfile.tenantId !== tenantId) {
+        setError(`No tienes acceso a este tenant. Tu tenant es: ${userProfile.tenantId}`)
         return
       }
 
-      // Redirección basada en rol
-      console.log("Redirigiendo al dashboard")
-      router.push(`/dashboard`)
+      router.push(`/tenant/${tenantId}/dashboard`)
+    }
+  }, [user, userProfile, router, tenantId])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+    setIsLoading(true)
+
+    try {
+      await signIn(email, password)
+      // La redirección se maneja en el useEffect
     } catch (error: any) {
-      console.error("Error completo:", error)
-      setError(error.message || "Error al iniciar sesión")
+      console.error("Error al iniciar sesión:", error)
+      setError(error.message || "Error al iniciar sesión. Verifica tus credenciales.")
     } finally {
-      setLoading(false)
+      setIsLoading(false)
     }
   }
 
-  if (user) {
-    return null // Si el usuario ya está autenticado, no mostrar nada (la redirección ya se maneja en useEffect)
-  }
-
-  if (loadingTenant) {
-    return (
-      <div className="container flex items-center justify-center min-h-screen">
-        <p>Cargando información del tenant...</p>
-      </div>
-    )
-  }
-
-  if (!tenantData) {
-    return (
-      <div className="container flex items-center justify-center min-h-screen">
-        <Alert variant="destructive" className="max-w-md">
-          <AlertDescription>{error || `No se encontró el tenant: ${tenantId}`}</AlertDescription>
-        </Alert>
-      </div>
-    )
-  }
-
   return (
-    <div className="container flex items-center justify-center min-h-screen py-12">
+    <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl">Iniciar sesión en {tenantData.name}</CardTitle>
-          <CardDescription>Ingresa tus credenciales para acceder a los servicios de {tenantData.name}</CardDescription>
+          <CardTitle className="text-2xl">Iniciar sesión en {tenantId}</CardTitle>
+          <CardDescription>Ingresa tus credenciales para acceder a tu cuenta</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Correo electrónico</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Input
+                id="email"
+                type="email"
+                placeholder="correo@ejemplo.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Contraseña</Label>
+                <Link href={`/tenant/${tenantId}/reset-password`} className="text-sm text-primary hover:underline">
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
               <Input
                 id="password"
                 type="password"
@@ -146,29 +122,24 @@ export default function TenantLogin() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
-              <div className="text-right">
-                <Link href={`/tenant/${tenantId}/forgot-password`} className="text-sm text-primary hover:underline">
-                  ¿Olvidaste tu contraseña?
-                </Link>
-              </div>
             </div>
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Iniciando sesión..." : "Iniciar sesión"}
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Iniciando sesión..." : "Iniciar sesión"}
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex justify-center">
-          <p className="text-sm text-muted-foreground">
+        <CardFooter className="flex flex-col space-y-4">
+          <div className="text-center text-sm">
             ¿No tienes una cuenta?{" "}
             <Link href={`/tenant/${tenantId}/register`} className="text-primary hover:underline">
-              Registrarse
+              Regístrate
             </Link>
-          </p>
+          </div>
         </CardFooter>
       </Card>
     </div>
