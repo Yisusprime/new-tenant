@@ -149,6 +149,7 @@ export default async function middleware(req: NextRequest) {
     (path.startsWith("/dashboard") ||
       path.startsWith("/settings") ||
       path.startsWith("/admin") ||
+      path.startsWith("/superadmin") ||
       path.startsWith("/manager") ||
       path.startsWith("/waiter") ||
       path.startsWith("/delivery") ||

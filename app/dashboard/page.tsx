@@ -23,7 +23,7 @@ export default function DashboardRedirect() {
 
       switch (role) {
         case "superadmin":
-          router.push("/admin/system")
+          router.push("/superadmin/dashboard")
           break
         case "admin":
           router.push("/admin/dashboard")

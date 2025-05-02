@@ -20,6 +20,8 @@ import {
   Package,
   User,
   Home,
+  Building,
+  Database,
 } from "lucide-react"
 import { useState, useEffect } from "react"
 
@@ -52,6 +54,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     switch (role) {
       case "superadmin":
+        return [
+          { name: "Dashboard", href: "/superadmin/dashboard", icon: LayoutDashboard },
+          { name: "Restaurantes", href: "/superadmin/tenants", icon: Building },
+          { name: "Usuarios", href: "/superadmin/users", icon: Users },
+          { name: "Dominios", href: "/superadmin/domains", icon: Globe },
+          { name: "Base de Datos", href: "/superadmin/database", icon: Database },
+          { name: "Mi Perfil", href: "/settings", icon: User },
+        ]
       case "admin":
         return [
           { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
