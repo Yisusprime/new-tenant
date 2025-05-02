@@ -52,8 +52,19 @@ export default async function middleware(req: NextRequest) {
         return NextResponse.redirect(new URL(`/tenant/${subdomain}/login`, req.url))
       }
 
-      // IMPORTANTE: Permitir acceso directo a /dashboard y sus subrutas en subdominios sin redirigir
-      if (path === "/dashboard" || path.startsWith("/dashboard/")) {
+      // Permitir acceso directo a dashboards específicos de rol
+      const roleDashboards = [
+        "/dashboard",
+        "/admin/dashboard",
+        "/manager/dashboard",
+        "/waiter/dashboard",
+        "/delivery/dashboard",
+        "/client/dashboard",
+        "/user/dashboard",
+      ]
+      const isDashboardPath = roleDashboards.some((dashboard) => path === dashboard || path.startsWith(`${dashboard}/`))
+
+      if (isDashboardPath) {
         console.log(`[Middleware] Allowing direct access to dashboard for subdomain: ${subdomain}`)
         return NextResponse.next()
       }
@@ -90,8 +101,21 @@ export default async function middleware(req: NextRequest) {
           return NextResponse.redirect(new URL(`/tenant/${subdomain}/login`, req.url))
         }
 
-        // Permitir acceso directo a /dashboard en subdominios sin redirigir
-        if (path === "/dashboard" || path.startsWith("/dashboard/")) {
+        // Permitir acceso directo a dashboards específicos de rol
+        const roleDashboards = [
+          "/dashboard",
+          "/admin/dashboard",
+          "/manager/dashboard",
+          "/waiter/dashboard",
+          "/delivery/dashboard",
+          "/client/dashboard",
+          "/user/dashboard",
+        ]
+        const isDashboardPath = roleDashboards.some(
+          (dashboard) => path === dashboard || path.startsWith(`${dashboard}/`),
+        )
+
+        if (isDashboardPath) {
           console.log(`[Middleware] Allowing direct access to dashboard for local subdomain: ${subdomain}`)
           return NextResponse.next()
         }
@@ -122,7 +146,14 @@ export default async function middleware(req: NextRequest) {
   // Si intentamos acceder a rutas de tenant desde el dominio principal
   if (
     (!subdomain || subdomain === "www" || subdomain === "app") &&
-    (path.startsWith("/dashboard") || path.startsWith("/settings"))
+    (path.startsWith("/dashboard") ||
+      path.startsWith("/settings") ||
+      path.startsWith("/admin") ||
+      path.startsWith("/manager") ||
+      path.startsWith("/waiter") ||
+      path.startsWith("/delivery") ||
+      path.startsWith("/client") ||
+      path.startsWith("/user"))
   ) {
     // Permitir el acceso a estas rutas desde el dominio principal
     return NextResponse.next()

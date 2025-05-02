@@ -6,45 +6,35 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Settings, LogOut, Menu, X, Users, Globe } from "lucide-react"
+import {
+  LayoutDashboard,
+  Settings,
+  LogOut,
+  Menu,
+  X,
+  Users,
+  Globe,
+  Utensils,
+  ShoppingBag,
+  Calendar,
+  Package,
+  User,
+  Home,
+} from "lucide-react"
 import { useState, useEffect } from "react"
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { user, getUserProfile, signOut } = useAuth()
+  const { user, userProfile, signOut } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function checkAdminStatus() {
-      if (user) {
-        try {
-          const profile = await getUserProfile()
-          setIsAdmin(profile?.role === "admin")
-        } catch (error) {
-          console.error("Error checking admin status:", error)
-        } finally {
-          setLoading(false)
-        }
-      } else {
-        setLoading(false)
-      }
+    if (user) {
+      setLoading(false)
     }
-
-    checkAdminStatus()
-  }, [user, getUserProfile])
-
-  const navigation = [
-    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { name: "Configuración", href: "/settings", icon: Settings },
-  ]
-
-  const adminNavigation = [
-    { name: "Tenants", href: "/admin/tenants", icon: Users },
-    { name: "Dominios", href: "/admin/domains", icon: Globe },
-  ]
+  }, [user])
 
   const handleSignOut = async () => {
     try {
@@ -54,6 +44,64 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } catch (error) {
       console.error("Error al cerrar sesión:", error)
     }
+  }
+
+  // Definir navegación según el rol del usuario
+  const getNavigation = () => {
+    const role = userProfile?.role || "user"
+
+    switch (role) {
+      case "superadmin":
+      case "admin":
+        return [
+          { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
+          { name: "Tenants", href: "/admin/tenants", icon: Users },
+          { name: "Dominios", href: "/admin/domains", icon: Globe },
+          { name: "Sistema", href: "/admin/system", icon: Settings },
+          { name: "Mi Perfil", href: "/settings", icon: User },
+        ]
+      case "manager":
+        return [
+          { name: "Dashboard", href: "/manager/dashboard", icon: LayoutDashboard },
+          { name: "Pedidos", href: "/manager/orders", icon: ShoppingBag },
+          { name: "Menú", href: "/manager/menu", icon: Utensils },
+          { name: "Empleados", href: "/manager/employees", icon: Users },
+          { name: "Horarios", href: "/manager/schedule", icon: Calendar },
+          { name: "Mi Perfil", href: "/settings", icon: User },
+        ]
+      case "waiter":
+        return [
+          { name: "Dashboard", href: "/waiter/dashboard", icon: LayoutDashboard },
+          { name: "Mesas", href: "/waiter/tables", icon: Utensils },
+          { name: "Pedidos", href: "/waiter/orders", icon: ShoppingBag },
+          { name: "Mi Perfil", href: "/settings", icon: User },
+        ]
+      case "delivery":
+        return [
+          { name: "Dashboard", href: "/delivery/dashboard", icon: LayoutDashboard },
+          { name: "Mis Entregas", href: "/delivery/deliveries", icon: Package },
+          { name: "Historial", href: "/delivery/history", icon: Calendar },
+          { name: "Mi Perfil", href: "/settings", icon: User },
+        ]
+      case "client":
+        return [
+          { name: "Dashboard", href: "/client/dashboard", icon: Home },
+          { name: "Menú", href: "/client/menu", icon: Utensils },
+          { name: "Mis Pedidos", href: "/client/orders", icon: ShoppingBag },
+          { name: "Mi Perfil", href: "/settings", icon: User },
+        ]
+      default:
+        return [
+          { name: "Dashboard", href: "/user/dashboard", icon: LayoutDashboard },
+          { name: "Mi Perfil", href: "/settings", icon: User },
+        ]
+    }
+  }
+
+  const navigation = getNavigation()
+
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen">Cargando...</div>
   }
 
   return (
@@ -91,27 +139,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <span>{item.name}</span>
                   </Link>
                 ))}
-
-                {isAdmin && (
-                  <>
-                    <div className="pt-4 border-t">
-                      <h3 className="text-sm font-medium text-muted-foreground mb-2">Administración</h3>
-                    </div>
-                    {adminNavigation.map((item) => (
-                      <Link
-                        key={item.name}
-                        href={item.href}
-                        className={`flex items-center space-x-2 px-3 py-2 rounded-md ${
-                          pathname === item.href ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-                        }`}
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        <item.icon className="h-5 w-5" />
-                        <span>{item.name}</span>
-                      </Link>
-                    ))}
-                  </>
-                )}
 
                 <Button
                   variant="ghost"
@@ -152,26 +179,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <span>{item.name}</span>
                 </Link>
               ))}
-
-              {isAdmin && (
-                <>
-                  <div className="pt-4 border-t mt-4">
-                    <h3 className="text-sm font-medium text-muted-foreground mb-2 px-3">Administración</h3>
-                  </div>
-                  {adminNavigation.map((item) => (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      className={`flex items-center space-x-2 px-3 py-2 rounded-md ${
-                        pathname === item.href ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-                      }`}
-                    >
-                      <item.icon className="h-5 w-5" />
-                      <span>{item.name}</span>
-                    </Link>
-                  ))}
-                </>
-              )}
             </nav>
             <div className="pt-6">
               <Button
