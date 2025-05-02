@@ -43,35 +43,35 @@ export default function Login() {
     return false
   }
 
-  // Obtener el subdominio actual
-  const getSubdomain = () => {
-    if (typeof window === "undefined") return null
-
-    const hostname = window.location.hostname
-    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-
-    if (hostname.endsWith(`.${rootDomain}`)) {
-      return hostname.replace(`.${rootDomain}`, "")
-    }
-
-    if (hostname.includes(".localhost")) {
-      const match = hostname.match(/^([^.]+)\.localhost/)
-      if (match) return match[1]
-    }
-
-    return null
-  }
-
-  // Usamos useEffect para detectar el subdominio
+  // Limpiar cualquier estado persistente al cargar la página
   useEffect(() => {
+    // Limpiar cualquier cookie o localStorage que pueda estar causando redirecciones incorrectas
     if (typeof window !== "undefined") {
-      // Si estamos en un subdominio, redirigir a la página de login específica del tenant
-      if (isSubdomain()) {
-        const subdomain = getSubdomain()
-        router.push(`/tenant/${subdomain}/login`)
+      // Limpiar localStorage
+      localStorage.removeItem("lastTenant")
+      localStorage.removeItem("lastRole")
+
+      // Limpiar sessionStorage
+      sessionStorage.removeItem("lastTenant")
+      sessionStorage.removeItem("lastRole")
+
+      // Forzar la recarga de la página si venimos de un subdominio
+      const referrer = document.referrer
+      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+
+      if (
+        referrer &&
+        !referrer.includes(`www.${rootDomain}`) &&
+        !referrer.includes("localhost:3000") &&
+        (referrer.includes(`.${rootDomain}`) || referrer.includes(".localhost"))
+      ) {
+        // Si venimos de un subdominio y estamos en el dominio principal, forzar recarga
+        if (!isSubdomain() && !window.location.href.includes("?reloaded=true")) {
+          window.location.href = window.location.href + "?reloaded=true"
+        }
       }
     }
-  }, [router])
+  }, [])
 
   // Si el usuario ya está autenticado, redirigirlo
   useEffect(() => {
@@ -152,7 +152,7 @@ export default function Login() {
     }
   }
 
-  // Si estamos en un subdominio, no mostrar esta página (la redirección se maneja en useEffect)
+  // Si estamos en un subdominio, no mostrar esta página
   if (isSubdomain()) {
     return null
   }

@@ -22,6 +22,36 @@ export default function Register() {
   const { signUp, user } = useAuth()
   const router = useRouter()
 
+  // Limpiar cualquier estado persistente al cargar la página
+  useEffect(() => {
+    // Limpiar cualquier cookie o localStorage que pueda estar causando redirecciones incorrectas
+    if (typeof window !== "undefined") {
+      // Limpiar localStorage
+      localStorage.removeItem("lastTenant")
+      localStorage.removeItem("lastRole")
+
+      // Limpiar sessionStorage
+      sessionStorage.removeItem("lastTenant")
+      sessionStorage.removeItem("lastRole")
+
+      // Forzar la recarga de la página si venimos de un subdominio
+      const referrer = document.referrer
+      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+
+      if (
+        referrer &&
+        !referrer.includes(`www.${rootDomain}`) &&
+        !referrer.includes("localhost:3000") &&
+        (referrer.includes(`.${rootDomain}`) || referrer.includes(".localhost"))
+      ) {
+        // Si venimos de un subdominio y estamos en el dominio principal, forzar recarga
+        if (!window.location.href.includes("?reloaded=true")) {
+          window.location.href = window.location.href + "?reloaded=true"
+        }
+      }
+    }
+  }, [])
+
   // Si el usuario ya está autenticado, redirigirlo
   useEffect(() => {
     if (user) {
