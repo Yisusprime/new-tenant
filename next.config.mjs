@@ -56,10 +56,10 @@ const nextConfig = {
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
-        process: require.resolve('process/browser'),
-        stream: require.resolve('stream-browserify'),
-        buffer: require.resolve('buffer/'),
-        util: require.resolve('util/'),
+        process: 'process/browser',
+        stream: 'stream-browserify',
+        buffer: 'buffer/',
+        util: 'util/',
       };
     }
 
