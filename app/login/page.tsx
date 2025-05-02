@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
@@ -17,8 +17,38 @@ export default function Login() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-  const { signIn } = useAuth()
+  const [hostname, setHostname] = useState("")
+  const [tenantId, setTenantId] = useState<string | null>(null)
+  const { signIn, getUserProfile } = useAuth()
   const router = useRouter()
+
+  useEffect(() => {
+    // Detectar si estamos en un subdominio
+    const host = window.location.hostname
+    setHostname(host)
+
+    // Obtener el dominio raíz (ej., gastroo.online)
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+
+    // Verificar si es un subdominio del dominio raíz
+    if (host.endsWith(`.${rootDomain}`)) {
+      const subdomain = host.replace(`.${rootDomain}`, "")
+      if (subdomain !== "www" && subdomain !== "app") {
+        setTenantId(subdomain)
+      }
+    }
+
+    // Para desarrollo local
+    if (host.includes("localhost")) {
+      const subdomainMatch = host.match(/^([^.]+)\.localhost/)
+      if (subdomainMatch) {
+        const subdomain = subdomainMatch[1]
+        if (subdomain !== "www" && subdomain !== "app") {
+          setTenantId(subdomain)
+        }
+      }
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,7 +57,55 @@ export default function Login() {
 
     try {
       await signIn(email, password)
-      router.push("/dashboard")
+
+      // Obtener el perfil del usuario para determinar su rol y tenant
+      const userProfile = await getUserProfile()
+
+      if (!userProfile) {
+        throw new Error("No se pudo obtener el perfil del usuario")
+      }
+
+      // Lógica de redirección basada en el contexto y rol
+      if (tenantId) {
+        // Estamos en un subdominio de tenant
+
+        // Verificar si el usuario pertenece a este tenant
+        if (userProfile.tenantId !== tenantId) {
+          throw new Error(`No tienes acceso al tenant ${tenantId}`)
+        }
+
+        // Redirección basada en rol dentro del tenant
+        switch (userProfile.role) {
+          case "admin":
+            router.push("/dashboard")
+            break
+          case "client":
+            router.push("/client")
+            break
+          case "delivery":
+            router.push("/delivery")
+            break
+          case "waiter":
+            router.push("/waiter")
+            break
+          case "manager":
+            router.push("/manager")
+            break
+          default:
+            router.push("/dashboard")
+        }
+      } else {
+        // Estamos en el dominio principal
+
+        // Si el usuario es dueño de un tenant, redirigir a su subdominio
+        if (userProfile.isTenantOwner && userProfile.tenantId) {
+          const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+          window.location.href = `https://${userProfile.tenantId}.${rootDomain}/dashboard`
+        } else {
+          // Si no es dueño de un tenant, redirigir al dashboard principal
+          router.push("/dashboard")
+        }
+      }
     } catch (error: any) {
       setError(error.message || "Error al iniciar sesión")
     } finally {
@@ -40,7 +118,11 @@ export default function Login() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl">Iniciar sesión</CardTitle>
-          <CardDescription>Ingresa tus credenciales para acceder a tu cuenta</CardDescription>
+          <CardDescription>
+            {tenantId
+              ? `Ingresa tus credenciales para acceder a tu cuenta en ${tenantId}`
+              : "Ingresa tus credenciales para acceder a tu cuenta"}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
