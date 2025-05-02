@@ -202,8 +202,16 @@ export const AuthProvider = ({ children }) => {
         role: isFirstUser ? "admin" : "user",
       })
 
-      // No redirigir automáticamente, dejar que el router de Next.js maneje la redirección
-      router.push("/dashboard")
+      // IMPORTANTE: Redirigir al subdominio del tenant
+      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+
+      // Usar window.location.href para una redirección completa al subdominio
+      if (typeof window !== "undefined") {
+        window.location.href = `https://${subdomain}.${rootDomain}/dashboard`
+      }
+
+      // No usar router.push aquí, ya que necesitamos cambiar de dominio
+      return
     } catch (error) {
       console.error("Error signing up:", error)
       throw error
