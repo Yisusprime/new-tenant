@@ -1,123 +1,132 @@
 "use client"
 
-import type React from "react"
-
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useState, useEffect } from "react"
 import {
-  type User,
-  onAuthStateChanged,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signOut as firebaseSignOut,
+  signOut,
+  onAuthStateChanged,
+  updateProfile,
+  sendPasswordResetEmail,
 } from "firebase/auth"
 import { auth, db } from "./firebase"
-import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore"
+import { setDoc, doc, getDoc, updateDoc } from "firebase/firestore"
 import { useRouter } from "next/navigation"
 
-// Definir los tipos de roles disponibles
-export type UserRole = "admin" | "client" | "delivery" | "waiter" | "manager" | "user"
+export type UserRole = "admin" | "client" | "waiter" | "delivery" | "manager" | "user"
 
-interface AuthContextType {
-  user: User | null
-  loading: boolean
-  userProfile: any | null
-  signUp: (email: string, password: string, name: string, companyName: string) => Promise<void>
-  signUpTenantUser: (email: string, password: string, name: string, role: UserRole, tenantId: string) => Promise<void>
-  signIn: (email: string, password: string) => Promise<void>
-  signOut: () => Promise<void>
-  getUserProfile: () => Promise<any>
-  updateUserRole: (userId: string, role: UserRole) => Promise<void>
-}
+const AuthContext = createContext({})
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
-
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [userProfile, setUserProfile] = useState<any | null>(null)
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null)
+  const [userProfile, setUserProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      console.log("Auth state changed:", user ? "User logged in" : "User logged out")
-      setUser(user)
-
       if (user) {
-        try {
-          const profile = await fetchUserProfile(user.uid)
-          setUserProfile(profile)
-        } catch (error) {
-          console.error("Error fetching user profile:", error)
-        }
+        setUser(user)
+        // Fetch user profile
+        const profile = await getUserProfileData(user.uid)
+        setUserProfile(profile)
       } else {
+        setUser(null)
         setUserProfile(null)
       }
-
       setLoading(false)
     })
 
     return () => unsubscribe()
   }, [])
 
-  const fetchUserProfile = async (userId: string) => {
+  const signIn = async (email, password) => {
     try {
-      const userDoc = await getDoc(doc(db, "users", userId))
-      if (userDoc.exists()) {
-        return userDoc.data()
-      }
-      return null
+      await signInWithEmailAndPassword(auth, email, password)
+      // No need to redirect here, useEffect will handle user state change
     } catch (error) {
-      console.error("Error fetching user profile:", error)
-      return null
+      console.error("Error signing in:", error)
+      throw error
     }
   }
 
+  // Modificar la función signUp para asegurar que el perfil se crea correctamente
   const signUp = async (email: string, password: string, name: string, companyName: string) => {
     try {
+      console.log("1. Iniciando registro...")
+
+      // 1. Crear el usuario en Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
+      console.log("2. Usuario creado en Auth:", user.uid)
 
-      // Generate a unique subdomain from company name
+      // 2. Generate a unique subdomain from company name
       const subdomain = companyName
         .toLowerCase()
         .replace(/[^a-z0-9]/g, "")
         .substring(0, 20)
+      console.log("3. Subdomain generado:", subdomain)
 
-      // Determinar si es el primer usuario (admin)
-      const usersCollection = await getDoc(doc(db, "system", "stats"))
-      const isFirstUser = !usersCollection.exists() || !usersCollection.data()?.userCount
-
-      // Create user profile in Firestore
-      await setDoc(doc(db, "users", user.uid), {
+      // 3. Crear el perfil de usuario en Firestore
+      const userData = {
         email,
         name,
         companyName,
         subdomain,
-        role: isFirstUser ? "admin" : "user", // Asignar rol de admin al primer usuario
-        isTenantOwner: true, // Este usuario es dueño de un tenant
-        tenantId: subdomain, // El tenant al que pertenece
+        role: "user", // Por defecto, asignar rol de usuario
+        isTenantOwner: true,
+        tenantId: subdomain,
         createdAt: new Date().toISOString(),
-      })
+      }
 
-      // Create tenant record
-      await setDoc(doc(db, "tenants", subdomain), {
+      console.log("4. Creando perfil de usuario:", userData)
+      await setDoc(doc(db, "users", user.uid), userData)
+      console.log("5. Perfil de usuario creado exitosamente")
+
+      // 4. Crear el tenant
+      const tenantData = {
         ownerId: user.uid,
         name: companyName,
         subdomain,
         customDomain: null,
         active: true,
         createdAt: new Date().toISOString(),
-      })
+      }
 
-      // Actualizar estadísticas del sistema
-      await setDoc(
-        doc(db, "system", "stats"),
-        {
-          userCount: (usersCollection.data()?.userCount || 0) + 1,
-          lastRegistration: new Date().toISOString(),
-        },
-        { merge: true },
-      )
+      console.log("6. Creando tenant:", tenantData)
+      await setDoc(doc(db, "tenants", subdomain), tenantData)
+      console.log("7. Tenant creado exitosamente")
+
+      // 5. Verificar si es el primer usuario (para asignar rol de admin)
+      try {
+        const systemRef = doc(db, "system", "stats")
+        const systemDoc = await getDoc(systemRef)
+
+        const isFirstUser = !systemDoc.exists() || !systemDoc.data()?.userCount
+
+        if (isFirstUser) {
+          console.log("8. Es el primer usuario, asignando rol de admin")
+          await updateDoc(doc(db, "users", user.uid), {
+            role: "admin",
+          })
+        }
+
+        // Actualizar estadísticas
+        await setDoc(
+          systemRef,
+          {
+            userCount: (systemDoc.exists() ? systemDoc.data()?.userCount || 0 : 0) + 1,
+            lastRegistration: new Date().toISOString(),
+          },
+          { merge: true },
+        )
+        console.log("9. Estadísticas actualizadas")
+      } catch (statsError) {
+        console.error("Error al actualizar estadísticas:", statsError)
+        // No interrumpir el proceso por este error
+      }
+
+      console.log("10. Registro completado con éxito")
 
       // Redirigir al subdominio del tenant
       const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
@@ -128,60 +137,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Nuevo método para registrar usuarios dentro de un tenant
   const signUpTenantUser = async (email: string, password: string, name: string, role: UserRole, tenantId: string) => {
     try {
-      // Verificar que el tenant exista
-      const tenantDoc = await getDoc(doc(db, "tenants", tenantId))
-      if (!tenantDoc.exists()) {
-        throw new Error(`El tenant ${tenantId} no existe`)
-      }
-
+      // 1. Crear el usuario en Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
 
-      // Create user profile in Firestore
-      await setDoc(doc(db, "users", user.uid), {
+      // 2. Crear el perfil de usuario en Firestore
+      const userData = {
         email,
         name,
-        role, // Rol específico asignado
-        isTenantOwner: false, // Este usuario no es dueño del tenant
-        tenantId, // El tenant al que pertenece
+        role,
+        tenantId,
         createdAt: new Date().toISOString(),
-      })
+      }
 
-      // Actualizar contador de usuarios en el tenant
-      await updateDoc(doc(db, "tenants", tenantId), {
-        userCount: (tenantDoc.data()?.userCount || 0) + 1,
-        lastUserAdded: new Date().toISOString(),
-      })
+      await setDoc(doc(db, "users", user.uid), userData)
 
-      // No redirigimos aquí, dejamos que la página de registro maneje la redirección
+      return user
     } catch (error) {
       console.error("Error signing up tenant user:", error)
       throw error
     }
   }
 
-  const signIn = async (email: string, password: string) => {
+  const logOut = async () => {
+    setUser(null)
+    setUserProfile(null)
+    await signOut(auth)
+    router.push("/")
+  }
+
+  const resetPassword = async (email) => {
     try {
-      await signInWithEmailAndPassword(auth, email, password)
-      // La redirección se manejará en el componente de login
+      await sendPasswordResetEmail(auth, email)
     } catch (error) {
-      console.error("Error signing in:", error)
+      console.error("Error sending password reset email:", error)
       throw error
     }
   }
 
-  const signOut = async () => {
+  const updateUserProfileData = async (displayName, photoURL) => {
     try {
-      console.log("Attempting to sign out...")
-      await firebaseSignOut(auth)
-      console.log("Sign out successful")
-      // Limpiar cualquier estado local si es necesario
-      return Promise.resolve()
+      await updateProfile(auth.currentUser, {
+        displayName: displayName,
+        photoURL: photoURL,
+      })
+      setUser(auth.currentUser) // Update local state
     } catch (error) {
-      console.error("Error signing out:", error)
+      console.error("Error updating profile:", error)
+      throw error
+    }
+  }
+
+  const updateUserRole = async (userId: string, role: UserRole) => {
+    try {
+      await updateDoc(doc(db, "users", userId), {
+        role: role,
+      })
+    } catch (error) {
+      console.error("Error updating user role:", error)
       throw error
     }
   }
@@ -190,52 +205,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return null
 
     try {
-      const userDoc = await getDoc(doc(db, "users", user.uid))
-      if (userDoc.exists()) {
-        return userDoc.data()
-      }
-      return null
+      return await getUserProfileData(user.uid)
     } catch (error) {
       console.error("Error getting user profile:", error)
-      throw error
+      return null
     }
   }
 
-  const updateUserRole = async (userId: string, role: UserRole) => {
+  const getUserProfileData = async (uid: string) => {
     try {
-      await updateDoc(doc(db, "users", userId), {
-        role,
-        updatedAt: new Date().toISOString(),
-      })
+      const userDoc = await getDoc(doc(db, "users", uid))
+
+      if (userDoc.exists()) {
+        return userDoc.data()
+      } else {
+        console.log("No such document!")
+        return null
+      }
     } catch (error) {
-      console.error("Error updating user role:", error)
-      throw error
+      console.error("Error getting document:", error)
+      return null
     }
   }
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        userProfile,
-        signUp,
-        signUpTenantUser,
-        signIn,
-        signOut,
-        getUserProfile,
-        updateUserRole,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  )
+  const value = {
+    user,
+    userProfile,
+    signIn,
+    signUp,
+    signUpTenantUser,
+    logOut,
+    loading,
+    resetPassword,
+    updateUserProfile: updateUserProfileData,
+    updateUserRole,
+    getUserProfile,
+  }
+
+  return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>
 }
 
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider")
-  }
-  return context
+export const useAuth = () => {
+  return useContext(AuthContext)
 }

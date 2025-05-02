@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
@@ -22,29 +22,33 @@ export default function Login() {
   const { signIn, getUserProfile } = useAuth()
   const router = useRouter()
 
-  useEffect(() => {
-    // Detectar si estamos en un subdominio
-    const host = window.location.hostname
-    setHostname(host)
+  // Usamos useEffect para detectar el subdominio
+  // Este código se ejecutará en el cliente
+  useState(() => {
+    if (typeof window !== "undefined") {
+      // Detectar si estamos en un subdominio
+      const host = window.location.hostname
+      setHostname(host)
 
-    // Obtener el dominio raíz (ej., gastroo.online)
-    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+      // Obtener el dominio raíz (ej., gastroo.online)
+      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
 
-    // Verificar si es un subdominio del dominio raíz
-    if (host.endsWith(`.${rootDomain}`)) {
-      const subdomain = host.replace(`.${rootDomain}`, "")
-      if (subdomain !== "www" && subdomain !== "app") {
-        setTenantId(subdomain)
-      }
-    }
-
-    // Para desarrollo local
-    if (host.includes("localhost")) {
-      const subdomainMatch = host.match(/^([^.]+)\.localhost/)
-      if (subdomainMatch) {
-        const subdomain = subdomainMatch[1]
+      // Verificar si es un subdominio del dominio raíz
+      if (host.endsWith(`.${rootDomain}`)) {
+        const subdomain = host.replace(`.${rootDomain}`, "")
         if (subdomain !== "www" && subdomain !== "app") {
           setTenantId(subdomain)
+        }
+      }
+
+      // Para desarrollo local
+      if (host.includes("localhost")) {
+        const subdomainMatch = host.match(/^([^.]+)\.localhost/)
+        if (subdomainMatch) {
+          const subdomain = subdomainMatch[1]
+          if (subdomain !== "www" && subdomain !== "app") {
+            setTenantId(subdomain)
+          }
         }
       }
     }
@@ -56,13 +60,26 @@ export default function Login() {
     setLoading(true)
 
     try {
+      console.log("Intentando iniciar sesión con:", email)
       await signIn(email, password)
+      console.log("Autenticación exitosa, obteniendo perfil...")
 
       // Obtener el perfil del usuario para determinar su rol y tenant
-      const userProfile = await getUserProfile()
+      let userProfile
+      try {
+        userProfile = await getUserProfile()
+        console.log("Perfil obtenido:", userProfile)
+      } catch (profileError: any) {
+        console.error("Error al obtener perfil:", profileError)
+        setError("No se pudo obtener el perfil del usuario. Por favor, intenta de nuevo.")
+        setLoading(false)
+        return
+      }
 
       if (!userProfile) {
-        throw new Error("No se pudo obtener el perfil del usuario")
+        setError("No se encontró el perfil del usuario. Por favor, contacta al administrador.")
+        setLoading(false)
+        return
       }
 
       // Lógica de redirección basada en el contexto y rol
@@ -107,6 +124,7 @@ export default function Login() {
         }
       }
     } catch (error: any) {
+      console.error("Error completo:", error)
       setError(error.message || "Error al iniciar sesión")
     } finally {
       setLoading(false)
