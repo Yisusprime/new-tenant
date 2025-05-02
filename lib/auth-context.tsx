@@ -49,21 +49,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .replace(/[^a-z0-9]/g, "")
         .substring(0, 20)
 
-      // Determinar si es el primer usuario (admin)
-      const usersCollection = await getDoc(doc(db, "system", "stats"))
-      const isFirstUser = !usersCollection.exists() || !usersCollection.data()?.userCount
-
-      // Create user profile in Firestore
+      // Crear el perfil de usuario primero
       await setDoc(doc(db, "users", user.uid), {
         email,
         name,
         companyName,
         subdomain,
-        role: isFirstUser ? "admin" : "user", // Asignar rol de admin al primer usuario
+        role: "user", // Por defecto, todos son usuarios normales
         createdAt: new Date().toISOString(),
       })
 
-      // Create tenant record
+      // Crear el tenant
       await setDoc(doc(db, "tenants", subdomain), {
         ownerId: user.uid,
         name: companyName,
@@ -73,15 +69,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         createdAt: new Date().toISOString(),
       })
 
-      // Actualizar estadísticas del sistema
-      await setDoc(
-        doc(db, "system", "stats"),
-        {
-          userCount: (usersCollection.data()?.userCount || 0) + 1,
-          lastRegistration: new Date().toISOString(),
-        },
-        { merge: true },
-      )
+      // En lugar de actualizar las estadísticas directamente, llamamos a una API
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+        await fetch(`${baseUrl}/api/system/register-user`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${await user.getIdToken()}`,
+          },
+          body: JSON.stringify({
+            userId: user.uid,
+            isFirstUser: true, // La API verificará esto
+          }),
+        })
+      } catch (apiError) {
+        console.error("Error updating system stats:", apiError)
+        // No lanzamos el error para que el registro pueda continuar
+      }
     } catch (error) {
       console.error("Error signing up:", error)
       throw error
