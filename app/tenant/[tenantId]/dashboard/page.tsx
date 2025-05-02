@@ -1,19 +1,31 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { doc, getDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
+import { useAuth } from "@/lib/auth-context"
 import DashboardLayout from "@/components/dashboard-layout"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 
 export default function TenantDashboard() {
   const params = useParams()
   const tenantId = params?.tenantId as string
+  const router = useRouter()
+  const { user, userProfile, loading: authLoading } = useAuth()
   const [tenantData, setTenantData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    // Verificar si el usuario está autenticado
+    if (!authLoading && !user) {
+      console.log("Usuario no autenticado, redirigiendo a login")
+      router.push(`/tenant/${tenantId}/login`)
+      return
+    }
+
+    // Cargar datos del tenant
     async function fetchTenantData() {
       if (!tenantId) return
 
@@ -26,37 +38,31 @@ export default function TenantDashboard() {
           setTenantData(tenantDoc.data())
         } else {
           console.log("No tenant found with ID:", tenantId)
-          setError(`No se encontró el tenant: ${tenantId}`)
         }
       } catch (err) {
         console.error("Error fetching tenant data:", err)
-        setError("Error al cargar los datos del tenant")
       } finally {
         setLoading(false)
       }
     }
 
-    fetchTenantData()
-  }, [tenantId])
+    if (user) {
+      fetchTenantData()
+    }
+  }, [user, authLoading, tenantId, router])
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <DashboardLayout>
         <div className="container py-12">
-          <p>Cargando datos del tenant...</p>
+          <p>Cargando...</p>
         </div>
       </DashboardLayout>
     )
   }
 
-  if (error) {
-    return (
-      <DashboardLayout>
-        <div className="container py-12">
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</div>
-        </div>
-      </DashboardLayout>
-    )
+  if (!user) {
+    return null // La redirección ya se maneja en el useEffect
   }
 
   return (
@@ -65,24 +71,55 @@ export default function TenantDashboard() {
         <h1 className="text-3xl font-bold mb-8">Dashboard de {tenantData?.name || tenantId}</h1>
 
         <div className="grid md:grid-cols-2 gap-8">
-          <div className="bg-card p-6 rounded-lg shadow-sm">
-            <h2 className="text-xl font-bold mb-4">Bienvenido a tu dashboard</h2>
-            <p className="text-muted-foreground">Este es el dashboard personalizado para el tenant {tenantId}.</p>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Bienvenido a tu dashboard</CardTitle>
+              <CardDescription>Este es el dashboard personalizado para el tenant {tenantId}.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Aquí podrás gestionar todos los aspectos de tu negocio.</p>
+              <div className="mt-4">
+                <Button>Comenzar</Button>
+              </div>
+            </CardContent>
+          </Card>
 
-          <div className="bg-card p-6 rounded-lg shadow-sm">
-            <h2 className="text-xl font-bold mb-4">Información del tenant</h2>
-            <p className="text-muted-foreground">Tenant ID: {tenantId}</p>
-            <p className="text-muted-foreground mt-2">Dominio: {tenantId}.gastroo.online</p>
-            {tenantData && (
-              <>
-                <p className="text-muted-foreground mt-2">Nombre: {tenantData.name}</p>
-                <p className="text-muted-foreground mt-2">
-                  Creado: {new Date(tenantData.createdAt).toLocaleDateString()}
+          <Card>
+            <CardHeader>
+              <CardTitle>Información del tenant</CardTitle>
+              <CardDescription>Detalles sobre tu cuenta</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <p>
+                  <strong>Tenant ID:</strong> {tenantId}
                 </p>
-              </>
-            )}
-          </div>
+                <p>
+                  <strong>Dominio:</strong> {tenantId}.gastroo.online
+                </p>
+                {tenantData && (
+                  <>
+                    <p>
+                      <strong>Nombre:</strong> {tenantData.name}
+                    </p>
+                    <p>
+                      <strong>Creado:</strong> {new Date(tenantData.createdAt).toLocaleDateString()}
+                    </p>
+                  </>
+                )}
+                {userProfile && (
+                  <>
+                    <p>
+                      <strong>Usuario:</strong> {userProfile.name}
+                    </p>
+                    <p>
+                      <strong>Rol:</strong> {userProfile.role}
+                    </p>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </DashboardLayout>

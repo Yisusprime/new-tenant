@@ -52,6 +52,12 @@ export default async function middleware(req: NextRequest) {
         return NextResponse.redirect(new URL(`/tenant/${subdomain}/login`, req.url))
       }
 
+      // Permitir acceso directo a /dashboard en subdominios sin redirigir
+      if (path === "/dashboard" || path.startsWith("/dashboard/")) {
+        console.log(`[Middleware] Allowing direct access to dashboard for subdomain: ${subdomain}`)
+        return NextResponse.next()
+      }
+
       // No reescribimos las rutas para que Next.js pueda manejarlas directamente
       console.log(`[Middleware] Allowing direct access to: ${path} for subdomain: ${subdomain}`)
       return NextResponse.next()
@@ -82,6 +88,12 @@ export default async function middleware(req: NextRequest) {
         if (path === "/login") {
           console.log(`[Middleware] Redirecting login to tenant-specific login: ${subdomain}`)
           return NextResponse.redirect(new URL(`/tenant/${subdomain}/login`, req.url))
+        }
+
+        // Permitir acceso directo a /dashboard en subdominios sin redirigir
+        if (path === "/dashboard" || path.startsWith("/dashboard/")) {
+          console.log(`[Middleware] Allowing direct access to dashboard for local subdomain: ${subdomain}`)
+          return NextResponse.next()
         }
 
         // No reescribimos las rutas para que Next.js pueda manejarlas directamente

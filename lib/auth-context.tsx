@@ -165,11 +165,12 @@ export const AuthProvider = ({ children }) => {
       console.log("7. Tenant creado exitosamente")
 
       // 5. Verificar si es el primer usuario (para asignar rol de admin)
+      let isFirstUser = false
       try {
         const systemRef = doc(db, "system", "stats")
         const systemDoc = await getDoc(systemRef)
 
-        const isFirstUser = !systemDoc.exists() || !systemDoc.data()?.userCount
+        isFirstUser = !systemDoc.exists() || !systemDoc.data()?.userCount
 
         if (isFirstUser) {
           console.log("8. Es el primer usuario, asignando rol de admin")
@@ -195,9 +196,14 @@ export const AuthProvider = ({ children }) => {
 
       console.log("10. Registro completado con éxito")
 
-      // Redirigir al subdominio del tenant
-      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-      window.location.href = `https://${subdomain}.${rootDomain}/dashboard`
+      // Actualizar el estado local con el nuevo usuario
+      setUserProfile({
+        ...userData,
+        role: isFirstUser ? "admin" : "user",
+      })
+
+      // No redirigir automáticamente, dejar que el router de Next.js maneje la redirección
+      router.push("/dashboard")
     } catch (error) {
       console.error("Error signing up:", error)
       throw error
@@ -239,10 +245,25 @@ export const AuthProvider = ({ children }) => {
   const signOut = async () => {
     try {
       console.log("Cerrando sesión...")
+
+      // Obtener el hostname actual para determinar si estamos en un subdominio
+      const hostname = typeof window !== "undefined" ? window.location.hostname : ""
+      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+      const isSubdomain = hostname.endsWith(`.${rootDomain}`) && !hostname.startsWith("www.") && hostname !== rootDomain
+
+      // Limpiar el estado de autenticación
       await firebaseSignOut(auth)
       setUser(null)
       setUserProfile(null)
-      router.push("/")
+
+      // Redirigir según el contexto
+      if (isSubdomain) {
+        // Si estamos en un subdominio, redirigir a la página principal del subdominio
+        router.push("/")
+      } else {
+        // Si estamos en el dominio principal, redirigir a la página principal
+        router.push("/")
+      }
     } catch (error) {
       console.error("Error al cerrar sesión:", error)
       throw error
