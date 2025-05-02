@@ -4,7 +4,9 @@ import { getDomainFromRequest } from "@/lib/domains"
 async function getTenantData(tenantId: string) {
   try {
     // Llamar a la API route para obtener los datos del tenant
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || ""}/api/tenants/${tenantId}`, {
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "")
+    const response = await fetch(`${baseUrl}/api/tenants/${tenantId}`, {
       cache: "no-store",
     })
 

@@ -33,17 +33,43 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
-  // Obtener información del dominio a través de la API
-  const domainResponse = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL || ""}/api/domains?hostname=${encodeURIComponent(hostname)}`,
-  )
-
-  if (!domainResponse.ok) {
-    // Si hay un error, continuar con la solicitud normal
-    return NextResponse.next()
+  // Implementar la lógica de domainInfo directamente en el middleware
+  // en lugar de llamar a la API
+  const domainInfo = {
+    domain: hostname,
+    tenantId: null,
+    isCustomDomain: false,
+    isSubdomain: false,
   }
 
-  const domainInfo = await domainResponse.json()
+  // Para desarrollo local
+  if (hostname.includes("localhost")) {
+    // Verificar si es un formato de subdominio como tenant-name.localhost:3000
+    const subdomainMatch = hostname.match(/^([^.]+)\.localhost/)
+    if (subdomainMatch) {
+      const subdomain = subdomainMatch[1]
+      if (subdomain !== "www" && subdomain !== "app") {
+        domainInfo.isSubdomain = true
+        domainInfo.tenantId = subdomain
+      }
+    }
+  } else {
+    // Obtener el dominio raíz (ej., gastroo.online)
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+
+    // Verificar si es un subdominio del dominio raíz
+    if (hostname.endsWith(`.${rootDomain}`)) {
+      const subdomain = hostname.replace(`.${rootDomain}`, "")
+      if (subdomain !== "www" && subdomain !== "app") {
+        domainInfo.isSubdomain = true
+        domainInfo.tenantId = subdomain
+      }
+    }
+
+    // No podemos verificar dominios personalizados en el middleware
+    // porque requeriría acceso a Firebase, lo cual no es posible en el middleware
+    // Los dominios personalizados se verificarán en la página del tenant
+  }
 
   // Define the paths that are only accessible on the main domain
   const mainDomainPaths = ["/", "/login", "/register", "/pricing"]
