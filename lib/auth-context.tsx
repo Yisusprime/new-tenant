@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useEffect } from "react"
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signOut,
+  signOut as firebaseSignOut,
   onAuthStateChanged,
   updateProfile,
   sendPasswordResetEmail,
@@ -15,7 +15,23 @@ import { useRouter } from "next/navigation"
 
 export type UserRole = "admin" | "client" | "waiter" | "delivery" | "manager" | "user"
 
-const AuthContext = createContext({})
+// Crear un tipo para el contexto de autenticación
+type AuthContextType = {
+  user: any
+  userProfile: any
+  loading: boolean
+  signIn: (email: string, password: string) => Promise<void>
+  signUp: (email: string, password: string, name: string, companyName: string) => Promise<void>
+  signUpTenantUser: (email: string, password: string, name: string, role: UserRole, tenantId: string) => Promise<any>
+  signOut: () => Promise<void>
+  resetPassword: (email: string) => Promise<void>
+  updateUserProfile: (displayName: string, photoURL: string) => Promise<void>
+  updateUserRole: (userId: string, role: UserRole) => Promise<void>
+  getUserProfile: () => Promise<any>
+}
+
+// Crear el contexto con un valor por defecto
+const AuthContext = createContext<AuthContextType>({} as AuthContextType)
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
@@ -161,11 +177,18 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  const logOut = async () => {
-    setUser(null)
-    setUserProfile(null)
-    await signOut(auth)
-    router.push("/")
+  // Renombrar a signOut para consistencia y usar firebaseSignOut para evitar conflictos
+  const signOut = async () => {
+    try {
+      console.log("Cerrando sesión...")
+      await firebaseSignOut(auth)
+      setUser(null)
+      setUserProfile(null)
+      router.push("/")
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error)
+      throw error
+    }
   }
 
   const resetPassword = async (email) => {
@@ -177,7 +200,7 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  const updateUserProfileData = async (displayName, photoURL) => {
+  const updateUserProfile = async (displayName, photoURL) => {
     try {
       await updateProfile(auth.currentUser, {
         displayName: displayName,
@@ -234,10 +257,10 @@ export const AuthProvider = ({ children }) => {
     signIn,
     signUp,
     signUpTenantUser,
-    logOut,
+    signOut, // Usar signOut en lugar de logOut
     loading,
     resetPassword,
-    updateUserProfile: updateUserProfileData,
+    updateUserProfile,
     updateUserRole,
     getUserProfile,
   }
