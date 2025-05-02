@@ -8,8 +8,8 @@ import FirebaseStatus from "@/components/firebase-status"
 export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="border-b">
-        <div className="container flex h-16 items-center justify-between">
+      <header className="border-b w-full">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-6">
             <Link href="/" className="font-bold text-xl">
               Multi-Cliente
@@ -38,9 +38,9 @@ export default function Home() {
           </div>
         </div>
       </header>
-      <main className="flex-1">
-        <section className="py-20 md:py-32">
-          <div className="container flex flex-col items-center text-center">
+      <main className="flex-1 w-full">
+        <section className="py-20 md:py-32 w-full">
+          <div className="container mx-auto px-4 flex flex-col items-center text-center">
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
               Tu plataforma SaaS <br /> con subdominios personalizados
             </h1>
@@ -77,8 +77,8 @@ export default function Home() {
             </div>
           </div>
         </section>
-        <section className="py-20 bg-muted">
-          <div className="container">
+        <section className="py-20 bg-muted w-full">
+          <div className="container mx-auto px-4">
             <h2 className="text-3xl font-bold text-center mb-12">Características principales</h2>
             <div className="grid md:grid-cols-3 gap-8">
               <div className="bg-card p-6 rounded-lg shadow-sm">
@@ -131,8 +131,8 @@ export default function Home() {
           </div>
         </section>
       </main>
-      <footer className="border-t py-6">
-        <div className="container flex flex-col md:flex-row items-center justify-between gap-4">
+      <footer className="border-t py-6 w-full">
+        <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground">© 2024 Multi-Cliente. Todos los derechos reservados.</p>
           <div className="flex gap-4">
             <Link href="/terms" className="text-sm text-muted-foreground hover:underline">

@@ -64,7 +64,7 @@ export default function TenantDomainTester() {
   }
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-md mx-auto">
       <CardHeader>
         <CardTitle>Probar Subdominio</CardTitle>
         <CardDescription>Verifica si tu configuración de subdominio comodín funciona correctamente</CardDescription>

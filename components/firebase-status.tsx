@@ -56,7 +56,7 @@ export default function FirebaseStatus() {
 
   if (authStatus === "error" || dbStatus === "error") {
     return (
-      <Alert variant="destructive" className="mb-4">
+      <Alert variant="destructive" className="mb-4 mx-auto">
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Error de conexión con Firebase</AlertTitle>
         <AlertDescription>{errorMessage || "No se pudo conectar con Firebase"}</AlertDescription>
@@ -66,7 +66,7 @@ export default function FirebaseStatus() {
 
   if (authStatus === "loading" || dbStatus === "loading") {
     return (
-      <Alert className="mb-4">
+      <Alert className="mb-4 mx-auto">
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Conectando con Firebase</AlertTitle>
         <AlertDescription>Verificando conexión...</AlertDescription>
@@ -75,7 +75,7 @@ export default function FirebaseStatus() {
   }
 
   return (
-    <Alert className="mb-4 bg-green-50">
+    <Alert className="mb-4 bg-green-50 mx-auto">
       <CheckCircle2 className="h-4 w-4 text-green-600" />
       <AlertTitle className="text-green-800">Conectado a Firebase</AlertTitle>
       <AlertDescription className="text-green-700">

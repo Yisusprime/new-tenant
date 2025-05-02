@@ -37,7 +37,7 @@ export default function DomainInfo() {
   }, [])
 
   return (
-    <Card>
+    <Card className="mx-auto">
       <CardHeader>
         <CardTitle>Información del Dominio</CardTitle>
         <CardDescription>Detalles sobre el dominio actual</CardDescription>
