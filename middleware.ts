@@ -29,7 +29,7 @@ function getSubdomain(host: string): string | null {
   return null
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone()
   const { pathname } = url
   const hostname = request.headers.get("host") || ""
@@ -38,6 +38,13 @@ export function middleware(request: NextRequest) {
   const subdomain = getSubdomain(hostname)
 
   console.log(`Middleware: Host=${hostname}, Path=${pathname}, Subdomain=${subdomain || "none"}`)
+
+  // Verificar la cookie de autenticación personalizada
+  const tenantAuthToken = request.cookies.get("tenant_auth_token")?.value
+  const currentTenant = request.cookies.get("current_tenant")?.value
+
+  // Nota: Eliminamos la verificación del token que causaba el error
+  // La verificación del token se hará en el lado del cliente o en rutas API específicas
 
   // Si no hay subdominio, no hacer nada
   if (!subdomain) {

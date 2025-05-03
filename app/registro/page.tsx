@@ -1,25 +1,30 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useTransition } from "react"
 import Link from "next/link"
-import { useAuth } from "@/lib/auth-context"
+import { registerTenant } from "../actions"
 
 export default function Registro() {
+  const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [subdomain, setSubdomain] = useState("")
   const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
-  const router = useRouter()
-  const { signUp } = useAuth()
+  const [success, setSuccess] = useState("")
+  const [isPending, startTransition] = useTransition()
+
+  const handleSubdomainChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Convertir a minúsculas y eliminar caracteres no permitidos
+    const value = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")
+    setSubdomain(value)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setSuccess("")
 
     if (password !== confirmPassword) {
       setError("Las contraseñas no coinciden")
@@ -37,20 +42,26 @@ export default function Registro() {
       return
     }
 
-    try {
-      setLoading(true)
-      // Registrar al usuario
-      const user = await signUp(email, password)
+    startTransition(async () => {
+      const formData = new FormData()
+      formData.append("name", name)
+      formData.append("email", email)
+      formData.append("password", password)
+      formData.append("confirmPassword", confirmPassword)
+      formData.append("subdomain", subdomain)
 
-      // Aquí se debería crear el tenant en la base de datos
-      // Por ahora, solo redirigimos al usuario
-      router.push(`/login?registered=true`)
-    } catch (error: any) {
-      console.error("Error al registrarse:", error)
-      setError(error.message || "Error al registrarse")
-    } finally {
-      setLoading(false)
-    }
+      const result = await registerTenant(formData)
+
+      if (result.success) {
+        setSuccess("¡Registro exitoso! Redirigiendo al dashboard...")
+        // Redirigir al dashboard del tenant
+        setTimeout(() => {
+          window.location.href = result.tenantUrl
+        }, 2000)
+      } else {
+        setError(result.message || "Error al registrarse")
+      }
+    })
   }
 
   return (
@@ -70,11 +81,29 @@ export default function Registro() {
       {/* Formulario de registro */}
       <div className="flex-grow flex items-center justify-center p-4">
         <div className="w-full max-w-md">
-          <h2 className="text-2xl font-bold mb-6 text-center">Crear una cuenta</h2>
+          <h2 className="text-2xl font-bold mb-6 text-center">Crear tu restaurante</h2>
 
           {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
+          {success && (
+            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">{success}</div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                Nombre del restaurante
+              </label>
+              <input
+                id="name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Restaurante Ejemplo"
+              />
+            </div>
+
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                 Correo electrónico
@@ -86,6 +115,7 @@ export default function Registro() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="tu@email.com"
               />
             </div>
 
@@ -126,9 +156,9 @@ export default function Registro() {
                   id="subdomain"
                   type="text"
                   value={subdomain}
-                  onChange={(e) => setSubdomain(e.target.value.toLowerCase())}
+                  onChange={handleSubdomainChange}
                   required
-                  placeholder="tu-negocio"
+                  placeholder="tu-restaurante"
                   className="flex-grow px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <span className="bg-gray-100 px-3 py-2 border border-l-0 border-gray-300 rounded-r-md text-gray-500">
@@ -140,10 +170,10 @@ export default function Registro() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={isPending}
               className="w-full bg-black text-white py-2 px-4 rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
-              {loading ? "Registrando..." : "Registrarse"}
+              {isPending ? "Registrando..." : "Registrarse"}
             </button>
           </form>
 

@@ -1,45 +1,48 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useEffect } from "react"
+import { useState, useTransition } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { useAuth } from "@/lib/auth-context"
+import { loginUser } from "../actions"
 
 export default function Login() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
-  const [loading, setLoading] = useState(false)
+  const [isPending, startTransition] = useTransition()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { signIn } = useAuth()
 
-  useEffect(() => {
-    // Verificar si el usuario viene de registrarse
-    const registered = searchParams.get("registered")
-    if (registered === "true") {
-      setSuccess("Registro exitoso. Ahora puedes iniciar sesión.")
-    }
-  }, [searchParams])
+  // Verificar si el usuario viene de registrarse
+  const registered = searchParams.get("registered")
+  if (registered === "true" && !success) {
+    setSuccess("Registro exitoso. Ahora puedes iniciar sesión.")
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setSuccess("")
 
-    try {
-      setLoading(true)
-      await signIn(email, password)
-      router.push("/dashboard")
-    } catch (error: any) {
-      console.error("Error al iniciar sesión:", error)
-      setError("Credenciales inválidas. Por favor, verifica tu correo y contraseña.")
-    } finally {
-      setLoading(false)
-    }
+    startTransition(async () => {
+      const formData = new FormData()
+      formData.append("email", email)
+      formData.append("password", password)
+
+      const result = await loginUser(formData)
+
+      if (result.success) {
+        setSuccess("Inicio de sesión exitoso. Redirigiendo...")
+        // Redirigir según la respuesta
+        setTimeout(() => {
+          window.location.href = result.redirectUrl
+        }, 1500)
+      } else {
+        setError(result.message || "Credenciales inválidas. Por favor, verifica tu correo y contraseña.")
+      }
+    })
   }
 
   return (
@@ -117,10 +120,10 @@ export default function Login() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={isPending}
               className="w-full bg-black text-white py-2 px-4 rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
-              {loading ? "Iniciando sesión..." : "Iniciar sesión"}
+              {isPending ? "Iniciando sesión..." : "Iniciar sesión"}
             </button>
           </form>
 

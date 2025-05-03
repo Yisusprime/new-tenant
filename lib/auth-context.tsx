@@ -10,11 +10,22 @@ import {
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
 } from "firebase/auth"
-import { auth } from "./firebase/client"
+import { auth, db } from "./firebase/client"
+import { doc, getDoc } from "firebase/firestore"
+
+// Definir el tipo para el perfil de usuario
+interface UserProfile {
+  name: string
+  email: string
+  role: "superadmin" | "admin" | "client"
+  tenantId?: string
+  [key: string]: any
+}
 
 // Definir el tipo para el contexto
 type AuthContextType = {
   user: User | null
+  userProfile: UserProfile | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<User>
   signUp: (email: string, password: string) => Promise<User>
@@ -36,12 +47,36 @@ export const useAuth = () => {
 // Proveedor del contexto
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Función para cargar el perfil del usuario
+  const loadUserProfile = async (uid: string) => {
+    try {
+      const userDoc = await getDoc(doc(db, "users", uid))
+      if (userDoc.exists()) {
+        setUserProfile(userDoc.data() as UserProfile)
+      } else {
+        console.warn("Perfil de usuario no encontrado en Firestore")
+        setUserProfile(null)
+      }
+    } catch (error) {
+      console.error("Error al cargar perfil de usuario:", error)
+      setUserProfile(null)
+    }
+  }
 
   // Escuchar cambios en el estado de autenticación
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user)
+
+      if (user) {
+        await loadUserProfile(user.uid)
+      } else {
+        setUserProfile(null)
+      }
+
       setLoading(false)
     })
 
@@ -74,6 +109,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       await firebaseSignOut(auth)
+      setUserProfile(null)
+
+      // La eliminación de cookies se maneja en la acción del servidor
     } catch (error) {
       console.error("Error al cerrar sesión:", error)
       throw error
@@ -82,6 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = {
     user,
+    userProfile,
     loading,
     signIn,
     signUp,
