@@ -22,7 +22,20 @@ const nextConfig = {
         dns: false,
         child_process: false,
         path: false,
+        os: false,
+        crypto: require.resolve('crypto-browserify'),
+        stream: require.resolve('stream-browserify'),
+        buffer: require.resolve('buffer'),
+        util: require.resolve('util'),
       }
+      
+      // Añadir polyfills
+      config.plugins.push(
+        new config.webpack.ProvidePlugin({
+          process: 'process/browser',
+          Buffer: ['buffer', 'Buffer'],
+        })
+      )
     }
     return config
   },

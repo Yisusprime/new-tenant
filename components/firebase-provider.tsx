@@ -6,17 +6,30 @@ import { app } from "@/lib/firebase/client"
 export default function FirebaseProvider({ children }: { children: ReactNode }) {
   const [isFirebaseInitialized, setIsFirebaseInitialized] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isClient, setIsClient] = useState(false)
 
   useEffect(() => {
+    // Marcar que estamos en el cliente
+    setIsClient(true)
+
     try {
       if (app) {
+        console.log("Firebase inicializado correctamente:", app.name)
         setIsFirebaseInitialized(true)
+      } else {
+        console.error("Firebase no se inicializó correctamente")
+        setError("Firebase no se inicializó correctamente. Verifica la configuración.")
       }
     } catch (err: any) {
       console.error("Error al verificar Firebase:", err)
       setError(err.message || "Error al inicializar Firebase")
     }
   }, [])
+
+  // No renderizar nada durante SSR para evitar errores de hidratación
+  if (!isClient) {
+    return null
+  }
 
   if (error) {
     return (
@@ -26,6 +39,12 @@ export default function FirebaseProvider({ children }: { children: ReactNode }) 
         <p className="text-sm text-gray-600">
           Verifica que las variables de entorno de Firebase estén configuradas correctamente.
         </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+        >
+          Reintentar
+        </button>
       </div>
     )
   }

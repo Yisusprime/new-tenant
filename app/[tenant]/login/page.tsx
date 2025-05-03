@@ -4,10 +4,10 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { doc, getDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase/client"
+import { useSafeRouter } from "@/lib/hooks/use-safe-router"
 
 export default function TenantLoginPage({ params }: { params: { tenant: string } }) {
   const [email, setEmail] = useState("")
@@ -16,7 +16,7 @@ export default function TenantLoginPage({ params }: { params: { tenant: string }
   const [error, setError] = useState<string | null>(null)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const { signIn, user, userProfile } = useAuth()
-  const router = useRouter()
+  const router = useSafeRouter()
 
   // Verificar el estado de autenticación al cargar la página
   useEffect(() => {
@@ -39,7 +39,7 @@ export default function TenantLoginPage({ params }: { params: { tenant: string }
         console.log("Usuario autenticado con perfil:", userProfile)
 
         // Redirigir según el rol
-        if (userProfile.role === "admin") {
+        if (userProfile.role === "admin" && router.isMounted) {
           console.log("Redirigiendo a admin dashboard")
           router.push(`/admin/dashboard`)
         } else {
@@ -61,8 +61,6 @@ export default function TenantLoginPage({ params }: { params: { tenant: string }
 
     try {
       console.log(`Intentando iniciar sesión con: ${email} en tenant: ${params.tenant}`)
-
-      // Iniciar sesión con el método existente
       await signIn(email, password)
 
       // Esperar un momento para que el perfil se cargue completamente
@@ -88,16 +86,18 @@ export default function TenantLoginPage({ params }: { params: { tenant: string }
             console.log(`Rol del usuario: ${role}`)
 
             // Redirigir según el rol
-            if (role === "admin") {
+            if (role === "admin" && router.isMounted) {
               console.log("Redirigiendo al dashboard de admin")
               router.push(`/admin/dashboard`)
-            } else {
+            } else if (router.isMounted) {
               console.log("Redirigiendo al dashboard de cliente")
               router.push(`/client/dashboard`)
             }
           } else {
-            // Redirigir al dashboard general si no hay información de usuario
-            router.push(`/dashboard`)
+            // Redirigir al dashboard general si hay información de usuario
+            if (router.isMounted) {
+              router.push(`/dashboard`)
+            }
           }
         } catch (profileError) {
           console.error("Error al verificar perfil:", profileError)

@@ -4,6 +4,7 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import FirebaseProvider from "@/components/firebase-provider"
 import { AuthProvider } from "@/lib/auth-context"
+import ErrorBoundary from "@/components/error-boundary"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -21,9 +22,11 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={inter.className}>
-        <FirebaseProvider>
-          <AuthProvider>{children}</AuthProvider>
-        </FirebaseProvider>
+        <ErrorBoundary>
+          <FirebaseProvider>
+            <AuthProvider>{children}</AuthProvider>
+          </FirebaseProvider>
+        </ErrorBoundary>
       </body>
     </html>
   )

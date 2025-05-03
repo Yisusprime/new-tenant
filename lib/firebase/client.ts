@@ -6,7 +6,7 @@ import { getStorage } from "firebase/storage"
 // Verificar si estamos en el navegador
 const isBrowser = typeof window !== "undefined"
 
-// Configuración de Firebase
+// Configuración de Firebase con valores de respaldo
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyDSEdNRW_7-hGzNvBuMyAxWQuGzTsk--Fk",
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "multi-cliente.firebaseapp.com",
@@ -21,20 +21,33 @@ let app, auth, db, storage
 
 if (isBrowser) {
   try {
+    console.log(
+      "Intentando inicializar Firebase con config:",
+      JSON.stringify({
+        apiKey: firebaseConfig.apiKey?.substring(0, 5) + "...",
+        projectId: firebaseConfig.projectId,
+        authDomain: firebaseConfig.authDomain,
+      }),
+    )
+
     // Inicializar Firebase solo una vez
     if (!getApps().length) {
       app = initializeApp(firebaseConfig)
-      console.log("Firebase inicializado correctamente")
+      console.log("Firebase inicializado correctamente con app:", app.name)
     } else {
       app = getApp()
+      console.log("Usando instancia existente de Firebase:", app.name)
     }
 
     // Inicializar servicios
     auth = getAuth(app)
     db = getFirestore(app)
     storage = getStorage(app)
+
+    console.log("Servicios de Firebase inicializados correctamente")
   } catch (error) {
     console.error("Error al inicializar Firebase:", error)
+    // No lanzar el error aquí, dejemos que el FirebaseProvider lo maneje
   }
 }
 

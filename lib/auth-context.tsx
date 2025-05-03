@@ -1,99 +1,113 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
-import { type User, signOut as firebaseSignOut, onAuthStateChanged } from "firebase/auth"
+import {
+  type User,
+  type UserCredential,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+  setPersistence,
+  browserLocalPersistence,
+} from "firebase/auth"
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore"
 import { auth, db } from "./firebase/client"
-import { useRouter } from "next/router"
+import { useSafeRouter } from "./hooks/use-safe-router"
 
 // Verificar si estamos en el navegador
 const isBrowser = typeof window !== "undefined"
 
-type AuthContextType = {
+interface AuthContextType {
   user: User | null
-  userProfile: any | null // Replace 'any' with a more specific type if possible
+  userProfile: any | null
   loading: boolean
+  error: string | null
+  signIn: (email: string, password: string) => Promise<UserCredential>
+  signUp: (email: string, password: string, userData: any) => Promise<UserCredential>
   signOut: () => Promise<void>
+  getUserProfile: () => Promise<any>
+  updateUserProfile: (data: any) => Promise<void>
+  refreshUserProfile: () => Promise<void>
 }
 
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  userProfile: null,
-  loading: true,
-  signOut: () => Promise.resolve(),
-})
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-type AuthProviderProps = {
-  children: ReactNode
-}
-
-export const AuthProvider = ({ children }: AuthProviderProps) => {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [userProfile, setUserProfile] = useState<any | null>(null) // Replace 'any' with a more specific type
+  const [userProfile, setUserProfile] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
-  const router = useRouter()
+  const [error, setError] = useState<string | null>(null)
+  const router = useSafeRouter()
 
   useEffect(() => {
-    let isMounted = true // Add a flag to track component mount status
+    if (!isBrowser || !auth) {
+      setLoading(false)
+      return
+    }
 
-    if (isBrowser) {
-      onAuthStateChanged(auth, async (user) => {
-        if (isMounted) {
-          setUser(user)
+    // Configurar persistencia local para mantener la sesión
+    setPersistence(auth, browserLocalPersistence)
+      .then(() => {
+        console.log("Persistencia configurada correctamente")
+      })
+      .catch((error) => {
+        console.error("Error al configurar persistencia:", error)
+      })
 
-          if (user) {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log("Estado de autenticación cambiado:", user ? "Usuario autenticado" : "No autenticado")
+      setUser(user)
+
+      if (user) {
+        try {
+          const profile = await getUserProfile()
+          console.log("Perfil de usuario cargado:", profile)
+
+          if (!profile) {
+            console.warn("Perfil no encontrado, verificando si existe en Firestore")
+
+            // Intentar obtener el perfil directamente de Firestore una vez más
             try {
-              const profile = await getUserProfile()
-              console.log("Perfil de usuario cargado:", profile)
+              const docRef = doc(db, "users", user.uid)
+              const docSnap = await getDoc(docRef)
 
-              if (!profile) {
-                console.warn("Perfil no encontrado, verificando si existe en Firestore")
-
-                // Intentar obtener el perfil directamente de Firestore una vez más
-                try {
-                  const docRef = doc(db, "users", user.uid)
-                  const docSnap = await getDoc(docRef)
-
-                  if (docSnap.exists()) {
-                    const userData = docSnap.data()
-                    console.log("Perfil recuperado directamente:", userData)
-                    setUserProfile({ id: docSnap.id, ...userData })
-                  } else {
-                    // Si realmente no existe, crear un perfil básico
-                    console.warn("Creando perfil básico nuevo")
-                    const basicProfile = {
-                      email: user.email,
-                      createdAt: serverTimestamp(),
-                      updatedAt: serverTimestamp(),
-                      role: "user", // Rol por defecto para usuarios nuevos
-                    }
-
-                    await setDoc(doc(db, "users", user.uid), basicProfile)
-                    setUserProfile(basicProfile)
-                  }
-                } catch (innerError) {
-                  console.error("Error al intentar recuperar perfil directamente:", innerError)
-                  setUserProfile(null)
-                }
+              if (docSnap.exists()) {
+                const userData = docSnap.data()
+                console.log("Perfil recuperado directamente:", userData)
+                setUserProfile({ id: docSnap.id, ...userData })
               } else {
-                setUserProfile(profile)
+                // Si realmente no existe, crear un perfil básico
+                console.warn("Creando perfil básico nuevo")
+                const basicProfile = {
+                  email: user.email,
+                  createdAt: serverTimestamp(),
+                  updatedAt: serverTimestamp(),
+                  role: "user", // Rol por defecto para usuarios nuevos
+                }
+
+                await setDoc(doc(db, "users", user.uid), basicProfile)
+                setUserProfile(basicProfile)
               }
-            } catch (error) {
-              console.error("Error al cargar perfil:", error)
+            } catch (innerError) {
+              console.error("Error al intentar recuperar perfil directamente:", innerError)
               setUserProfile(null)
             }
           } else {
-            setUserProfile(null)
+            setUserProfile(profile)
           }
-          setLoading(false)
+        } catch (error) {
+          console.error("Error al cargar perfil:", error)
+          setUserProfile(null)
         }
-      })
-    }
+      } else {
+        setUserProfile(null)
+      }
+      setLoading(false)
+    })
 
-    return () => {
-      isMounted = false // Set the flag to false when the component unmounts
-    }
-  }, [isBrowser])
+    return () => unsubscribe()
+  }, [])
 
   const getUserProfile = async () => {
     if (!isBrowser || !db || !user) {
@@ -120,22 +134,170 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   }
 
-  const signOut = async () => {
+  const signIn = async (email: string, password: string) => {
+    if (!isBrowser || !auth) {
+      throw new Error("La autenticación no está disponible en el servidor")
+    }
+
     try {
-      await firebaseSignOut(auth)
-      setUser(null)
-      setUserProfile(null)
-      router.push("/login") // Redirect to login page after sign out
-    } catch (error) {
-      console.error("Error signing out:", error)
+      setError(null)
+      console.log("Iniciando sesión con:", email)
+      const userCredential = await signInWithEmailAndPassword(auth, email, password)
+      console.log("Sesión iniciada correctamente")
+
+      // Devolver el userCredential para que pueda ser usado por el componente
+      return userCredential
+    } catch (error: any) {
+      console.error("Error al iniciar sesión:", error)
+      setError(error.message || "Error al iniciar sesión")
+      throw error
     }
   }
 
-  const value = { user, userProfile, loading, signOut }
+  const signUp = async (email: string, password: string, userData: any) => {
+    if (!isBrowser || !auth || !db) {
+      throw new Error("La autenticación no está disponible en el servidor")
+    }
+
+    try {
+      setError(null)
+      console.log("Registrando usuario con:", email)
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+      const user = userCredential.user
+      console.log("Usuario registrado correctamente:", user.uid)
+
+      // Usar el rol proporcionado en userData o "user" como valor por defecto
+      const role = userData.role || "user" // Valor por defecto
+
+      // Crear perfil de usuario
+      await setDoc(doc(db, "users", user.uid), {
+        ...userData,
+        email,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        role,
+      })
+      console.log("Perfil de usuario creado con rol:", role)
+
+      // Si se proporcionó un subdominio, crear tenant
+      if (userData.subdomain) {
+        console.log("Creando tenant con subdominio:", userData.subdomain)
+
+        // Verificar si el tenant ya existe
+        const tenantRef = doc(db, "tenants", userData.subdomain)
+        const tenantDoc = await getDoc(tenantRef)
+
+        if (tenantDoc.exists()) {
+          throw new Error(`El subdominio ${userData.subdomain} ya está en uso. Por favor, elige otro.`)
+        }
+
+        // Crear el tenant
+        await setDoc(tenantRef, {
+          name: userData.companyName || userData.subdomain,
+          subdomain: userData.subdomain,
+          ownerId: user.uid,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          status: "active",
+        })
+        console.log("Tenant creado correctamente")
+
+        // Actualizar el perfil del usuario con el subdominio
+        await setDoc(
+          doc(db, "users", user.uid),
+          {
+            subdomain: userData.subdomain,
+            tenantId: userData.subdomain,
+          },
+          { merge: true },
+        )
+        console.log("Perfil de usuario actualizado con subdominio")
+      }
+
+      return userCredential
+    } catch (error: any) {
+      console.error("Error al registrarse:", error)
+      setError(error.message || "Error al registrarse")
+      throw error
+    }
+  }
+
+  const signOut = async () => {
+    if (!isBrowser || !auth) {
+      throw new Error("La autenticación no está disponible en el servidor")
+    }
+
+    try {
+      console.log("Cerrando sesión")
+      await firebaseSignOut(auth)
+      console.log("Sesión cerrada correctamente")
+
+      // Solo navegar si el router está montado
+      if (router.isMounted) {
+        router.push("/login")
+      }
+    } catch (error: any) {
+      console.error("Error al cerrar sesión:", error)
+      setError(error.message || "Error al cerrar sesión")
+      throw error
+    }
+  }
+
+  const refreshUserProfile = async () => {
+    if (!isBrowser || !db || !user) return
+
+    try {
+      const profile = await getUserProfile()
+      setUserProfile(profile)
+    } catch (error) {
+      console.error("Error al refrescar perfil:", error)
+    }
+  }
+
+  const updateUserProfile = async (data: any) => {
+    if (!isBrowser || !db || !user) {
+      throw new Error("La autenticación no está disponible en el servidor")
+    }
+
+    try {
+      console.log("Actualizando perfil del usuario:", user.uid)
+      await setDoc(
+        doc(db, "users", user.uid),
+        {
+          ...data,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      )
+
+      // Actualizar el perfil en el estado
+      await refreshUserProfile()
+    } catch (error) {
+      console.error("Error al actualizar perfil:", error)
+      throw error
+    }
+  }
+
+  const value = {
+    user,
+    userProfile,
+    loading,
+    error,
+    signIn,
+    signUp,
+    signOut,
+    getUserProfile,
+    updateUserProfile,
+    refreshUserProfile,
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
-export const useAuth = () => {
-  return useContext(AuthContext)
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error("useAuth debe ser usado dentro de un AuthProvider")
+  }
+  return context
 }
