@@ -61,7 +61,6 @@ export async function getAllTenants(): Promise<TenantInfo[]> {
   }
 }
 
-// Verificar si un subdominio está disponible
 export async function isSubdomainAvailable(subdomain: string): Promise<boolean> {
   try {
     const tenantRef = doc(db, "tenants", subdomain)

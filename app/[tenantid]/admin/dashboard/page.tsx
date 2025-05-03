@@ -1,14 +1,69 @@
-import { CardFooter } from "@/components/ui/card"
+"use client"
+
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TenantAdminSidebar } from "@/components/tenant-admin-sidebar"
 import { getTenantInfo } from "@/lib/tenant-utils"
+import { useAuth } from "@/lib/auth-context"
+import { useToast } from "@/components/ui/use-toast"
+import { Loader2 } from "lucide-react"
 
-export default async function TenantAdminDashboardPage({ params }: { params: { tenantid: string } }) {
+export default function TenantAdminDashboardPage({ params }: { params: { tenantid: string } }) {
   const { tenantid } = params
-  const tenantInfo = await getTenantInfo(tenantid)
+  const { user, loading, logout, checkUserRole } = useAuth()
+  const router = useRouter()
+  const { toast } = useToast()
+  const [tenantInfo, setTenantInfo] = useState<any>(null)
+  const [loadingTenant, setLoadingTenant] = useState(true)
+
+  useEffect(() => {
+    async function fetchTenantInfo() {
+      try {
+        const info = await getTenantInfo(tenantid)
+        setTenantInfo(info)
+      } catch (error) {
+        console.error("Error al obtener información del tenant:", error)
+      } finally {
+        setLoadingTenant(false)
+      }
+    }
+
+    fetchTenantInfo()
+  }, [tenantid])
+
+  useEffect(() => {
+    // Verificar si el usuario está autenticado y tiene acceso a este tenant
+    if (!loading && (!user || (user.tenantId !== tenantid && !checkUserRole("superadmin")))) {
+      toast({
+        title: "Acceso denegado",
+        description: "No tienes permisos para acceder a este dashboard.",
+        variant: "destructive",
+      })
+      router.push(`/${tenantid}/login`)
+    }
+  }, [user, loading, tenantid, router, toast, checkUserRole])
+
+  const handleLogout = async () => {
+    await logout()
+    toast({
+      title: "Sesión cerrada",
+      description: "Has cerrado sesión correctamente.",
+    })
+    router.push(`/${tenantid}/login`)
+  }
+
+  if (loading || loadingTenant) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Cargando...</span>
+      </div>
+    )
+  }
 
   if (!tenantInfo) {
     return (
@@ -34,7 +89,17 @@ export default async function TenantAdminDashboardPage({ params }: { params: { t
     <div className="flex min-h-screen">
       <TenantAdminSidebar tenantid={tenantid} />
       <div className="flex-1 p-8">
-        <h1 className="text-3xl font-bold mb-6">Panel de Administración - {tenantInfo.name}</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Panel de Administración - {tenantInfo.name}</h1>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-muted-foreground">
+              {user?.name || user?.email} ({user?.role})
+            </span>
+            <Button variant="outline" onClick={handleLogout}>
+              Cerrar sesión
+            </Button>
+          </div>
+        </div>
 
         <Tabs defaultValue="overview">
           <TabsList className="mb-4">

@@ -2,10 +2,13 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BarChart3, Home, Settings, ShoppingCart, Users } from "lucide-react"
+import { BarChart3, Home, LogOut, Settings, ShoppingCart, Users } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
+import { Button } from "@/components/ui/button"
 
 export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
   const pathname = usePathname()
+  const { logout } = useAuth()
 
   const links = [
     { href: `/${tenantid}/admin/dashboard`, label: "Dashboard", icon: Home },
@@ -16,13 +19,13 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
   ]
 
   return (
-    <div className="w-64 bg-muted h-screen p-4 border-r">
+    <div className="w-64 bg-muted h-screen p-4 border-r flex flex-col">
       <div className="mb-8">
         <h2 className="text-xl font-bold">Admin Panel</h2>
         <p className="text-sm text-muted-foreground">{tenantid}.gastroo.online</p>
       </div>
 
-      <nav className="space-y-1">
+      <nav className="space-y-1 flex-1">
         {links.map((link) => {
           const isActive = pathname === link.href
           const Icon = link.icon
@@ -41,6 +44,13 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
           )
         })}
       </nav>
+
+      <div className="mt-auto pt-4 border-t">
+        <Button variant="ghost" className="w-full justify-start text-sm" onClick={logout}>
+          <LogOut className="h-4 w-4 mr-2" />
+          Cerrar sesión
+        </Button>
+      </div>
     </div>
   )
 }
