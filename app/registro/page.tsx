@@ -15,6 +15,7 @@ export default function Registro() {
   const [success, setSuccess] = useState("")
   const [isPending, startTransition] = useTransition()
   const [debugInfo, setDebugInfo] = useState<any>(null)
+  const [debugMode, setDebugMode] = useState(false)
 
   // Verificar que las variables de entorno estén disponibles
   useEffect(() => {
@@ -27,7 +28,12 @@ export default function Registro() {
           rootDomain: !!process.env.NEXT_PUBLIC_ROOT_DOMAIN,
         }
 
-        setDebugInfo(envCheck)
+        setDebugInfo({
+          env: envCheck,
+          firebase: {
+            initialized: true, // Asumimos que está inicializado
+          },
+        })
 
         if (Object.values(envCheck).some((val) => !val)) {
           console.warn(
@@ -97,6 +103,11 @@ export default function Registro() {
     })
   }
 
+  // Función para activar/desactivar el modo de depuración
+  const toggleDebugMode = () => {
+    setDebugMode(!debugMode)
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Barra de navegación */}
@@ -105,9 +116,18 @@ export default function Registro() {
           <Link href="/" className="text-xl font-bold">
             Multi-Cliente
           </Link>
-          <Link href="/login" className="text-gray-600 hover:text-gray-900">
-            Iniciar sesión
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/login" className="text-gray-600 hover:text-gray-900">
+              Iniciar sesión
+            </Link>
+            <button
+              onClick={toggleDebugMode}
+              className="text-xs text-gray-500 hover:text-gray-700"
+              title="Activar/desactivar modo de depuración"
+            >
+              {debugMode ? "Ocultar debug" : "Debug"}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -122,18 +142,24 @@ export default function Registro() {
           )}
 
           {/* Información de depuración */}
-          {debugInfo && Object.values(debugInfo).some((val) => !val) && (
-            <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
-              <p className="font-bold">Advertencia: Configuración incompleta</p>
-              <p className="text-sm">
-                Algunas variables de entorno no están definidas. Esto puede causar problemas con Firebase.
-              </p>
-              <details className="mt-2">
-                <summary className="cursor-pointer text-sm">Ver detalles</summary>
-                <pre className="mt-2 text-xs bg-yellow-50 p-2 rounded overflow-auto">
-                  {JSON.stringify(debugInfo, null, 2)}
+          {debugMode && debugInfo && (
+            <div className="bg-gray-100 border border-gray-400 text-gray-700 px-4 py-3 rounded mb-4">
+              <p className="font-bold">Información de depuración</p>
+              <details className="mt-2" open>
+                <summary className="cursor-pointer text-sm">Variables de entorno</summary>
+                <pre className="mt-2 text-xs bg-gray-50 p-2 rounded overflow-auto">
+                  {JSON.stringify(debugInfo.env, null, 2)}
                 </pre>
               </details>
+              <details className="mt-2">
+                <summary className="cursor-pointer text-sm">Firebase</summary>
+                <pre className="mt-2 text-xs bg-gray-50 p-2 rounded overflow-auto">
+                  {JSON.stringify(debugInfo.firebase, null, 2)}
+                </pre>
+              </details>
+              <p className="mt-2 text-xs text-gray-500">
+                Nota: Si alguna variable de entorno muestra "false", significa que no está definida correctamente.
+              </p>
             </div>
           )}
 

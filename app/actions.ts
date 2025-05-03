@@ -2,48 +2,70 @@
 
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
-import { doc, setDoc, getDoc, serverTimestamp, collection, query, where, getDocs } from "firebase/firestore"
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase/client"
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth"
 import { auth } from "@/lib/firebase/client"
 
 // Función para validar el subdominio
 async function validateSubdomain(subdomain: string): Promise<{ valid: boolean; message?: string }> {
-  // Validar formato (solo letras, números y guiones)
-  if (!/^[a-z0-9-]+$/.test(subdomain)) {
-    return {
-      valid: false,
-      message: "El subdominio solo puede contener letras minúsculas, números y guiones",
-    }
-  }
+  console.log("Validando subdominio:", subdomain)
 
-  // Verificar longitud mínima
-  if (subdomain.length < 3) {
-    return {
-      valid: false,
-      message: "El subdominio debe tener al menos 3 caracteres",
-    }
-  }
-
-  // Verificar si el subdominio ya está en uso
   try {
-    const tenantsRef = collection(db, "tenants")
-    const q = query(tenantsRef, where("subdomain", "==", subdomain))
-    const querySnapshot = await getDocs(q)
-
-    if (!querySnapshot.empty) {
+    // Validar formato (solo letras, números y guiones)
+    if (!/^[a-z0-9-]+$/.test(subdomain)) {
       return {
         valid: false,
-        message: `El subdominio '${subdomain}' ya está en uso. Por favor, elige otro.`,
+        message: "El subdominio solo puede contener letras minúsculas, números y guiones",
       }
     }
 
-    return { valid: true }
+    // Verificar longitud mínima
+    if (subdomain.length < 3) {
+      return {
+        valid: false,
+        message: "El subdominio debe tener al menos 3 caracteres",
+      }
+    }
+
+    // Verificar si el subdominio ya está en uso
+    try {
+      console.log("Verificando si el subdominio ya existe en Firestore")
+
+      // Verificar que db esté inicializado correctamente
+      if (!db) {
+        console.error("Firestore no está inicializado correctamente")
+        return {
+          valid: false,
+          message: "Error de configuración: Firestore no está disponible",
+        }
+      }
+
+      // Intentar acceder directamente al documento del tenant por ID
+      const tenantDoc = await getDoc(doc(db, "tenants", subdomain))
+
+      if (tenantDoc.exists()) {
+        console.log(`El subdominio '${subdomain}' ya está en uso`)
+        return {
+          valid: false,
+          message: `El subdominio '${subdomain}' ya está en uso. Por favor, elige otro.`,
+        }
+      }
+
+      console.log(`Subdominio '${subdomain}' disponible`)
+      return { valid: true }
+    } catch (error) {
+      console.error("Error al verificar subdominio en Firestore:", error)
+      return {
+        valid: false,
+        message: `Error al verificar disponibilidad del subdominio: ${error instanceof Error ? error.message : "Error desconocido"}`,
+      }
+    }
   } catch (error) {
-    console.error("Error al validar subdominio:", error)
+    console.error("Error general al validar subdominio:", error)
     return {
       valid: false,
-      message: "Error al validar el subdominio. Por favor, intenta de nuevo.",
+      message: `Error al validar el subdominio: ${error instanceof Error ? error.message : "Error desconocido"}`,
     }
   }
 }
