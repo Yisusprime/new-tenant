@@ -38,46 +38,51 @@ export function middleware(request: NextRequest) {
 
   // Si estamos en un subdominio válido, manejar las rutas
   if (subdomain && isValidTenantSubdomain(subdomain)) {
-    // Manejar rutas específicas en subdominios
+    console.log(`Middleware: Subdominio detectado: ${subdomain}, Ruta: ${pathname}`)
+
+    // Si la ruta ya comienza con /tenant/[tenantId], no hacer nada
+    if (pathname.startsWith(`/tenant/${subdomain}`)) {
+      console.log(`Middleware: Ya estamos en la ruta correcta: ${pathname}`)
+      return NextResponse.next()
+    }
 
     // Rutas de admin en subdominios
     if (pathname.startsWith("/admin")) {
-      // Redirigir /admin/* a /tenant/[subdomain]/admin/*
-      const newPath = `/tenant/${subdomain}${pathname}`
-      url.pathname = newPath
+      console.log(`Middleware: Reescribiendo ruta admin: ${pathname} a /tenant/${subdomain}${pathname}`)
+      // Reescribir /admin/* a /tenant/[subdomain]/admin/*
+      url.pathname = `/tenant/${subdomain}${pathname}`
       return NextResponse.rewrite(url)
     }
 
     // Rutas de cliente en subdominios
     if (pathname.startsWith("/client")) {
-      // Redirigir /client/* a /tenant/[subdomain]/client/*
-      const newPath = `/tenant/${subdomain}${pathname}`
-      url.pathname = newPath
+      console.log(`Middleware: Reescribiendo ruta client: ${pathname} a /tenant/${subdomain}${pathname}`)
+      // Reescribir /client/* a /tenant/[subdomain]/client/*
+      url.pathname = `/tenant/${subdomain}${pathname}`
       return NextResponse.rewrite(url)
-    }
-
-    // Si la ruta ya comienza con /tenant/[tenantId], no hacer nada
-    if (pathname.startsWith(`/tenant/${subdomain}`)) {
-      return NextResponse.next()
     }
 
     // Si la ruta comienza con /tenant pero no es para este tenant, redirigir al tenant correcto
     if (pathname.startsWith("/tenant/")) {
+      console.log(`Middleware: Redirigiendo a la ruta correcta del tenant: ${pathname}`)
       const newPath = `/tenant/${subdomain}${pathname.substring(pathname.indexOf("/", 8))}`
       url.pathname = newPath
       return NextResponse.redirect(url)
     }
 
     // Para otras rutas en el subdominio, redirigir a la ruta del tenant
+    console.log(`Middleware: Reescribiendo ruta genérica: ${pathname} a /tenant/${subdomain}${pathname}`)
     url.pathname = `/tenant/${subdomain}${pathname}`
     return NextResponse.rewrite(url)
   }
 
   // Si estamos en el dominio principal y la ruta comienza con /tenant, permitir el acceso
   if (!subdomain && pathname.startsWith("/tenant/")) {
+    console.log(`Middleware: Acceso directo a ruta tenant desde dominio principal: ${pathname}`)
     return NextResponse.next()
   }
 
+  console.log(`Middleware: Ruta normal: ${pathname}`)
   return NextResponse.next()
 }
 

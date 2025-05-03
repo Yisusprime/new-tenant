@@ -7,6 +7,8 @@ import {
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
+  setPersistence,
+  browserLocalPersistence,
 } from "firebase/auth"
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore"
 import { auth, db } from "./firebase/client"
@@ -35,12 +37,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname()
 
   useEffect(() => {
+    // Configurar persistencia local para mantener la sesión
+    setPersistence(auth, browserLocalPersistence)
+      .then(() => {
+        console.log("Persistencia configurada correctamente")
+      })
+      .catch((error) => {
+        console.error("Error al configurar persistencia:", error)
+      })
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log("Estado de autenticación cambiado:", user ? "Usuario autenticado" : "No autenticado")
       setUser(user)
 
       if (user) {
         try {
           const profile = await getUserProfile()
+          console.log("Perfil de usuario cargado:", profile)
           setUserProfile(profile)
         } catch (error) {
           console.error("Error al cargar perfil:", error)
@@ -58,7 +71,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
       setError(null)
+      console.log("Iniciando sesión con:", email)
       await signInWithEmailAndPassword(auth, email, password)
+      console.log("Sesión iniciada correctamente")
     } catch (error: any) {
       console.error("Error al iniciar sesión:", error)
       setError(error.message || "Error al iniciar sesión")
@@ -69,8 +84,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (email: string, password: string, userData: any) => {
     try {
       setError(null)
+      console.log("Registrando usuario con:", email)
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
+      console.log("Usuario registrado correctamente:", user.uid)
 
       // Determinar el rol basado en la ruta y los datos proporcionados
       let role = userData.role || "user" // Valor por defecto
@@ -86,6 +103,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      console.log("Rol asignado:", role)
+
       // Crear perfil de usuario
       await setDoc(doc(db, "users", user.uid), {
         ...userData,
@@ -93,11 +112,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         createdAt: serverTimestamp(),
         role,
       })
+      console.log("Perfil de usuario creado")
 
       // Si es el primer usuario, asignarle rol de superadmin
       if (role !== "superadmin") {
         const statsDoc = await getDoc(doc(db, "system", "stats"))
         if (!statsDoc.exists()) {
+          console.log("Primer usuario, asignando rol de superadmin")
           // Es el primer usuario, asignarle rol de superadmin
           await setDoc(doc(db, "users", user.uid), {
             ...userData,
@@ -114,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           })
+          console.log("Estadísticas iniciales creadas")
         } else {
           // Actualizar estadísticas
           await setDoc(
@@ -124,11 +146,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             },
             { merge: true },
           )
+          console.log("Estadísticas actualizadas")
         }
       }
 
       // Si se proporcionó un subdominio, crear tenant
       if (userData.subdomain) {
+        console.log("Creando tenant con subdominio:", userData.subdomain)
         await setDoc(doc(db, "tenants", userData.subdomain), {
           name: userData.companyName || userData.subdomain,
           subdomain: userData.subdomain,
@@ -136,6 +160,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           createdAt: serverTimestamp(),
           status: "active",
         })
+        console.log("Tenant creado correctamente")
+
+        // Actualizar el perfil del usuario con el subdominio
+        await setDoc(
+          doc(db, "users", user.uid),
+          {
+            subdomain: userData.subdomain,
+          },
+          { merge: true },
+        )
+        console.log("Perfil de usuario actualizado con subdominio")
 
         // Actualizar estadísticas
         const statsDoc = await getDoc(doc(db, "system", "stats"))
@@ -149,6 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             },
             { merge: true },
           )
+          console.log("Estadísticas de tenants actualizadas")
         }
       }
 
@@ -162,7 +198,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
+      console.log("Cerrando sesión")
       await firebaseSignOut(auth)
+      console.log("Sesión cerrada correctamente")
     } catch (error: any) {
       console.error("Error al cerrar sesión:", error)
       setError(error.message || "Error al cerrar sesión")
@@ -174,10 +212,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return null
 
     try {
+      console.log("Obteniendo perfil del usuario:", user.uid)
       const docRef = doc(db, "users", user.uid)
       const docSnap = await getDoc(docRef)
 
       if (docSnap.exists()) {
+        console.log("Perfil encontrado:", docSnap.data())
         return { id: docSnap.id, ...docSnap.data() }
       } else {
         console.error("No se encontró el perfil del usuario")

@@ -25,6 +25,28 @@ const nextConfig = {
         ],
         destination: '/tenant/:subdomain/:path*',
       },
+      // Manejar rutas de admin en subdominios
+      {
+        source: '/admin/:path*',
+        has: [
+          {
+            type: 'host',
+            value: '(?<subdomain>[^.]+).gastroo.online',
+          },
+        ],
+        destination: '/tenant/:subdomain/admin/:path*',
+      },
+      // Manejar rutas de client en subdominios
+      {
+        source: '/client/:path*',
+        has: [
+          {
+            type: 'host',
+            value: '(?<subdomain>[^.]+).gastroo.online',
+          },
+        ],
+        destination: '/tenant/:subdomain/client/:path*',
+      },
     ];
   },
   // Configuración para el tiempo de construcción
