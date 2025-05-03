@@ -1,38 +1,28 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
 
-// Dominios que no son tenants
-const nonTenantDomains = ["www", "app", "superadmin"]
-
-export async function middleware(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const url = request.nextUrl.clone()
-  const { pathname, hostname } = url
+  const { pathname, search, hostname } = url
 
-  // Extraer el subdominio
-  const host = hostname.split(".")
-  const isLocalhost = hostname.includes("localhost")
-  const subdomain = isLocalhost ? host[0] : host[0]
+  // Verificar si estamos en un subdominio
+  const hostParts = hostname.split(".")
+  const isSubdomain = hostParts.length > 2 && hostname !== "www.gastroo.online" && hostname.includes("gastroo.online")
 
-  // Verificar si es un subdominio de tenant o una ruta principal
-  const isTenantSubdomain = !nonTenantDomains.includes(subdomain) && subdomain !== "gastroo"
+  // Si es un subdominio, extraer el tenant
+  if (isSubdomain) {
+    const tenant = hostParts[0]
 
-  // Verificar la cookie de sesión (sin validarla con Firebase aquí)
-  const hasSessionCookie = request.cookies.has("session")
-
-  // Redirecciones basadas en cookies y rutas
-  if (isTenantSubdomain) {
-    // Rutas de administrador requieren cookie de sesión
-    if (pathname.startsWith("/admin") && !hasSessionCookie) {
-      url.pathname = "/login"
-      return NextResponse.redirect(url)
+    // Si estamos en la ruta raíz, redirigir a la página del tenant
+    if (pathname === "/") {
+      url.pathname = `/tenant/${tenant}`
+      return NextResponse.rewrite(url)
     }
+  }
 
-    // Reescribir la ruta para el tenant
-    url.pathname = `/tenant${pathname}`
-    return NextResponse.rewrite(url)
-  } else if (pathname.startsWith("/superadmin") && !hasSessionCookie) {
-    // Rutas de superadmin requieren cookie de sesión
-    url.pathname = "/superadmin/login"
-    return NextResponse.redirect(url)
+  // Si no es un subdominio y estamos en la ruta raíz, mostrar la página principal
+  if (!isSubdomain && pathname === "/") {
+    return NextResponse.next()
   }
 
   return NextResponse.next()
@@ -40,7 +30,13 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Excluir archivos estáticos y API routes
-    "/((?!api|_next/static|_next/image|favicon.ico).*)",
+    /*
+     * Coincide con todas las rutas excepto:
+     * 1. /api (rutas API)
+     * 2. /_next (archivos Next.js)
+     * 3. /static (archivos estáticos)
+     * 4. /favicon.ico, /robots.txt, etc.
+     */
+    "/((?!api|_next|static|favicon.ico|robots.txt).*)",
   ],
 }
