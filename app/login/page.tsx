@@ -1,147 +1,35 @@
-"use client"
+import { LoginForm } from "@/components/auth/login-form"
+import { MainNav } from "@/components/layout/main-nav"
 
-import type React from "react"
-import { useState, useTransition } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import Link from "next/link"
-import { loginUser } from "../actions"
+const navItems = [
+  {
+    title: "Inicio",
+    href: "/",
+  },
+  {
+    title: "Características",
+    href: "/caracteristicas",
+  },
+  {
+    title: "Precios",
+    href: "/precios",
+  },
+]
 
-export default function Login() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
-  const [success, setSuccess] = useState("")
-  const [isPending, startTransition] = useTransition()
-  const router = useRouter()
-  const searchParams = useSearchParams()
-
-  // Verificar si el usuario viene de registrarse
-  const registered = searchParams.get("registered")
-  if (registered === "true" && !success) {
-    setSuccess("Registro exitoso. Ahora puedes iniciar sesión.")
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setSuccess("")
-
-    startTransition(async () => {
-      const formData = new FormData()
-      formData.append("email", email)
-      formData.append("password", password)
-
-      const result = await loginUser(formData)
-
-      if (result.success) {
-        setSuccess("Inicio de sesión exitoso. Redirigiendo...")
-        // Redirigir según la respuesta
-        setTimeout(() => {
-          window.location.href = result.redirectUrl
-        }, 1500)
-      } else {
-        setError(result.message || "Credenciales inválidas. Por favor, verifica tu correo y contraseña.")
-      }
-    })
-  }
-
+export default function LoginPage() {
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Barra de navegación */}
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <Link href="/" className="text-xl font-bold">
-            Multi-Cliente
-          </Link>
-          <Link href="/registro" className="bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800">
-            Registrarse
-          </Link>
+    <div className="flex min-h-screen flex-col">
+      <header className="container z-40 bg-background">
+        <div className="flex h-20 items-center justify-between py-6">
+          <MainNav items={navItems} />
         </div>
       </header>
-
-      {/* Formulario de inicio de sesión */}
-      <div className="flex-grow flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <h2 className="text-2xl font-bold mb-6 text-center">Iniciar sesión</h2>
-
-          {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
-
-          {success && (
-            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">{success}</div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Correo electrónico
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Contraseña
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
-                  Recordarme
-                </label>
-              </div>
-
-              <div className="text-sm">
-                <Link href="/forgot-password" className="text-blue-600 hover:text-blue-800">
-                  ¿Olvidaste tu contraseña?
-                </Link>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isPending}
-              className="w-full bg-black text-white py-2 px-4 rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              {isPending ? "Iniciando sesión..." : "Iniciar sesión"}
-            </button>
-          </form>
-
-          <p className="mt-4 text-center text-sm text-gray-600">
-            ¿No tienes una cuenta?{" "}
-            <Link href="/registro" className="text-blue-600 hover:text-blue-800">
-              Regístrate
-            </Link>
-          </p>
+      <main className="flex-1 container py-10">
+        <div className="mx-auto max-w-md">
+          <h1 className="text-2xl font-bold text-center mb-6">Iniciar sesión</h1>
+          <LoginForm redirectUrl="/dashboard" />
         </div>
-      </div>
-
-      {/* Footer */}
-      <footer className="bg-gray-100 py-4">
-        <div className="container mx-auto px-4 text-center text-gray-600">
-          <p>&copy; {new Date().getFullYear()} Gastroo. Todos los derechos reservados.</p>
-        </div>
-      </footer>
+      </main>
     </div>
   )
 }

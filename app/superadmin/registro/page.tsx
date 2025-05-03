@@ -1,4 +1,4 @@
-import { RegisterForm } from "@/components/auth/register-form"
+import { SuperAdminRegisterForm } from "@/components/auth/superadmin-register-form"
 import { MainNav } from "@/components/layout/main-nav"
 
 const navItems = [
@@ -6,17 +6,9 @@ const navItems = [
     title: "Inicio",
     href: "/",
   },
-  {
-    title: "Características",
-    href: "/caracteristicas",
-  },
-  {
-    title: "Precios",
-    href: "/precios",
-  },
 ]
 
-export default function RegisterPage() {
+export default function SuperAdminRegisterPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="container z-40 bg-background">
@@ -26,8 +18,8 @@ export default function RegisterPage() {
       </header>
       <main className="flex-1 container py-10">
         <div className="mx-auto max-w-md">
-          <h1 className="text-2xl font-bold text-center mb-6">Crear cuenta</h1>
-          <RegisterForm redirectUrl="/dashboard" />
+          <h1 className="text-2xl font-bold text-center mb-6">SuperAdmin - Crear cuenta</h1>
+          <SuperAdminRegisterForm />
         </div>
       </main>
     </div>

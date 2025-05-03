@@ -1,146 +1,118 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useAuth } from "@/lib/auth-context"
-import { collection, getDocs } from "firebase/firestore"
-import { db } from "@/lib/firebase/client"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/lib/context/auth-context"
+import { getAllTenants } from "@/lib/services/tenant-service"
+import type { Tenant } from "@/lib/models/tenant"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { MainNav } from "@/components/layout/main-nav"
 import Link from "next/link"
 
-export default function SuperAdminDashboard() {
-  const { user, userProfile, loading, signOut } = useAuth()
-  const [stats, setStats] = useState({
-    totalUsers: 0,
-    totalTenants: 0,
-  })
-  const [loadingStats, setLoadingStats] = useState(true)
+const navItems = [
+  {
+    title: "Dashboard",
+    href: "/superadmin/dashboard",
+  },
+  {
+    title: "Tenants",
+    href: "/superadmin/tenants",
+  },
+  {
+    title: "Usuarios",
+    href: "/superadmin/usuarios",
+  },
+]
+
+export default function SuperAdminDashboardPage() {
+  const { user, loading } = useAuth()
+  const [tenants, setTenants] = useState<Tenant[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
-    if (!loading && !user) {
-      window.location.href = "/superadmin/login"
-    } else if (!loading && user && userProfile) {
-      if (userProfile.role !== "superadmin") {
-        window.location.href = "/login"
-      } else {
-        // Cargar estadísticas
-        loadStats()
+    const checkAuth = async () => {
+      if (!loading && (!user || !user.isSuperAdmin)) {
+        router.push("/superadmin/login")
+      } else if (user) {
+        try {
+          const tenantsData = await getAllTenants()
+          setTenants(tenantsData)
+        } catch (error) {
+          console.error("Error fetching tenants:", error)
+        } finally {
+          setIsLoading(false)
+        }
       }
     }
-  }, [loading, user, userProfile])
 
-  const loadStats = async () => {
-    try {
-      setLoadingStats(true)
+    checkAuth()
+  }, [user, loading, router])
 
-      // Contar usuarios
-      const usersSnapshot = await getDocs(collection(db, "users"))
-      const totalUsers = usersSnapshot.size
-
-      // Contar tenants
-      const tenantsSnapshot = await getDocs(collection(db, "tenants"))
-      const totalTenants = tenantsSnapshot.size
-
-      setStats({
-        totalUsers,
-        totalTenants,
-      })
-    } catch (error) {
-      console.error("Error al cargar estadísticas:", error)
-    } finally {
-      setLoadingStats(false)
-    }
-  }
-
-  if (loading || loadingStats) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p>Cargando...</p>
-      </div>
-    )
-  }
-
-  if (!user || !userProfile || userProfile.role !== "superadmin") {
-    return null // Se redirigirá en el useEffect
+  if (loading || isLoading) {
+    return <div>Cargando...</div>
   }
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b bg-gray-900 text-white">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <div className="flex items-center">
-            <h1 className="text-xl font-bold">SuperAdmin Dashboard</h1>
-          </div>
-          <div className="flex items-center space-x-4">
-            <span>{userProfile.email}</span>
-            <button onClick={() => signOut()} className="rounded bg-gray-700 px-3 py-1 text-sm hover:bg-gray-600">
-              Cerrar sesión
-            </button>
-          </div>
+      <header className="container z-40 bg-background">
+        <div className="flex h-20 items-center justify-between py-6">
+          <MainNav items={navItems} />
         </div>
       </header>
+      <main className="flex-1 container py-10">
+        <h1 className="text-3xl font-bold mb-6">Panel de SuperAdmin</h1>
 
-      <div className="flex flex-1">
-        <aside className="w-64 border-r bg-gray-50">
-          <nav className="p-4">
-            <ul className="space-y-2">
-              <li>
-                <Link href="/superadmin/dashboard" className="block rounded bg-blue-100 p-2 font-medium text-blue-800">
-                  Dashboard
-                </Link>
-              </li>
-              <li>
-                <Link href="/superadmin/users" className="block rounded p-2 hover:bg-gray-200">
-                  Usuarios
-                </Link>
-              </li>
-              <li>
-                <Link href="/superadmin/tenants" className="block rounded p-2 hover:bg-gray-200">
-                  Tenants
-                </Link>
-              </li>
-              <li>
-                <Link href="/settings" className="block rounded p-2 hover:bg-gray-200">
-                  Mi Perfil
-                </Link>
-              </li>
-            </ul>
-          </nav>
-        </aside>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <Card>
+            <CardHeader>
+              <CardTitle>Tenants</CardTitle>
+              <CardDescription>Gestiona los tenants de la plataforma</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">{tenants.length}</p>
+              <p className="text-sm text-muted-foreground">Total de tenants</p>
+            </CardContent>
+            <CardFooter>
+              <Button asChild>
+                <Link href="/superadmin/tenants">Ver todos</Link>
+              </Button>
+            </CardFooter>
+          </Card>
 
-        <main className="flex-1 p-6">
-          <div className="container mx-auto">
-            <h2 className="mb-6 text-2xl font-bold">Panel de Control SuperAdmin</h2>
+          <Card>
+            <CardHeader>
+              <CardTitle>Usuarios</CardTitle>
+              <CardDescription>Gestiona los usuarios de la plataforma</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">-</p>
+              <p className="text-sm text-muted-foreground">Total de usuarios</p>
+            </CardContent>
+            <CardFooter>
+              <Button asChild>
+                <Link href="/superadmin/usuarios">Ver todos</Link>
+              </Button>
+            </CardFooter>
+          </Card>
 
-            <div className="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <div className="rounded-lg border bg-white p-6 shadow-sm">
-                <h3 className="mb-2 text-lg font-semibold text-gray-700">Total de Usuarios</h3>
-                <p className="text-3xl font-bold">{stats.totalUsers}</p>
-              </div>
-              <div className="rounded-lg border bg-white p-6 shadow-sm">
-                <h3 className="mb-2 text-lg font-semibold text-gray-700">Total de Tenants</h3>
-                <p className="text-3xl font-bold">{stats.totalTenants}</p>
-              </div>
-            </div>
-
-            <div className="rounded-lg border bg-white p-6 shadow-sm">
-              <h3 className="mb-4 text-xl font-semibold">Acciones Rápidas</h3>
-              <div className="flex flex-wrap gap-4">
-                <Link
-                  href="/superadmin/users/create"
-                  className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-                >
-                  Crear Usuario
-                </Link>
-                <Link
-                  href="/superadmin/tenants/create"
-                  className="rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700"
-                >
-                  Crear Tenant
-                </Link>
-              </div>
-            </div>
-          </div>
-        </main>
-      </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Crear Tenant</CardTitle>
+              <CardDescription>Crea un nuevo tenant en la plataforma</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Configura un nuevo tenant con su subdominio personalizado</p>
+            </CardContent>
+            <CardFooter>
+              <Button asChild>
+                <Link href="/superadmin/tenants/crear">Crear tenant</Link>
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      </main>
     </div>
   )
 }

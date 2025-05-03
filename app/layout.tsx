@@ -1,9 +1,9 @@
 import type React from "react"
+import "@/app/globals.css"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
-import { FirebaseProvider } from "@/components/firebase-provider"
-import { ErrorBoundary } from "@/components/error-boundary"
-import "./globals.css"
+import { ThemeProvider } from "@/components/theme-provider"
+import { AuthProvider } from "@/lib/context/auth-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -21,9 +21,9 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={inter.className}>
-        <ErrorBoundary fallback={<div>Ha ocurrido un error. Por favor, recarga la página.</div>}>
-          <FirebaseProvider>{children}</FirebaseProvider>
-        </ErrorBoundary>
+        <ThemeProvider attribute="class" defaultTheme="light">
+          <AuthProvider>{children}</AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   )
