@@ -60,45 +60,54 @@ export default function TenantLoginPage({ params }: { params: { tenant: string }
     setError(null)
 
     try {
-      console.log(`Attempting login for: ${email} on tenant: ${params.tenant}`)
-      const userCredential = await signIn(email, password)
-      console.log("Login successful, checking profile")
+      console.log(`Intentando iniciar sesión con: ${email} en tenant: ${params.tenant}`)
 
-      // Verificar si el perfil existe
-      if (userCredential && userCredential.user) {
-        const uid = userCredential.user.uid
-        const userDocRef = doc(db, "users", uid)
-        const userDoc = await getDoc(userDocRef)
+      // Iniciar sesión con el método existente
+      await signIn(email, password)
 
-        if (!userDoc.exists()) {
-          console.error("No se encontró el perfil del usuario")
-          setError("Error: No se encontró el perfil del usuario")
+      // Esperar un momento para que el perfil se cargue completamente
+      setTimeout(async () => {
+        try {
+          // Verificar el perfil directamente desde Firestore
+          if (user) {
+            const uid = user.uid
+            const userDocRef = doc(db, "users", uid)
+            const userDoc = await getDoc(userDocRef)
+
+            if (!userDoc.exists()) {
+              console.error("No se encontró el perfil del usuario")
+              setError("Error: No se encontró el perfil del usuario")
+              setLoading(false)
+              return
+            }
+
+            // Obtener el rol del usuario para redirigir correctamente
+            const userData = userDoc.data()
+            console.log("Datos del usuario:", userData)
+            const role = userData.role || "client"
+            console.log(`Rol del usuario: ${role}`)
+
+            // Redirigir según el rol
+            if (role === "admin") {
+              console.log("Redirigiendo al dashboard de admin")
+              router.push(`/admin/dashboard`)
+            } else {
+              console.log("Redirigiendo al dashboard de cliente")
+              router.push(`/client/dashboard`)
+            }
+          } else {
+            // Redirigir al dashboard general si no hay información de usuario
+            router.push(`/dashboard`)
+          }
+        } catch (profileError) {
+          console.error("Error al verificar perfil:", profileError)
+          setError("Error al verificar el perfil de usuario")
           setLoading(false)
-          return
         }
-
-        // Obtener el rol del usuario para redirigir correctamente
-        const userData = userDoc.data()
-        console.log("Datos del usuario:", userData)
-        const role = userData.role || "client"
-        console.log(`User role: ${role}`)
-
-        // Redirigir según el rol
-        if (role === "admin") {
-          console.log("Redirecting to admin dashboard")
-          router.push(`/admin/dashboard`)
-        } else {
-          console.log("Redirecting to client dashboard")
-          router.push(`/client/dashboard`)
-        }
-      } else {
-        // Redirigir al dashboard general si no hay información de usuario
-        router.push(`/dashboard`)
-      }
+      }, 1000) // Esperar 1 segundo para que el perfil se cargue completamente
     } catch (error: any) {
-      console.error("Login error:", error)
+      console.error("Error de login:", error)
       setError(error.message || "Error al iniciar sesión")
-    } finally {
       setLoading(false)
     }
   }
