@@ -76,7 +76,7 @@ export default function Login() {
   // Limpiar cualquier estado persistente al cargar la página
   useEffect(() => {
     // Si hay un parámetro clean=true, limpiar las cookies
-    const clean = searchParams.get("clean")
+    const clean = searchParams?.get("clean")
 
     if (clean === "true") {
       setCleaningSession(true)
@@ -88,7 +88,13 @@ export default function Login() {
       setTimeout(() => {
         const url = new URL(window.location.href)
         url.searchParams.delete("clean")
-        window.location.href = url.toString()
+        url.searchParams.delete("t")
+
+        // Usar replace en lugar de asignar a window.location.href para evitar añadir a la historia
+        window.history.replaceState({}, document.title, url.toString())
+
+        // Marcar que ya limpiamos la sesión
+        setCleaningSession(false)
       }, 500)
 
       return
@@ -100,30 +106,6 @@ export default function Login() {
       console.log("Usuario autenticado detectado en página de login, cerrando sesión...")
       signOut()
       return
-    }
-
-    // Verificar si venimos de un subdominio
-    if (typeof window !== "undefined" && !cleaningSession) {
-      const referrer = document.referrer
-      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-
-      if (
-        referrer &&
-        !referrer.includes(`www.${rootDomain}`) &&
-        !referrer.includes("localhost:3000") &&
-        (referrer.includes(`.${rootDomain}`) || referrer.includes(".localhost"))
-      ) {
-        console.log("Detectada navegación desde subdominio, limpiando sesión...")
-        setCleaningSession(true)
-
-        // Eliminar todas las cookies de Firebase
-        deleteFirebaseCookies()
-
-        // Recargar la página para asegurar que todo se limpie
-        setTimeout(() => {
-          window.location.href = window.location.href + "?clean=true"
-        }, 100)
-      }
     }
   }, [user, signOut, searchParams, cleaningSession])
 

@@ -307,6 +307,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw new Error("Firebase Auth no está inicializado correctamente")
       }
 
+      // Guardar información del dominio actual antes de cerrar sesión
+      const currentHostname = window.location.hostname
+      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+      const isSubdomain =
+        currentHostname.includes(`.${rootDomain}`) ||
+        (currentHostname.includes("localhost") && !currentHostname.startsWith("www") && currentHostname !== "localhost")
+
+      // Extraer el subdominio si estamos en uno
+      let subdomain = null
+      if (isSubdomain) {
+        if (currentHostname.includes(`.${rootDomain}`)) {
+          subdomain = currentHostname.split(`.${rootDomain}`)[0]
+        } else if (currentHostname.includes(".localhost")) {
+          subdomain = currentHostname.split(".localhost")[0]
+        }
+      }
+
       // Primero, cerrar sesión en Firebase
       await signOut(auth)
 
@@ -319,19 +336,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       console.log("Sesión cerrada y cookies eliminadas")
 
-      // Forzar recarga de la página para asegurar que todo se limpie
+      // Redirigir según el contexto
       if (typeof window !== "undefined") {
-        // Guardar la URL actual para redirigir después de la recarga
-        const currentUrl = window.location.href
-
-        // Si estamos en un subdominio y queremos ir al dominio principal
-        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-        if (currentUrl.includes(`.${rootDomain}`) && !currentUrl.includes(`www.${rootDomain}`)) {
-          // Redirigir al dominio principal
-          window.location.href = `https://www.${rootDomain}/login?clean=true`
+        if (isSubdomain && subdomain) {
+          // Si estamos en un subdominio, redirigir al login del tenant
+          if (currentHostname.includes("localhost")) {
+            window.location.href = `http://${subdomain}.localhost:3000/tenant/${subdomain}/login?clean=true`
+          } else {
+            window.location.href = `https://${subdomain}.${rootDomain}/tenant/${subdomain}/login?clean=true`
+          }
         } else {
-          // Recargar la página actual con un parámetro para evitar caché
-          window.location.href = currentUrl.includes("?") ? `${currentUrl}&clean=true` : `${currentUrl}?clean=true`
+          // Si estamos en el dominio principal, redirigir al login principal
+          if (currentHostname === "localhost") {
+            window.location.href = `http://localhost:3000/login?clean=true`
+          } else {
+            window.location.href = `https://www.${rootDomain}/login?clean=true`
+          }
         }
       }
     } catch (error: any) {

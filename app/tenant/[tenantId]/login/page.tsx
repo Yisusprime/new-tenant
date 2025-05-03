@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { doc, getDoc } from "firebase/firestore"
 import { getFirestore } from "firebase/firestore"
@@ -15,6 +15,34 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
+// Función para eliminar todas las cookies de Firebase
+const deleteFirebaseCookies = () => {
+  const cookies = document.cookie.split(";")
+
+  for (let i = 0; i < cookies.length; i++) {
+    const cookie = cookies[i]
+    const eqPos = cookie.indexOf("=")
+    const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim()
+
+    // Eliminar todas las cookies relacionadas con Firebase
+    if (name.includes("firebase") || name.includes("__session") || name.includes("auth")) {
+      document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=" + window.location.hostname
+      document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/"
+
+      // Intentar con diferentes dominios (para cubrir subdominios)
+      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+      document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=." + rootDomain
+      document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=" + rootDomain
+    }
+  }
+
+  // Limpiar localStorage y sessionStorage
+  localStorage.clear()
+  sessionStorage.clear()
+
+  console.log("Todas las cookies de Firebase han sido eliminadas")
+}
+
 export default function TenantLogin() {
   const params = useParams()
   const tenantId = params?.tenantId as string
@@ -24,13 +52,43 @@ export default function TenantLogin() {
   const [loading, setLoading] = useState(false)
   const [tenantData, setTenantData] = useState<any>(null)
   const [loadingTenant, setLoadingTenant] = useState(true)
+  const [cleaningSession, setCleaningSession] = useState(false)
   const { user, signIn, getUserProfile, signOut } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const db = getFirestore(app)
+
+  // Limpiar cualquier estado persistente al cargar la página
+  useEffect(() => {
+    // Si hay un parámetro clean=true, limpiar las cookies
+    const clean = searchParams?.get("clean")
+
+    if (clean === "true") {
+      setCleaningSession(true)
+
+      // Eliminar todas las cookies de Firebase
+      deleteFirebaseCookies()
+
+      // Esperar un momento y luego recargar sin el parámetro clean
+      setTimeout(() => {
+        const url = new URL(window.location.href)
+        url.searchParams.delete("clean")
+        url.searchParams.delete("t")
+
+        // Usar replace en lugar de asignar a window.location.href para evitar añadir a la historia
+        window.history.replaceState({}, document.title, url.toString())
+
+        // Marcar que ya limpiamos la sesión
+        setCleaningSession(false)
+      }, 500)
+
+      return
+    }
+  }, [searchParams])
 
   // Verificar si el usuario ya está autenticado
   useEffect(() => {
-    if (user) {
+    if (user && !cleaningSession) {
       getUserProfile().then((profile) => {
         if (profile) {
           // Verificar si el usuario pertenece a este tenant
@@ -73,7 +131,7 @@ export default function TenantLogin() {
         }
       })
     }
-  }, [user, router, getUserProfile, tenantId, signOut])
+  }, [user, router, getUserProfile, tenantId, signOut, cleaningSession])
 
   useEffect(() => {
     async function fetchTenantData() {
@@ -171,6 +229,23 @@ export default function TenantLogin() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Si estamos limpiando la sesión, mostrar un mensaje de carga
+  if (cleaningSession) {
+    return (
+      <div className="container flex items-center justify-center min-h-screen py-12">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-2xl">Limpiando sesión anterior...</CardTitle>
+            <CardDescription>Por favor espera un momento</CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center py-6">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   if (loadingTenant) {
