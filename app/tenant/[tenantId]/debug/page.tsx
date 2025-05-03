@@ -6,11 +6,15 @@ export default function TenantDebugPage({ params }: { params: { tenantId: string
   const [hostname, setHostname] = useState("")
   const [pathname, setPathname] = useState("")
   const [href, setHref] = useState("")
+  const [userAgent, setUserAgent] = useState("")
+  const [cookies, setCookies] = useState("")
 
   useEffect(() => {
     setHostname(window.location.hostname)
     setPathname(window.location.pathname)
     setHref(window.location.href)
+    setUserAgent(navigator.userAgent)
+    setCookies(document.cookie)
   }, [])
 
   return (
@@ -31,6 +35,18 @@ export default function TenantDebugPage({ params }: { params: { tenantId: string
           </p>
           <p>
             <strong>Tenant ID:</strong> {params.tenantId}
+          </p>
+        </div>
+      </div>
+
+      <div className="mb-6 rounded-lg border bg-white p-6 shadow-md">
+        <h2 className="mb-4 text-xl font-semibold">Información del navegador</h2>
+        <div className="space-y-2">
+          <p>
+            <strong>User Agent:</strong> {userAgent}
+          </p>
+          <p>
+            <strong>Cookies:</strong> {cookies || "No hay cookies"}
           </p>
         </div>
       </div>

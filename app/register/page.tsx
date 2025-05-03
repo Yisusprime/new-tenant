@@ -5,7 +5,6 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
-import { buildSubdomainUrl } from "@/lib/subdomain-config"
 
 export default function Register() {
   const [name, setName] = useState("")
@@ -48,7 +47,16 @@ export default function Register() {
       // Redirigir al dashboard de admin o al tenant si se creó uno
       if (subdomain) {
         // Construir URL del subdominio
-        const dashboardUrl = buildSubdomainUrl(subdomain, "/admin/dashboard")
+        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+        const isLocalhost = window.location.hostname.includes("localhost")
+
+        let dashboardUrl
+        if (isLocalhost) {
+          dashboardUrl = `http://${subdomain}.localhost:3000/tenant/${subdomain}/admin/dashboard`
+        } else {
+          dashboardUrl = `https://${subdomain}.${rootDomain}/tenant/${subdomain}/admin/dashboard`
+        }
+
         console.log(`Redirigiendo a: ${dashboardUrl}`)
 
         // Usar window.location para una redirección completa

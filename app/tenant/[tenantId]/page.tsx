@@ -25,6 +25,16 @@ export default function TenantHomePage({ params }: { params: { tenantId: string 
           </li>
         </ul>
       </div>
+
+      <div className="mt-6 w-full max-w-md rounded-lg border bg-white p-6 shadow-md">
+        <h2 className="mb-4 text-2xl font-semibold">Información del tenant</h2>
+        <p>
+          <strong>ID del tenant:</strong> {params.tenantId}
+        </p>
+        <p>
+          <strong>URL actual:</strong> {typeof window !== "undefined" ? window.location.href : ""}
+        </p>
+      </div>
     </div>
   )
 }

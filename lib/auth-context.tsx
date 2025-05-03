@@ -74,6 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log("Iniciando sesión con:", email)
       await signInWithEmailAndPassword(auth, email, password)
       console.log("Sesión iniciada correctamente")
+
+      // No redirigir automáticamente, dejar que el componente que llama maneje la redirección
     } catch (error: any) {
       console.error("Error al iniciar sesión:", error)
       setError(error.message || "Error al iniciar sesión")

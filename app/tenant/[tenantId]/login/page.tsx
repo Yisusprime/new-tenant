@@ -1,43 +1,19 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+
+import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
-import { doc, getDoc } from "firebase/firestore"
-import { db } from "@/lib/firebase/client"
 
 export default function TenantLoginPage({ params }: { params: { tenantId: string } }) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [tenantName, setTenantName] = useState("")
   const { signIn } = useAuth()
   const router = useRouter()
-
-  useEffect(() => {
-    // Obtener información del tenant
-    async function fetchTenantData() {
-      try {
-        console.log(`Fetching tenant data for: ${params.tenantId}`)
-        const tenantDoc = await getDoc(doc(db, "tenants", params.tenantId))
-        if (tenantDoc.exists()) {
-          console.log(`Tenant found: ${tenantDoc.data().name}`)
-          setTenantName(tenantDoc.data().name || params.tenantId)
-        } else {
-          console.error(`Tenant not found: ${params.tenantId}`)
-          setError("Este tenant no existe")
-        }
-      } catch (error) {
-        console.error("Error al obtener datos del tenant:", error)
-        setError("Error al cargar información del tenant")
-      }
-    }
-
-    fetchTenantData()
-  }, [params.tenantId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -108,25 +84,11 @@ export default function TenantLoginPage({ params }: { params: { tenantId: string
           </button>
         </form>
 
-        <div className="text-center">
+        <div className="mt-4 text-center">
           <Link href={`/tenant/${params.tenantId}`} className="text-sm text-gray-600 hover:text-gray-900">
             Volver al inicio
           </Link>
         </div>
-        <div className="text-center">
-          <Link
-            href={`/tenant/${params.tenantId}/forgot-password`}
-            className="font-medium text-blue-600 hover:text-blue-500"
-          >
-            ¿Olvidaste tu contraseña?
-          </Link>
-        </div>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          ¿No tienes una cuenta?{" "}
-          <Link href={`/tenant/${params.tenantId}/register`} className="font-medium text-blue-600 hover:text-blue-500">
-            Regístrate
-          </Link>
-        </p>
       </div>
     </div>
   )
