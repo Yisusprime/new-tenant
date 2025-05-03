@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button"
 import { ArrowRight, Check } from "lucide-react"
 import DomainInfo from "@/components/domain-info"
 import TenantDomainTester from "@/components/tenant-domain-tester"
-import FirebaseStatus from "@/components/firebase-status"
 
 export default function Home() {
   return (
@@ -61,13 +60,8 @@ export default function Home() {
               </Link>
             </div>
 
-            {/* Estado de Firebase */}
-            <div className="mt-16 w-full max-w-md">
-              <FirebaseStatus />
-            </div>
-
             {/* Añadir información del dominio */}
-            <div className="mt-4 w-full max-w-md">
+            <div className="mt-16 w-full max-w-md">
               <DomainInfo />
             </div>
 
