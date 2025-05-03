@@ -36,23 +36,26 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Manejo de rutas protegidas en el dominio principal
-  if (!subdomain) {
-    // Proteger rutas de superadmin
-    if (pathname.startsWith("/superadmin/dashboard")) {
-      // Aquí podríamos verificar la sesión, pero eso lo hacemos en el componente
-      return NextResponse.next()
-    }
-
-    // Proteger rutas de admin
-    if (pathname.startsWith("/dashboard")) {
-      // Aquí podríamos verificar la sesión, pero eso lo hacemos en el componente
-      return NextResponse.next()
-    }
-  }
-
-  // Si estamos en un subdominio válido, redirigir a la ruta del tenant
+  // Si estamos en un subdominio válido, manejar las rutas
   if (subdomain && isValidTenantSubdomain(subdomain)) {
+    // Manejar rutas específicas en subdominios
+
+    // Rutas de admin en subdominios
+    if (pathname.startsWith("/admin")) {
+      // Redirigir /admin/* a /tenant/[subdomain]/admin/*
+      const newPath = `/tenant/${subdomain}${pathname}`
+      url.pathname = newPath
+      return NextResponse.rewrite(url)
+    }
+
+    // Rutas de cliente en subdominios
+    if (pathname.startsWith("/client")) {
+      // Redirigir /client/* a /tenant/[subdomain]/client/*
+      const newPath = `/tenant/${subdomain}${pathname}`
+      url.pathname = newPath
+      return NextResponse.rewrite(url)
+    }
+
     // Si la ruta ya comienza con /tenant/[tenantId], no hacer nada
     if (pathname.startsWith(`/tenant/${subdomain}`)) {
       return NextResponse.next()
@@ -65,7 +68,7 @@ export function middleware(request: NextRequest) {
       return NextResponse.redirect(url)
     }
 
-    // Redirigir a la ruta del tenant
+    // Para otras rutas en el subdominio, redirigir a la ruta del tenant
     url.pathname = `/tenant/${subdomain}${pathname}`
     return NextResponse.rewrite(url)
   }

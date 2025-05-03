@@ -26,6 +26,14 @@ export default function Login() {
       // Redirigir según el rol del usuario
       if (userProfile?.role === "superadmin") {
         router.push("/superadmin/dashboard")
+      } else if (userProfile?.role === "admin" && userProfile?.subdomain) {
+        // Si es admin y tiene un subdominio, redirigir al dashboard del tenant
+        const isLocalhost = window.location.hostname.includes("localhost")
+        const baseUrl = isLocalhost
+          ? `http://${userProfile.subdomain}.localhost:3000`
+          : `https://${userProfile.subdomain}.gastroo.online`
+
+        window.location.href = `${baseUrl}/admin/dashboard`
       } else {
         router.push("/dashboard")
       }

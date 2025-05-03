@@ -44,7 +44,10 @@ export default function Register() {
       // Redirigir al dashboard de admin o al tenant si se creó uno
       if (subdomain) {
         // Redirigir al dashboard del tenant
-        router.push(`https://${subdomain}.gastroo.online/admin/dashboard`)
+        const isLocalhost = window.location.hostname.includes("localhost")
+        const baseUrl = isLocalhost ? `http://${subdomain}.localhost:3000` : `https://${subdomain}.gastroo.online`
+
+        window.location.href = `${baseUrl}/admin/dashboard`
       } else {
         // Redirigir al dashboard general
         router.push("/dashboard")
