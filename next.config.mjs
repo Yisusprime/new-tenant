@@ -46,6 +46,14 @@ const nextConfig = {
       ],
     };
   },
+  // Excluir explícitamente la página /_not-found del prerenderizado
+  exportPathMap: async function (defaultPathMap) {
+    // Eliminar la ruta /_not-found si existe
+    if (defaultPathMap['/_not-found']) {
+      delete defaultPathMap['/_not-found'];
+    }
+    return defaultPathMap;
+  },
 };
 
 export default nextConfig;
