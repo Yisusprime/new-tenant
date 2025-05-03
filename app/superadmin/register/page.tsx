@@ -1,12 +1,12 @@
 import { Navbar } from "@/components/layout/navbar"
-import { LoginForm } from "@/components/auth/login-form"
+import { RegisterForm } from "@/components/auth/register-form"
 
-export default function SuperAdminLoginPage() {
+export default function SuperAdminRegisterPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar isSuperAdmin />
       <main className="flex-1 flex items-center justify-center p-4">
-        <LoginForm redirectUrl="/superadmin/dashboard" isSuperAdmin />
+        <RegisterForm isSuperAdmin />
       </main>
     </div>
   )

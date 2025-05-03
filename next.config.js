@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactStrictMode: true,
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -7,8 +8,9 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    unoptimized: true,
+    domains: ["firebasestorage.googleapis.com"],
   },
+  // Eliminar la configuración experimental que podría causar problemas
 }
 
-export default nextConfig
+module.exports = nextConfig

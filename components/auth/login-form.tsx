@@ -4,21 +4,19 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { signIn } from "@/lib/services/auth-service"
+import { loginWithEmail } from "@/lib/firebase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import Link from "next/link"
 
 interface LoginFormProps {
   redirectUrl?: string
-  tenantMode?: boolean
-  tenantSubdomain?: string
+  isSuperAdmin?: boolean
 }
 
-export function LoginForm({ redirectUrl = "/", tenantMode = false, tenantSubdomain = "" }: LoginFormProps) {
+export function LoginForm({ redirectUrl = "/", isSuperAdmin = false }: LoginFormProps) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -27,32 +25,23 @@ export function LoginForm({ redirectUrl = "/", tenantMode = false, tenantSubdoma
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
     setError(null)
+    setLoading(true)
 
     try {
-      const user = await signIn(email, password)
-
-      if (user) {
-        router.push(redirectUrl)
-      } else {
-        setError("Invalid email or password")
-      }
+      await loginWithEmail(email, password)
+      router.push(redirectUrl)
     } catch (err: any) {
-      setError(err.message || "An error occurred during login")
+      setError(err.message || "Error al iniciar sesión")
     } finally {
       setLoading(false)
     }
   }
 
-  const registerPath = tenantMode
-    ? `https://${tenantSubdomain}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}/registro`
-    : "/registro"
-
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
-        <CardTitle>Iniciar sesión</CardTitle>
+        <CardTitle>{isSuperAdmin ? "Iniciar Sesión como Super Admin" : "Iniciar Sesión"}</CardTitle>
         <CardDescription>Ingresa tus credenciales para acceder a tu cuenta</CardDescription>
       </CardHeader>
       <CardContent>
@@ -63,43 +52,38 @@ export function LoginForm({ redirectUrl = "/", tenantMode = false, tenantSubdoma
             </Alert>
           )}
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Correo Electrónico</Label>
             <Input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="tu@email.com"
               required
+              placeholder="correo@ejemplo.com"
             />
           </div>
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Contraseña</Label>
-              <Link href="/recuperar-password" className="text-sm text-primary hover:underline">
-                ¿Olvidaste tu contraseña?
-              </Link>
-            </div>
+            <Label htmlFor="password">Contraseña</Label>
             <Input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
               required
+              placeholder="********"
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Iniciando sesión..." : "Iniciar sesión"}
+            {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
           </Button>
         </form>
       </CardContent>
       <CardFooter className="flex justify-center">
         <p className="text-sm text-muted-foreground">
           ¿No tienes una cuenta?{" "}
-          <Link href={registerPath} className="text-primary hover:underline">
+          <a href={isSuperAdmin ? "/superadmin/register" : "/register"} className="text-primary hover:underline">
             Regístrate
-          </Link>
+          </a>
         </p>
       </CardFooter>
     </Card>

@@ -1,116 +1,66 @@
-"use client"
+import { Navbar } from "@/components/layout/navbar"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { requireSuperAdmin } from "@/lib/auth/server-auth"
+import { firestore } from "@/lib/firebase/admin"
+import { isFirebaseAdminInitialized } from "@/lib/firebase/admin"
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/lib/context/auth-context"
-import { getAllTenants } from "@/lib/services/tenant-service"
-import type { Tenant } from "@/lib/models/tenant"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { MainNav } from "@/components/layout/main-nav"
-import Link from "next/link"
-
-const navItems = [
-  {
-    title: "Dashboard",
-    href: "/superadmin/dashboard",
-  },
-  {
-    title: "Tenants",
-    href: "/superadmin/tenants",
-  },
-  {
-    title: "Usuarios",
-    href: "/superadmin/usuarios",
-  },
-]
-
-export default function SuperAdminDashboardPage() {
-  const { user, loading } = useAuth()
-  const [tenants, setTenants] = useState<Tenant[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const router = useRouter()
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      if (!loading && (!user || !user.isSuperAdmin)) {
-        router.push("/superadmin/login")
-      } else if (user) {
-        try {
-          const tenantsData = await getAllTenants()
-          setTenants(tenantsData)
-        } catch (error) {
-          console.error("Error fetching tenants:", error)
-        } finally {
-          setIsLoading(false)
-        }
-      }
+async function getTenantCount() {
+  try {
+    if (!isFirebaseAdminInitialized() || !firestore) {
+      console.error("Firebase Admin no está inicializado")
+      return 0
     }
 
-    checkAuth()
-  }, [user, loading, router])
-
-  if (loading || isLoading) {
-    return <div>Cargando...</div>
+    const tenantsSnapshot = await firestore.collection("tenants").count().get()
+    return tenantsSnapshot.data().count
+  } catch (error) {
+    console.error("Error al obtener el conteo de tenants:", error)
+    return 0
   }
+}
+
+export default async function SuperAdminDashboardPage() {
+  // Verificar autenticación
+  const session = await requireSuperAdmin()
+
+  const tenantCount = await getTenantCount()
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="container z-40 bg-background">
-        <div className="flex h-20 items-center justify-between py-6">
-          <MainNav items={navItems} />
-        </div>
-      </header>
-      <main className="flex-1 container py-10">
-        <h1 className="text-3xl font-bold mb-6">Panel de SuperAdmin</h1>
+    <div className="min-h-screen flex flex-col">
+      <Navbar isSuperAdmin />
+      <main className="flex-1 p-4">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-3xl font-bold mb-8">Panel de Super Administrador</h1>
+          <p className="mb-4">Bienvenido, {session.email}</p>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <Card>
-            <CardHeader>
-              <CardTitle>Tenants</CardTitle>
-              <CardDescription>Gestiona los tenants de la plataforma</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{tenants.length}</p>
-              <p className="text-sm text-muted-foreground">Total de tenants</p>
-            </CardContent>
-            <CardFooter>
-              <Button asChild>
-                <Link href="/superadmin/tenants">Ver todos</Link>
-              </Button>
-            </CardFooter>
-          </Card>
+          <div className="grid md:grid-cols-3 gap-6">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total de Tenants</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{tenantCount}</div>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Usuarios</CardTitle>
-              <CardDescription>Gestiona los usuarios de la plataforma</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">-</p>
-              <p className="text-sm text-muted-foreground">Total de usuarios</p>
-            </CardContent>
-            <CardFooter>
-              <Button asChild>
-                <Link href="/superadmin/usuarios">Ver todos</Link>
-              </Button>
-            </CardFooter>
-          </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Tenants Activos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{tenantCount}</div>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Crear Tenant</CardTitle>
-              <CardDescription>Crea un nuevo tenant en la plataforma</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">Configura un nuevo tenant con su subdominio personalizado</p>
-            </CardContent>
-            <CardFooter>
-              <Button asChild>
-                <Link href="/superadmin/tenants/crear">Crear tenant</Link>
-              </Button>
-            </CardFooter>
-          </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Usuarios Registrados</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">--</div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </main>
     </div>
