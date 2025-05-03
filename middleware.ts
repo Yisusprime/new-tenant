@@ -36,20 +36,20 @@ export default async function middleware(req: NextRequest) {
     const subdomain = hostname.replace(`.${rootDomain}`, "")
     console.log("Middleware - Subdomain:", subdomain)
 
-    // Corregido: No añadir el tenant a la ruta si ya está en el subdominio
-    // En lugar de eso, reescribir directamente a las rutas de admin/dashboard, etc.
-
-    // Si la ruta es la raíz o una ruta que no comienza con /admin, /login, etc.
-    if (path === "/" || (!path.startsWith("/admin") && !path.startsWith("/login") && !path.startsWith("/register"))) {
-      // Reescribir a la ruta correcta sin duplicar el tenant
-      const newPath = path === "/" ? `/admin/dashboard` : `/admin${path}`
-      const newUrl = new URL(newPath, req.url)
+    // Si la ruta es la raíz, redirigir al dashboard
+    if (path === "/") {
+      const newUrl = new URL(`/admin/dashboard`, req.url)
       console.log("Middleware - Rewriting to:", newUrl.toString())
       return NextResponse.rewrite(newUrl)
     }
 
-    // Para otras rutas, simplemente continuar
-    return NextResponse.next()
+    // Si la ruta comienza con /[tenantid], redirigir a la ruta sin el tenant
+    if (path.startsWith(`/${subdomain}/`)) {
+      const newPath = path.replace(`/${subdomain}`, "")
+      const newUrl = new URL(newPath, req.url)
+      console.log("Middleware - Rewriting to:", newUrl.toString())
+      return NextResponse.rewrite(newUrl)
+    }
   }
 
   // Si estamos en el dominio principal, no hacer nada

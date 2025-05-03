@@ -10,7 +10,6 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
   const pathname = usePathname()
   const { logout } = useAuth()
 
-  // Corregido: No incluir el tenant en las rutas
   const links = [
     { href: `/admin/dashboard`, label: "Dashboard", icon: Home },
     { href: `/admin/users`, label: "Usuarios", icon: Users },

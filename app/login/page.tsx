@@ -61,7 +61,6 @@ export default function LoginPage() {
         router.push("/superadmin/dashboard")
       } else if (tenantId) {
         const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-        // Corregido: No incluir el tenant en la ruta
         window.location.href = `https://${tenantId}.${rootDomain}/admin/dashboard`
       } else {
         // Si no tiene tenant, redirigir a la página principal
