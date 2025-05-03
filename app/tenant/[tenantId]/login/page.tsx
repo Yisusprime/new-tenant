@@ -52,10 +52,21 @@ export default function TenantLoginPage({ params }: { params: { tenantId: string
           })
           console.log("Basic profile created")
         }
-      }
 
-      // Redirigir al dashboard del tenant
-      router.push(`/tenant/${params.tenantId}/dashboard`)
+        // Obtener el rol del usuario para redirigir correctamente
+        const role = userDoc.exists() ? userDoc.data().role : "client"
+
+        // Redirigir según el rol
+        if (role === "admin") {
+          router.push(`/tenant/${params.tenantId}/admin/dashboard`)
+        } else {
+          // Si es cliente, redirigir al dashboard de cliente
+          router.push(`/tenant/${params.tenantId}/client/dashboard`)
+        }
+      } else {
+        // Redirigir al dashboard general si no hay información de usuario
+        router.push(`/tenant/${params.tenantId}/dashboard`)
+      }
     } catch (error: any) {
       console.error("Login error:", error)
       setError(error.message || "Error al iniciar sesión")

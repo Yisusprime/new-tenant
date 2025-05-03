@@ -23,21 +23,25 @@ export default function TenantRegister({ params }: { params: { tenantId: string 
     }
   }, [user, router, params.tenantId])
 
+  // Actualizar la función handleSubmit para asegurar la redirección correcta
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
     try {
-      // Registrar usuario
+      // Registrar usuario con rol de cliente y tenantId específico
       await signUp(email, password, {
         name,
         tenantId: params.tenantId,
-        role: "client", // Rol específico para clientes del tenant
+        role: "client", // Asegurar que el rol sea "client"
       })
 
-      // Redirigir al dashboard del cliente en el tenant
-      router.push(`/tenant/${params.tenantId}/dashboard`)
+      console.log("Registro exitoso, redirigiendo al dashboard de cliente...")
+
+      // Redirigir al dashboard de cliente
+      router.push(`/tenant/${params.tenantId}/client/dashboard`)
     } catch (error: any) {
       setError(error.message || "Error al registrarse")
     } finally {
