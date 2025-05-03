@@ -13,10 +13,12 @@ import { signInWithEmailAndPassword } from "firebase/auth"
 import { doc, getDoc } from "firebase/firestore"
 import { auth, db } from "@/lib/firebase-config"
 import { useToast } from "@/components/ui/use-toast"
+import { useAuth } from "@/lib/auth-context"
 
 export default function SuperAdminLoginPage() {
   const router = useRouter()
   const { toast } = useToast()
+  const { refreshUserData } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
     email: "",
@@ -65,6 +67,9 @@ export default function SuperAdminLoginPage() {
         setIsLoading(false)
         return
       }
+
+      // Refrescar los datos del usuario en el contexto
+      await refreshUserData()
 
       toast({
         title: "Inicio de sesión exitoso",

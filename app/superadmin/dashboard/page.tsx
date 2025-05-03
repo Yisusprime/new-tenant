@@ -14,11 +14,19 @@ import { collection, getDocs } from "firebase/firestore"
 import { db } from "@/lib/firebase-config"
 
 export default function SuperAdminDashboardPage() {
-  const { user, loading, logout, checkUserRole } = useAuth()
+  const { user, loading, logout, checkUserRole, refreshUserData } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
   const [tenants, setTenants] = useState<any[]>([])
   const [loadingTenants, setLoadingTenants] = useState(true)
+
+  // Refrescar los datos del usuario al cargar la página
+  useEffect(() => {
+    const refreshData = async () => {
+      await refreshUserData()
+    }
+    refreshData()
+  }, [refreshUserData])
 
   useEffect(() => {
     async function fetchTenants() {
@@ -45,15 +53,25 @@ export default function SuperAdminDashboardPage() {
 
   useEffect(() => {
     // Verificar si el usuario está autenticado y es superadmin
-    if (!loading && (!user || !checkUserRole("superadmin"))) {
-      toast({
-        title: "Acceso denegado",
-        description: "No tienes permisos de Super Admin para acceder a este dashboard.",
-        variant: "destructive",
-      })
-      router.push("/superadmin/login")
+    if (!loading) {
+      console.log("Checking user access:", user)
+      if (!user) {
+        toast({
+          title: "Acceso denegado",
+          description: "Debes iniciar sesión para acceder a este dashboard.",
+          variant: "destructive",
+        })
+        router.push("/superadmin/login")
+      } else if (user.role !== "superadmin") {
+        toast({
+          title: "Acceso denegado",
+          description: `No tienes permisos de Super Admin para acceder a este dashboard. Tu rol actual es: ${user.role || "sin rol"}`,
+          variant: "destructive",
+        })
+        router.push("/superadmin/login")
+      }
     }
-  }, [user, loading, router, toast, checkUserRole])
+  }, [user, loading, router, toast])
 
   const handleLogout = async () => {
     await logout()
@@ -73,6 +91,11 @@ export default function SuperAdminDashboardPage() {
     )
   }
 
+  // Si no hay usuario o no es superadmin, no renderizar el contenido
+  if (!user || user.role !== "superadmin") {
+    return null
+  }
+
   return (
     <div className="flex min-h-screen">
       <SuperAdminSidebar />
@@ -80,7 +103,9 @@ export default function SuperAdminDashboardPage() {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Panel de Super Administrador</h1>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">{user?.name || user?.email} (Super Admin)</span>
+            <span className="text-sm text-muted-foreground">
+              {user?.name || user?.email} (Super Admin - {user?.role})
+            </span>
             <Button variant="outline" onClick={handleLogout}>
               Cerrar sesión
             </Button>
