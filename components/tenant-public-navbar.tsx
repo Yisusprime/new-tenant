@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Menu, X } from "lucide-react"
@@ -13,18 +13,6 @@ interface TenantPublicNavbarProps {
 
 export default function TenantPublicNavbar({ tenantId, tenantName, logoUrl }: TenantPublicNavbarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [menuItems, setMenuItems] = useState<{ label: string; href: string }[]>([])
-
-  useEffect(() => {
-    // Aquí podrías cargar los elementos del menú desde Firebase
-    // Por ahora, usaremos elementos estáticos
-    setMenuItems([
-      { label: "Inicio", href: `/tenant/${tenantId}` },
-      { label: "Menú", href: `/tenant/${tenantId}/menu` },
-      { label: "Sobre Nosotros", href: `/tenant/${tenantId}/about` },
-      { label: "Contacto", href: `/tenant/${tenantId}/contact` },
-    ])
-  }, [tenantId])
 
   return (
     <header className="border-b w-full bg-white">
@@ -40,11 +28,12 @@ export default function TenantPublicNavbar({ tenantId, tenantName, logoUrl }: Te
 
         {/* Menú para pantallas medianas y grandes */}
         <nav className="hidden md:flex items-center gap-6">
-          {menuItems.map((item) => (
-            <Link key={item.href} href={item.href} className="text-sm font-medium hover:text-primary hover:underline">
-              {item.label}
-            </Link>
-          ))}
+          <Link href={`/tenant/${tenantId}`} className="text-sm font-medium hover:text-primary hover:underline">
+            Inicio
+          </Link>
+          <Link href={`/tenant/${tenantId}/menu`} className="text-sm font-medium hover:text-primary hover:underline">
+            Menú
+          </Link>
         </nav>
 
         <div className="flex items-center gap-4">
@@ -72,16 +61,20 @@ export default function TenantPublicNavbar({ tenantId, tenantName, logoUrl }: Te
       {isMenuOpen && (
         <div className="md:hidden border-t">
           <nav className="container mx-auto py-4 px-4 flex flex-col gap-4">
-            {menuItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="text-sm font-medium hover:text-primary py-2"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                {item.label}
-              </Link>
-            ))}
+            <Link
+              href={`/tenant/${tenantId}`}
+              className="text-sm font-medium hover:text-primary py-2"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Inicio
+            </Link>
+            <Link
+              href={`/tenant/${tenantId}/menu`}
+              className="text-sm font-medium hover:text-primary py-2"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Menú
+            </Link>
           </nav>
         </div>
       )}

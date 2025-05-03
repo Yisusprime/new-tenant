@@ -46,32 +46,9 @@ export default function Login() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [cleaningSession, setCleaningSession] = useState(false)
-  const { signIn, getUserProfile, user, signOut } = useAuth()
+  const { signIn, getUserProfile, user } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
-
-  // Verificar si estamos en un subdominio
-  const isSubdomain = () => {
-    if (typeof window === "undefined") return false
-
-    const hostname = window.location.hostname
-    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-
-    // Verificar si es un subdominio del dominio raíz
-    if (hostname.endsWith(`.${rootDomain}`) && hostname !== `www.${rootDomain}`) {
-      return true
-    }
-
-    // Para desarrollo local
-    if (hostname.includes("localhost")) {
-      const subdomainMatch = hostname.match(/^([^.]+)\.localhost/)
-      if (subdomainMatch && subdomainMatch[1] !== "www" && subdomainMatch[1] !== "app") {
-        return true
-      }
-    }
-
-    return false
-  }
 
   // Limpiar cualquier estado persistente al cargar la página
   useEffect(() => {
@@ -106,23 +83,11 @@ export default function Login() {
     if (user && !cleaningSession) {
       getUserProfile().then((profile) => {
         if (profile) {
-          // Solo permitir superadmin en el dominio principal
+          // Redirigir según el rol
           if (profile.role === "superadmin") {
             router.push("/superadmin/dashboard")
           } else {
-            // Si no es superadmin, redirigir a su tenant
-            if (profile.tenantId) {
-              const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-              let tenantUrl
-              if (window.location.hostname === "localhost") {
-                tenantUrl = `http://${profile.tenantId}.localhost:3000/admin/dashboard`
-              } else {
-                tenantUrl = `https://${profile.tenantId}.${rootDomain}/admin/dashboard`
-              }
-              window.location.href = tenantUrl
-            } else {
-              setError("No tienes acceso a esta área. Por favor, contacta al administrador.")
-            }
+            router.push("/dashboard")
           }
         }
       })
@@ -157,21 +122,12 @@ export default function Login() {
         return
       }
 
-      // Solo permitir superadmin en el dominio principal
-      if (userProfile.role !== "superadmin") {
-        setError("Solo los superadministradores pueden iniciar sesión en el dominio principal.")
-        setLoading(false)
-
-        // Cerrar sesión automáticamente si no es superadmin
-        setTimeout(() => {
-          signOut()
-        }, 1000)
-
-        return
+      // Redirigir según el rol
+      if (userProfile.role === "superadmin") {
+        router.push("/superadmin/dashboard")
+      } else {
+        router.push("/dashboard")
       }
-
-      // Redirigir al dashboard de superadmin
-      router.push("/superadmin/dashboard")
     } catch (error: any) {
       console.error("Error completo:", error)
       setError(error.message || "Error al iniciar sesión")
@@ -197,17 +153,12 @@ export default function Login() {
     )
   }
 
-  // Si estamos en un subdominio, no mostrar esta página
-  if (isSubdomain()) {
-    return null
-  }
-
   return (
     <div className="container flex items-center justify-center min-h-screen py-12">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl">Iniciar sesión como Superadmin</CardTitle>
-          <CardDescription>Solo los superadministradores pueden iniciar sesión en el dominio principal</CardDescription>
+          <CardTitle className="text-2xl">Iniciar sesión</CardTitle>
+          <CardDescription>Ingresa tus credenciales para acceder al sistema</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -242,7 +193,7 @@ export default function Login() {
         </CardContent>
         <CardFooter className="flex justify-center">
           <p className="text-sm text-muted-foreground">
-            ¿Quieres registrar un nuevo restaurante?{" "}
+            ¿No tienes una cuenta?{" "}
             <Link href="/register" className="text-primary hover:underline">
               Registrarse
             </Link>

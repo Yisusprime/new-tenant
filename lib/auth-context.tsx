@@ -11,36 +11,21 @@ import {
   updateProfile,
   sendPasswordResetEmail,
   confirmPasswordReset,
-  signInWithPopup,
-  GoogleAuthProvider,
-  FacebookAuthProvider,
-  OAuthProvider,
 } from "firebase/auth"
 import { getFirestore, doc, setDoc, getDoc, updateDoc } from "firebase/firestore"
 import { app } from "@/lib/firebase/client"
 
-export type UserRole = "superadmin" | "admin" | "manager" | "waiter" | "delivery" | "client" | "user"
+export type UserRole = "superadmin" | "admin" | "user"
 
 interface AuthContextProps {
   user: any
   userProfile: any
   signUp: (email: string, password: string, displayName: string, companyName: string) => Promise<void>
-  signUpTenantUser: (
-    email: string,
-    password: string,
-    displayName: string,
-    role: UserRole,
-    tenantId: string,
-  ) => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
   updateUserProfile: (displayName: string) => Promise<void>
-  updateUserRole: (userId: string, role: UserRole) => Promise<void>
   resetPassword: (email: string) => Promise<void>
   confirmPasswordResetUser: (code: string, newPassword: string) => Promise<void>
-  signInWithGoogle: () => Promise<void>
-  signInWithFacebook: () => Promise<void>
-  signInWithMicrosoft: () => Promise<void>
   getUserProfile: () => Promise<any>
   loading: boolean
 }
@@ -49,16 +34,11 @@ const AuthContext = createContext<AuthContextProps>({
   user: null,
   userProfile: null,
   signUp: async () => {},
-  signUpTenantUser: async () => {},
   signIn: async () => {},
   signOut: async () => {},
   updateUserProfile: async () => {},
-  updateUserRole: async () => {},
   resetPassword: async () => {},
   confirmPasswordResetUser: async () => {},
-  signInWithGoogle: async () => {},
-  signInWithFacebook: async () => {},
-  signInWithMicrosoft: async () => {},
   getUserProfile: async () => {},
   loading: true,
 })
@@ -81,8 +61,6 @@ const deleteAllCookies = () => {
     // Eliminar todas las cookies relacionadas con Firebase
     if (name.includes("firebase") || name.includes("__session") || name.includes("auth")) {
       document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=" + window.location.hostname
-
-      // También intentar eliminar la cookie sin el dominio específico
       document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/"
 
       // Intentar con diferentes dominios (para cubrir subdominios)
@@ -159,17 +137,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }
 
-  // Función para verificar si estamos en el dominio principal
-  const isMainDomain = () => {
-    if (typeof window === "undefined") return true // Por defecto en SSR
-
-    const hostname = window.location.hostname
-    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-
-    // Es dominio principal si es exactamente el dominio raíz o www.dominio
-    return hostname === rootDomain || hostname === `www.${rootDomain}` || hostname === "localhost"
-  }
-
   const signUp = async (email: string, password: string, displayName: string, companyName: string) => {
     try {
       if (!auth || !db) {
@@ -194,10 +161,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log("Creando tenant:", tenantId)
       await setDoc(doc(db, "tenants", tenantId), tenantData)
 
-      // Verificar si estamos en el dominio principal
-      const mainDomain = isMainDomain()
-      console.log("¿Es dominio principal?", mainDomain)
-
       // Verificar si es el primer usuario (para asignar rol de superadmin)
       let isFirstUser = false
       let userRole: UserRole = "user"
@@ -212,9 +175,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (isFirstUser) {
           console.log("Es el primer usuario, asignando rol de superadmin")
           userRole = "superadmin"
-        } else if (mainDomain) {
-          // Si estamos en el dominio principal y no es el primer usuario, asignar rol de admin
-          console.log("Registro en dominio principal, asignando rol de admin")
+        } else {
+          // Si no es el primer usuario, asignar rol de admin
+          console.log("No es el primer usuario, asignando rol de admin")
           userRole = "admin"
         }
 
@@ -254,40 +217,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }
 
-  const signUpTenantUser = async (
-    email: string,
-    password: string,
-    displayName: string,
-    role: UserRole,
-    tenantId: string,
-  ) => {
-    try {
-      if (!auth || !db) {
-        throw new Error("Firebase no está inicializado correctamente")
-      }
-
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
-      const user = userCredential.user
-
-      await updateProfile(user, { displayName })
-
-      await setDoc(doc(db, "users", user.uid), {
-        displayName,
-        email,
-        role: role,
-        tenantId: tenantId,
-        createdAt: new Date().toISOString(),
-      })
-
-      setUser(user)
-      const profile = await getUserProfileData(user.uid)
-      setUserProfile(profile)
-    } catch (error: any) {
-      console.error("Error signing up:", error)
-      throw error
-    }
-  }
-
   const signIn = async (email: string, password: string) => {
     try {
       if (!auth) {
@@ -307,39 +236,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw new Error("Firebase Auth no está inicializado correctamente")
       }
 
-      // Guardar información del dominio actual antes de cerrar sesión
-      const currentHostname = window.location.hostname
-      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-
-      // Verificar si estamos en el dominio principal (www o sin www)
-      const isMainDomain =
-        currentHostname === rootDomain ||
-        currentHostname === `www.${rootDomain}` ||
-        currentHostname === "localhost" ||
-        currentHostname === "localhost:3000"
-
-      // Si estamos en el dominio principal, no hay subdominio
-      let subdomain = null
-
-      // Solo extraer subdominio si NO estamos en el dominio principal
-      if (!isMainDomain) {
-        if (currentHostname.includes(`.${rootDomain}`)) {
-          const subdomainPart = currentHostname.split(`.${rootDomain}`)[0]
-          // Verificar que no sea "www"
-          if (subdomainPart !== "www") {
-            subdomain = subdomainPart
-          }
-        } else if (currentHostname.includes(".localhost")) {
-          const subdomainPart = currentHostname.split(".localhost")[0]
-          // Verificar que no sea "www"
-          if (subdomainPart !== "www") {
-            subdomain = subdomainPart
-          }
-        }
-      }
-
-      console.log("Cerrando sesión. Dominio principal:", isMainDomain, "Subdominio:", subdomain)
-
       // Primero, cerrar sesión en Firebase
       await signOut(auth)
 
@@ -352,23 +248,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       console.log("Sesión cerrada y cookies eliminadas")
 
-      // Redirigir según el contexto
+      // Redirigir al login
       if (typeof window !== "undefined") {
-        if (!isMainDomain && subdomain) {
-          // Si estamos en un subdominio válido, redirigir al login del tenant
-          if (currentHostname.includes("localhost")) {
-            window.location.href = `http://${subdomain}.localhost:3000/tenant/${subdomain}/login?clean=true`
-          } else {
-            window.location.href = `https://${subdomain}.${rootDomain}/tenant/${subdomain}/login?clean=true`
-          }
-        } else {
-          // Si estamos en el dominio principal o el subdominio no es válido, redirigir al login principal
-          if (currentHostname === "localhost" || currentHostname === "localhost:3000") {
-            window.location.href = `http://localhost:3000/login?clean=true`
-          } else {
-            window.location.href = `https://www.${rootDomain}/login?clean=true`
-          }
-        }
+        window.location.href = "/login?clean=true"
       }
     } catch (error: any) {
       console.error("Error signing out:", error)
@@ -393,21 +275,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch (error: any) {
       console.error("Error updating profile:", error)
-      throw error
-    }
-  }
-
-  const updateUserRole = async (userId: string, role: UserRole) => {
-    try {
-      if (!db) {
-        throw new Error("Firestore no está inicializado correctamente")
-      }
-
-      await updateDoc(doc(db, "users", userId), {
-        role: role,
-      })
-    } catch (error: any) {
-      console.error("Error updating user role:", error)
       throw error
     }
   }
@@ -438,48 +305,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }
 
-  const signInWithGoogle = async () => {
-    try {
-      if (!auth) {
-        throw new Error("Firebase Auth no está inicializado correctamente")
-      }
-
-      const provider = new GoogleAuthProvider()
-      await signInWithPopup(auth, provider)
-    } catch (error: any) {
-      console.error("Error signing in with Google:", error)
-      throw error
-    }
-  }
-
-  const signInWithFacebook = async () => {
-    try {
-      if (!auth) {
-        throw new Error("Firebase Auth no está inicializado correctamente")
-      }
-
-      const provider = new FacebookAuthProvider()
-      await signInWithPopup(auth, provider)
-    } catch (error: any) {
-      console.error("Error signing in with Facebook:", error)
-      throw error
-    }
-  }
-
-  const signInWithMicrosoft = async () => {
-    try {
-      if (!auth) {
-        throw new Error("Firebase Auth no está inicializado correctamente")
-      }
-
-      const provider = new OAuthProvider("microsoft.com")
-      await signInWithPopup(auth, provider)
-    } catch (error: any) {
-      console.error("Error signing in with Microsoft:", error)
-      throw error
-    }
-  }
-
   const getUserProfile = async () => {
     if (!auth || !auth.currentUser) {
       return null
@@ -499,16 +324,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     userProfile,
     signUp,
-    signUpTenantUser,
     signIn,
     signOut: signOutUser,
     updateUserProfile,
-    updateUserRole,
     resetPassword,
     confirmPasswordResetUser,
-    signInWithGoogle,
-    signInWithFacebook,
-    signInWithMicrosoft,
     getUserProfile,
     loading,
   }
