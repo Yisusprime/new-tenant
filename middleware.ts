@@ -1,29 +1,29 @@
+// middleware.ts
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
-// Esta función detecta si estamos en un subdominio
+// Configuración de dominios
+const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+const WWW_DOMAIN = `www.${ROOT_DOMAIN}`
+
+// Función mejorada para detectar subdominios
 function getSubdomain(host: string): string | null {
-  // Para desarrollo local
-  if (host.includes("localhost")) {
-    const parts = host.split(".")
-    if (parts.length > 1 && parts[0] !== "www") {
-      return parts[0]
-    }
-    return null
+  // Eliminar puerto si existe (para desarrollo)
+  const cleanHost = host.split(':')[0]
+
+  // Casos especiales
+  if (cleanHost === ROOT_DOMAIN || cleanHost === WWW_DOMAIN) return null
+  
+  // Desarrollo local
+  if (cleanHost.includes('localhost')) {
+    const parts = cleanHost.split('.')
+    return parts.length > 1 ? parts[0] : null
   }
 
-  // Para producción
-  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-
-  // Verificar si el host incluye el dominio raíz
-  if (!host.includes(rootDomain)) return null
-
-  // Extraer el subdominio
-  const parts = host.split(".")
-  if (parts.length > 2) {
-    const subdomain = parts[0]
-    if (subdomain === "www") return null
-    return subdomain
+  // Producción: extraer subdominio
+  if (cleanHost.endsWith(`.${ROOT_DOMAIN}`)) {
+    const subdomain = cleanHost.replace(`.${ROOT_DOMAIN}`, '')
+    return subdomain && subdomain !== 'www' ? subdomain : null
   }
 
   return null
@@ -31,56 +31,63 @@ function getSubdomain(host: string): string | null {
 
 export function middleware(request: NextRequest) {
   const url = request.nextUrl.clone()
-  const { pathname } = url
-  const hostname = request.headers.get("host") || ""
+  const host = request.headers.get('host') || ''
+  const pathname = url.pathname
+  const subdomain = getSubdomain(host)
 
-  // Obtener el subdominio
-  const subdomain = getSubdomain(hostname)
-
-  console.log(`Middleware: Host=${hostname}, Path=${pathname}, Subdomain=${subdomain || "none"}`)
-
-  // Evitar bucles de redirección para recursos estáticos y API
-  if (
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/api") ||
-    pathname.startsWith("/static") ||
-    pathname.includes(".") // Archivos como favicon.ico, etc.
-  ) {
+  // 1. Excluir archivos estáticos y API routes
+  const EXCLUDED_PATHS = [
+    '/_next', 
+    '/api', 
+    '/static',
+    '/favicon.ico',
+    '/public',
+    '/images'
+  ]
+  
+  if (EXCLUDED_PATHS.some(path => pathname.startsWith(path))) {
     return NextResponse.next()
   }
 
-  // Si estamos en el dominio principal (www o sin subdominio), no reescribir
+  // 2. Manejo para el dominio principal (www o root)
   if (!subdomain) {
-    return NextResponse.next()
+    // Permitir acceso directo a rutas públicas
+    const PUBLIC_ROUTES = ['/registro', '/login', '/']
+    if (PUBLIC_ROUTES.includes(pathname) || pathname.startsWith('/auth')) {
+      return NextResponse.next()
+    }
+    
+    // Redirigir otras rutas no definidas
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
-  // IMPORTANTE: Para rutas en subdominios, reescribir internamente a la estructura de carpetas correcta
-  // pero mantener la URL original para el usuario
-
-  // Si estamos en la raíz del subdominio
-  if (pathname === "/") {
-    // Reescribir a la página del tenant
-    const newUrl = new URL(`/app/${subdomain}`, request.url)
-    console.log(`Reescribiendo / a /app/${subdomain}`)
+  // 3. Manejo para subdominios de tenants
+  const tenant = subdomain
+  
+  // Ruta base del tenant
+  if (pathname === '/') {
+    const newUrl = new URL(`/${tenant}`, request.url)
     return NextResponse.rewrite(newUrl)
   }
 
-  // Para rutas de administración y otras rutas específicas
-  // Reescribir a la estructura de carpetas correcta
-  const newUrl = new URL(`/app/${subdomain}${pathname}`, request.url)
-  console.log(`Reescribiendo ${pathname} a /app/${subdomain}${pathname}`)
-  return NextResponse.rewrite(newUrl)
+  // Ruta de administración
+  if (pathname.startsWith('/admin')) {
+    const newPath = pathname.replace('/admin', `/${tenant}/admin`)
+    const newUrl = new URL(newPath, request.url)
+    return NextResponse.rewrite(newUrl)
+  }
+
+  // Otras rutas del tenant
+  if (!pathname.startsWith(`/${tenant}`)) {
+    const newUrl = new URL(`/${tenant}${pathname}`, request.url)
+    return NextResponse.rewrite(newUrl)
+  }
+
+  return NextResponse.next()
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public (public files)
-     */
     "/((?!_next/static|_next/image|favicon.ico|public).*)",
   ],
 }
