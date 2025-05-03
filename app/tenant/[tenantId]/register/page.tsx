@@ -48,11 +48,11 @@ export default function TenantRegister({ params }: { params: { tenantId: string 
       await signUp(email, password, {
         name,
         tenantId: params.tenantId,
-        role: "customer", // Rol específico para clientes del tenant
+        role: "client", // Rol específico para clientes del tenant
       })
 
-      // Redirigir al dashboard del tenant
-      router.push(`/tenant/${params.tenantId}/dashboard`)
+      // Redirigir al dashboard del cliente en el tenant
+      router.push(`/tenant/${params.tenantId}/client/dashboard`)
     } catch (error: any) {
       setError(error.message || "Error al registrarse")
     } finally {

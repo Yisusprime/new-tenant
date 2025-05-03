@@ -8,7 +8,7 @@ function isValidTenantSubdomain(subdomain: string): boolean {
   if (commonSubdomains.includes(subdomain)) return false
 
   // Validar que el subdominio solo contenga caracteres alfanuméricos y guiones
-  return /^[a-z0-9-]+$/.test(subdomain)
+  return /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(subdomain)
 }
 
 export function middleware(request: NextRequest) {
@@ -33,6 +33,21 @@ export function middleware(request: NextRequest) {
     // Verificar que no sea "www"
     if (subdomain === "www") {
       subdomain = null
+    }
+  }
+
+  // Manejo de rutas protegidas en el dominio principal
+  if (!subdomain) {
+    // Proteger rutas de superadmin
+    if (pathname.startsWith("/superadmin/dashboard")) {
+      // Aquí podríamos verificar la sesión, pero eso lo hacemos en el componente
+      return NextResponse.next()
+    }
+
+    // Proteger rutas de admin
+    if (pathname.startsWith("/dashboard")) {
+      // Aquí podríamos verificar la sesión, pero eso lo hacemos en el componente
+      return NextResponse.next()
     }
   }
 

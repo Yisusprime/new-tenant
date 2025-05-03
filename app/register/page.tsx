@@ -38,10 +38,17 @@ export default function Register() {
         name,
         companyName,
         subdomain,
+        role: "admin", // Asignar explícitamente el rol de admin
       })
 
-      // Redirigir al dashboard
-      router.push("/dashboard")
+      // Redirigir al dashboard de admin o al tenant si se creó uno
+      if (subdomain) {
+        // Redirigir al dashboard del tenant
+        router.push(`https://${subdomain}.gastroo.online/admin/dashboard`)
+      } else {
+        // Redirigir al dashboard general
+        router.push("/dashboard")
+      }
     } catch (error: any) {
       setError(error.message || "Error al registrarse")
     } finally {
