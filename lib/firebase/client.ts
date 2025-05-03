@@ -6,17 +6,14 @@ import { getStorage } from "firebase/storage"
 // Verificar si estamos en el navegador
 const isBrowser = typeof window !== "undefined"
 
-// Reemplazar la configuración de Firebase con valores hardcodeados para pruebas
-// NOTA: Esto es solo para depuración, NO lo uses en producción
-
 // Configuración de Firebase
 const firebaseConfig = {
-  apiKey: "AIzaSyDSEdNRW_7-hGzNvBuMyAxWQuGzTsk--Fk",
-  authDomain: "multi-cliente.firebaseapp.com",
-  projectId: "multi-cliente",
-  storageBucket: "multi-cliente.appspot.com",
-  messagingSenderId: "563434176386",
-  appId: "1:563434176386:web:7aca513c0638b225b8d99b",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyDSEdNRW_7-hGzNvBuMyAxWQuGzTsk--Fk",
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "multi-cliente.firebaseapp.com",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "multi-cliente",
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "multi-cliente.appspot.com",
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "563434176386",
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:563434176386:web:7aca513c0638b225b8d99b",
 }
 
 // Inicializar Firebase solo en el navegador

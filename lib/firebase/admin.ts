@@ -8,31 +8,6 @@ function initializeFirebaseAdmin() {
   const isBuildTime =
     process.env.NODE_ENV === "production" && typeof window === "undefined" && !process.env.FIREBASE_PROJECT_ID
 
-  if (isBuildTime) {
-    console.warn(
-      "Firebase Admin: Ejecutando en tiempo de construcción o faltan variables de entorno. Usando cliente simulado.",
-    )
-
-    // Devolver objetos simulados para tiempo de construcción
-    return {
-      db: {
-        collection: () => ({
-          doc: () => ({
-            get: () =>
-              Promise.resolve({
-                exists: false,
-                data: () => ({}),
-                id: "mock-id",
-              }),
-          }),
-        }),
-      },
-      auth: {
-        verifyIdToken: () => Promise.resolve({ uid: "mock-uid" }),
-      },
-    }
-  }
-
   // Verificar si estamos en el navegador
   if (typeof window !== "undefined") {
     console.warn("Firebase Admin: No se puede usar en el cliente. Usando cliente simulado.")

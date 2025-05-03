@@ -1,16 +1,16 @@
 "use client"
 
-import { createContext, useState, useEffect, useContext, type ReactNode } from "react"
-import { getAuth, onAuthStateChanged, type User as FirebaseUser } from "firebase/auth"
-import { app } from "./firebase"
-import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore"
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import { type User, signOut as firebaseSignOut, onAuthStateChanged } from "firebase/auth"
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore"
+import { auth, db } from "./firebase/client"
 import { useRouter } from "next/router"
 
-const auth = getAuth(app)
-const db = getFirestore(app)
+// Verificar si estamos en el navegador
+const isBrowser = typeof window !== "undefined"
 
 type AuthContextType = {
-  user: FirebaseUser | null
+  user: User | null
   userProfile: any | null // Replace 'any' with a more specific type if possible
   loading: boolean
   signOut: () => Promise<void>
@@ -28,11 +28,10 @@ type AuthProviderProps = {
 }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [user, setUser] = useState<FirebaseUser | null>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [userProfile, setUserProfile] = useState<any | null>(null) // Replace 'any' with a more specific type
   const [loading, setLoading] = useState(true)
   const router = useRouter()
-  const isBrowser = typeof window !== "undefined"
 
   useEffect(() => {
     let isMounted = true // Add a flag to track component mount status
@@ -123,7 +122,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const signOut = async () => {
     try {
-      await auth.signOut()
+      await firebaseSignOut(auth)
       setUser(null)
       setUserProfile(null)
       router.push("/login") // Redirect to login page after sign out
