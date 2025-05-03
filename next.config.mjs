@@ -27,6 +27,12 @@ const nextConfig = {
       },
     ];
   },
+  // Configuración para el tiempo de construcción
+  experimental: {
+    // Esto ayuda con las rutas dinámicas durante la construcción
+    workerThreads: false,
+    cpus: 1
+  },
 };
 
 export default nextConfig;
