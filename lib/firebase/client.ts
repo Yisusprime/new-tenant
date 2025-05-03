@@ -6,54 +6,36 @@ import { getStorage } from "firebase/storage"
 // Verificar si estamos en el navegador
 const isBrowser = typeof window !== "undefined"
 
-// Verificar que las variables de entorno requeridas estén disponibles
-const requiredEnvVars = [
-  "NEXT_PUBLIC_FIREBASE_API_KEY",
-  "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
-  "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
-  "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
-  "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
-  "NEXT_PUBLIC_FIREBASE_APP_ID",
-]
-
-const missingEnvVars = requiredEnvVars.filter((envVar) => !process.env[envVar] || process.env[envVar] === "undefined")
-
-if (missingEnvVars.length > 0) {
-  console.error(`Faltan variables de entorno: ${missingEnvVars.join(", ")}`)
-}
+// Reemplazar la configuración de Firebase con valores hardcodeados para pruebas
+// NOTA: Esto es solo para depuración, NO lo uses en producción
 
 // Configuración de Firebase
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "AIzaSyDSEdNRW_7-hGzNvBuMyAxWQuGzTsk--Fk",
+  authDomain: "multi-cliente.firebaseapp.com",
+  projectId: "multi-cliente",
+  storageBucket: "multi-cliente.appspot.com",
+  messagingSenderId: "563434176386",
+  appId: "1:563434176386:web:7aca513c0638b225b8d99b",
 }
 
-// Inicializar Firebase solo en el navegador y si todas las variables de entorno están disponibles
+// Inicializar Firebase solo en el navegador
 let app, auth, db, storage
 
-if (isBrowser && missingEnvVars.length === 0) {
+if (isBrowser) {
   try {
-    // Verificar que la configuración sea válida
-    if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "undefined") {
-      console.error("Firebase API Key no está configurada correctamente. Verifica tus variables de entorno.")
+    // Inicializar Firebase solo una vez
+    if (!getApps().length) {
+      app = initializeApp(firebaseConfig)
+      console.log("Firebase inicializado correctamente")
     } else {
-      // Inicializar Firebase solo una vez
-      if (!getApps().length) {
-        app = initializeApp(firebaseConfig)
-        console.log("Firebase inicializado correctamente")
-      } else {
-        app = getApp()
-      }
-
-      // Inicializar servicios
-      auth = getAuth(app)
-      db = getFirestore(app)
-      storage = getStorage(app)
+      app = getApp()
     }
+
+    // Inicializar servicios
+    auth = getAuth(app)
+    db = getFirestore(app)
+    storage = getStorage(app)
   } catch (error) {
     console.error("Error al inicializar Firebase:", error)
   }

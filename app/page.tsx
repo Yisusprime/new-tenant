@@ -1,6 +1,8 @@
 import Link from "next/link"
 import FirebaseStatus from "@/components/firebase-status"
 import EnvSetupGuide from "@/components/env-setup-guide"
+// Añadir la importación del componente EnvDebug
+import EnvDebug from "@/components/env-debug"
 
 export default function Home() {
   return (
@@ -159,6 +161,8 @@ export default function Home() {
           <div className="container mx-auto px-4">
             <h2 className="mb-6 text-center text-2xl font-bold">Estado del Sistema</h2>
             <FirebaseStatus />
+            {/* Añadir el componente EnvDebug después del componente FirebaseStatus */}
+            <EnvDebug />
             <EnvSetupGuide />
           </div>
         </section>
