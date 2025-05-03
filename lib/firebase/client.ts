@@ -3,6 +3,9 @@ import { getAuth } from "firebase/auth"
 import { getFirestore } from "firebase/firestore"
 import { getStorage } from "firebase/storage"
 
+// Verificar si estamos en el navegador
+const isBrowser = typeof window !== "undefined"
+
 // Configuración de Firebase
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -13,26 +16,31 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 }
 
-// Verificar que la configuración sea válida
-if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "undefined") {
-  console.error("Firebase API Key no está configurada correctamente. Verifica tus variables de entorno.")
-}
+// Inicializar Firebase solo en el navegador
+let app, auth, db, storage
 
-// Inicializar Firebase solo una vez
-let firebaseApp
-if (!getApps().length) {
+if (isBrowser) {
   try {
-    firebaseApp = initializeApp(firebaseConfig)
-    console.log("Firebase inicializado correctamente")
+    // Verificar que la configuración sea válida
+    if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "undefined") {
+      console.error("Firebase API Key no está configurada correctamente. Verifica tus variables de entorno.")
+    }
+
+    // Inicializar Firebase solo una vez
+    if (!getApps().length) {
+      app = initializeApp(firebaseConfig)
+      console.log("Firebase inicializado correctamente")
+    } else {
+      app = getApp()
+    }
+
+    // Inicializar servicios
+    auth = getAuth(app)
+    db = getFirestore(app)
+    storage = getStorage(app)
   } catch (error) {
     console.error("Error al inicializar Firebase:", error)
-    throw error
   }
-} else {
-  firebaseApp = getApp()
 }
 
-export const app = firebaseApp
-export const auth = getAuth(app)
-export const db = getFirestore(app)
-export const storage = getStorage(app)
+export { app, auth, db, storage }

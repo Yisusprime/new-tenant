@@ -33,13 +33,58 @@ function initializeFirebaseAdmin() {
     }
   }
 
-  if (getApps().length === 0) {
-    try {
+  // Verificar si estamos en el navegador
+  if (typeof window !== "undefined") {
+    console.warn("Firebase Admin: No se puede usar en el cliente. Usando cliente simulado.")
+
+    // Devolver objetos simulados para el cliente
+    return {
+      db: {
+        collection: () => ({
+          doc: () => ({
+            get: () =>
+              Promise.resolve({
+                exists: false,
+                data: () => ({}),
+                id: "mock-id",
+              }),
+          }),
+        }),
+      },
+      auth: {
+        verifyIdToken: () => Promise.resolve({ uid: "mock-uid" }),
+      },
+    }
+  }
+
+  try {
+    // Verificar si ya hay una instancia de Firebase Admin
+    if (getApps().length === 0) {
       // Verificar que todas las variables de entorno necesarias estén disponibles
       if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
-        throw new Error("Variables de entorno de Firebase Admin no configuradas correctamente")
+        console.warn("Variables de entorno de Firebase Admin no configuradas correctamente. Usando cliente simulado.")
+
+        // Devolver objetos simulados si faltan variables de entorno
+        return {
+          db: {
+            collection: () => ({
+              doc: () => ({
+                get: () =>
+                  Promise.resolve({
+                    exists: false,
+                    data: () => ({}),
+                    id: "mock-id",
+                  }),
+              }),
+            }),
+          },
+          auth: {
+            verifyIdToken: () => Promise.resolve({ uid: "mock-uid" }),
+          },
+        }
       }
 
+      // Inicializar Firebase Admin
       initializeApp({
         credential: cert({
           projectId: process.env.FIREBASE_PROJECT_ID,
@@ -47,33 +92,34 @@ function initializeFirebaseAdmin() {
           privateKey: (process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
         }),
       })
-    } catch (error) {
-      console.error("Error al inicializar Firebase Admin:", error)
-
-      // Devolver objetos simulados en caso de error
-      return {
-        db: {
-          collection: () => ({
-            doc: () => ({
-              get: () =>
-                Promise.resolve({
-                  exists: false,
-                  data: () => ({}),
-                  id: "error-id",
-                }),
-            }),
-          }),
-        },
-        auth: {
-          verifyIdToken: () => Promise.resolve({ uid: "error-uid" }),
-        },
-      }
     }
-  }
 
-  return {
-    db: getFirestore(),
-    auth: getAuth(),
+    // Devolver instancias reales de Firestore y Auth
+    return {
+      db: getFirestore(),
+      auth: getAuth(),
+    }
+  } catch (error) {
+    console.error("Error al inicializar Firebase Admin:", error)
+
+    // Devolver objetos simulados en caso de error
+    return {
+      db: {
+        collection: () => ({
+          doc: () => ({
+            get: () =>
+              Promise.resolve({
+                exists: false,
+                data: () => ({}),
+                id: "error-id",
+              }),
+          }),
+        }),
+      },
+      auth: {
+        verifyIdToken: () => Promise.resolve({ uid: "error-uid" }),
+      },
+    }
   }
 }
 

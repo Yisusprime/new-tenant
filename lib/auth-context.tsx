@@ -14,6 +14,9 @@ import {
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore"
 import { auth, db } from "./firebase/client"
 
+// Verificar si estamos en el navegador
+const isBrowser = typeof window !== "undefined"
+
 interface AuthContextType {
   user: User | null
   userProfile: any | null
@@ -36,6 +39,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!isBrowser || !auth) {
+      setLoading(false)
+      return
+    }
+
     // Configurar persistencia local para mantener la sesión
     setPersistence(auth, browserLocalPersistence)
       .then(() => {
@@ -69,6 +77,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signIn = async (email: string, password: string) => {
+    if (!isBrowser || !auth) {
+      throw new Error("La autenticación no está disponible en el servidor")
+    }
+
     try {
       setError(null)
       console.log("Iniciando sesión con:", email)
@@ -85,6 +97,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signUp = async (email: string, password: string, userData: any) => {
+    if (!isBrowser || !auth || !db) {
+      throw new Error("La autenticación no está disponible en el servidor")
+    }
+
     try {
       setError(null)
       console.log("Registrando usuario con:", email)
@@ -138,6 +154,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signOut = async () => {
+    if (!isBrowser || !auth) {
+      throw new Error("La autenticación no está disponible en el servidor")
+    }
+
     try {
       console.log("Cerrando sesión")
       await firebaseSignOut(auth)
@@ -150,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const getUserProfile = async () => {
-    if (!user) return null
+    if (!isBrowser || !db || !user) return null
 
     try {
       console.log("Obteniendo perfil del usuario:", user.uid)
@@ -171,7 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const refreshUserProfile = async () => {
-    if (!user) return
+    if (!isBrowser || !db || !user) return
 
     try {
       const profile = await getUserProfile()
@@ -182,7 +202,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const updateUserProfile = async (data: any) => {
-    if (!user) throw new Error("No hay usuario autenticado")
+    if (!isBrowser || !db || !user) {
+      throw new Error("La autenticación no está disponible en el servidor")
+    }
 
     try {
       console.log("Actualizando perfil del usuario:", user.uid)

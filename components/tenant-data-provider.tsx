@@ -4,6 +4,9 @@ import { useEffect, useState, createContext, useContext, type ReactNode } from "
 import { collection, getDocs, query, where } from "firebase/firestore"
 import { db } from "@/lib/firebase/client"
 
+// Verificar si estamos en el navegador
+const isBrowser = typeof window !== "undefined"
+
 // Definir el tipo para los datos del tenant
 interface TenantData {
   id: string
@@ -39,6 +42,12 @@ export function TenantDataProvider({ children, subdomain }: { children: ReactNod
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!isBrowser || !db) {
+      setLoading(false)
+      setError("Firebase no está disponible en el servidor")
+      return
+    }
+
     async function fetchTenantData() {
       try {
         setLoading(true)
