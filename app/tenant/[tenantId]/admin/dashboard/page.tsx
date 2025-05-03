@@ -17,21 +17,48 @@ export default function AdminDashboard({ params }: { params: { tenantId: string 
     totalProducts: 0,
   })
   const [loadingData, setLoadingData] = useState(true)
+  const [accessChecked, setAccessChecked] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function checkAccess() {
-      if (!loading) {
-        if (!user) {
-          router.push(`/tenant/${params.tenantId}/login`)
-        } else {
-          // Verificar que el usuario tiene acceso a este tenant como admin
-          const hasAccess = await checkTenantAccess(params.tenantId)
-          if (!hasAccess || userProfile?.role !== "admin") {
-            router.push(`/tenant/${params.tenantId}/login`)
-          } else {
-            loadData()
-          }
+      if (loading) return
+
+      console.log("Admin Dashboard - Verificando acceso:", user?.email)
+      console.log("Admin Dashboard - Perfil:", userProfile)
+
+      // Si no hay usuario, redirigir al login
+      if (!user) {
+        console.log("No hay usuario autenticado, redirigiendo a login")
+        router.push(`/tenant/${params.tenantId}/login`)
+        return
+      }
+
+      try {
+        // Si hay usuario pero no hay perfil aún, esperar
+        if (!userProfile) {
+          console.log("Usuario autenticado pero sin perfil cargado aún")
+          return
         }
+
+        // Verificar si el usuario tiene acceso como admin
+        const hasAccess = await checkTenantAccess(params.tenantId)
+
+        if (!hasAccess || userProfile?.role !== "admin") {
+          console.log("Usuario no tiene acceso como admin:", userProfile?.role)
+          setError("No tienes permisos de administrador para este tenant")
+          setAccessChecked(true)
+          setLoadingData(false)
+        } else {
+          console.log("Usuario tiene acceso como admin, cargando datos")
+          setAccessChecked(true)
+          loadData()
+        }
+      } catch (error) {
+        console.error("Error al verificar acceso:", error)
+        setError("Error al verificar permisos de acceso")
+        setAccessChecked(true)
+        setLoadingData(false)
       }
     }
 
@@ -45,7 +72,8 @@ export default function AdminDashboard({ params }: { params: { tenantId: string 
       // Cargar datos del tenant
       const tenantDoc = await getDoc(doc(db, "tenants", params.tenantId))
       if (!tenantDoc.exists()) {
-        router.push("/not-found")
+        setError("Tenant no encontrado")
+        setLoadingData(false)
         return
       }
 
@@ -69,17 +97,71 @@ export default function AdminDashboard({ params }: { params: { tenantId: string 
         totalOrders: 0, // Ejemplo
         totalProducts: 0, // Ejemplo
       })
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error al cargar datos:", error)
+      setError(error.message || "Error al cargar datos")
     } finally {
       setLoadingData(false)
     }
   }
 
-  if (loading || loadingData) {
+  if (loading || (user && !accessChecked)) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p>Cargando...</p>
+        <div className="text-center">
+          <p className="mb-2">Cargando...</p>
+          <div className="h-1 w-32 overflow-hidden rounded-full bg-gray-200">
+            <div className="h-full w-1/2 animate-[pulse_1s_ease-in-out_infinite] rounded-full bg-blue-600"></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Si hay error de acceso pero el usuario está autenticado, mostrar mensaje de error
+  if (error && user) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <header className="border-b bg-white">
+          <div className="container mx-auto flex h-16 items-center justify-between px-4">
+            <div className="flex items-center">
+              <h1 className="text-xl font-bold">{params.tenantId} - Error de Acceso</h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              <span>{userProfile?.email || user.email}</span>
+              <button onClick={() => signOut()} className="rounded bg-gray-200 px-3 py-1 text-sm hover:bg-gray-300">
+                Cerrar sesión
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 p-6">
+          <div className="container mx-auto">
+            <div className="rounded-lg border border-red-300 bg-red-50 p-6">
+              <h2 className="mb-4 text-xl font-semibold text-red-800">Error de Acceso</h2>
+              <p className="mb-4 text-red-700">{error}</p>
+              <p className="mb-4 text-red-700">
+                Tu usuario está autenticado como {userProfile?.role || "usuario"}, pero necesitas ser administrador para
+                acceder a esta página.
+              </p>
+              <div className="mt-4 flex space-x-4">
+                <Link
+                  href={`/tenant/${params.tenantId}/client/dashboard`}
+                  className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                >
+                  Ir al Dashboard de Cliente
+                </Link>
+                <button
+                  onClick={() => signOut()}
+                  className="rounded border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50"
+                >
+                  Cerrar sesión
+                </button>
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     )
   }
@@ -96,7 +178,8 @@ export default function AdminDashboard({ params }: { params: { tenantId: string 
             <h1 className="text-xl font-bold">{tenantData.name} - Panel de Administración</h1>
           </div>
           <div className="flex items-center space-x-4">
-            <span>{userProfile.name}</span>
+            <span>{userProfile.name || userProfile.email}</span>
+            <div className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800">{userProfile.role}</div>
             <button onClick={() => signOut()} className="rounded bg-gray-200 px-3 py-1 text-sm hover:bg-gray-300">
               Cerrar sesión
             </button>
@@ -137,6 +220,14 @@ export default function AdminDashboard({ params }: { params: { tenantId: string 
                   className="block rounded p-2 hover:bg-gray-200"
                 >
                   Configuración
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href={`/tenant/${params.tenantId}/debug`}
+                  className="block rounded p-2 hover:bg-gray-200 text-orange-600"
+                >
+                  Depuración
                 </Link>
               </li>
             </ul>

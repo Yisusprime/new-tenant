@@ -14,43 +14,63 @@ export default function TenantLoginPage({ params }: { params: { tenantId: string
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { signIn, user } = useAuth()
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+  const { signIn, user, userProfile } = useAuth()
   const router = useRouter()
 
-  // Si el usuario ya está autenticado, verificar su rol y redirigir
+  // Verificar el estado de autenticación al cargar la página
   useEffect(() => {
-    async function checkUserAndRedirect() {
-      if (user) {
-        try {
-          // Verificar el rol del usuario
-          const userDoc = await getDoc(doc(db, "users", user.uid))
+    const checkAuth = async () => {
+      try {
+        console.log("Verificando autenticación:", user?.email)
 
-          if (userDoc.exists()) {
-            const userData = userDoc.data()
-            const role = userData.role || "client"
-
-            // Redirigir según el rol
-            if (role === "admin") {
-              router.push(`/tenant/${params.tenantId}/admin/dashboard`)
-            } else {
-              router.push(`/tenant/${params.tenantId}/client/dashboard`)
-            }
-          } else {
-            // Si no hay perfil, redirigir a completar perfil
-            router.push(`/tenant/${params.tenantId}/complete-profile`)
-          }
-        } catch (error) {
-          console.error("Error al verificar el rol del usuario:", error)
-          // En caso de error, redirigir al dashboard general
-          router.push(`/tenant/${params.tenantId}/dashboard`)
+        // Si no hay usuario, permitir el login
+        if (!user) {
+          setIsCheckingAuth(false)
+          return
         }
+
+        // Si hay usuario pero no hay perfil, esperar a que se cargue
+        if (!userProfile) {
+          console.log("Usuario autenticado pero sin perfil cargado aún")
+          return
+        }
+
+        console.log("Usuario autenticado con perfil:", userProfile)
+
+        // Evitar redirección si estamos en un bucle
+        const currentPath = window.location.pathname
+        const targetPath = `/tenant/${params.tenantId}/admin/dashboard`
+
+        if (
+          currentPath === `/tenant/${params.tenantId}/login` &&
+          sessionStorage.getItem("redirectAttempt") === targetPath
+        ) {
+          console.log("Detectado posible bucle de redirección, no redirigiendo")
+          sessionStorage.removeItem("redirectAttempt")
+          setIsCheckingAuth(false)
+          return
+        }
+
+        // Redirigir según el rol
+        if (userProfile.role === "admin") {
+          console.log("Redirigiendo a admin dashboard")
+          sessionStorage.setItem("redirectAttempt", targetPath)
+          router.push(targetPath)
+        } else if (userProfile.role === "client") {
+          console.log("Redirigiendo a client dashboard")
+          router.push(`/tenant/${params.tenantId}/client/dashboard`)
+        } else {
+          setIsCheckingAuth(false)
+        }
+      } catch (error) {
+        console.error("Error al verificar autenticación:", error)
+        setIsCheckingAuth(false)
       }
     }
 
-    if (user) {
-      checkUserAndRedirect()
-    }
-  }, [user, router, params.tenantId])
+    checkAuth()
+  }, [user, userProfile, router, params.tenantId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -93,7 +113,7 @@ export default function TenantLoginPage({ params }: { params: { tenantId: string
         // Redirigir según el rol
         if (role === "admin") {
           console.log("Redirecting to admin dashboard")
-          router.push(`/tenant/${params.tenantId}/admin/dashboard`)
+          router.push(`/tenant/${params.tenantId}/client/dashboard`) // Temporalmente redirigir a client dashboard
         } else {
           console.log("Redirecting to client dashboard")
           router.push(`/tenant/${params.tenantId}/client/dashboard`)
@@ -108,6 +128,19 @@ export default function TenantLoginPage({ params }: { params: { tenantId: string
     } finally {
       setLoading(false)
     }
+  }
+
+  if (isCheckingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <p className="mb-2">Verificando autenticación...</p>
+          <div className="h-1 w-32 overflow-hidden rounded-full bg-gray-200">
+            <div className="h-full w-1/2 animate-[pulse_1s_ease-in-out_infinite] rounded-full bg-blue-600"></div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
