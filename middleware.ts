@@ -1,31 +1,19 @@
-import { NextResponse } from "next/server"
-import type { NextRequest } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 
 export function middleware(request: NextRequest) {
-  const url = request.nextUrl.clone()
-  const { pathname } = url
+  const { pathname } = request.nextUrl
   const hostname = request.headers.get("host") || ""
 
-  // Rutas públicas que no requieren autenticación
-  const publicRoutes = ["/login", "/register", "/forgot-password", "/reset-password", "/api", "/favicon.ico", "/"]
+  // Verificar si es el dominio principal
+  const isRootDomain =
+    hostname === process.env.NEXT_PUBLIC_ROOT_DOMAIN || hostname === `www.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`
 
-  // Verificar si la ruta actual es pública
-  const isPublicRoute = publicRoutes.some(
-    (route) => pathname === route || pathname.startsWith("/api/") || pathname.startsWith("/_next/"),
-  )
-
-  // Si es una ruta pública, permitir el acceso
-  if (isPublicRoute) {
-    return NextResponse.next()
+  // Proteger rutas de superadmin
+  if (pathname.startsWith("/superadmin") && !isRootDomain) {
+    return NextResponse.redirect(new URL("/unauthorized", request.url))
   }
 
-  // Rutas específicas para superadmin
-  if (pathname.startsWith("/superadmin")) {
-    // Permitir acceso
-    return NextResponse.next()
-  }
-
-  // Para todas las demás rutas, permitir el acceso
+  // Redirigir a login si no está autenticado (esto se manejará en el cliente)
   return NextResponse.next()
 }
 
@@ -33,10 +21,12 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
+     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - public (public files)
      */
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|public).*)",
   ],
 }
