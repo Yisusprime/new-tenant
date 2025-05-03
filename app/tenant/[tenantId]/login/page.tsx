@@ -6,6 +6,8 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore"
+import { db } from "@/lib/firebase/client"
 
 export default function TenantLoginPage({ params }: { params: { tenantId: string } }) {
   const [email, setEmail] = useState("")
@@ -29,8 +31,28 @@ export default function TenantLoginPage({ params }: { params: { tenantId: string
 
     try {
       console.log(`Attempting login for: ${email} on tenant: ${params.tenantId}`)
-      await signIn(email, password)
-      console.log("Login successful, redirecting to dashboard")
+      const userCredential = await signIn(email, password)
+      console.log("Login successful, checking profile")
+
+      // Verificar si el perfil existe
+      if (userCredential && userCredential.user) {
+        const uid = userCredential.user.uid
+        const userDocRef = doc(db, "users", uid)
+        const userDoc = await getDoc(userDocRef)
+
+        // Si el perfil no existe, crearlo
+        if (!userDoc.exists()) {
+          console.log("Profile not found, creating a basic profile")
+          await setDoc(userDocRef, {
+            email: userCredential.user.email,
+            tenantId: params.tenantId,
+            role: "client",
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          })
+          console.log("Basic profile created")
+        }
+      }
 
       // Redirigir al dashboard del tenant
       router.push(`/tenant/${params.tenantId}/dashboard`)

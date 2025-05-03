@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import {
   type User,
+  type UserCredential,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -19,12 +20,13 @@ interface AuthContextType {
   userProfile: any | null
   loading: boolean
   error: string | null
-  signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, userData: any) => Promise<void>
+  signIn: (email: string, password: string) => Promise<UserCredential>
+  signUp: (email: string, password: string, userData: any) => Promise<UserCredential>
   signOut: () => Promise<void>
   getUserProfile: () => Promise<any>
   updateUserProfile: (data: any) => Promise<void>
   checkTenantAccess: (tenantId: string) => Promise<boolean>
+  refreshUserProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -74,10 +76,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setError(null)
       console.log("Iniciando sesión con:", email)
-      await signInWithEmailAndPassword(auth, email, password)
+      const userCredential = await signInWithEmailAndPassword(auth, email, password)
       console.log("Sesión iniciada correctamente")
 
-      // No redirigir automáticamente, dejar que el componente que llama maneje la redirección
+      // Devolver el userCredential para que pueda ser usado por el componente
+      return userCredential
     } catch (error: any) {
       console.error("Error al iniciar sesión:", error)
       setError(error.message || "Error al iniciar sesión")
@@ -236,6 +239,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const refreshUserProfile = async () => {
+    if (!user) return
+
+    try {
+      const profile = await getUserProfile()
+      setUserProfile(profile)
+    } catch (error) {
+      console.error("Error al refrescar perfil:", error)
+    }
+  }
+
   const updateUserProfile = async (data: any) => {
     if (!user) throw new Error("No hay usuario autenticado")
 
@@ -251,10 +265,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       )
 
       // Actualizar el perfil en el estado
-      const updatedProfile = await getUserProfile()
-      setUserProfile(updatedProfile)
-
-      return updatedProfile
+      await refreshUserProfile()
     } catch (error) {
       console.error("Error al actualizar perfil:", error)
       throw error
@@ -304,6 +315,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     getUserProfile,
     updateUserProfile,
     checkTenantAccess,
+    refreshUserProfile,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

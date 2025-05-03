@@ -4,11 +4,14 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import Link from "next/link"
+import { doc, setDoc, serverTimestamp } from "firebase/firestore"
+import { db } from "@/lib/firebase/client"
 
 export default function TenantDashboard({ params }: { params: { tenantId: string } }) {
-  const { user, userProfile, loading, signOut } = useAuth()
+  const { user, userProfile, loading, signOut, refreshUserProfile } = useAuth()
   const router = useRouter()
   const [loadingData, setLoadingData] = useState(true)
+  const [creatingProfile, setCreatingProfile] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -18,15 +21,56 @@ export default function TenantDashboard({ params }: { params: { tenantId: string
       } else {
         console.log("Dashboard - Usuario autenticado:", user.email)
         console.log("Dashboard - Perfil de usuario:", userProfile)
-        setLoadingData(false)
+
+        // Si no hay perfil, intentar crearlo automáticamente
+        if (user && !userProfile && !creatingProfile) {
+          createBasicProfile()
+        } else {
+          setLoadingData(false)
+        }
       }
     }
-  }, [loading, user, router, params.tenantId, userProfile])
+  }, [loading, user, userProfile, router, params.tenantId, creatingProfile])
 
-  if (loading || loadingData) {
+  const createBasicProfile = async () => {
+    if (!user || creatingProfile) return
+
+    try {
+      setCreatingProfile(true)
+      console.log("Creando perfil básico para el usuario:", user.uid)
+
+      await setDoc(
+        doc(db, "users", user.uid),
+        {
+          email: user.email,
+          tenantId: params.tenantId,
+          role: "client",
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      )
+
+      console.log("Perfil básico creado, refrescando datos...")
+      await refreshUserProfile()
+    } catch (error: any) {
+      console.error("Error al crear perfil básico:", error)
+      setError(error.message || "Error al crear perfil básico")
+    } finally {
+      setCreatingProfile(false)
+      setLoadingData(false)
+    }
+  }
+
+  if (loading || loadingData || creatingProfile) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p>Cargando...</p>
+        <div className="text-center">
+          <p className="mb-2">{creatingProfile ? "Creando perfil..." : "Cargando..."}</p>
+          <div className="h-1 w-32 overflow-hidden rounded-full bg-gray-200">
+            <div className="h-full w-1/2 animate-[pulse_1s_ease-in-out_infinite] rounded-full bg-blue-600"></div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -68,14 +112,17 @@ export default function TenantDashboard({ params }: { params: { tenantId: string
               </ul>
               <div className="mt-4 flex space-x-4">
                 <button
-                  onClick={() => {
-                    // Intentar crear un perfil básico
-                    router.push(`/tenant/${params.tenantId}/complete-profile`)
-                  }}
+                  onClick={createBasicProfile}
                   className="rounded bg-yellow-600 px-4 py-2 text-white hover:bg-yellow-700"
                 >
-                  Completar perfil
+                  Crear perfil básico
                 </button>
+                <Link
+                  href={`/tenant/${params.tenantId}/complete-profile`}
+                  className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                >
+                  Completar perfil
+                </Link>
                 <button
                   onClick={() => signOut()}
                   className="rounded border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50"
@@ -83,6 +130,11 @@ export default function TenantDashboard({ params }: { params: { tenantId: string
                   Cerrar sesión
                 </button>
               </div>
+              {error && (
+                <div className="mt-4 rounded-md bg-red-50 p-4">
+                  <div className="text-sm text-red-700">{error}</div>
+                </div>
+              )}
             </div>
           </div>
         </main>
@@ -127,6 +179,9 @@ export default function TenantDashboard({ params }: { params: { tenantId: string
                   <p>
                     <strong>Rol:</strong> {userProfile.role || "No definido"}
                   </p>
+                  <p>
+                    <strong>Tenant ID:</strong> {userProfile.tenantId || "No definido"}
+                  </p>
                 </>
               )}
             </div>
@@ -158,6 +213,12 @@ export default function TenantDashboard({ params }: { params: { tenantId: string
                   Admin Dashboard
                 </Link>
               )}
+              <Link
+                href={`/tenant/${params.tenantId}/complete-profile`}
+                className="rounded bg-gray-600 px-4 py-2 text-white hover:bg-gray-700"
+              >
+                Editar Perfil
+              </Link>
             </div>
           </div>
         </div>
