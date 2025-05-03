@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
@@ -12,8 +12,15 @@ export default function TenantLoginPage({ params }: { params: { tenantId: string
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { signIn } = useAuth()
+  const { signIn, user } = useAuth()
   const router = useRouter()
+
+  // Si el usuario ya está autenticado, redirigir al dashboard
+  useEffect(() => {
+    if (user) {
+      router.push(`/tenant/${params.tenantId}/dashboard`)
+    }
+  }, [user, router, params.tenantId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -87,6 +94,14 @@ export default function TenantLoginPage({ params }: { params: { tenantId: string
         <div className="mt-4 text-center">
           <Link href={`/tenant/${params.tenantId}`} className="text-sm text-gray-600 hover:text-gray-900">
             Volver al inicio
+          </Link>
+        </div>
+        <div className="mt-2 text-center">
+          <Link
+            href={`/tenant/${params.tenantId}/register`}
+            className="text-sm font-medium text-blue-600 hover:text-blue-500"
+          >
+            ¿No tienes una cuenta? Regístrate
           </Link>
         </div>
       </div>

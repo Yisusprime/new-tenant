@@ -6,8 +6,6 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
-import { doc, getDoc } from "firebase/firestore"
-import { db } from "@/lib/firebase/client"
 
 export default function TenantRegister({ params }: { params: { tenantId: string } }) {
   const [name, setName] = useState("")
@@ -15,28 +13,15 @@ export default function TenantRegister({ params }: { params: { tenantId: string 
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [tenantName, setTenantName] = useState("")
-  const { signUp } = useAuth()
+  const { signUp, user } = useAuth()
   const router = useRouter()
 
+  // Si el usuario ya está autenticado, redirigir al dashboard
   useEffect(() => {
-    // Obtener información del tenant
-    async function fetchTenantData() {
-      try {
-        const tenantDoc = await getDoc(doc(db, "tenants", params.tenantId))
-        if (tenantDoc.exists()) {
-          setTenantName(tenantDoc.data().name || params.tenantId)
-        } else {
-          setError("Este tenant no existe")
-        }
-      } catch (error) {
-        console.error("Error al obtener datos del tenant:", error)
-        setError("Error al cargar información del tenant")
-      }
+    if (user) {
+      router.push(`/tenant/${params.tenantId}/dashboard`)
     }
-
-    fetchTenantData()
-  }, [params.tenantId])
+  }, [user, router, params.tenantId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,7 +37,7 @@ export default function TenantRegister({ params }: { params: { tenantId: string 
       })
 
       // Redirigir al dashboard del cliente en el tenant
-      router.push(`/tenant/${params.tenantId}/client/dashboard`)
+      router.push(`/tenant/${params.tenantId}/dashboard`)
     } catch (error: any) {
       setError(error.message || "Error al registrarse")
     } finally {
@@ -65,7 +50,7 @@ export default function TenantRegister({ params }: { params: { tenantId: string 
       <div className="w-full max-w-md space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
-            Crear una cuenta en {tenantName}
+            Crear una cuenta en {params.tenantId}
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             ¿Ya tienes una cuenta?{" "}

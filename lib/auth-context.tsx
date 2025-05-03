@@ -23,6 +23,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, userData: any) => Promise<void>
   signOut: () => Promise<void>
   getUserProfile: () => Promise<any>
+  updateUserProfile: (data: any) => Promise<void>
   checkTenantAccess: (tenantId: string) => Promise<boolean>
 }
 
@@ -57,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUserProfile(profile)
         } catch (error) {
           console.error("Error al cargar perfil:", error)
+          setUserProfile(null)
         }
       } else {
         setUserProfile(null)
@@ -112,6 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ...userData,
         email,
         createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
         role,
       })
       console.log("Perfil de usuario creado")
@@ -126,6 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             ...userData,
             email,
             createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
             role: "superadmin",
           })
 
@@ -160,6 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           subdomain: userData.subdomain,
           ownerId: user.uid,
           createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
           status: "active",
         })
         console.log("Tenant creado correctamente")
@@ -231,6 +236,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const updateUserProfile = async (data: any) => {
+    if (!user) throw new Error("No hay usuario autenticado")
+
+    try {
+      console.log("Actualizando perfil del usuario:", user.uid)
+      await setDoc(
+        doc(db, "users", user.uid),
+        {
+          ...data,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      )
+
+      // Actualizar el perfil en el estado
+      const updatedProfile = await getUserProfile()
+      setUserProfile(updatedProfile)
+
+      return updatedProfile
+    } catch (error) {
+      console.error("Error al actualizar perfil:", error)
+      throw error
+    }
+  }
+
   const checkTenantAccess = async (tenantId: string) => {
     if (!user) return false
 
@@ -272,6 +302,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signUp,
     signOut,
     getUserProfile,
+    updateUserProfile,
     checkTenantAccess,
   }
 
