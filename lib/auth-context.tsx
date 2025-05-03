@@ -96,6 +96,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Actualizar la función signUp para asegurar la correcta creación del tenant
+
   const signUp = async (email: string, password: string, userData: any) => {
     if (!isBrowser || !auth || !db) {
       throw new Error("La autenticación no está disponible en el servidor")
@@ -124,7 +126,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Si se proporcionó un subdominio, crear tenant
       if (userData.subdomain) {
         console.log("Creando tenant con subdominio:", userData.subdomain)
-        await setDoc(doc(db, "tenants", userData.subdomain), {
+
+        // Verificar si el tenant ya existe
+        const tenantRef = doc(db, "tenants", userData.subdomain)
+        const tenantDoc = await getDoc(tenantRef)
+
+        if (tenantDoc.exists()) {
+          throw new Error(`El subdominio ${userData.subdomain} ya está en uso. Por favor, elige otro.`)
+        }
+
+        // Crear el tenant
+        await setDoc(tenantRef, {
           name: userData.companyName || userData.subdomain,
           subdomain: userData.subdomain,
           ownerId: user.uid,
@@ -139,6 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           doc(db, "users", user.uid),
           {
             subdomain: userData.subdomain,
+            tenantId: userData.subdomain,
           },
           { merge: true },
         )

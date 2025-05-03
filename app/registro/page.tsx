@@ -17,6 +17,8 @@ export default function Register() {
   const { signUp } = useAuth()
   const router = useRouter()
 
+  // Actualizar la función handleSubmit para asegurar la correcta redirección
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)

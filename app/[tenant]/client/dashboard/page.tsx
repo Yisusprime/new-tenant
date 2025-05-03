@@ -3,19 +3,14 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
-import { doc, getDoc, collection, getDocs, query, where } from "firebase/firestore"
+import { doc, getDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase/client"
 import Link from "next/link"
 
-export default function AdminDashboard({ params }: { params: { tenant: string } }) {
+export default function ClientDashboard({ params }: { params: { tenant: string } }) {
   const { user, userProfile, loading, signOut } = useAuth()
   const router = useRouter()
   const [tenantData, setTenantData] = useState<any>(null)
-  const [stats, setStats] = useState({
-    totalClients: 0,
-    totalOrders: 0,
-    totalProducts: 0,
-  })
   const [loadingData, setLoadingData] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -23,9 +18,9 @@ export default function AdminDashboard({ params }: { params: { tenant: string } 
     if (!loading && !user) {
       router.push(`/${params.tenant}/login`)
     } else if (!loading && user && userProfile) {
-      // Verificar que el usuario es admin
-      if (userProfile?.role !== "admin") {
-        setError("No tienes permisos de administrador para este tenant")
+      // Verificar que el usuario es cliente o admin
+      if (userProfile?.role !== "client" && userProfile?.role !== "admin") {
+        setError("No tienes permisos para acceder a esta página")
         setLoadingData(false)
       } else {
         // Cargar datos del tenant
@@ -49,22 +44,6 @@ export default function AdminDashboard({ params }: { params: { tenant: string } 
       setTenantData({
         id: tenantDoc.id,
         ...tenantDoc.data(),
-      })
-
-      // Cargar estadísticas
-      // Contar clientes (usuarios con role=client y tenantId=params.tenant)
-      const clientsQuery = query(
-        collection(db, "users"),
-        where("role", "==", "client"),
-        where("tenantId", "==", params.tenant),
-      )
-      const clientsSnapshot = await getDocs(clientsQuery)
-      const totalClients = clientsSnapshot.size
-
-      setStats({
-        totalClients,
-        totalOrders: 0, // Implementar cuando tengamos la colección de pedidos
-        totalProducts: 0, // Implementar cuando tengamos la colección de productos
       })
     } catch (error: any) {
       console.error("Error al cargar datos:", error)
@@ -105,10 +84,6 @@ export default function AdminDashboard({ params }: { params: { tenant: string } 
             <div className="rounded-lg border border-red-300 bg-red-50 p-6">
               <h2 className="mb-4 text-xl font-semibold text-red-800">Error de Acceso</h2>
               <p className="mb-4 text-red-700">{error}</p>
-              <p className="mb-4 text-red-700">
-                Tu usuario está autenticado como {userProfile?.role || "usuario"}, pero necesitas ser administrador para
-                acceder a esta página.
-              </p>
               <div className="mt-4 flex space-x-4">
                 <button
                   onClick={() => signOut()}
@@ -133,11 +108,11 @@ export default function AdminDashboard({ params }: { params: { tenant: string } 
       <header className="border-b bg-white">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center">
-            <h1 className="text-xl font-bold">{tenantData.name} - Panel de Administración</h1>
+            <h1 className="text-xl font-bold">{tenantData.name} - Panel de Cliente</h1>
           </div>
           <div className="flex items-center space-x-4">
             <span>{userProfile.name || userProfile.email}</span>
-            <div className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800">{userProfile.role}</div>
+            <div className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">{userProfile.role}</div>
             <button onClick={() => signOut()} className="rounded bg-gray-200 px-3 py-1 text-sm hover:bg-gray-300">
               Cerrar sesión
             </button>
@@ -151,30 +126,25 @@ export default function AdminDashboard({ params }: { params: { tenant: string } 
             <ul className="space-y-2">
               <li>
                 <Link
-                  href={`/${params.tenant}/admin/dashboard`}
+                  href={`/${params.tenant}/client/dashboard`}
                   className="block rounded bg-blue-100 p-2 font-medium text-blue-800"
                 >
                   Dashboard
                 </Link>
               </li>
               <li>
-                <Link href={`/${params.tenant}/admin/orders`} className="block rounded p-2 hover:bg-gray-200">
-                  Pedidos
+                <Link href={`/${params.tenant}/client/orders`} className="block rounded p-2 hover:bg-gray-200">
+                  Mis Pedidos
                 </Link>
               </li>
               <li>
-                <Link href={`/${params.tenant}/admin/menu`} className="block rounded p-2 hover:bg-gray-200">
-                  Gestionar Menú
+                <Link href={`/${params.tenant}/menu`} className="block rounded p-2 hover:bg-gray-200">
+                  Ver Menú
                 </Link>
               </li>
               <li>
-                <Link href={`/${params.tenant}/admin/clients`} className="block rounded p-2 hover:bg-gray-200">
-                  Clientes
-                </Link>
-              </li>
-              <li>
-                <Link href={`/${params.tenant}/admin/settings`} className="block rounded p-2 hover:bg-gray-200">
-                  Configuración
+                <Link href={`/${params.tenant}/client/profile`} className="block rounded p-2 hover:bg-gray-200">
+                  Mi Perfil
                 </Link>
               </li>
             </ul>
@@ -183,37 +153,34 @@ export default function AdminDashboard({ params }: { params: { tenant: string } 
 
         <main className="flex-1 p-6">
           <div className="container mx-auto">
-            <h2 className="mb-6 text-2xl font-bold">Panel de Control</h2>
+            <h2 className="mb-6 text-2xl font-bold">Bienvenido, {userProfile.name || userProfile.email}</h2>
 
-            <div className="mb-8 grid gap-6 md:grid-cols-3">
+            <div className="mb-8 grid gap-6 md:grid-cols-2">
               <div className="rounded-lg border bg-white p-6 shadow-sm">
-                <h3 className="mb-2 text-lg font-semibold text-gray-700">Clientes</h3>
-                <p className="text-3xl font-bold">{stats.totalClients}</p>
+                <h3 className="mb-2 text-lg font-semibold text-gray-700">Pedidos Recientes</h3>
+                <p className="text-gray-600">No tienes pedidos recientes.</p>
                 <Link
-                  href={`/${params.tenant}/admin/clients`}
+                  href={`/${params.tenant}/menu`}
                   className="mt-4 inline-block text-sm text-blue-600 hover:underline"
                 >
-                  Ver todos los clientes →
+                  Realizar un pedido →
                 </Link>
               </div>
               <div className="rounded-lg border bg-white p-6 shadow-sm">
-                <h3 className="mb-2 text-lg font-semibold text-gray-700">Pedidos</h3>
-                <p className="text-3xl font-bold">{stats.totalOrders}</p>
+                <h3 className="mb-2 text-lg font-semibold text-gray-700">Mi Perfil</h3>
+                <div className="space-y-2">
+                  <p>
+                    <span className="font-medium">Nombre:</span> {userProfile.name || "No especificado"}
+                  </p>
+                  <p>
+                    <span className="font-medium">Email:</span> {userProfile.email}
+                  </p>
+                </div>
                 <Link
-                  href={`/${params.tenant}/admin/orders`}
+                  href={`/${params.tenant}/client/profile`}
                   className="mt-4 inline-block text-sm text-blue-600 hover:underline"
                 >
-                  Ver todos los pedidos →
-                </Link>
-              </div>
-              <div className="rounded-lg border bg-white p-6 shadow-sm">
-                <h3 className="mb-2 text-lg font-semibold text-gray-700">Productos</h3>
-                <p className="text-3xl font-bold">{stats.totalProducts}</p>
-                <Link
-                  href={`/${params.tenant}/admin/menu`}
-                  className="mt-4 inline-block text-sm text-blue-600 hover:underline"
-                >
-                  Gestionar menú →
+                  Editar perfil →
                 </Link>
               </div>
             </div>
@@ -222,22 +189,16 @@ export default function AdminDashboard({ params }: { params: { tenant: string } 
               <h3 className="mb-4 text-xl font-semibold">Acciones Rápidas</h3>
               <div className="flex flex-wrap gap-4">
                 <Link
-                  href={`/${params.tenant}/admin/orders/new`}
+                  href={`/${params.tenant}/menu`}
                   className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
                 >
-                  Nuevo Pedido
+                  Ver Menú
                 </Link>
                 <Link
-                  href={`/${params.tenant}/admin/menu/new`}
+                  href={`/${params.tenant}/client/orders`}
                   className="rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700"
                 >
-                  Añadir Producto
-                </Link>
-                <Link
-                  href={`/${params.tenant}/admin/settings`}
-                  className="rounded bg-gray-600 px-4 py-2 text-white hover:bg-gray-700"
-                >
-                  Configuración
+                  Mis Pedidos
                 </Link>
               </div>
             </div>

@@ -54,6 +54,8 @@ export default function TenantLoginPage({ params }: { params: { tenant: string }
     checkAuth()
   }, [user, userProfile, router, params.tenant])
 
+  // Actualizar la función handleSubmit para redirigir correctamente según el rol
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
