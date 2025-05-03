@@ -310,19 +310,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Guardar información del dominio actual antes de cerrar sesión
       const currentHostname = window.location.hostname
       const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-      const isSubdomain =
-        currentHostname.includes(`.${rootDomain}`) ||
-        (currentHostname.includes("localhost") && !currentHostname.startsWith("www") && currentHostname !== "localhost")
 
-      // Extraer el subdominio si estamos en uno
+      // Verificar si estamos en el dominio principal (www o sin www)
+      const isMainDomain =
+        currentHostname === rootDomain ||
+        currentHostname === `www.${rootDomain}` ||
+        currentHostname === "localhost" ||
+        currentHostname === "localhost:3000"
+
+      // Si estamos en el dominio principal, no hay subdominio
       let subdomain = null
-      if (isSubdomain) {
+
+      // Solo extraer subdominio si NO estamos en el dominio principal
+      if (!isMainDomain) {
         if (currentHostname.includes(`.${rootDomain}`)) {
-          subdomain = currentHostname.split(`.${rootDomain}`)[0]
+          const subdomainPart = currentHostname.split(`.${rootDomain}`)[0]
+          // Verificar que no sea "www"
+          if (subdomainPart !== "www") {
+            subdomain = subdomainPart
+          }
         } else if (currentHostname.includes(".localhost")) {
-          subdomain = currentHostname.split(".localhost")[0]
+          const subdomainPart = currentHostname.split(".localhost")[0]
+          // Verificar que no sea "www"
+          if (subdomainPart !== "www") {
+            subdomain = subdomainPart
+          }
         }
       }
+
+      console.log("Cerrando sesión. Dominio principal:", isMainDomain, "Subdominio:", subdomain)
 
       // Primero, cerrar sesión en Firebase
       await signOut(auth)
@@ -338,16 +354,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Redirigir según el contexto
       if (typeof window !== "undefined") {
-        if (isSubdomain && subdomain) {
-          // Si estamos en un subdominio, redirigir al login del tenant
+        if (!isMainDomain && subdomain) {
+          // Si estamos en un subdominio válido, redirigir al login del tenant
           if (currentHostname.includes("localhost")) {
             window.location.href = `http://${subdomain}.localhost:3000/tenant/${subdomain}/login?clean=true`
           } else {
             window.location.href = `https://${subdomain}.${rootDomain}/tenant/${subdomain}/login?clean=true`
           }
         } else {
-          // Si estamos en el dominio principal, redirigir al login principal
-          if (currentHostname === "localhost") {
+          // Si estamos en el dominio principal o el subdominio no es válido, redirigir al login principal
+          if (currentHostname === "localhost" || currentHostname === "localhost:3000") {
             window.location.href = `http://localhost:3000/login?clean=true`
           } else {
             window.location.href = `https://www.${rootDomain}/login?clean=true`

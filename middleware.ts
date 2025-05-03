@@ -32,6 +32,11 @@ const extractSubdomain = (host: string) => {
   return host.split(`.${rootDomain}`)[0]
 }
 
+// Función para verificar si un subdominio es válido (no es "www")
+const isValidTenantSubdomain = (subdomain: string | null) => {
+  return subdomain && subdomain !== "www" && subdomain !== "app" && subdomain !== "api"
+}
+
 export function middleware(request: NextRequest) {
   const url = request.nextUrl.clone()
   const { pathname } = url
@@ -42,6 +47,9 @@ export function middleware(request: NextRequest) {
 
   // Extraer el subdominio si estamos en uno
   const subdomain = isOnSubdomain ? extractSubdomain(hostname) : null
+
+  // Verificar si el subdominio es válido para un tenant
+  const isValidTenant = isValidTenantSubdomain(subdomain)
 
   // Rutas públicas que no requieren autenticación
   const publicRoutes = [
@@ -73,16 +81,28 @@ export function middleware(request: NextRequest) {
 
   // Si es una ruta pública, permitir el acceso
   if (isPublicRoute) {
-    // Caso especial: si estamos en la página de login principal pero en un subdominio
-    if (pathname === "/login" && isOnSubdomain && subdomain) {
+    // Caso especial: si estamos en la página de login principal pero en un subdominio válido
+    if (pathname === "/login" && isOnSubdomain && isValidTenant) {
       // Redirigir a la página de login del tenant
       return NextResponse.redirect(new URL(`/tenant/${subdomain}/login`, request.url))
+    }
+
+    // Caso especial: si estamos intentando acceder a /tenant/www/login desde el dominio principal
+    if (pathname === "/tenant/www/login" && !isOnSubdomain) {
+      // Redirigir a la página de login principal
+      return NextResponse.redirect(new URL(`/login`, request.url))
     }
 
     // Caso especial: si estamos en la página de login de un tenant pero no en un subdominio
     if (pathname.startsWith("/tenant/") && pathname.includes("/login") && !isOnSubdomain) {
       // Extraer el tenantId de la URL
       const tenantId = pathname.split("/")[2]
+
+      // Si el tenantId es "www", redirigir a la página de login principal
+      if (tenantId === "www") {
+        return NextResponse.redirect(new URL(`/login`, request.url))
+      }
+
       const rootDomain = getRootDomain()
 
       // Redirigir al subdominio correspondiente
@@ -113,8 +133,19 @@ export function middleware(request: NextRequest) {
     // Extraer el tenantId de la URL
     const tenantId = pathname.split("/")[2]
 
+    // Si el tenantId es "www", redirigir a la página principal
+    if (tenantId === "www") {
+      // Si la ruta es /tenant/www/login, redirigir a /login
+      if (pathname.includes("/login")) {
+        return NextResponse.redirect(new URL(`/login`, request.url))
+      }
+
+      // Para otras rutas, redirigir a la página principal
+      return NextResponse.redirect(new URL(`/`, request.url))
+    }
+
     // Verificar si estamos en el subdominio correcto
-    if (isOnSubdomain && subdomain !== tenantId) {
+    if (isOnSubdomain && isValidTenant && subdomain !== tenantId) {
       // Redirigir a página no autorizada
       return NextResponse.redirect(new URL(`/tenant/${subdomain}/unauthorized`, request.url))
     }
