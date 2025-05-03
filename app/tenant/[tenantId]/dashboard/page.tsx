@@ -22,6 +22,22 @@ export default function TenantDashboard({ params }: { params: { tenantId: string
         console.log("Dashboard - Usuario autenticado:", user.email)
         console.log("Dashboard - Perfil de usuario:", userProfile)
 
+        // Si hay perfil, verificar el rol y redirigir
+        if (userProfile) {
+          const role = userProfile.role || "client"
+
+          // Redirigir según el rol
+          if (role === "admin") {
+            console.log("Redirigiendo a dashboard de admin")
+            router.push(`/tenant/${params.tenantId}/admin/dashboard`)
+            return
+          } else if (role === "client") {
+            console.log("Redirigiendo a dashboard de cliente")
+            router.push(`/tenant/${params.tenantId}/client/dashboard`)
+            return
+          }
+        }
+
         // Si no hay perfil, intentar crearlo automáticamente
         if (user && !userProfile && !creatingProfile) {
           createBasicProfile()
@@ -44,7 +60,7 @@ export default function TenantDashboard({ params }: { params: { tenantId: string
         {
           email: user.email,
           tenantId: params.tenantId,
-          role: "client",
+          role: "client", // Por defecto, asignar rol de cliente
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         },
@@ -142,87 +158,34 @@ export default function TenantDashboard({ params }: { params: { tenantId: string
     )
   }
 
+  // Si llegamos aquí, mostrar un mensaje de redirección
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="border-b bg-white">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <div className="flex items-center">
-            <h1 className="text-xl font-bold">{params.tenantId} - Dashboard</h1>
-          </div>
-          <div className="flex items-center space-x-4">
-            <span>{userProfile.name || userProfile.email || user.email}</span>
-            <button onClick={() => signOut()} className="rounded bg-gray-200 px-3 py-1 text-sm hover:bg-gray-300">
-              Cerrar sesión
-            </button>
-          </div>
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="text-center">
+        <p className="mb-4 text-xl">Redirigiendo al dashboard correspondiente...</p>
+        <div className="h-1 w-32 mx-auto overflow-hidden rounded-full bg-gray-200">
+          <div className="h-full w-1/2 animate-[pulse_1s_ease-in-out_infinite] rounded-full bg-blue-600"></div>
         </div>
-      </header>
-
-      <main className="flex-1 p-6">
-        <div className="container mx-auto">
-          <h2 className="mb-6 text-2xl font-bold">Bienvenido al Dashboard</h2>
-
-          <div className="mb-8 grid gap-6 md:grid-cols-2">
-            <div className="rounded-lg border bg-white p-6 shadow-sm">
-              <h3 className="mb-2 text-lg font-semibold text-gray-700">Información del Usuario</h3>
-              <p>
-                <strong>Email:</strong> {user.email}
-              </p>
-              <p>
-                <strong>UID:</strong> {user.uid}
-              </p>
-              {userProfile && (
-                <>
-                  <p>
-                    <strong>Nombre:</strong> {userProfile.name || "No disponible"}
-                  </p>
-                  <p>
-                    <strong>Rol:</strong> {userProfile.role || "No definido"}
-                  </p>
-                  <p>
-                    <strong>Tenant ID:</strong> {userProfile.tenantId || "No definido"}
-                  </p>
-                </>
-              )}
-            </div>
-            <div className="rounded-lg border bg-white p-6 shadow-sm">
-              <h3 className="mb-2 text-lg font-semibold text-gray-700">Información del Tenant</h3>
-              <p>
-                <strong>ID del Tenant:</strong> {params.tenantId}
-              </p>
-              <p>
-                <strong>URL actual:</strong> {typeof window !== "undefined" ? window.location.href : ""}
-              </p>
-            </div>
-          </div>
-
-          <div className="rounded-lg border bg-white p-6 shadow-sm">
-            <h3 className="mb-4 text-xl font-semibold">Enlaces</h3>
-            <div className="flex flex-wrap gap-4">
+        <div className="mt-6 space-y-2">
+          <p>Si no eres redirigido automáticamente, selecciona tu dashboard:</p>
+          <div className="flex justify-center space-x-4">
+            {userProfile.role === "admin" && (
               <Link
-                href={`/tenant/${params.tenantId}`}
+                href={`/tenant/${params.tenantId}/admin/dashboard`}
                 className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
               >
-                Inicio del Tenant
+                Dashboard de Admin
               </Link>
-              {userProfile?.role === "admin" && (
-                <Link
-                  href={`/tenant/${params.tenantId}/admin/dashboard`}
-                  className="rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700"
-                >
-                  Admin Dashboard
-                </Link>
-              )}
-              <Link
-                href={`/tenant/${params.tenantId}/complete-profile`}
-                className="rounded bg-gray-600 px-4 py-2 text-white hover:bg-gray-700"
-              >
-                Editar Perfil
-              </Link>
-            </div>
+            )}
+            <Link
+              href={`/tenant/${params.tenantId}/client/dashboard`}
+              className="rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700"
+            >
+              Dashboard de Cliente
+            </Link>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   )
 }

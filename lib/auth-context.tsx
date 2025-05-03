@@ -96,20 +96,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const user = userCredential.user
       console.log("Usuario registrado correctamente:", user.uid)
 
-      // Determinar el rol basado en la ruta y los datos proporcionados
-      let role = userData.role || "user" // Valor por defecto
+      // Usar el rol proporcionado en userData o "user" como valor por defecto
+      const role = userData.role || "user" // Valor por defecto
 
-      // Si no se especificó un rol, determinarlo por la ruta
-      if (!userData.role) {
-        if (pathname?.startsWith("/superadmin")) {
-          role = "superadmin"
-        } else if (pathname?.startsWith("/tenant/")) {
-          role = "client"
-        } else {
-          role = "admin" // Registro desde la página principal
-        }
-      }
-
+      // Asegurarse de que el rol sea explícito y no se determine por la ruta
       console.log("Rol asignado:", role)
 
       // Crear perfil de usuario
@@ -121,6 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role,
       })
       console.log("Perfil de usuario creado")
+      console.log("Perfil de usuario creado con rol:", role)
 
       // Si es el primer usuario, asignarle rol de superadmin
       if (role !== "superadmin") {

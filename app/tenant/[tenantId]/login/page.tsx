@@ -17,10 +17,38 @@ export default function TenantLoginPage({ params }: { params: { tenantId: string
   const { signIn, user } = useAuth()
   const router = useRouter()
 
-  // Si el usuario ya está autenticado, redirigir al dashboard
+  // Si el usuario ya está autenticado, verificar su rol y redirigir
   useEffect(() => {
+    async function checkUserAndRedirect() {
+      if (user) {
+        try {
+          // Verificar el rol del usuario
+          const userDoc = await getDoc(doc(db, "users", user.uid))
+
+          if (userDoc.exists()) {
+            const userData = userDoc.data()
+            const role = userData.role || "client"
+
+            // Redirigir según el rol
+            if (role === "admin") {
+              router.push(`/tenant/${params.tenantId}/admin/dashboard`)
+            } else {
+              router.push(`/tenant/${params.tenantId}/client/dashboard`)
+            }
+          } else {
+            // Si no hay perfil, redirigir a completar perfil
+            router.push(`/tenant/${params.tenantId}/complete-profile`)
+          }
+        } catch (error) {
+          console.error("Error al verificar el rol del usuario:", error)
+          // En caso de error, redirigir al dashboard general
+          router.push(`/tenant/${params.tenantId}/dashboard`)
+        }
+      }
+    }
+
     if (user) {
-      router.push(`/tenant/${params.tenantId}/dashboard`)
+      checkUserAndRedirect()
     }
   }, [user, router, params.tenantId])
 
@@ -40,27 +68,34 @@ export default function TenantLoginPage({ params }: { params: { tenantId: string
         const userDocRef = doc(db, "users", uid)
         const userDoc = await getDoc(userDocRef)
 
-        // Si el perfil no existe, crearlo
+        // Si el perfil no existe, crearlo como cliente
         if (!userDoc.exists()) {
           console.log("Profile not found, creating a basic profile")
           await setDoc(userDocRef, {
             email: userCredential.user.email,
             tenantId: params.tenantId,
-            role: "client",
+            role: "client", // Por defecto, los usuarios que se registran en un tenant son clientes
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           })
-          console.log("Basic profile created")
+          console.log("Basic profile created as client")
+
+          // Redirigir al dashboard de cliente
+          router.push(`/tenant/${params.tenantId}/client/dashboard`)
+          return
         }
 
         // Obtener el rol del usuario para redirigir correctamente
-        const role = userDoc.exists() ? userDoc.data().role : "client"
+        const userData = userDoc.data()
+        const role = userData.role || "client"
+        console.log(`User role: ${role}`)
 
         // Redirigir según el rol
         if (role === "admin") {
+          console.log("Redirecting to admin dashboard")
           router.push(`/tenant/${params.tenantId}/admin/dashboard`)
         } else {
-          // Si es cliente, redirigir al dashboard de cliente
+          console.log("Redirecting to client dashboard")
           router.push(`/tenant/${params.tenantId}/client/dashboard`)
         }
       } else {

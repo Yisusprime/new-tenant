@@ -33,8 +33,9 @@ export default function Register() {
         }
       }
 
-      console.log(`Registrando usuario: ${email} con subdominio: ${subdomain || "ninguno"}`)
+      console.log(`Registrando usuario: ${email} con subdominio: ${subdomain || "ninguno"} como ADMIN`)
 
+      // IMPORTANTE: Siempre asignar rol de admin en el registro principal
       await signUp(email, password, {
         name,
         companyName,
