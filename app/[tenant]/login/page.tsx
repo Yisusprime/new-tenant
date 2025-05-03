@@ -6,7 +6,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore"
+import { doc, getDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase/client"
 
 export default function TenantLoginPage({ params }: { params: { tenant: string } }) {
@@ -70,25 +70,16 @@ export default function TenantLoginPage({ params }: { params: { tenant: string }
         const userDocRef = doc(db, "users", uid)
         const userDoc = await getDoc(userDocRef)
 
-        // Si el perfil no existe, crearlo como cliente
         if (!userDoc.exists()) {
-          console.log("Profile not found, creating a basic profile")
-          await setDoc(userDocRef, {
-            email: userCredential.user.email,
-            tenantId: params.tenant,
-            role: "client", // Por defecto, los usuarios que se registran en un tenant son clientes
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          })
-          console.log("Basic profile created as client")
-
-          // Redirigir al dashboard de cliente
-          router.push(`/client/dashboard`)
+          console.error("No se encontró el perfil del usuario")
+          setError("Error: No se encontró el perfil del usuario")
+          setLoading(false)
           return
         }
 
         // Obtener el rol del usuario para redirigir correctamente
         const userData = userDoc.data()
+        console.log("Datos del usuario:", userData)
         const role = userData.role || "client"
         console.log(`User role: ${role}`)
 

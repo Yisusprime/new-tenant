@@ -61,7 +61,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const profile = await getUserProfile()
           console.log("Perfil de usuario cargado:", profile)
-          setUserProfile(profile)
+
+          if (!profile) {
+            console.warn("Perfil no encontrado, creando perfil básico")
+            // Crear un perfil básico si no existe
+            const basicProfile = {
+              email: user.email,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+              role: "user", // Rol por defecto
+            }
+
+            await setDoc(doc(db, "users", user.uid), basicProfile)
+            setUserProfile(basicProfile)
+          } else {
+            setUserProfile(profile)
+          }
         } catch (error) {
           console.error("Error al cargar perfil:", error)
           setUserProfile(null)
@@ -183,7 +198,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const getUserProfile = async () => {
-    if (!isBrowser || !db || !user) return null
+    if (!isBrowser || !db || !user) {
+      console.log("No se puede obtener el perfil: navegador, db o usuario no disponible")
+      return null
+    }
 
     try {
       console.log("Obteniendo perfil del usuario:", user.uid)
@@ -191,10 +209,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const docSnap = await getDoc(docRef)
 
       if (docSnap.exists()) {
-        console.log("Perfil encontrado:", docSnap.data())
-        return { id: docSnap.id, ...docSnap.data() }
+        const userData = docSnap.data()
+        console.log("Perfil encontrado:", userData)
+        return { id: docSnap.id, ...userData }
       } else {
-        console.error("No se encontró el perfil del usuario")
+        console.error("No se encontró el perfil del usuario en Firestore")
         return null
       }
     } catch (error) {
