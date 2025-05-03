@@ -7,7 +7,7 @@ import { doc, getDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase/client"
 import Link from "next/link"
 
-export default function TenantDashboard({ params }: { params: { tenantId: string } }) {
+export default function TenantDashboardPage({ params }: { params: { tenantId: string } }) {
   const { user, userProfile, loading, signOut } = useAuth()
   const router = useRouter()
   const [tenantData, setTenantData] = useState<any>(null)

@@ -1,23 +1,24 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { SUBDOMAIN_CONFIG } from "./lib/subdomain-config"
 
 export function middleware(request: NextRequest) {
   const url = request.nextUrl.clone()
   const { pathname } = url
   const hostname = request.headers.get("host") || ""
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
 
-  // Obtener el subdominio
-  const subdomain = SUBDOMAIN_CONFIG.getSubdomain(hostname)
+  // Verificar si estamos en un subdominio
+  const isSubdomain = hostname.includes(`.${rootDomain}`) && !hostname.startsWith("www.")
 
-  console.log(`Middleware: Host=${hostname}, Path=${pathname}, Subdomain=${subdomain || "none"}`)
-
-  // Si no hay subdominio, continuar normalmente
-  if (!subdomain) {
+  // Si no estamos en un subdominio, continuar normalmente
+  if (!isSubdomain) {
     return NextResponse.next()
   }
 
-  // Si estamos en un subdominio, todas las rutas deben ir a /tenant/[subdomain]/*
+  // Extraer el subdominio
+  const subdomain = hostname.replace(`.${rootDomain}`, "")
+
+  console.log(`Middleware: Host=${hostname}, Path=${pathname}, Subdomain=${subdomain}`)
 
   // Si ya estamos en la ruta correcta, no hacer nada
   if (pathname.startsWith(`/tenant/${subdomain}`)) {
@@ -25,14 +26,7 @@ export function middleware(request: NextRequest) {
   }
 
   // Construir la nueva ruta
-  let newPathname = pathname
-
-  // Manejar rutas especiales
-  if (pathname === "/" || pathname === "") {
-    newPathname = `/tenant/${subdomain}`
-  } else {
-    newPathname = `/tenant/${subdomain}${pathname}`
-  }
+  const newPathname = pathname === "/" ? `/tenant/${subdomain}` : `/tenant/${subdomain}${pathname}`
 
   console.log(`Middleware: Rewriting ${pathname} to ${newPathname}`)
 

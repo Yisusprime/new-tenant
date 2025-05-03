@@ -11,22 +11,6 @@ const nextConfig = {
     domains: ['firebasestorage.googleapis.com'],
     unoptimized: true,
   },
-  // Configuración para manejar subdominios
-  async rewrites() {
-    return [
-      // Regla simple para subdominios
-      {
-        source: '/:path*',
-        has: [
-          {
-            type: 'host',
-            value: '(?<subdomain>[^.]+).gastroo.online',
-          },
-        ],
-        destination: '/tenant/:subdomain/:path*',
-      },
-    ];
-  },
   // Configuración para el tiempo de construcción
   experimental: {
     // Esto ayuda con las rutas dinámicas durante la construcción
