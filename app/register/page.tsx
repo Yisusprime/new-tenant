@@ -1,11 +1,11 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
+import { buildSubdomainUrl } from "@/lib/subdomain-config"
 
 export default function Register() {
   const [name, setName] = useState("")
@@ -34,6 +34,8 @@ export default function Register() {
         }
       }
 
+      console.log(`Registrando usuario: ${email} con subdominio: ${subdomain || "ninguno"}`)
+
       await signUp(email, password, {
         name,
         companyName,
@@ -41,18 +43,22 @@ export default function Register() {
         role: "admin", // Asignar explícitamente el rol de admin
       })
 
+      console.log("Registro exitoso, redirigiendo...")
+
       // Redirigir al dashboard de admin o al tenant si se creó uno
       if (subdomain) {
-        // Redirigir al dashboard del tenant
-        const isLocalhost = window.location.hostname.includes("localhost")
-        const baseUrl = isLocalhost ? `http://${subdomain}.localhost:3000` : `https://${subdomain}.gastroo.online`
+        // Construir URL del subdominio
+        const dashboardUrl = buildSubdomainUrl(subdomain, "/admin/dashboard")
+        console.log(`Redirigiendo a: ${dashboardUrl}`)
 
-        window.location.href = `${baseUrl}/admin/dashboard`
+        // Usar window.location para una redirección completa
+        window.location.href = dashboardUrl
       } else {
         // Redirigir al dashboard general
         router.push("/dashboard")
       }
     } catch (error: any) {
+      console.error("Error en registro:", error)
       setError(error.message || "Error al registrarse")
     } finally {
       setLoading(false)

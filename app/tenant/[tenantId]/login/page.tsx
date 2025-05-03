@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -22,10 +21,13 @@ export default function TenantLogin({ params }: { params: { tenantId: string } }
     // Obtener información del tenant
     async function fetchTenantData() {
       try {
+        console.log(`Fetching tenant data for: ${params.tenantId}`)
         const tenantDoc = await getDoc(doc(db, "tenants", params.tenantId))
         if (tenantDoc.exists()) {
+          console.log(`Tenant found: ${tenantDoc.data().name}`)
           setTenantName(tenantDoc.data().name || params.tenantId)
         } else {
+          console.error(`Tenant not found: ${params.tenantId}`)
           setError("Este tenant no existe")
         }
       } catch (error) {
@@ -43,11 +45,14 @@ export default function TenantLogin({ params }: { params: { tenantId: string } }
     setError(null)
 
     try {
+      console.log(`Attempting login for: ${email} on tenant: ${params.tenantId}`)
       await signIn(email, password)
+      console.log("Login successful, redirecting to dashboard")
 
       // Redirigir al dashboard del tenant
       router.push(`/tenant/${params.tenantId}/dashboard`)
     } catch (error: any) {
+      console.error("Login error:", error)
       setError(error.message || "Error al iniciar sesión")
     } finally {
       setLoading(false)
