@@ -57,10 +57,16 @@ export function middleware(request: NextRequest) {
     "/register",
     "/forgot-password",
     "/reset-password",
+    "/tenant/[tenantId]",
     "/tenant/[tenantId]/login",
     "/tenant/[tenantId]/register",
     "/tenant/[tenantId]/forgot-password",
     "/tenant/[tenantId]/reset-password",
+    "/tenant/[tenantId]/menu",
+    "/tenant/[tenantId]/about",
+    "/tenant/[tenantId]/contact",
+    "/tenant/[tenantId]/terms",
+    "/tenant/[tenantId]/privacy",
     "/unauthorized",
     "/tenant/[tenantId]/unauthorized",
     "/_not-found",
@@ -78,6 +84,11 @@ export function middleware(request: NextRequest) {
     }
     return pathname === route || pathname.startsWith("/api/") || pathname.startsWith("/_next/")
   })
+
+  // Si estamos en un subdominio válido y en la ruta raíz, redirigir a la página principal del tenant
+  if (isOnSubdomain && isValidTenant && pathname === "/" && subdomain) {
+    return NextResponse.redirect(new URL(`/tenant/${subdomain}`, request.url))
+  }
 
   // Si es una ruta pública, permitir el acceso
   if (isPublicRoute) {
