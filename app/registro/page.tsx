@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -11,7 +13,7 @@ export default function Register() {
     email: "",
     password: "",
     companyName: "",
-    subdomain: ""
+    subdomain: "",
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -20,9 +22,9 @@ export default function Register() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: name === 'subdomain' ? value.toLowerCase() : value
+      [name]: name === "subdomain" ? value.toLowerCase() : value,
     }))
   }
 
@@ -54,32 +56,27 @@ export default function Register() {
 
       console.log(`Registrando usuario: ${formData.email} con subdominio: ${formData.subdomain}`)
 
-      // Registrar el usuario
-      const result = await signUp(formData.email, formData.password, {
+      // Registrar el usuario - la función signUp devuelve directamente el userCredential
+      await signUp(formData.email, formData.password, {
         name: formData.name,
         companyName: formData.companyName,
         subdomain: formData.subdomain,
-        role: "admin"
+        role: "admin",
       })
-
-      if (!result.success) {
-        throw new Error(result.message || "Error al registrarse")
-      }
 
       console.log("Registro exitoso, redirigiendo...")
 
       // Construir URL de redirección
       const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-      const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes("localhost")
-      const protocol = isLocalhost ? 'http' : 'https'
-      const port = isLocalhost ? ':3000' : ''
-      const baseUrl = isLocalhost ? 'localhost' : rootDomain
+      const isLocalhost = typeof window !== "undefined" && window.location.hostname.includes("localhost")
+      const protocol = isLocalhost ? "http" : "https"
+      const port = isLocalhost ? ":3000" : ""
+      const baseUrl = isLocalhost ? "localhost" : rootDomain
 
       const dashboardUrl = `${protocol}://${formData.subdomain}.${baseUrl}${port}/admin/dashboard`
 
       console.log(`Redirigiendo a: ${dashboardUrl}`)
       window.location.href = dashboardUrl
-
     } catch (error: any) {
       console.error("Error en registro:", error)
       setError(error.message || "Ocurrió un error durante el registro")
@@ -92,12 +89,8 @@ export default function Register() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <h2 className="mt-6 text-3xl font-bold tracking-tight text-gray-900">
-            Crear cuenta de administrador
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Configura tu cuenta y subdominio único
-          </p>
+          <h2 className="mt-6 text-3xl font-bold tracking-tight text-gray-900">Crear cuenta de administrador</h2>
+          <p className="mt-2 text-sm text-gray-600">Configura tu cuenta y subdominio único</p>
         </div>
 
         {error && (
@@ -105,7 +98,11 @@ export default function Register() {
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
+                    clipRule="evenodd"
+                  />
                 </svg>
               </div>
               <div className="ml-3">
@@ -212,26 +209,44 @@ export default function Register() {
               type="submit"
               disabled={loading}
               className={`group relative flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
-                loading 
-                  ? 'bg-blue-400 cursor-not-allowed' 
-                  : 'bg-blue-600 hover:bg-blue-500 focus-visible:outline-blue-600'
+                loading
+                  ? "bg-blue-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-500 focus-visible:outline-blue-600"
               }`}
             >
               {loading ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <svg
+                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
                   </svg>
                   Creando cuenta...
                 </>
-              ) : 'Registrarse'}
+              ) : (
+                "Registrarse"
+              )}
             </button>
           </div>
         </form>
 
         <div className="text-center text-sm text-gray-600">
-          ¿Ya tienes una cuenta?{' '}
+          ¿Ya tienes una cuenta?{" "}
           <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
             Inicia sesión
           </Link>
