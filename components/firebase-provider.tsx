@@ -11,8 +11,16 @@ interface FirebaseProviderProps {
 export default function FirebaseProvider({ children }: FirebaseProviderProps) {
   const [isInitialized, setIsInitialized] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [initAttempts, setInitAttempts] = useState(0)
 
   useEffect(() => {
+    const maxAttempts = 3
+
+    if (initAttempts >= maxAttempts) {
+      setError("No se pudo inicializar Firebase después de varios intentos. Por favor, recarga la página.")
+      return
+    }
+
     try {
       // Intentar inicializar Firebase
       const { app } = initializeFirebase()
@@ -21,13 +29,30 @@ export default function FirebaseProvider({ children }: FirebaseProviderProps) {
         console.log("Firebase inicializado correctamente en el proveedor")
         setIsInitialized(true)
       } else {
-        setError("No se pudo inicializar Firebase. Esto puede deberse a que estás en un entorno de servidor.")
+        // Si no se pudo inicializar, incrementar el contador de intentos
+        setInitAttempts((prev) => prev + 1)
+
+        // Esperar un momento y volver a intentar
+        setTimeout(() => {
+          console.log(`Reintentando inicialización de Firebase (intento ${initAttempts + 1}/${maxAttempts})`)
+        }, 1000)
       }
     } catch (err) {
       console.error("Error al inicializar Firebase en el proveedor:", err)
-      setError("Error al inicializar Firebase. Por favor, recarga la página.")
+
+      // Incrementar el contador de intentos
+      setInitAttempts((prev) => prev + 1)
+
+      if (initAttempts >= maxAttempts - 1) {
+        setError("Error al inicializar Firebase. Por favor, recarga la página.")
+      } else {
+        // Esperar un momento y volver a intentar
+        setTimeout(() => {
+          console.log(`Reintentando inicialización de Firebase (intento ${initAttempts + 1}/${maxAttempts})`)
+        }, 1000)
+      }
     }
-  }, [])
+  }, [initAttempts])
 
   if (error) {
     return (

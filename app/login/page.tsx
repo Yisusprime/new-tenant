@@ -99,15 +99,7 @@ export default function Login() {
 
       return
     }
-
-    // Si detectamos que el usuario está autenticado pero estamos en la página de login,
-    // probablemente sea una sesión persistente que debemos limpiar
-    if (user && !cleaningSession) {
-      console.log("Usuario autenticado detectado en página de login, cerrando sesión...")
-      signOut()
-      return
-    }
-  }, [user, signOut, searchParams, cleaningSession])
+  }, [searchParams])
 
   // Si el usuario ya está autenticado, redirigirlo
   useEffect(() => {
