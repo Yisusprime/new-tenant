@@ -1,40 +1,7 @@
 import { notFound } from "next/navigation"
-import { adminDb } from "@/lib/firebase/admin"
-import TenantPublicNavbar from "@/components/tenant-public-navbar"
-
-// Esta función se ejecuta en el servidor
-async function getTenantData(tenantId: string) {
-  try {
-    // Verificar si estamos en tiempo de construcción
-    if (process.env.NODE_ENV === "production" && typeof window === "undefined" && !process.env.FIREBASE_PROJECT_ID) {
-      console.warn("Ejecutando getTenantData en tiempo de construcción. Devolviendo datos simulados.")
-      return {
-        id: tenantId,
-        name: tenantId,
-        status: "active",
-      }
-    }
-
-    const tenantDoc = await adminDb.collection("tenants").doc(tenantId).get()
-
-    if (!tenantDoc.exists) {
-      return null
-    }
-
-    return {
-      id: tenantDoc.id,
-      ...tenantDoc.data(),
-    }
-  } catch (error) {
-    console.error("Error al obtener datos del tenant:", error)
-    // En caso de error, devolver datos básicos para permitir la construcción
-    return {
-      id: tenantId,
-      name: tenantId,
-      status: "error",
-    }
-  }
-}
+import { db } from "@/lib/firebase/client"
+import { collection, getDocs, query, where } from "firebase/firestore"
+import Link from "next/link"
 
 // Datos de ejemplo para el menú
 const menuCategories = [
@@ -92,8 +59,31 @@ const menuCategories = [
   },
 ]
 
-export default async function TenantMenuPage({ params }: { params: { tenantId: string } }) {
-  const tenantData = await getTenantData(params.tenantId)
+// Esta función se ejecuta en el cliente
+async function getTenantData(tenant: string) {
+  try {
+    // Verificar si el tenant existe
+    const tenantsRef = collection(db, "tenants")
+    const q = query(tenantsRef, where("subdomain", "==", tenant))
+    const querySnapshot = await getDocs(q)
+
+    if (querySnapshot.empty) {
+      return null
+    }
+
+    const tenantDoc = querySnapshot.docs[0]
+    return {
+      id: tenantDoc.id,
+      ...tenantDoc.data(),
+    }
+  } catch (error) {
+    console.error("Error al obtener datos del tenant:", error)
+    return null
+  }
+}
+
+export default async function TenantMenuPage({ params }: { params: { tenant: string } }) {
+  const tenantData = await getTenantData(params.tenant)
 
   if (!tenantData) {
     notFound()
@@ -101,7 +91,36 @@ export default async function TenantMenuPage({ params }: { params: { tenantId: s
 
   return (
     <div className="flex min-h-screen flex-col">
-      <TenantPublicNavbar tenantId={params.tenantId} tenantName={tenantData.name || params.tenantId} />
+      <header className="border-b w-full bg-white">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4">
+          <div className="flex items-center gap-4">
+            <Link href={`/${params.tenant}`} className="font-bold text-xl">
+              {tenantData.name}
+            </Link>
+          </div>
+
+          {/* Menú para pantallas medianas y grandes */}
+          <nav className="hidden md:flex items-center gap-6">
+            <Link href={`/${params.tenant}`} className="text-sm font-medium hover:text-primary hover:underline">
+              Inicio
+            </Link>
+            <Link href={`/${params.tenant}/menu`} className="text-sm font-medium hover:text-primary hover:underline">
+              Menú
+            </Link>
+          </nav>
+
+          <div className="flex items-center gap-4">
+            <Link href={`/${params.tenant}/login`}>
+              <button className="text-sm font-medium hover:text-primary">Iniciar sesión</button>
+            </Link>
+            <Link href={`/${params.tenant}/registro`}>
+              <button className="rounded bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800">
+                Registrarse
+              </button>
+            </Link>
+          </div>
+        </div>
+      </header>
 
       <main className="flex-1 py-10">
         <div className="container mx-auto px-4">
@@ -145,7 +164,7 @@ export default async function TenantMenuPage({ params }: { params: { tenantId: s
 
       <footer className="border-t py-8">
         <div className="container mx-auto px-4 text-center text-gray-600">
-          <p>&copy; 2023 {tenantData.name || params.tenantId}. Todos los derechos reservados.</p>
+          <p>&copy; 2023 {tenantData.name}. Todos los derechos reservados.</p>
         </div>
       </footer>
     </div>

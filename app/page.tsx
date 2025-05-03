@@ -32,7 +32,7 @@ export default function Home() {
             <Link href="/login" className="hover:text-blue-600">
               Iniciar sesión
             </Link>
-            <Link href="/register" className="rounded bg-black px-4 py-2 text-white hover:bg-gray-800">
+            <Link href="/registro" className="rounded bg-black px-4 py-2 text-white hover:bg-gray-800">
               Registrarse
             </Link>
           </div>
@@ -53,7 +53,7 @@ export default function Home() {
               Fácil de configurar, fácil de usar.
             </p>
             <div className="flex flex-col items-center justify-center space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0">
-              <Link href="/register" className="rounded bg-black px-6 py-3 text-white hover:bg-gray-800">
+              <Link href="/registro" className="rounded bg-black px-6 py-3 text-white hover:bg-gray-800">
                 Comenzar gratis →
               </Link>
               <Link href="/tenants" className="rounded border border-gray-300 px-6 py-3 hover:bg-gray-50">
@@ -104,7 +104,7 @@ export default function Home() {
                   <li>Soporte por email</li>
                 </ul>
                 <Link
-                  href="/register"
+                  href="/registro"
                   className="block w-full rounded border border-black bg-white py-2 text-center hover:bg-gray-50"
                 >
                   Comenzar
@@ -125,7 +125,7 @@ export default function Home() {
                   <li>Funciones avanzadas</li>
                 </ul>
                 <Link
-                  href="/register"
+                  href="/registro"
                   className="block w-full rounded bg-black py-2 text-center text-white hover:bg-gray-800"
                 >
                   Comenzar
@@ -144,7 +144,7 @@ export default function Home() {
                   <li>API personalizada</li>
                 </ul>
                 <Link
-                  href="/register"
+                  href="/registro"
                   className="block w-full rounded border border-black bg-white py-2 text-center hover:bg-gray-50"
                 >
                   Contactar

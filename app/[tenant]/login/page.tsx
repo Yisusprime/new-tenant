@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth-context"
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase/client"
 
-export default function TenantLoginPage({ params }: { params: { tenantId: string } }) {
+export default function TenantLoginPage({ params }: { params: { tenant: string } }) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
@@ -38,28 +38,10 @@ export default function TenantLoginPage({ params }: { params: { tenantId: string
 
         console.log("Usuario autenticado con perfil:", userProfile)
 
-        // Evitar redirección si estamos en un bucle
-        const currentPath = window.location.pathname
-        const targetPath = `/tenant/${params.tenantId}/admin/dashboard`
-
-        if (
-          currentPath === `/tenant/${params.tenantId}/login` &&
-          sessionStorage.getItem("redirectAttempt") === targetPath
-        ) {
-          console.log("Detectado posible bucle de redirección, no redirigiendo")
-          sessionStorage.removeItem("redirectAttempt")
-          setIsCheckingAuth(false)
-          return
-        }
-
         // Redirigir según el rol
         if (userProfile.role === "admin") {
           console.log("Redirigiendo a admin dashboard")
-          sessionStorage.setItem("redirectAttempt", targetPath)
-          router.push(targetPath)
-        } else if (userProfile.role === "client") {
-          console.log("Redirigiendo a client dashboard")
-          router.push(`/tenant/${params.tenantId}/client/dashboard`)
+          router.push(`/${params.tenant}/admin/dashboard`)
         } else {
           setIsCheckingAuth(false)
         }
@@ -70,7 +52,7 @@ export default function TenantLoginPage({ params }: { params: { tenantId: string
     }
 
     checkAuth()
-  }, [user, userProfile, router, params.tenantId])
+  }, [user, userProfile, router, params.tenant])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -78,7 +60,7 @@ export default function TenantLoginPage({ params }: { params: { tenantId: string
     setError(null)
 
     try {
-      console.log(`Attempting login for: ${email} on tenant: ${params.tenantId}`)
+      console.log(`Attempting login for: ${email} on tenant: ${params.tenant}`)
       const userCredential = await signIn(email, password)
       console.log("Login successful, checking profile")
 
@@ -93,7 +75,7 @@ export default function TenantLoginPage({ params }: { params: { tenantId: string
           console.log("Profile not found, creating a basic profile")
           await setDoc(userDocRef, {
             email: userCredential.user.email,
-            tenantId: params.tenantId,
+            tenantId: params.tenant,
             role: "client", // Por defecto, los usuarios que se registran en un tenant son clientes
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
@@ -101,7 +83,7 @@ export default function TenantLoginPage({ params }: { params: { tenantId: string
           console.log("Basic profile created as client")
 
           // Redirigir al dashboard de cliente
-          router.push(`/tenant/${params.tenantId}/client/dashboard`)
+          router.push(`/${params.tenant}/client/dashboard`)
           return
         }
 
@@ -113,14 +95,14 @@ export default function TenantLoginPage({ params }: { params: { tenantId: string
         // Redirigir según el rol
         if (role === "admin") {
           console.log("Redirecting to admin dashboard")
-          router.push(`/tenant/${params.tenantId}/client/dashboard`) // Temporalmente redirigir a client dashboard
+          router.push(`/${params.tenant}/admin/dashboard`)
         } else {
           console.log("Redirecting to client dashboard")
-          router.push(`/tenant/${params.tenantId}/client/dashboard`)
+          router.push(`/${params.tenant}/client/dashboard`)
         }
       } else {
         // Redirigir al dashboard general si no hay información de usuario
-        router.push(`/tenant/${params.tenantId}/dashboard`)
+        router.push(`/${params.tenant}/dashboard`)
       }
     } catch (error: any) {
       console.error("Login error:", error)
@@ -145,7 +127,7 @@ export default function TenantLoginPage({ params }: { params: { tenantId: string
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4">
-      <h1 className="mb-6 text-4xl font-bold">Login - Tenant: {params.tenantId}</h1>
+      <h1 className="mb-6 text-4xl font-bold">Login - Tenant: {params.tenant}</h1>
 
       <div className="w-full max-w-md rounded-lg border bg-white p-6 shadow-md">
         <h2 className="mb-4 text-2xl font-semibold">Formulario de login</h2>
@@ -193,15 +175,12 @@ export default function TenantLoginPage({ params }: { params: { tenantId: string
         </form>
 
         <div className="mt-4 text-center">
-          <Link href={`/tenant/${params.tenantId}`} className="text-sm text-gray-600 hover:text-gray-900">
+          <Link href={`/${params.tenant}`} className="text-sm text-gray-600 hover:text-gray-900">
             Volver al inicio
           </Link>
         </div>
         <div className="mt-2 text-center">
-          <Link
-            href={`/tenant/${params.tenantId}/register`}
-            className="text-sm font-medium text-blue-600 hover:text-blue-500"
-          >
+          <Link href={`/${params.tenant}/registro`} className="text-sm font-medium text-blue-600 hover:text-blue-500">
             ¿No tienes una cuenta? Regístrate
           </Link>
         </div>

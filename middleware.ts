@@ -32,25 +32,32 @@ export function middleware(request: NextRequest) {
 
   console.log(`Middleware: Host=${hostname}, Path=${pathname}, Subdomain=${subdomain || "none"}`)
 
-  // Si no hay subdominio o ya estamos en una ruta de tenant, no hacer nada
-  if (!subdomain || pathname.includes(`/tenant/${subdomain}`)) {
+  // Si no hay subdominio, no hacer nada
+  if (!subdomain) {
     return NextResponse.next()
   }
 
   // Evitar bucles de redirección
-  if (pathname.includes("/tenant/")) {
-    console.log("Detectado posible bucle de redirección, no modificando la ruta")
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/static") ||
+    pathname.includes("/login") ||
+    pathname.includes("/registro") ||
+    pathname.includes("/admin") ||
+    pathname.includes("/menu")
+  ) {
     return NextResponse.next()
   }
 
-  // Construir la nueva ruta
-  const newPathname = pathname === "/" ? `/tenant/${subdomain}` : `/tenant/${subdomain}${pathname}`
+  // Si estamos en la raíz del subdominio, redirigir a la landing page del tenant
+  if (pathname === "/") {
+    url.pathname = `/${subdomain}`
+    return NextResponse.rewrite(url)
+  }
 
-  console.log(`Middleware: Rewriting ${pathname} to ${newPathname}`)
-
-  // Reescribir la URL (no redireccionar)
-  url.pathname = newPathname
-  return NextResponse.rewrite(url)
+  // Para otras rutas, mantener la estructura de URL
+  return NextResponse.next()
 }
 
 export const config = {

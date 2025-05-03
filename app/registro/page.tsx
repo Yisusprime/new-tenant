@@ -1,27 +1,21 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 
-export default function TenantRegister({ params }: { params: { tenantId: string } }) {
+export default function Register() {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [companyName, setCompanyName] = useState("")
+  const [subdomain, setSubdomain] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { signUp, user } = useAuth()
+  const { signUp } = useAuth()
   const router = useRouter()
-
-  // Si el usuario ya está autenticado, redirigir al dashboard de cliente
-  useEffect(() => {
-    if (user) {
-      router.push(`/tenant/${params.tenantId}/client/dashboard`)
-    }
-  }, [user, router, params.tenantId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,19 +23,49 @@ export default function TenantRegister({ params }: { params: { tenantId: string 
     setError(null)
 
     try {
-      console.log(`Registrando usuario: ${email} en tenant: ${params.tenantId} como CLIENTE`)
+      // Validar subdominio
+      if (subdomain) {
+        const subdomainRegex = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/
+        if (!subdomainRegex.test(subdomain)) {
+          throw new Error(
+            "El subdominio solo puede contener letras minúsculas, números y guiones. No puede comenzar ni terminar con guión.",
+          )
+        }
+      }
 
-      // IMPORTANTE: Siempre asignar rol de cliente en el registro de tenant
+      console.log(`Registrando usuario: ${email} con subdominio: ${subdomain || "ninguno"} como ADMIN`)
+
+      // IMPORTANTE: Siempre asignar rol de admin en el registro principal
       await signUp(email, password, {
         name,
-        tenantId: params.tenantId,
-        role: "client", // Asegurar que el rol sea "client"
+        companyName,
+        subdomain,
+        role: "admin", // Asignar explícitamente el rol de admin
       })
 
-      console.log("Registro exitoso, redirigiendo al dashboard de cliente...")
+      console.log("Registro exitoso, redirigiendo...")
 
-      // Redirigir al dashboard de cliente
-      router.push(`/tenant/${params.tenantId}/client/dashboard`)
+      // Redirigir al dashboard de admin o al tenant si se creó uno
+      if (subdomain) {
+        // Construir URL del subdominio
+        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+        const isLocalhost = window.location.hostname.includes("localhost")
+
+        let dashboardUrl
+        if (isLocalhost) {
+          dashboardUrl = `http://${subdomain}.localhost:3000/admin/dashboard`
+        } else {
+          dashboardUrl = `https://${subdomain}.${rootDomain}/admin/dashboard`
+        }
+
+        console.log(`Redirigiendo a: ${dashboardUrl}`)
+
+        // Usar window.location para una redirección completa
+        window.location.href = dashboardUrl
+      } else {
+        // Redirigir al dashboard general
+        router.push("/admin/dashboard")
+      }
     } catch (error: any) {
       console.error("Error en registro:", error)
       setError(error.message || "Error al registrarse")
@@ -54,12 +78,10 @@ export default function TenantRegister({ params }: { params: { tenantId: string 
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
-            Crear una cuenta en {params.tenantId}
-          </h2>
+          <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">Crear una cuenta</h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             ¿Ya tienes una cuenta?{" "}
-            <Link href={`/tenant/${params.tenantId}/login`} className="font-medium text-blue-600 hover:text-blue-500">
+            <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
               Inicia sesión
             </Link>
           </p>
@@ -110,6 +132,41 @@ export default function TenantRegister({ params }: { params: { tenantId: string 
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
+            <div>
+              <label htmlFor="company-name" className="block text-sm font-medium text-gray-700">
+                Nombre de la empresa
+              </label>
+              <input
+                id="company-name"
+                name="companyName"
+                type="text"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="subdomain" className="block text-sm font-medium text-gray-700">
+                Subdominio
+              </label>
+              <div className="mt-1 flex rounded-md shadow-sm">
+                <input
+                  id="subdomain"
+                  name="subdomain"
+                  type="text"
+                  className="block w-full flex-1 rounded-none rounded-l-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
+                  placeholder="miempresa"
+                  value={subdomain}
+                  onChange={(e) => setSubdomain(e.target.value.toLowerCase())}
+                />
+                <span className="inline-flex items-center rounded-r-md border border-l-0 border-gray-300 bg-gray-50 px-3 text-gray-500 sm:text-sm">
+                  .gastroo.online
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Solo letras minúsculas, números y guiones. No puede comenzar ni terminar con guión.
+              </p>
+            </div>
           </div>
 
           {error && (
@@ -128,12 +185,6 @@ export default function TenantRegister({ params }: { params: { tenantId: string 
             </button>
           </div>
         </form>
-
-        <div className="text-center">
-          <Link href={`/tenant/${params.tenantId}`} className="text-sm text-gray-600 hover:text-gray-900">
-            Volver al inicio
-          </Link>
-        </div>
       </div>
     </div>
   )

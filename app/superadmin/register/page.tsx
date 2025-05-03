@@ -7,7 +7,12 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase/client"
-import { validateSuperAdminSecretKey } from "../actions"
+
+// Función para validar la clave secreta
+async function validateSuperAdminSecretKey(secretKey: string): Promise<boolean> {
+  const expectedSecretKey = process.env.SUPERADMIN_SECRET_KEY || "superadmin123"
+  return secretKey === expectedSecretKey
+}
 
 export default function SuperAdminRegister() {
   const [name, setName] = useState("")
@@ -25,7 +30,7 @@ export default function SuperAdminRegister() {
     setError(null)
 
     try {
-      // Verificar clave secreta usando la acción del servidor
+      // Verificar clave secreta
       const isValidKey = await validateSuperAdminSecretKey(secretKey)
       if (!isValidKey) {
         throw new Error("Clave secreta incorrecta. No tienes permiso para registrarte como superadmin.")

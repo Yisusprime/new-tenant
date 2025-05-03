@@ -13,7 +13,6 @@ import {
 } from "firebase/auth"
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore"
 import { auth, db } from "./firebase/client"
-import { useRouter, usePathname } from "next/navigation"
 
 interface AuthContextType {
   user: User | null
@@ -25,7 +24,6 @@ interface AuthContextType {
   signOut: () => Promise<void>
   getUserProfile: () => Promise<any>
   updateUserProfile: (data: any) => Promise<void>
-  checkTenantAccess: (tenantId: string) => Promise<boolean>
   refreshUserProfile: () => Promise<void>
 }
 
@@ -36,8 +34,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userProfile, setUserProfile] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
-  const pathname = usePathname()
 
   useEffect(() => {
     // Configurar persistencia local para mantener la sesión
@@ -99,9 +95,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Usar el rol proporcionado en userData o "user" como valor por defecto
       const role = userData.role || "user" // Valor por defecto
 
-      // Asegurarse de que el rol sea explícito y no se determine por la ruta
-      console.log("Rol asignado:", role)
-
       // Crear perfil de usuario
       await setDoc(doc(db, "users", user.uid), {
         ...userData,
@@ -110,45 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         updatedAt: serverTimestamp(),
         role,
       })
-      console.log("Perfil de usuario creado")
       console.log("Perfil de usuario creado con rol:", role)
-
-      // Si es el primer usuario, asignarle rol de superadmin
-      if (role !== "superadmin") {
-        const statsDoc = await getDoc(doc(db, "system", "stats"))
-        if (!statsDoc.exists()) {
-          console.log("Primer usuario, asignando rol de superadmin")
-          // Es el primer usuario, asignarle rol de superadmin
-          await setDoc(doc(db, "users", user.uid), {
-            ...userData,
-            email,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-            role: "superadmin",
-          })
-
-          // Crear documento de estadísticas
-          await setDoc(doc(db, "system", "stats"), {
-            totalUsers: 1,
-            totalSuperadmins: 1,
-            totalTenants: 0,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          })
-          console.log("Estadísticas iniciales creadas")
-        } else {
-          // Actualizar estadísticas
-          await setDoc(
-            doc(db, "system", "stats"),
-            {
-              totalUsers: (statsDoc.data()?.totalUsers || 0) + 1,
-              updatedAt: serverTimestamp(),
-            },
-            { merge: true },
-          )
-          console.log("Estadísticas actualizadas")
-        }
-      }
 
       // Si se proporcionó un subdominio, crear tenant
       if (userData.subdomain) {
@@ -172,21 +127,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           { merge: true },
         )
         console.log("Perfil de usuario actualizado con subdominio")
-
-        // Actualizar estadísticas
-        const statsDoc = await getDoc(doc(db, "system", "stats"))
-        if (statsDoc.exists()) {
-          await setDoc(
-            doc(db, "system", "stats"),
-            {
-              ...statsDoc.data(),
-              totalTenants: (statsDoc.data()?.totalTenants || 0) + 1,
-              updatedAt: serverTimestamp(),
-            },
-            { merge: true },
-          )
-          console.log("Estadísticas de tenants actualizadas")
-        }
       }
 
       return userCredential
@@ -263,38 +203,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const checkTenantAccess = async (tenantId: string) => {
-    if (!user) return false
-
-    try {
-      // Obtener perfil del usuario
-      const profile = await getUserProfile()
-
-      if (!profile) return false
-
-      // Si es superadmin, tiene acceso a todos los tenants
-      if (profile.role === "superadmin") return true
-
-      // Si es admin, verificar si es propietario del tenant
-      if (profile.role === "admin") {
-        const tenantDoc = await getDoc(doc(db, "tenants", tenantId))
-        if (tenantDoc.exists() && tenantDoc.data().ownerId === user.uid) {
-          return true
-        }
-      }
-
-      // Si es cliente, verificar si está asociado al tenant
-      if (profile.role === "client" && profile.tenantId === tenantId) {
-        return true
-      }
-
-      return false
-    } catch (error) {
-      console.error("Error al verificar acceso al tenant:", error)
-      return false
-    }
-  }
-
   const value = {
     user,
     userProfile,
@@ -305,7 +213,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut,
     getUserProfile,
     updateUserProfile,
-    checkTenantAccess,
     refreshUserProfile,
   }
 

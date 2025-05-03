@@ -8,9 +8,8 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    domains: ['firebasestorage.googleapis.com'],
     unoptimized: true,
   },
-};
+}
 
-export default nextConfig;
+export default nextConfig
