@@ -1,42 +1,44 @@
-import { NextResponse } from "next/server"
-import type { NextRequest } from "next/server"
-
-export function middleware(request: NextRequest) {
-  const url = request.nextUrl.clone()
-  const { pathname, search, hostname } = url
-
-  // Verificar si estamos en un subdominio
-  const hostParts = hostname.split(".")
-  const isSubdomain = hostParts.length > 2 && hostname !== "www.gastroo.online" && hostname.includes("gastroo.online")
-
-  // Si es un subdominio, extraer el tenant
-  if (isSubdomain) {
-    const tenant = hostParts[0]
-
-    // Si estamos en la ruta raíz, redirigir a la página del tenant
-    if (pathname === "/") {
-      url.pathname = `/tenant/${tenant}`
-      return NextResponse.rewrite(url)
-    }
-  }
-
-  // Si no es un subdominio y estamos en la ruta raíz, mostrar la página principal
-  if (!isSubdomain && pathname === "/") {
-    return NextResponse.next()
-  }
-
-  return NextResponse.next()
-}
+import { type NextRequest, NextResponse } from "next/server"
 
 export const config = {
   matcher: [
     /*
-     * Coincide con todas las rutas excepto:
-     * 1. /api (rutas API)
-     * 2. /_next (archivos Next.js)
-     * 3. /static (archivos estáticos)
-     * 4. /favicon.ico, /robots.txt, etc.
+     * Match all paths except for:
+     * 1. /api routes
+     * 2. /_next (Next.js internals)
+     * 3. /fonts (inside /public)
+     * 4. /examples (inside /public)
+     * 5. all root files inside /public (e.g. /favicon.ico)
      */
-    "/((?!api|_next|static|favicon.ico|robots.txt).*)",
+    "/((?!api|_next|fonts|examples|[\\w-]+\\.\\w+).*)",
   ],
+}
+
+export default async function middleware(req: NextRequest) {
+  const url = req.nextUrl
+  const hostname = req.headers.get("host") || ""
+  const path = url.pathname
+
+  // Obtener el dominio principal configurado en las variables de entorno
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+
+  // Verificar si estamos en un subdominio
+  const isTenantDomain = hostname.includes(`.${rootDomain}`) && !hostname.startsWith("www.")
+
+  // Extraer el subdominio (tenant)
+  const subdomain = hostname.replace(`.${rootDomain}`, "")
+
+  // Si estamos en un subdominio, redirigir a la ruta del tenant
+  if (isTenantDomain) {
+    // Si la ruta ya incluye el tenant, no hacer nada
+    if (path.startsWith(`/${subdomain}`)) {
+      return NextResponse.next()
+    }
+
+    // Redirigir a la ruta del tenant
+    return NextResponse.rewrite(new URL(`/${subdomain}${path === "/" ? "" : path}`, req.url))
+  }
+
+  // Si estamos en el dominio principal, no hacer nada
+  return NextResponse.next()
 }
