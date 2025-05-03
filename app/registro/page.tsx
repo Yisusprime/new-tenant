@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useTransition } from "react"
+import { useState, useTransition, useEffect } from "react"
 import Link from "next/link"
 import { registerTenant } from "../actions"
 
@@ -14,6 +14,34 @@ export default function Registro() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const [isPending, startTransition] = useTransition()
+  const [debugInfo, setDebugInfo] = useState<any>(null)
+
+  // Verificar que las variables de entorno estén disponibles
+  useEffect(() => {
+    const checkEnvVars = async () => {
+      try {
+        const envCheck = {
+          apiKey: !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+          authDomain: !!process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+          projectId: !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+          rootDomain: !!process.env.NEXT_PUBLIC_ROOT_DOMAIN,
+        }
+
+        setDebugInfo(envCheck)
+
+        if (Object.values(envCheck).some((val) => !val)) {
+          console.warn(
+            "Algunas variables de entorno no están definidas:",
+            Object.keys(envCheck).filter((key) => !envCheck[key as keyof typeof envCheck]),
+          )
+        }
+      } catch (error) {
+        console.error("Error al verificar variables de entorno:", error)
+      }
+    }
+
+    checkEnvVars()
+  }, [])
 
   const handleSubdomainChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Convertir a minúsculas y eliminar caracteres no permitidos
@@ -43,23 +71,28 @@ export default function Registro() {
     }
 
     startTransition(async () => {
-      const formData = new FormData()
-      formData.append("name", name)
-      formData.append("email", email)
-      formData.append("password", password)
-      formData.append("confirmPassword", confirmPassword)
-      formData.append("subdomain", subdomain)
+      try {
+        const formData = new FormData()
+        formData.append("name", name)
+        formData.append("email", email)
+        formData.append("password", password)
+        formData.append("confirmPassword", confirmPassword)
+        formData.append("subdomain", subdomain)
 
-      const result = await registerTenant(formData)
+        const result = await registerTenant(formData)
 
-      if (result.success) {
-        setSuccess("¡Registro exitoso! Redirigiendo al dashboard...")
-        // Redirigir al dashboard del tenant
-        setTimeout(() => {
-          window.location.href = result.tenantUrl
-        }, 2000)
-      } else {
-        setError(result.message || "Error al registrarse")
+        if (result.success) {
+          setSuccess("¡Registro exitoso! Redirigiendo al dashboard...")
+          // Redirigir al dashboard del tenant
+          setTimeout(() => {
+            window.location.href = result.tenantUrl
+          }, 2000)
+        } else {
+          setError(result.message || "Error al registrarse")
+        }
+      } catch (error: any) {
+        console.error("Error en el registro:", error)
+        setError(error.message || "Error inesperado durante el registro")
       }
     })
   }
@@ -86,6 +119,22 @@ export default function Registro() {
           {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
           {success && (
             <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">{success}</div>
+          )}
+
+          {/* Información de depuración */}
+          {debugInfo && Object.values(debugInfo).some((val) => !val) && (
+            <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
+              <p className="font-bold">Advertencia: Configuración incompleta</p>
+              <p className="text-sm">
+                Algunas variables de entorno no están definidas. Esto puede causar problemas con Firebase.
+              </p>
+              <details className="mt-2">
+                <summary className="cursor-pointer text-sm">Ver detalles</summary>
+                <pre className="mt-2 text-xs bg-yellow-50 p-2 rounded overflow-auto">
+                  {JSON.stringify(debugInfo, null, 2)}
+                </pre>
+              </details>
+            </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">

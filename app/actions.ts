@@ -51,12 +51,16 @@ async function validateSubdomain(subdomain: string): Promise<{ valid: boolean; m
 // Función para registrar un nuevo tenant
 export async function registerTenant(formData: FormData) {
   try {
+    console.log("Iniciando registro de tenant")
+
     // Extraer datos del formulario
     const name = formData.get("name") as string
     const email = formData.get("email") as string
     const password = formData.get("password") as string
     const confirmPassword = formData.get("confirmPassword") as string
     const subdomain = (formData.get("subdomain") as string).toLowerCase()
+
+    console.log("Datos recibidos:", { name, email, subdomain })
 
     // Validar datos
     if (!name || !email || !password || !confirmPassword || !subdomain) {
@@ -73,11 +77,20 @@ export async function registerTenant(formData: FormData) {
       return { success: false, message: subdomainValidation.message }
     }
 
+    // Verificar que Firebase esté configurado correctamente
+    if (!auth) {
+      console.error("Firebase Auth no está inicializado correctamente")
+      return { success: false, message: "Error de configuración: Firebase Auth no está disponible" }
+    }
+
     // Crear usuario en Firebase Authentication
+    console.log("Creando usuario en Firebase Auth")
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     const uid = userCredential.user.uid
+    console.log("Usuario creado con UID:", uid)
 
     // Crear documento del tenant en Firestore
+    console.log("Creando documento del tenant en Firestore")
     const tenantRef = doc(db, "tenants", subdomain)
     await setDoc(tenantRef, {
       name,
@@ -89,6 +102,7 @@ export async function registerTenant(formData: FormData) {
     })
 
     // Crear perfil de usuario con rol de admin
+    console.log("Creando perfil de usuario")
     await setDoc(doc(db, "users", uid), {
       name,
       email,
@@ -99,6 +113,7 @@ export async function registerTenant(formData: FormData) {
     })
 
     // Actualizar estadísticas
+    console.log("Actualizando estadísticas")
     const statsRef = doc(db, "system", "stats")
     const statsDoc = await getDoc(statsRef)
 
@@ -124,6 +139,7 @@ export async function registerTenant(formData: FormData) {
 
     // Establecer cookie con información del tenant
     const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+    console.log("Configurando cookies con dominio raíz:", rootDomain)
 
     cookies().set("current_tenant", subdomain, {
       httpOnly: false, // Accesible desde JavaScript
@@ -150,6 +166,7 @@ export async function registerTenant(formData: FormData) {
         ? `https://${subdomain}.${rootDomain}/admin/dashboard`
         : `http://${subdomain}.localhost:3000/admin/dashboard`
 
+    console.log("Registro exitoso, redirigiendo a:", tenantUrl)
     return { success: true, tenantUrl }
   } catch (error: any) {
     console.error("Error al registrar tenant:", error)
