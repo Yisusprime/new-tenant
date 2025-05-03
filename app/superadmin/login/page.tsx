@@ -43,9 +43,27 @@ export default function SuperAdminLoginPage() {
       // Verificar si el usuario es superadmin
       const userDoc = await getDoc(doc(db, "users", user.uid))
 
-      if (!userDoc.exists() || userDoc.data().role !== "superadmin") {
+      if (!userDoc.exists()) {
+        toast({
+          title: "Error",
+          description: "Usuario no encontrado en la base de datos.",
+          variant: "destructive",
+        })
         await auth.signOut()
-        throw new Error("No tienes permisos de Super Admin")
+        setIsLoading(false)
+        return
+      }
+
+      const userData = userDoc.data()
+      if (userData.role !== "superadmin") {
+        toast({
+          title: "Error",
+          description: "No tienes permisos de Super Admin.",
+          variant: "destructive",
+        })
+        await auth.signOut()
+        setIsLoading(false)
+        return
       }
 
       toast({
@@ -57,9 +75,22 @@ export default function SuperAdminLoginPage() {
       router.push("/superadmin/dashboard")
     } catch (error: any) {
       console.error("Error al iniciar sesión:", error)
+
+      // Mensajes de error más específicos
+      let errorMessage = "Credenciales incorrectas o no tienes permisos de Super Admin."
+      if (error.code === "auth/invalid-credential") {
+        errorMessage = "Email o contraseña incorrectos."
+      } else if (error.code === "auth/user-not-found") {
+        errorMessage = "No existe una cuenta con este email."
+      } else if (error.code === "auth/wrong-password") {
+        errorMessage = "Contraseña incorrecta."
+      } else if (error.code === "auth/too-many-requests") {
+        errorMessage = "Demasiados intentos fallidos. Intenta más tarde."
+      }
+
       toast({
         title: "Error",
-        description: error.message || "Credenciales incorrectas o no tienes permisos de Super Admin.",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {

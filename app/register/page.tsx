@@ -79,12 +79,24 @@ export default function RegisterPage() {
       })
 
       // Redireccionar al subdominio del tenant
-      window.location.href = `https://${formData.tenant}.gastroo.online/admin/dashboard`
+      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+      window.location.href = `https://${formData.tenant}.${rootDomain}/admin/dashboard`
     } catch (error: any) {
       console.error("Error al registrar:", error)
+
+      // Mensajes de error más específicos
+      let errorMessage = "Ocurrió un error durante el registro."
+      if (error.code === "auth/email-already-in-use") {
+        errorMessage = "Este correo electrónico ya está registrado."
+      } else if (error.code === "auth/invalid-email") {
+        errorMessage = "El formato del correo electrónico es inválido."
+      } else if (error.code === "auth/weak-password") {
+        errorMessage = "La contraseña es demasiado débil."
+      }
+
       toast({
         title: "Error",
-        description: error.message || "Ocurrió un error durante el registro.",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {

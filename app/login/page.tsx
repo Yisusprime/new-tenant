@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,6 +15,7 @@ import { auth, db } from "@/lib/firebase-config"
 import { useToast } from "@/components/ui/use-toast"
 
 export default function LoginPage() {
+  const router = useRouter()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -47,24 +49,41 @@ export default function LoginPage() {
 
       const userData = userDoc.data()
       const tenantId = userData.tenantId
+      const role = userData.role
 
       toast({
         title: "Inicio de sesión exitoso",
         description: "Has iniciado sesión correctamente.",
       })
 
-      // Redireccionar al subdominio del tenant
-      if (tenantId) {
-        window.location.href = `https://${tenantId}.gastroo.online/admin/dashboard`
+      // Redireccionar según el rol y tenant
+      if (role === "superadmin") {
+        router.push("/superadmin/dashboard")
+      } else if (tenantId) {
+        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+        window.location.href = `https://${tenantId}.${rootDomain}/admin/dashboard`
       } else {
         // Si no tiene tenant, redirigir a la página principal
-        window.location.href = "/"
+        router.push("/")
       }
     } catch (error: any) {
       console.error("Error al iniciar sesión:", error)
+
+      // Mensajes de error más específicos
+      let errorMessage = "Credenciales incorrectas."
+      if (error.code === "auth/invalid-credential") {
+        errorMessage = "Email o contraseña incorrectos."
+      } else if (error.code === "auth/user-not-found") {
+        errorMessage = "No existe una cuenta con este email."
+      } else if (error.code === "auth/wrong-password") {
+        errorMessage = "Contraseña incorrecta."
+      } else if (error.code === "auth/too-many-requests") {
+        errorMessage = "Demasiados intentos fallidos. Intenta más tarde."
+      }
+
       toast({
         title: "Error",
-        description: error.message || "Credenciales incorrectas.",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
