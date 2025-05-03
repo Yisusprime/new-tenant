@@ -29,11 +29,17 @@ export default function Login() {
       } else if (userProfile?.role === "admin" && userProfile?.subdomain) {
         // Si es admin y tiene un subdominio, redirigir al dashboard del tenant
         const isLocalhost = window.location.hostname.includes("localhost")
-        const baseUrl = isLocalhost
-          ? `http://${userProfile.subdomain}.localhost:3000`
-          : `https://${userProfile.subdomain}.gastroo.online`
+        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
 
-        window.location.href = `${baseUrl}/admin/dashboard`
+        let dashboardUrl
+        if (isLocalhost) {
+          dashboardUrl = `http://${userProfile.subdomain}.localhost:3000/admin/dashboard`
+        } else {
+          dashboardUrl = `https://${userProfile.subdomain}.${rootDomain}/admin/dashboard`
+        }
+
+        console.log(`Redirigiendo a: ${dashboardUrl}`)
+        window.location.href = dashboardUrl
       } else {
         router.push("/admin/dashboard")
       }

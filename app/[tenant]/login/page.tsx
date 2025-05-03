@@ -41,7 +41,7 @@ export default function TenantLoginPage({ params }: { params: { tenant: string }
         // Redirigir según el rol
         if (userProfile.role === "admin") {
           console.log("Redirigiendo a admin dashboard")
-          router.push(`/${params.tenant}/admin/dashboard`)
+          router.push(`/admin/dashboard`)
         } else {
           setIsCheckingAuth(false)
         }
@@ -52,9 +52,7 @@ export default function TenantLoginPage({ params }: { params: { tenant: string }
     }
 
     checkAuth()
-  }, [user, userProfile, router, params.tenant])
-
-  // Actualizar la función handleSubmit para redirigir correctamente según el rol
+  }, [user, userProfile, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -85,7 +83,7 @@ export default function TenantLoginPage({ params }: { params: { tenant: string }
           console.log("Basic profile created as client")
 
           // Redirigir al dashboard de cliente
-          router.push(`/${params.tenant}/client/dashboard`)
+          router.push(`/client/dashboard`)
           return
         }
 
@@ -97,14 +95,14 @@ export default function TenantLoginPage({ params }: { params: { tenant: string }
         // Redirigir según el rol
         if (role === "admin") {
           console.log("Redirecting to admin dashboard")
-          router.push(`/${params.tenant}/admin/dashboard`)
+          router.push(`/admin/dashboard`)
         } else {
           console.log("Redirecting to client dashboard")
-          router.push(`/${params.tenant}/client/dashboard`)
+          router.push(`/client/dashboard`)
         }
       } else {
         // Redirigir al dashboard general si no hay información de usuario
-        router.push(`/${params.tenant}/dashboard`)
+        router.push(`/dashboard`)
       }
     } catch (error: any) {
       console.error("Login error:", error)
@@ -177,12 +175,12 @@ export default function TenantLoginPage({ params }: { params: { tenant: string }
         </form>
 
         <div className="mt-4 text-center">
-          <Link href={`/${params.tenant}`} className="text-sm text-gray-600 hover:text-gray-900">
+          <Link href="/" className="text-sm text-gray-600 hover:text-gray-900">
             Volver al inicio
           </Link>
         </div>
         <div className="mt-2 text-center">
-          <Link href={`/${params.tenant}/registro`} className="text-sm font-medium text-blue-600 hover:text-blue-500">
+          <Link href="/registro" className="text-sm font-medium text-blue-600 hover:text-blue-500">
             ¿No tienes una cuenta? Regístrate
           </Link>
         </div>

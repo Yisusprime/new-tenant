@@ -16,7 +16,7 @@ export default function ClientDashboard({ params }: { params: { tenant: string }
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push(`/${params.tenant}/login`)
+      router.push(`/login`)
     } else if (!loading && user && userProfile) {
       // Verificar que el usuario es cliente o admin
       if (userProfile?.role !== "client" && userProfile?.role !== "admin") {
@@ -125,25 +125,22 @@ export default function ClientDashboard({ params }: { params: { tenant: string }
           <nav className="p-4">
             <ul className="space-y-2">
               <li>
-                <Link
-                  href={`/${params.tenant}/client/dashboard`}
-                  className="block rounded bg-blue-100 p-2 font-medium text-blue-800"
-                >
+                <Link href="/client/dashboard" className="block rounded bg-blue-100 p-2 font-medium text-blue-800">
                   Dashboard
                 </Link>
               </li>
               <li>
-                <Link href={`/${params.tenant}/client/orders`} className="block rounded p-2 hover:bg-gray-200">
+                <Link href="/client/orders" className="block rounded p-2 hover:bg-gray-200">
                   Mis Pedidos
                 </Link>
               </li>
               <li>
-                <Link href={`/${params.tenant}/menu`} className="block rounded p-2 hover:bg-gray-200">
+                <Link href="/menu" className="block rounded p-2 hover:bg-gray-200">
                   Ver Menú
                 </Link>
               </li>
               <li>
-                <Link href={`/${params.tenant}/client/profile`} className="block rounded p-2 hover:bg-gray-200">
+                <Link href="/client/profile" className="block rounded p-2 hover:bg-gray-200">
                   Mi Perfil
                 </Link>
               </li>
@@ -159,10 +156,7 @@ export default function ClientDashboard({ params }: { params: { tenant: string }
               <div className="rounded-lg border bg-white p-6 shadow-sm">
                 <h3 className="mb-2 text-lg font-semibold text-gray-700">Pedidos Recientes</h3>
                 <p className="text-gray-600">No tienes pedidos recientes.</p>
-                <Link
-                  href={`/${params.tenant}/menu`}
-                  className="mt-4 inline-block text-sm text-blue-600 hover:underline"
-                >
+                <Link href="/menu" className="mt-4 inline-block text-sm text-blue-600 hover:underline">
                   Realizar un pedido →
                 </Link>
               </div>
@@ -176,10 +170,7 @@ export default function ClientDashboard({ params }: { params: { tenant: string }
                     <span className="font-medium">Email:</span> {userProfile.email}
                   </p>
                 </div>
-                <Link
-                  href={`/${params.tenant}/client/profile`}
-                  className="mt-4 inline-block text-sm text-blue-600 hover:underline"
-                >
+                <Link href="/client/profile" className="mt-4 inline-block text-sm text-blue-600 hover:underline">
                   Editar perfil →
                 </Link>
               </div>
@@ -188,16 +179,10 @@ export default function ClientDashboard({ params }: { params: { tenant: string }
             <div className="rounded-lg border bg-white p-6 shadow-sm">
               <h3 className="mb-4 text-xl font-semibold">Acciones Rápidas</h3>
               <div className="flex flex-wrap gap-4">
-                <Link
-                  href={`/${params.tenant}/menu`}
-                  className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-                >
+                <Link href="/menu" className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
                   Ver Menú
                 </Link>
-                <Link
-                  href={`/${params.tenant}/client/orders`}
-                  className="rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700"
-                >
+                <Link href="/client/orders" className="rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700">
                   Mis Pedidos
                 </Link>
               </div>

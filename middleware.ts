@@ -14,12 +14,19 @@ function getSubdomain(host: string): string | null {
 
   // Para producción
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-  if (!host.includes(`.${rootDomain}`)) return null
 
-  const subdomain = host.replace(`.${rootDomain}`, "")
-  if (subdomain === "www") return null
+  // Verificar si el host incluye el dominio raíz
+  if (!host.includes(rootDomain)) return null
 
-  return subdomain
+  // Extraer el subdominio
+  const parts = host.split(".")
+  if (parts.length > 2) {
+    const subdomain = parts[0]
+    if (subdomain === "www") return null
+    return subdomain
+  }
+
+  return null
 }
 
 export function middleware(request: NextRequest) {
@@ -32,32 +39,37 @@ export function middleware(request: NextRequest) {
 
   console.log(`Middleware: Host=${hostname}, Path=${pathname}, Subdomain=${subdomain || "none"}`)
 
-  // Si no hay subdominio, no hacer nada
-  if (!subdomain) {
-    return NextResponse.next()
-  }
-
-  // Evitar bucles de redirección
+  // Evitar bucles de redirección para recursos estáticos y API
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
     pathname.startsWith("/static") ||
-    pathname.includes("/login") ||
-    pathname.includes("/registro") ||
-    pathname.includes("/admin") ||
-    pathname.includes("/menu")
+    pathname.includes(".") // Archivos como favicon.ico, etc.
   ) {
     return NextResponse.next()
   }
 
-  // Si estamos en la raíz del subdominio, redirigir a la landing page del tenant
-  if (pathname === "/") {
-    url.pathname = `/${subdomain}`
-    return NextResponse.rewrite(url)
+  // Si estamos en el dominio principal (www o sin subdominio), no reescribir
+  if (!subdomain) {
+    return NextResponse.next()
   }
 
-  // Para otras rutas, mantener la estructura de URL
-  return NextResponse.next()
+  // IMPORTANTE: Para rutas en subdominios, reescribir internamente a la estructura de carpetas correcta
+  // pero mantener la URL original para el usuario
+
+  // Si estamos en la raíz del subdominio
+  if (pathname === "/") {
+    // Reescribir a la página del tenant
+    const newUrl = new URL(`/app/${subdomain}`, request.url)
+    console.log(`Reescribiendo / a /app/${subdomain}`)
+    return NextResponse.rewrite(newUrl)
+  }
+
+  // Para rutas de administración y otras rutas específicas
+  // Reescribir a la estructura de carpetas correcta
+  const newUrl = new URL(`/app/${subdomain}${pathname}`, request.url)
+  console.log(`Reescribiendo ${pathname} a /app/${subdomain}${pathname}`)
+  return NextResponse.rewrite(newUrl)
 }
 
 export const config = {

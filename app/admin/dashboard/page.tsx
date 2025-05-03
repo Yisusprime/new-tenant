@@ -7,7 +7,7 @@ import { doc, getDoc, collection, getDocs, query, where } from "firebase/firesto
 import { db } from "@/lib/firebase/client"
 import Link from "next/link"
 
-export default function AdminDashboard({ params }: { params: { tenant: string } }) {
+export default function AdminDashboard() {
   const { user, userProfile, loading, signOut } = useAuth()
   const router = useRouter()
   const [tenantData, setTenantData] = useState<any>(null)
@@ -18,21 +18,48 @@ export default function AdminDashboard({ params }: { params: { tenant: string } 
   })
   const [loadingData, setLoadingData] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [subdomain, setSubdomain] = useState<string | null>(null)
 
   useEffect(() => {
+    // Detectar el subdominio actual
+    const hostname = window.location.hostname
+    const isLocalhost = hostname.includes("localhost")
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+
+    let detectedSubdomain: string | null = null
+
+    if (isLocalhost) {
+      const parts = hostname.split(".")
+      if (parts.length > 1 && parts[0] !== "www") {
+        detectedSubdomain = parts[0]
+      }
+    } else if (hostname.includes(rootDomain)) {
+      const parts = hostname.split(".")
+      if (parts.length > 2) {
+        detectedSubdomain = parts[0]
+      }
+    }
+
+    console.log("Subdominio detectado:", detectedSubdomain)
+    setSubdomain(detectedSubdomain)
+
     if (!loading && !user) {
-      router.push(`/login`)
+      if (detectedSubdomain) {
+        router.push(`/login`)
+      } else {
+        router.push(`/login`)
+      }
     } else if (!loading && user && userProfile) {
       // Verificar que el usuario es admin
       if (userProfile?.role !== "admin") {
-        setError("No tienes permisos de administrador para este tenant")
+        setError("No tienes permisos de administrador")
         setLoadingData(false)
       } else {
         // Cargar datos del tenant
-        loadTenantData(params.tenant)
+        loadTenantData(detectedSubdomain || userProfile.subdomain)
       }
     }
-  }, [loading, user, userProfile, router, params.tenant])
+  }, [loading, user, userProfile, router])
 
   const loadTenantData = async (tenantId: string) => {
     try {
@@ -90,7 +117,7 @@ export default function AdminDashboard({ params }: { params: { tenant: string } 
         <header className="border-b bg-white">
           <div className="container mx-auto flex h-16 items-center justify-between px-4">
             <div className="flex items-center">
-              <h1 className="text-xl font-bold">{params.tenant} - Error de Acceso</h1>
+              <h1 className="text-xl font-bold">{subdomain || userProfile?.subdomain} - Error de Acceso</h1>
             </div>
             <div className="flex items-center space-x-4">
               <span>{userProfile?.email || user.email}</span>

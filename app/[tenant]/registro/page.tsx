@@ -29,7 +29,7 @@ export default function TenantRegisterPage({ params }: { params: { tenant: strin
       })
 
       // Redirigir al dashboard de cliente
-      router.push(`/${params.tenant}/client/dashboard`)
+      router.push(`/client/dashboard`)
     } catch (error: any) {
       console.error("Error en registro:", error)
       setError(error.message || "Error al registrarse")
@@ -47,7 +47,7 @@ export default function TenantRegisterPage({ params }: { params: { tenant: strin
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             ¿Ya tienes una cuenta?{" "}
-            <Link href={`/${params.tenant}/login`} className="font-medium text-blue-600 hover:text-blue-500">
+            <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
               Inicia sesión
             </Link>
           </p>
@@ -117,7 +117,7 @@ export default function TenantRegisterPage({ params }: { params: { tenant: strin
           </div>
 
           <div className="text-center">
-            <Link href={`/${params.tenant}`} className="text-sm text-gray-600 hover:text-gray-900">
+            <Link href="/" className="text-sm text-gray-600 hover:text-gray-900">
               Volver al inicio
             </Link>
           </div>

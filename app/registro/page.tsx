@@ -17,8 +17,6 @@ export default function Register() {
   const { signUp } = useAuth()
   const router = useRouter()
 
-  // Actualizar la función handleSubmit para asegurar la correcta redirección
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -26,16 +24,18 @@ export default function Register() {
 
     try {
       // Validar subdominio
-      if (subdomain) {
-        const subdomainRegex = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/
-        if (!subdomainRegex.test(subdomain)) {
-          throw new Error(
-            "El subdominio solo puede contener letras minúsculas, números y guiones. No puede comenzar ni terminar con guión.",
-          )
-        }
+      if (!subdomain) {
+        throw new Error("El subdominio es obligatorio")
       }
 
-      console.log(`Registrando usuario: ${email} con subdominio: ${subdomain || "ninguno"} como ADMIN`)
+      const subdomainRegex = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/
+      if (!subdomainRegex.test(subdomain)) {
+        throw new Error(
+          "El subdominio solo puede contener letras minúsculas, números y guiones. No puede comenzar ni terminar con guión.",
+        )
+      }
+
+      console.log(`Registrando usuario: ${email} con subdominio: ${subdomain} como ADMIN`)
 
       // IMPORTANTE: Siempre asignar rol de admin en el registro principal
       await signUp(email, password, {
@@ -45,29 +45,23 @@ export default function Register() {
         role: "admin", // Asignar explícitamente el rol de admin
       })
 
-      console.log("Registro exitoso, redirigiendo...")
+      console.log("Registro exitoso, redirigiendo al subdominio...")
 
-      // Redirigir al dashboard de admin o al tenant si se creó uno
-      if (subdomain) {
-        // Construir URL del subdominio
-        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-        const isLocalhost = window.location.hostname.includes("localhost")
+      // Construir URL del subdominio
+      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+      const isLocalhost = window.location.hostname.includes("localhost")
 
-        let dashboardUrl
-        if (isLocalhost) {
-          dashboardUrl = `http://${subdomain}.localhost:3000/admin/dashboard`
-        } else {
-          dashboardUrl = `https://${subdomain}.${rootDomain}/admin/dashboard`
-        }
-
-        console.log(`Redirigiendo a: ${dashboardUrl}`)
-
-        // Usar window.location para una redirección completa
-        window.location.href = dashboardUrl
+      let dashboardUrl
+      if (isLocalhost) {
+        dashboardUrl = `http://${subdomain}.localhost:3000/admin/dashboard`
       } else {
-        // Redirigir al dashboard general
-        router.push("/admin/dashboard")
+        dashboardUrl = `https://${subdomain}.${rootDomain}/admin/dashboard`
       }
+
+      console.log(`Redirigiendo a: ${dashboardUrl}`)
+
+      // Usar window.location para una redirección completa
+      window.location.href = dashboardUrl
     } catch (error: any) {
       console.error("Error en registro:", error)
       setError(error.message || "Error al registrarse")
@@ -142,6 +136,7 @@ export default function Register() {
                 id="company-name"
                 name="companyName"
                 type="text"
+                required
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
@@ -156,6 +151,7 @@ export default function Register() {
                   id="subdomain"
                   name="subdomain"
                   type="text"
+                  required
                   className="block w-full flex-1 rounded-none rounded-l-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
                   placeholder="miempresa"
                   value={subdomain}
