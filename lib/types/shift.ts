@@ -21,7 +21,7 @@ export interface ShiftContextType {
   shifts: Shift[]
   loading: boolean
   error: string | null
-  startShift: (shiftData: Partial<Shift>) => Promise<string>
+  startShift: (shiftData?: Partial<Shift>) => Promise<string>
   endShift: (shiftId: string, summary?: Shift["summary"]) => Promise<void>
   getShift: (shiftId: string) => Promise<Shift | null>
   refreshShifts: () => Promise<void>

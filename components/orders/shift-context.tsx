@@ -7,15 +7,21 @@ import { rtdb } from "@/lib/firebase-config"
 import { useAuth } from "@/lib/auth-context"
 import type { Shift, ShiftContextType } from "@/lib/types/shift"
 
-// Crear el contexto
-const ShiftContext = createContext<ShiftContextType | undefined>(undefined)
+// Crear el contexto con un valor inicial definido
+const ShiftContext = createContext<ShiftContextType>({
+  currentShift: null,
+  shifts: [],
+  loading: true,
+  error: null,
+  startShift: async () => "",
+  endShift: async () => {},
+  getShift: async () => null,
+  refreshShifts: async () => {},
+})
 
 // Hook para usar el contexto
 export function useShiftContext() {
   const context = useContext(ShiftContext)
-  if (context === undefined) {
-    throw new Error("useShiftContext must be used within a ShiftProvider")
-  }
   return context
 }
 
@@ -134,7 +140,7 @@ export function ShiftProvider({ children, tenantId }: ShiftProviderProps) {
   }, [tenantId])
 
   // Función para iniciar un nuevo turno
-  const startShift = async (shiftData: Partial<Shift>): Promise<string> => {
+  const startShift = async (shiftData: Partial<Shift> = {}): Promise<string> => {
     try {
       if (!tenantId) {
         throw new Error("No tenantId provided")
