@@ -98,11 +98,6 @@ export function SubcategoryList({ categoryId }: SubcategoryListProps) {
                   {subcategory.description && (
                     <p className="text-xs text-muted-foreground line-clamp-1">{subcategory.description}</p>
                   )}
-                  {subcategory.imageUrl && (
-                    <p className="text-xs text-muted-foreground mt-1 truncate">
-                      <span className="font-medium">URL:</span> {subcategory.imageUrl}
-                    </p>
-                  )}
                 </div>
                 <div className="flex items-center gap-1">
                   <Button

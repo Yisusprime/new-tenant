@@ -116,12 +116,12 @@ export function CategoryForm({ categoryId, onCancel }: CategoryFormProps) {
               folder="categories"
               tenantId={tenantId}
             />
-            {imageUrl && (
+            {/* {imageUrl && (
               <div className="mt-2">
                 <p className="text-xs text-muted-foreground">URL de la imagen:</p>
                 <code className="text-xs block bg-muted p-2 rounded mt-1 break-all">{imageUrl}</code>
               </div>
-            )}
+            )} */}
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

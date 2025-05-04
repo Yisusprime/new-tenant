@@ -119,11 +119,6 @@ export function CategoryList() {
                       {category.description && (
                         <p className="text-sm text-muted-foreground line-clamp-1">{category.description}</p>
                       )}
-                      {category.imageUrl && (
-                        <p className="text-xs text-muted-foreground mt-1 truncate">
-                          <span className="font-medium">URL:</span> {category.imageUrl}
-                        </p>
-                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
