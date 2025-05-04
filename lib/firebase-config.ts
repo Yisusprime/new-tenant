@@ -21,4 +21,4 @@ const db = getFirestore(app)
 const rtdb = getDatabase(app)
 const storage = getStorage(app)
 
-export { app, auth, db, rtdb, storage }
+export { app, auth, db, rtdb, storage, rtdb as database }

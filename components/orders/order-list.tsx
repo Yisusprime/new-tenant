@@ -66,11 +66,14 @@ export const OrderList = () => {
     )
   }
 
-  // Definir los estados y sus etiquetas
-  const orderStatuses: { status: OrderStatus; label: string; color: string }[] = [
+  // Definir los estados y sus etiquetas, agrupados por prioridad
+  const priorityStatuses: { status: OrderStatus; label: string; color: string }[] = [
     { status: "pending", label: "Pendientes", color: "bg-yellow-500" },
     { status: "preparing", label: "Preparando", color: "bg-blue-500" },
     { status: "ready", label: "Listos", color: "bg-green-500" },
+  ]
+
+  const secondaryStatuses: { status: OrderStatus; label: string; color: string }[] = [
     { status: "delivered", label: "Entregados", color: "bg-purple-500" },
     { status: "completed", label: "Completados", color: "bg-green-700" },
     { status: "cancelled", label: "Cancelados", color: "bg-red-500" },
@@ -82,38 +85,77 @@ export const OrderList = () => {
         <h2 className="text-2xl font-bold mb-4">Gestión de Pedidos</h2>
 
         {/* Pestañas de estado para pantallas medianas y grandes */}
-        <div className="hidden md:flex flex-wrap gap-2">
-          {orderStatuses.map(({ status, label, color }) => (
-            <Button
-              key={status}
-              variant={activeTab === status ? "default" : "outline"}
-              className={`relative ${activeTab === status ? color + " text-white" : ""}`}
-              onClick={() => setActiveTab(status)}
-            >
-              {label}
-              {orderCounts[status] > 0 && (
-                <span className="absolute -top-2 -right-2 flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                  {orderCounts[status]}
-                </span>
-              )}
-            </Button>
-          ))}
+        <div className="hidden md:block">
+          <div className="flex flex-wrap gap-2 mb-2">
+            {priorityStatuses.map(({ status, label, color }) => (
+              <Button
+                key={status}
+                variant={activeTab === status ? "default" : "outline"}
+                className={`relative font-semibold ${activeTab === status ? color + " text-white" : ""}`}
+                onClick={() => setActiveTab(status)}
+                size="lg"
+              >
+                {label}
+                {orderCounts[status] > 0 && (
+                  <span className="ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-medium rounded-full bg-white bg-opacity-30 text-white">
+                    {orderCounts[status]}
+                  </span>
+                )}
+              </Button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {secondaryStatuses.map(({ status, label, color }) => (
+              <Button
+                key={status}
+                variant={activeTab === status ? "default" : "outline"}
+                className={`relative text-sm ${activeTab === status ? color + " text-white" : "text-gray-500"}`}
+                onClick={() => setActiveTab(status)}
+                size="sm"
+              >
+                {label}
+                {orderCounts[status] > 0 && (
+                  <span className="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium rounded-full bg-white bg-opacity-30 text-white">
+                    {orderCounts[status]}
+                  </span>
+                )}
+              </Button>
+            ))}
+          </div>
         </div>
 
         {/* Pestañas de estado para móviles */}
         <div className="md:hidden">
-          <div className="grid grid-cols-2 gap-2">
-            {orderStatuses.map(({ status, label, color }) => (
+          <div className="grid grid-cols-3 gap-2 mb-2">
+            {priorityStatuses.map(({ status, label, color }) => (
               <Button
                 key={status}
                 variant={activeTab === status ? "default" : "outline"}
-                className={`relative ${activeTab === status ? color + " text-white" : ""}`}
+                className={`relative font-semibold ${activeTab === status ? color + " text-white" : ""}`}
                 onClick={() => setActiveTab(status)}
                 size="sm"
               >
                 <span className="truncate">{label}</span>
                 {orderCounts[status] > 0 && (
-                  <span className="absolute -top-2 -right-2 flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                  <span className="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium rounded-full bg-white bg-opacity-30 text-white">
+                    {orderCounts[status]}
+                  </span>
+                )}
+              </Button>
+            ))}
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {secondaryStatuses.map(({ status, label, color }) => (
+              <Button
+                key={status}
+                variant={activeTab === status ? "default" : "outline"}
+                className={`relative text-xs ${activeTab === status ? color + " text-white" : "text-gray-500"}`}
+                onClick={() => setActiveTab(status)}
+                size="sm"
+              >
+                <span className="truncate">{label}</span>
+                {orderCounts[status] > 0 && (
+                  <span className="ml-1 inline-flex items-center justify-center px-1 py-0.5 text-xs font-medium rounded-full bg-white bg-opacity-30 text-white">
                     {orderCounts[status]}
                   </span>
                 )}
@@ -127,7 +169,8 @@ export const OrderList = () => {
         {filteredOrders.length === 0 ? (
           <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
             <p className="text-gray-500">
-              No hay pedidos {orderStatuses.find((s) => s.status === activeTab)?.label.toLowerCase()}
+              No hay pedidos{" "}
+              {[...priorityStatuses, ...secondaryStatuses].find((s) => s.status === activeTab)?.label.toLowerCase()}
             </p>
           </div>
         ) : (
