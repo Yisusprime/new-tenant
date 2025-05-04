@@ -1,14 +1,19 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { BarChart3, Home, LogOut, Settings, ShoppingCart, Users } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/components/ui/use-toast"
+import { useRef } from "react"
 
 export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
   const pathname = usePathname()
   const { logout } = useAuth()
+  const router = useRouter()
+  const { toast } = useToast()
+  const isLogoutRef = useRef(false)
 
   const links = [
     { href: `/admin/dashboard`, label: "Dashboard", icon: Home },
@@ -17,6 +22,16 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
     { href: `/admin/stats`, label: "Estadísticas", icon: BarChart3 },
     { href: `/admin/settings`, label: "Configuración", icon: Settings },
   ]
+
+  const handleLogout = async () => {
+    isLogoutRef.current = true // Marcar que es un cierre de sesión voluntario
+    await logout()
+    toast({
+      title: "Sesión cerrada",
+      description: "Has cerrado sesión correctamente.",
+    })
+    router.push(`/login`)
+  }
 
   return (
     <div className="w-64 bg-muted h-screen p-4 border-r flex flex-col">
@@ -46,7 +61,7 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
       </nav>
 
       <div className="mt-auto pt-4 border-t">
-        <Button variant="ghost" className="w-full justify-start text-sm" onClick={logout}>
+        <Button variant="ghost" className="w-full justify-start text-sm" onClick={handleLogout}>
           <LogOut className="h-4 w-4 mr-2" />
           Cerrar sesión
         </Button>

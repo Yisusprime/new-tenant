@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -19,6 +19,7 @@ export default function TenantAdminDashboardPage() {
   const [tenantInfo, setTenantInfo] = useState<any>(null)
   const [loadingTenant, setLoadingTenant] = useState(true)
   const [tenantId, setTenantId] = useState<string | null>(null)
+  const isLogoutRef = useRef(false) // Para rastrear si el usuario cerró sesión voluntariamente
 
   // Obtener el tenantId del hostname
   useEffect(() => {
@@ -52,7 +53,13 @@ export default function TenantAdminDashboardPage() {
 
   useEffect(() => {
     // Verificar si el usuario está autenticado y tiene acceso a este tenant
-    if (!loading && tenantId && (!user || (user.tenantId !== tenantId && !checkUserRole("superadmin")))) {
+    // Solo mostrar el mensaje de error si no fue un cierre de sesión voluntario
+    if (
+      !loading &&
+      !isLogoutRef.current &&
+      tenantId &&
+      (!user || (user.tenantId !== tenantId && !checkUserRole("superadmin")))
+    ) {
       toast({
         title: "Acceso denegado",
         description: "No tienes permisos para acceder a este dashboard.",
@@ -63,6 +70,7 @@ export default function TenantAdminDashboardPage() {
   }, [user, loading, tenantId, router, toast, checkUserRole])
 
   const handleLogout = async () => {
+    isLogoutRef.current = true // Marcar que es un cierre de sesión voluntario
     await logout()
     toast({
       title: "Sesión cerrada",
