@@ -7,8 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Loader2, Upload, X, ImageIcon } from "lucide-react"
 import Image from "next/image"
-import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage"
-import { storage } from "@/lib/firebase-config"
 import { useToast } from "@/components/ui/use-toast"
 
 interface ImageUploadProps {
@@ -57,21 +55,37 @@ export function ImageUpload({ currentImageUrl, onImageUploaded, folder }: ImageU
       }
       reader.readAsDataURL(file)
 
-      // Generar un nombre único para el archivo
-      const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, "-")}`
-      const fileRef = storageRef(storage, `tenants/${folder}/${fileName}`)
+      // Crear FormData para enviar el archivo
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("folder", folder)
 
-      // Subir el archivo
-      const snapshot = await uploadBytes(fileRef, file)
-      const downloadUrl = await getDownloadURL(snapshot.ref)
-
-      // Notificar al componente padre
-      onImageUploaded(downloadUrl)
-
-      toast({
-        title: "Imagen subida",
-        description: "La imagen se ha subido correctamente.",
+      // Enviar el archivo a nuestro endpoint de API en lugar de directamente a Firebase
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
       })
+
+      const result = await response.json()
+
+      if (result.success && result.url) {
+        // Actualizar con la URL real de Firebase
+        setPreviewUrl(result.url)
+
+        // Notificar al componente padre
+        onImageUploaded(result.url)
+
+        toast({
+          title: "Imagen subida",
+          description: "La imagen se ha subido correctamente.",
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "No se pudo subir la imagen",
+          variant: "destructive",
+        })
+      }
     } catch (error) {
       console.error("Error al subir imagen:", error)
       toast({
