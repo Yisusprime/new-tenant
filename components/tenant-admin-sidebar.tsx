@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { BarChart3, Home, LogOut, Settings, ShoppingCart, Users } from "lucide-react"
+import { BarChart3, Home, LogOut, Settings, ShoppingCart, Users, User, Store } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
@@ -17,6 +17,8 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
 
   const links = [
     { href: `/admin/dashboard`, label: "Dashboard", icon: Home },
+    { href: `/admin/profile`, label: "Perfil Personal", icon: User },
+    { href: `/admin/restaurant`, label: "Datos del Local", icon: Store },
     { href: `/admin/users`, label: "Usuarios", icon: Users },
     { href: `/admin/products`, label: "Productos", icon: ShoppingCart },
     { href: `/admin/stats`, label: "Estadísticas", icon: BarChart3 },
