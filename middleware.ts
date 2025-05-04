@@ -36,9 +36,9 @@ export default async function middleware(req: NextRequest) {
     const subdomain = hostname.replace(`.${rootDomain}`, "")
     console.log("Middleware - Subdomain:", subdomain)
 
-    // Si la ruta es la raíz, redirigir al dashboard
+    // Si la ruta es la raíz, redirigir a la landing page
     if (path === "/") {
-      const newUrl = new URL(`/admin/dashboard`, req.url)
+      const newUrl = new URL(`/admin`, req.url)
       console.log("Middleware - Rewriting to:", newUrl.toString())
       return NextResponse.rewrite(newUrl)
     }
