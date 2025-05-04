@@ -106,11 +106,14 @@ export function SessionHistory() {
           throw new Error("Sesión no encontrada")
         }
 
+        console.log(`Loading orders for session ${expandedSession}`)
+
         // Get all orders
         const ordersRef = ref(rtdb, `tenants/${tenantId}/orders`)
         const snapshot = await get(ordersRef)
 
         if (!snapshot.exists()) {
+          console.log("No orders found in database")
           setSessionOrders((prev) => ({
             ...prev,
             [expandedSession]: [],
@@ -125,10 +128,12 @@ export function SessionHistory() {
               tips: 0,
             },
           }))
+          setIsLoading(false)
           return
         }
 
         const ordersData = snapshot.val()
+        console.log(`Found ${Object.keys(ordersData).length} total orders in database`)
 
         // Filter orders for this session
         const sessionStart = session.startTime
@@ -145,11 +150,43 @@ export function SessionHistory() {
               return false
             }
 
+            // Check if order has a timestamp
+            if (!order.createdAt) {
+              console.log(`Order ${order.id} has no createdAt timestamp`)
+              return false
+            }
+
+            // Convert timestamp if needed
+            const orderTime =
+              typeof order.createdAt === "object" && order.createdAt.toDate
+                ? order.createdAt.toDate().getTime()
+                : Number(order.createdAt)
+
             // Include orders created during this session
-            const orderTime = order.createdAt
-            return orderTime >= sessionStart && orderTime <= sessionEnd
+            const belongsToSession = orderTime >= sessionStart && orderTime <= sessionEnd
+
+            if (belongsToSession) {
+              console.log(
+                `Order ${order.id} belongs to session ${expandedSession} (time: ${new Date(orderTime).toLocaleString()})`,
+              )
+              return true
+            }
+
+            return false
           })
-          .sort((a, b) => b.createdAt - a.createdAt) // Sort by creation time (newest first)
+          .sort((a, b) => {
+            const timeA =
+              typeof a.createdAt === "object" && a.createdAt.toDate
+                ? a.createdAt.toDate().getTime()
+                : Number(a.createdAt)
+            const timeB =
+              typeof b.createdAt === "object" && b.createdAt.toDate
+                ? b.createdAt.toDate().getTime()
+                : Number(b.createdAt)
+            return timeB - timeA
+          })
+
+        console.log(`Found ${filteredOrders.length} completed orders for session ${expandedSession}`)
 
         // Calculate summary
         let totalSales = 0
@@ -159,9 +196,11 @@ export function SessionHistory() {
         let tips = 0
 
         filteredOrders.forEach((order: any) => {
+          // Ensure total is a number
           const orderTotal = Number.parseFloat(order.total) || 0
           totalSales += orderTotal
 
+          // Categorize by payment method
           if (order.paymentMethod === "cash") {
             cashSales += orderTotal
           } else if (order.paymentMethod === "card") {
@@ -170,8 +209,13 @@ export function SessionHistory() {
             otherSales += orderTotal
           }
 
+          // Add tips
           tips += Number.parseFloat(order.tip) || 0
+
+          console.log(`Order ${order.id}: ${orderTotal} via ${order.paymentMethod}`)
         })
+
+        console.log(`Session ${expandedSession} summary: total=${totalSales}, cash=${cashSales}, card=${cardSales}`)
 
         // Store the results
         setSessionOrders((prev) => ({
@@ -372,7 +416,7 @@ export function SessionHistory() {
                                   <Loader2 className="h-5 w-5 animate-spin mr-2" />
                                   <span>Cargando datos...</span>
                                 </div>
-                              ) : summary ? (
+                              ) : summary && summary.totalSales > 0 ? (
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                   <div className="bg-blue-50 p-3 rounded-md">
                                     <div className="text-xs text-blue-600">Ventas Totales</div>
@@ -396,7 +440,7 @@ export function SessionHistory() {
                                 </div>
                               ) : (
                                 <div className="text-center py-4 text-muted-foreground">
-                                  No hay datos financieros disponibles
+                                  No hay ventas registradas en esta sesión
                                 </div>
                               )}
                             </div>
@@ -413,7 +457,7 @@ export function SessionHistory() {
                               <div className="text-center py-8 text-red-500">{loadingErrors[session.id]}</div>
                             ) : orders.length === 0 ? (
                               <div className="text-center py-8 text-muted-foreground">
-                                No hay órdenes en esta sesión
+                                No hay órdenes completadas en esta sesión
                               </div>
                             ) : (
                               <div className="overflow-x-auto">
@@ -433,21 +477,21 @@ export function SessionHistory() {
                                       <tr key={order.id} className="border-b hover:bg-gray-50">
                                         <td className="py-2 px-3">{order.orderNumber || order.id.slice(-6)}</td>
                                         <td className="py-2 px-3">{new Date(order.createdAt).toLocaleTimeString()}</td>
-                                        <td className="py-2 px-3">{order.table || order.customerName || "—"}</td>
+                                        <td className="py-2 px-3">{order.tableNumber || order.customerName || "—"}</td>
                                         <td className="py-2 px-3 text-right">{formatCurrency(order.total || 0)}</td>
                                         <td className="py-2 px-3">
                                           <Badge
                                             variant={
                                               order.status === "completed"
                                                 ? "success"
-                                                : order.status === "canceled"
+                                                : order.status === "cancelled"
                                                   ? "destructive"
                                                   : "default"
                                             }
                                           >
                                             {order.status === "completed"
                                               ? "Completado"
-                                              : order.status === "canceled"
+                                              : order.status === "cancelled"
                                                 ? "Cancelado"
                                                 : order.status === "in-progress"
                                                   ? "En progreso"

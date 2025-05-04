@@ -71,7 +71,7 @@ export function CloseSessionForm() {
         const ordersSnapshot = await get(ordersRef)
 
         if (!ordersSnapshot.exists()) {
-          console.log("No orders found")
+          console.log("No orders found in database")
           setOrderSummary({
             cashTotal: 0,
             cardTotal: 0,
@@ -83,7 +83,7 @@ export function CloseSessionForm() {
         }
 
         const ordersData = ordersSnapshot.val()
-        console.log(`Found ${Object.keys(ordersData).length} orders total`)
+        console.log(`Found ${Object.keys(ordersData).length} orders total in database`)
 
         // Filtrar los pedidos que pertenecen a la sesión actual o al turno actual
         const sessionOrders = Object.entries(ordersData)
@@ -102,12 +102,24 @@ export function CloseSessionForm() {
             }
 
             // Como respaldo, incluir pedidos que fueron creados durante esta sesión
-            const orderTime = order.createdAt
+            if (!order.createdAt) {
+              console.log(`Order ${order.id} has no createdAt timestamp`)
+              return false
+            }
+
+            // Convert timestamp if needed
+            const orderTime =
+              typeof order.createdAt === "object" && order.createdAt.toDate
+                ? order.createdAt.toDate().getTime()
+                : Number(order.createdAt)
+
             const belongsToSession =
               orderTime >= currentSession.startTime && (!currentSession.endTime || orderTime <= currentSession.endTime)
 
             if (belongsToSession) {
-              console.log(`Order ${order.id} belongs to current session by time range`)
+              console.log(
+                `Order ${order.id} belongs to current session by time range (${new Date(orderTime).toLocaleString()})`,
+              )
               return true
             }
 
@@ -125,7 +137,7 @@ export function CloseSessionForm() {
 
         sessionOrders.forEach((order: any) => {
           // Asegurarse de que el total sea un número
-          const orderTotal = Number.parseFloat(order.total) || 0
+          const orderTotal = Number.parseFloat(String(order.total)) || 0
           console.log(`Order ${order.id}: ${orderTotal} - Payment method: ${order.paymentMethod}`)
 
           switch (order.paymentMethod) {
