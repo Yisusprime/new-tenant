@@ -1,9 +1,7 @@
 "use client"
 
-import React from "react"
+import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { useAuth } from "@/lib/auth-context"
-import { ShiftProvider } from "@/components/orders/shift-context"
 import { OrderProvider } from "@/components/orders/order-context"
 import { TableProvider } from "@/components/orders/table-context"
 import { OrderList } from "@/components/orders/order-list"
@@ -18,7 +16,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Plus, Clock, History, AlertTriangle, ArrowLeft } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { useShiftContext } from "@/components/orders/shift-context"
+import { useAuth } from "@/lib/auth-context"
+import { ShiftProvider, useShift } from "@/components/orders/shift-provider"
 
 export default function OrdersPage() {
   const { user } = useAuth()
@@ -39,15 +38,15 @@ export default function OrdersPage() {
 
 // Componente interno que usa el contexto de turnos
 function OrdersContent({ tenantId, router }) {
-  const { currentShift, loading: shiftLoading } = useShiftContext()
+  const { currentShift, loading: shiftLoading } = useShift()
 
-  const [isNewOrderOpen, setIsNewOrderOpen] = React.useState(false)
-  const [isEndShiftOpen, setIsEndShiftOpen] = React.useState(false)
-  const [isStartShiftOpen, setIsStartShiftOpen] = React.useState(false)
-  const [activeTab, setActiveTab] = React.useState("all")
+  const [isNewOrderOpen, setIsNewOrderOpen] = useState(false)
+  const [isEndShiftOpen, setIsEndShiftOpen] = useState(false)
+  const [isStartShiftOpen, setIsStartShiftOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState("all")
 
   // Verificar si hay un turno activo al cargar
-  React.useEffect(() => {
+  useEffect(() => {
     if (!shiftLoading && !currentShift) {
       // No hay turno activo, mostrar diálogo para iniciar turno
       setIsStartShiftOpen(true)
