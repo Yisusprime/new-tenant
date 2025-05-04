@@ -59,9 +59,6 @@
     "vaul": "^0.9.6",
     "zod": "^3.24.1",
     "firebase": "latest",
-    "@supabase/supabase-js": "latest",
-    "cloudinary": "latest",
-    "stream": "latest",
     "@vercel/blob": "latest",
     "nanoid": "latest"
   },
