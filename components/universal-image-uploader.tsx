@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+
 import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,13 +9,19 @@ import { Loader2, Upload, X, ImageIcon } from "lucide-react"
 import Image from "next/image"
 import { useToast } from "@/components/ui/use-toast"
 
-interface ImageUploadProps {
-  currentImageUrl: string
+interface ImageUploaderProps {
+  currentImageUrl?: string
   onImageUploaded: (url: string) => void
-  folder: string
+  folder?: string
+  endpoint?: string // Endpoint de API para subir la imagen
 }
 
-export function ImageUpload({ currentImageUrl, onImageUploaded, folder }: ImageUploadProps) {
+export function UniversalImageUploader({
+  currentImageUrl = "",
+  onImageUploaded,
+  folder = "uploads",
+  endpoint = "/api/upload", // Endpoint por defecto
+}: ImageUploaderProps) {
   const [uploading, setUploading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string>(currentImageUrl)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -59,8 +66,8 @@ export function ImageUpload({ currentImageUrl, onImageUploaded, folder }: ImageU
       formData.append("file", file)
       formData.append("folder", folder)
 
-      // Enviar el archivo a nuestro endpoint de API
-      const response = await fetch("/api/upload", {
+      // Enviar el archivo al endpoint configurado
+      const response = await fetch(endpoint, {
         method: "POST",
         body: formData,
       })

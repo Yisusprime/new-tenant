@@ -1,37 +1,44 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
-import { storage } from "@/lib/firebase-config"
+import { put } from "@vercel/blob"
+import { nanoid } from "nanoid"
 
 export async function POST(request: NextRequest) {
   try {
-    // Obtener el archivo de la solicitud
     const formData = await request.formData()
     const file = formData.get("file") as File
     const folder = (formData.get("folder") as string) || "uploads"
 
+    // Validar que se haya enviado un archivo
     if (!file) {
       return NextResponse.json({ success: false, error: "No se proporcionó ningún archivo" }, { status: 400 })
     }
 
-    // Convertir el archivo a un array de bytes
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
+    // Validar tipo de archivo (solo imágenes)
+    if (!file.type.startsWith("image/")) {
+      return NextResponse.json({ success: false, error: "El archivo debe ser una imagen" }, { status: 400 })
+    }
 
-    // Generar un nombre de archivo único
-    const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, "-")}`
-    const filePath = `${folder}/${fileName}`
+    // Validar tamaño del archivo (máximo 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      return NextResponse.json(
+        { success: false, error: "El archivo es demasiado grande (máximo 5MB)" },
+        { status: 400 },
+      )
+    }
 
-    // Crear referencia al archivo en Storage
-    const fileRef = ref(storage, filePath)
+    // Crear un nombre único para el archivo
+    const filename = `${folder}/${nanoid()}-${file.name.replace(/[^a-zA-Z0-9.]/g, "-")}`
 
-    // Subir el archivo
-    const snapshot = await uploadBytes(fileRef, buffer)
-
-    // Obtener la URL de descarga
-    const downloadUrl = await getDownloadURL(snapshot.ref)
+    // Subir el archivo a Vercel Blob
+    const blob = await put(filename, file, {
+      access: "public",
+    })
 
     // Devolver la URL del archivo subido
-    return NextResponse.json({ success: true, url: downloadUrl })
+    return NextResponse.json({
+      success: true,
+      url: blob.url,
+    })
   } catch (error: any) {
     console.error("Error al subir archivo:", error)
     return NextResponse.json({ success: false, error: error.message || "Error al subir el archivo" }, { status: 500 })

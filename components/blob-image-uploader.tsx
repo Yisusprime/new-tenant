@@ -8,17 +8,37 @@ import { Loader2, Upload, X, ImageIcon } from "lucide-react"
 import Image from "next/image"
 import { useToast } from "@/components/ui/use-toast"
 
-interface ImageUploadProps {
-  currentImageUrl: string
+interface BlobImageUploaderProps {
+  currentImageUrl?: string
   onImageUploaded: (url: string) => void
-  folder: string
+  folder?: string
+  className?: string
+  aspectRatio?: "square" | "video" | "wide" | number
 }
 
-export function ImageUpload({ currentImageUrl, onImageUploaded, folder }: ImageUploadProps) {
+export function BlobImageUploader({
+  currentImageUrl = "",
+  onImageUploaded,
+  folder = "uploads",
+  className = "",
+  aspectRatio = "square",
+}: BlobImageUploaderProps) {
   const [uploading, setUploading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string>(currentImageUrl)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
+
+  // Calcular la altura basada en el aspect ratio
+  const getHeightClass = () => {
+    if (aspectRatio === "square") return "aspect-square"
+    if (aspectRatio === "video") return "aspect-video"
+    if (aspectRatio === "wide") return "aspect-[21/9]"
+    if (typeof aspectRatio === "number") {
+      // Si es un número personalizado, lo manejamos con style
+      return ""
+    }
+    return "aspect-square" // Default
+  }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -59,7 +79,7 @@ export function ImageUpload({ currentImageUrl, onImageUploaded, folder }: ImageU
       formData.append("file", file)
       formData.append("folder", folder)
 
-      // Enviar el archivo a nuestro endpoint de API
+      // Enviar el archivo al endpoint
       const response = await fetch("/api/upload", {
         method: "POST",
         body: formData,
@@ -106,7 +126,7 @@ export function ImageUpload({ currentImageUrl, onImageUploaded, folder }: ImageU
   }
 
   return (
-    <div className="space-y-4">
+    <div className={`space-y-4 ${className}`}>
       <Input
         type="file"
         accept="image/*"
@@ -118,8 +138,11 @@ export function ImageUpload({ currentImageUrl, onImageUploaded, folder }: ImageU
       />
 
       {previewUrl ? (
-        <div className="relative w-full h-48 rounded-md overflow-hidden border">
-          <Image src={previewUrl || "/placeholder.svg"} alt="Preview" fill className="object-cover" />
+        <div
+          className={`relative w-full rounded-md overflow-hidden border ${getHeightClass()}`}
+          style={typeof aspectRatio === "number" ? { aspectRatio: String(aspectRatio) } : {}}
+        >
+          <Image src={previewUrl || "/placeholder.svg"} alt="Vista previa" fill className="object-cover" />
           <Button
             type="button"
             variant="destructive"
@@ -132,7 +155,10 @@ export function ImageUpload({ currentImageUrl, onImageUploaded, folder }: ImageU
           </Button>
         </div>
       ) : (
-        <div className="border border-dashed rounded-md p-6 flex flex-col items-center justify-center bg-muted/50">
+        <div
+          className={`border border-dashed rounded-md flex flex-col items-center justify-center bg-muted/50 ${getHeightClass()}`}
+          style={typeof aspectRatio === "number" ? { aspectRatio: String(aspectRatio) } : {}}
+        >
           <ImageIcon className="h-10 w-10 text-muted-foreground mb-2" />
           <p className="text-sm text-muted-foreground mb-2">Arrastra una imagen o haz clic para seleccionar</p>
           <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
