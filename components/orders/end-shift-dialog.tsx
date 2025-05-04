@@ -28,32 +28,39 @@ interface EndShiftDialogProps {
 export function EndShiftDialog({ open, onOpenChange }: EndShiftDialogProps) {
   const { currentShift, endShift } = useShift()
   const { orders, refreshOrders } = useOrderContext()
-  const { user, tenantId } = useAuth()
+  const { user } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
   const [notes, setNotes] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Obtener el tenantId del usuario
+  const tenantId = user?.tenantId
+
   // Verificar que tenantId esté disponible
   useEffect(() => {
-    if (open && !tenantId) {
-      console.error("No tenantId available in EndShiftDialog")
-      toast({
-        title: "Error",
-        description: "No se pudo identificar el inquilino. Por favor, recarga la página.",
-        variant: "destructive",
-      })
+    if (open) {
+      console.log("EndShiftDialog opened, checking tenantId:", tenantId)
+      if (!tenantId) {
+        console.error("No tenantId available in EndShiftDialog, user:", user)
+        toast({
+          title: "Error",
+          description: "No se pudo identificar el inquilino. Por favor, recarga la página.",
+          variant: "destructive",
+        })
+      }
     }
-  }, [open, tenantId, toast])
+  }, [open, tenantId, user, toast])
 
   const handleEndShift = async () => {
     if (!currentShift) return
     if (!tenantId) {
-      setError("No se pudo identificar el inquilino. Por favor, recarga la página.")
+      const errorMsg = "No se pudo identificar el inquilino. Por favor, recarga la página."
+      setError(errorMsg)
       toast({
         title: "Error",
-        description: "No se pudo identificar el inquilino. Por favor, recarga la página.",
+        description: errorMsg,
         variant: "destructive",
       })
       return
@@ -67,7 +74,7 @@ export function EndShiftDialog({ open, onOpenChange }: EndShiftDialogProps) {
       console.log("TenantId disponible:", tenantId)
 
       // Calcular resumen de ventas
-      const summary = await calculateShiftSummary(currentShift.id)
+      const summary = await calculateShiftSummary(currentShift.id, tenantId)
       console.log("Resumen calculado:", summary)
 
       // Finalizar el turno con el resumen calculado
@@ -102,9 +109,9 @@ export function EndShiftDialog({ open, onOpenChange }: EndShiftDialogProps) {
   }
 
   // Función para calcular el resumen de ventas de un turno
-  const calculateShiftSummary = async (shiftId: string) => {
+  const calculateShiftSummary = async (shiftId: string, tenantId: string) => {
     try {
-      console.log(`Calculando resumen para el turno ${shiftId}...`)
+      console.log(`Calculando resumen para el turno ${shiftId} del tenant ${tenantId}...`)
 
       if (!tenantId) {
         console.error("No tenantId provided in calculateShiftSummary")
@@ -282,6 +289,12 @@ export function EndShiftDialog({ open, onOpenChange }: EndShiftDialogProps) {
               onChange={(e) => setNotes(e.target.value)}
             />
           </div>
+
+          {!tenantId && (
+            <p className="text-sm text-amber-600 font-medium">
+              No se pudo identificar el inquilino. Por favor, recarga la página.
+            </p>
+          )}
 
           {error && <p className="text-sm text-red-500">{error}</p>}
         </div>
