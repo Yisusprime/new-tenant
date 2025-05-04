@@ -4,7 +4,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useOrderContext } from "./order-context"
 import { useTableContext } from "./table-context"
-import type { Order, OrderType, OrderItem } from "@/lib/types/orders"
+import type { OrderType, OrderItem } from "@/lib/types/orders"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
@@ -310,6 +310,9 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
     }
   }
 
+  // Modificar la función handleSubmitOrder para asegurarse de que no se envíen valores undefined
+
+  // Busca la función handleSubmitOrder y modifica la creación del objeto newOrder:
   const handleSubmitOrder = async () => {
     if (selectedItems.length === 0) {
       toast({
@@ -345,7 +348,8 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
       const tax = subtotal * 0.1 // 10% tax
       const total = calculateTotal()
 
-      const newOrder: Omit<Order, "id" | "createdAt" | "updatedAt" | "orderNumber"> = {
+      // Crear el objeto base del pedido
+      const orderBase = {
         tenantId,
         type: orderType,
         status: "pending",
@@ -357,14 +361,28 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
         total,
         paymentStatus: "pending",
         paymentMethod: "cash",
-        customerName: customerName || undefined,
-        customerPhone: customerPhone || undefined,
-        customerAddress: orderType === "delivery" ? customerAddress : undefined,
-        deliveryNotes: orderType === "delivery" ? deliveryNotes : undefined,
-        tableId: orderType === "table" ? tableId : undefined,
-        notes: notes || undefined,
-        couponCode: couponDiscount > 0 ? couponCode : undefined,
-        couponDiscount: couponDiscount > 0 ? couponDiscount : undefined,
+      }
+
+      // Añadir campos condicionales solo si tienen valor
+      const newOrder: any = { ...orderBase }
+
+      if (customerName) newOrder.customerName = customerName
+      if (customerPhone) newOrder.customerPhone = customerPhone
+
+      if (orderType === "delivery" && customerAddress) {
+        newOrder.customerAddress = customerAddress
+        if (deliveryNotes) newOrder.deliveryNotes = deliveryNotes
+      }
+
+      if (orderType === "table" && tableId) {
+        newOrder.tableId = tableId
+      }
+
+      if (notes) newOrder.notes = notes
+
+      if (couponDiscount > 0 && couponCode) {
+        newOrder.couponCode = couponCode
+        newOrder.couponDiscount = couponDiscount
       }
 
       await addOrder(newOrder)

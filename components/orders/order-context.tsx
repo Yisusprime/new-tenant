@@ -105,8 +105,16 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
         .padStart(3, "0")
       const orderNumber = `ORD-${timestamp.toString().slice(-6)}-${randomPart}`
 
+      // Crear una copia del objeto y eliminar propiedades undefined
+      const cleanedOrderData = { ...orderData }
+      Object.keys(cleanedOrderData).forEach((key) => {
+        if (cleanedOrderData[key] === undefined) {
+          delete cleanedOrderData[key]
+        }
+      })
+
       const newOrder = {
-        ...orderData,
+        ...cleanedOrderData,
         orderNumber,
         createdAt: timestamp,
         updatedAt: timestamp,
