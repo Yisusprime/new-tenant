@@ -15,13 +15,12 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
   const { toast } = useToast()
   const isLogoutRef = useRef(false)
 
-  // Update the links array to use the new routes without the "admin" prefix
   const links = [
-    { href: `/dashboard`, label: "Dashboard", icon: Home },
-    { href: `/users`, label: "Usuarios", icon: Users },
-    { href: `/menu`, label: "Menú", icon: ShoppingCart },
-    { href: `/stats`, label: "Estadísticas", icon: BarChart3 },
-    { href: `/settings`, label: "Configuración", icon: Settings },
+    { href: `/admin/dashboard`, label: "Dashboard", icon: Home },
+    { href: `/admin/users`, label: "Usuarios", icon: Users },
+    { href: `/admin/products`, label: "Productos", icon: ShoppingCart },
+    { href: `/admin/stats`, label: "Estadísticas", icon: BarChart3 },
+    { href: `/admin/settings`, label: "Configuración", icon: Settings },
   ]
 
   const handleLogout = async () => {
