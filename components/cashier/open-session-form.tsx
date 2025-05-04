@@ -24,7 +24,7 @@ export function OpenSessionForm() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
-  const [initialCash, setInitialCash] = useState(0)
+  const [initialCash, setInitialCash] = useState<number>(0)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,7 +36,16 @@ export function OpenSessionForm() {
         throw new Error("Debes iniciar sesión para abrir caja")
       }
 
-      await openSession(initialCash)
+      // Ensure initialCash is a valid number
+      const cashAmount = Number(initialCash)
+      if (isNaN(cashAmount)) {
+        throw new Error("El monto inicial debe ser un número válido")
+      }
+
+      await openSession({
+        initialCash: cashAmount,
+        openedBy: user.displayName || user.email || "Usuario desconocido",
+      })
 
       setSuccess(true)
 
@@ -53,6 +62,7 @@ export function OpenSessionForm() {
         }, 2000)
       }
     } catch (err) {
+      console.error("Error al abrir caja:", err)
       setError(err instanceof Error ? err.message : "Error al abrir la sesión")
     } finally {
       setIsSubmitting(false)
@@ -84,8 +94,12 @@ export function OpenSessionForm() {
               id="initialCash"
               type="number"
               step="0.01"
-              value={initialCash || ""}
-              onChange={(e) => setInitialCash(Number.parseFloat(e.target.value) || 0)}
+              min="0"
+              value={initialCash}
+              onChange={(e) => {
+                const value = e.target.value
+                setInitialCash(value === "" ? 0 : Number(value))
+              }}
               required
             />
           </div>

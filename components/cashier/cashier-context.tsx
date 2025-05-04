@@ -111,12 +111,18 @@ export function CashierProvider({
     }
 
     try {
-      const newSession: Omit<CashierSession, "id"> = {
-        tenantId,
+      // Ensure initialCash is a valid number
+      const initialCash = Number(params.initialCash)
+      if (isNaN(initialCash)) {
+        throw new Error("El monto inicial debe ser un número válido")
+      }
+
+      const newSession = {
         startTime: Date.now(),
-        initialCash: params.initialCash,
-        openedBy: params.openedBy,
+        initialCash: initialCash,
+        openedBy: params.openedBy || "Usuario desconocido",
         status: "open",
+        notes: params.notes || "",
       }
 
       // Save to Firebase
@@ -158,15 +164,21 @@ export function CashierProvider({
     }
 
     try {
+      // Ensure all numeric values are valid numbers
+      const endCash = Number(params.endCash) || 0
+      const endCard = Number(params.endCard) || 0
+      const endOther = Number(params.endOther) || 0
+      const difference = Number(params.difference) || 0
+
       // Update session data
       const updatedSession: CashierSession = {
         ...session,
         endTime: Date.now(),
-        endCash: params.endCash,
-        endCard: params.endCard,
-        endOther: params.endOther,
-        difference: params.difference,
-        notes: params.notes,
+        endCash,
+        endCard,
+        endOther,
+        difference,
+        notes: params.notes || "",
         closedBy: user.displayName || user.email || "Usuario desconocido",
         status: "closed",
       }
