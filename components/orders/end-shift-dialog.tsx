@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -18,6 +18,7 @@ import { Loader2 } from "lucide-react"
 import { ref, get, query, orderByChild, equalTo } from "firebase/database"
 import { rtdb } from "@/lib/firebase-config"
 import { useAuth } from "@/lib/auth-context"
+import { useToast } from "@/components/ui/use-toast"
 
 interface EndShiftDialogProps {
   open: boolean
@@ -27,20 +28,43 @@ interface EndShiftDialogProps {
 export function EndShiftDialog({ open, onOpenChange }: EndShiftDialogProps) {
   const { currentShift, endShift } = useShift()
   const { orders, refreshOrders } = useOrderContext()
-  const { tenantId } = useAuth()
+  const { user, tenantId } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
   const [notes, setNotes] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Verificar que tenantId esté disponible
+  useEffect(() => {
+    if (open && !tenantId) {
+      console.error("No tenantId available in EndShiftDialog")
+      toast({
+        title: "Error",
+        description: "No se pudo identificar el inquilino. Por favor, recarga la página.",
+        variant: "destructive",
+      })
+    }
+  }, [open, tenantId, toast])
+
   const handleEndShift = async () => {
     if (!currentShift) return
+    if (!tenantId) {
+      setError("No se pudo identificar el inquilino. Por favor, recarga la página.")
+      toast({
+        title: "Error",
+        description: "No se pudo identificar el inquilino. Por favor, recarga la página.",
+        variant: "destructive",
+      })
+      return
+    }
 
     try {
       setIsSubmitting(true)
       setError(null)
 
       console.log("Calculando resumen de ventas para el turno antes de cerrarlo...")
+      console.log("TenantId disponible:", tenantId)
 
       // Calcular resumen de ventas
       const summary = await calculateShiftSummary(currentShift.id)
@@ -55,11 +79,23 @@ export function EndShiftDialog({ open, onOpenChange }: EndShiftDialogProps) {
       // Cerrar el diálogo
       onOpenChange(false)
 
+      // Mostrar mensaje de éxito
+      toast({
+        title: "Turno finalizado",
+        description: "El turno se ha finalizado correctamente.",
+      })
+
       // Redirigir a la página de caja para cerrar la sesión
       router.push("/admin/cashier?action=close")
     } catch (err) {
       console.error("Error al finalizar el turno:", err)
-      setError(err instanceof Error ? err.message : "Error al finalizar el turno")
+      const errorMessage = err instanceof Error ? err.message : "Error al finalizar el turno"
+      setError(errorMessage)
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -71,7 +107,8 @@ export function EndShiftDialog({ open, onOpenChange }: EndShiftDialogProps) {
       console.log(`Calculando resumen para el turno ${shiftId}...`)
 
       if (!tenantId) {
-        throw new Error("No tenantId provided")
+        console.error("No tenantId provided in calculateShiftSummary")
+        throw new Error("No se pudo identificar el inquilino")
       }
 
       // Obtener todas las órdenes del turno
@@ -253,7 +290,7 @@ export function EndShiftDialog({ open, onOpenChange }: EndShiftDialogProps) {
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Cancelar
           </Button>
-          <Button onClick={handleEndShift} disabled={isSubmitting}>
+          <Button onClick={handleEndShift} disabled={isSubmitting || !tenantId}>
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

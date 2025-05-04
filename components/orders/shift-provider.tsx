@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
-import { ref, push, get, update, onValue, off, query, orderByChild, equalTo } from "firebase/database"
+import { ref, push, get, update, onValue, off } from "firebase/database"
 import { rtdb } from "@/lib/firebase-config"
 import { useAuth } from "@/lib/auth-context"
 
@@ -73,6 +73,7 @@ export function ShiftProvider({ children, tenantId }: ShiftProviderProps) {
   // Cargar turnos al montar el componente
   useEffect(() => {
     if (!tenantId) {
+      console.error("No tenantId provided to ShiftProvider")
       setLoading(false)
       setError("No se proporcionó un ID de inquilino")
       return
@@ -133,7 +134,7 @@ export function ShiftProvider({ children, tenantId }: ShiftProviderProps) {
       console.log("Manually fetching shifts for tenant:", tenantId)
 
       if (!tenantId) {
-        console.error("No tenantId provided to ShiftProvider")
+        console.error("No tenantId provided to refreshShifts")
         setError("Error: No se proporcionó un ID de inquilino")
         setLoading(false)
         return
@@ -174,7 +175,8 @@ export function ShiftProvider({ children, tenantId }: ShiftProviderProps) {
   const startShift = async (shiftData: Partial<Shift> = {}): Promise<string> => {
     try {
       if (!tenantId) {
-        throw new Error("No tenantId provided")
+        console.error("No tenantId provided to startShift")
+        throw new Error("No se pudo identificar el inquilino")
       }
 
       // Verificar si ya hay un turno activo
@@ -212,7 +214,8 @@ export function ShiftProvider({ children, tenantId }: ShiftProviderProps) {
   const endShift = async (shiftId: string, summary?: Shift["summary"]): Promise<void> => {
     try {
       if (!tenantId) {
-        throw new Error("No tenantId provided")
+        console.error("No tenantId provided to endShift")
+        throw new Error("No se pudo identificar el inquilino")
       }
 
       console.log(`Finalizando turno ${shiftId} para el tenant: ${tenantId}`)
@@ -231,13 +234,16 @@ export function ShiftProvider({ children, tenantId }: ShiftProviderProps) {
 
       const timestamp = Date.now()
 
-      // Si no se proporciona un resumen, calcularlo a partir de las órdenes
-      let shiftSummary = summary
-      if (!shiftSummary) {
-        console.log("Calculando resumen de ventas para el turno...")
-        shiftSummary = await calculateShiftSummary(shiftId)
-        console.log("Resumen calculado:", shiftSummary)
+      // Si no se proporciona un resumen, usar valores por defecto
+      const shiftSummary = summary || {
+        totalOrders: 0,
+        totalSales: 0,
+        cashSales: 0,
+        cardSales: 0,
+        otherSales: 0,
       }
+
+      console.log("Guardando resumen en el turno:", shiftSummary)
 
       // Actualizar el estado en Firebase
       await update(shiftRef, {
@@ -270,138 +276,12 @@ export function ShiftProvider({ children, tenantId }: ShiftProviderProps) {
     }
   }
 
-  // Función para calcular el resumen de ventas de un turno
-  const calculateShiftSummary = async (shiftId: string) => {
-    try {
-      console.log(`Calculando resumen para el turno ${shiftId}...`)
-
-      // Obtener todas las órdenes del turno
-      const ordersRef = ref(rtdb, `tenants/${tenantId}/orders`)
-      const ordersQuery = query(ordersRef, orderByChild("shiftId"), equalTo(shiftId))
-      const ordersSnapshot = await get(ordersQuery)
-
-      let totalOrders = 0
-      let totalSales = 0
-      let cashSales = 0
-      let cardSales = 0
-      let otherSales = 0
-
-      if (ordersSnapshot.exists()) {
-        const ordersData = ordersSnapshot.val()
-        console.log(`Encontradas ${Object.keys(ordersData).length} órdenes para el turno ${shiftId}`)
-
-        // Procesar cada orden
-        Object.values(ordersData).forEach((order: any) => {
-          // Solo contar órdenes completadas
-          if (order.status === "completed") {
-            totalOrders++
-
-            // Asegurarse de que el total sea un número
-            const orderTotal = Number.parseFloat(String(order.total)) || 0
-            totalSales += orderTotal
-
-            // Clasificar por método de pago
-            switch (order.paymentMethod) {
-              case "cash":
-                cashSales += orderTotal
-                break
-              case "card":
-                cardSales += orderTotal
-                break
-              default:
-                otherSales += orderTotal
-                break
-            }
-          }
-        })
-      } else {
-        console.log(`No se encontraron órdenes para el turno ${shiftId}`)
-      }
-
-      // Si no hay órdenes específicas del turno, buscar todas las órdenes y filtrar por tiempo
-      if (totalOrders === 0) {
-        console.log("Buscando órdenes por rango de tiempo...")
-
-        // Obtener el turno para conocer su rango de tiempo
-        const shiftRef = ref(rtdb, `tenants/${tenantId}/shifts/${shiftId}`)
-        const shiftSnapshot = await get(shiftRef)
-
-        if (shiftSnapshot.exists()) {
-          const shift = shiftSnapshot.val()
-          const startTime = shift.startTime
-          const endTime = shift.endTime || Date.now()
-
-          // Obtener todas las órdenes
-          const allOrdersRef = ref(rtdb, `tenants/${tenantId}/orders`)
-          const allOrdersSnapshot = await get(allOrdersRef)
-
-          if (allOrdersSnapshot.exists()) {
-            const allOrdersData = allOrdersSnapshot.val()
-            console.log(`Filtrando ${Object.keys(allOrdersData).length} órdenes por rango de tiempo...`)
-
-            // Filtrar órdenes por rango de tiempo
-            Object.values(allOrdersData).forEach((order: any) => {
-              if (order.status !== "completed") return
-
-              // Convertir timestamp si es necesario
-              const orderTime =
-                typeof order.createdAt === "object" && order.createdAt.toDate
-                  ? order.createdAt.toDate().getTime()
-                  : Number(order.createdAt)
-
-              // Verificar si la orden está dentro del rango de tiempo del turno
-              if (orderTime >= startTime && orderTime <= endTime) {
-                totalOrders++
-
-                // Asegurarse de que el total sea un número
-                const orderTotal = Number.parseFloat(String(order.total)) || 0
-                totalSales += orderTotal
-
-                // Clasificar por método de pago
-                switch (order.paymentMethod) {
-                  case "cash":
-                    cashSales += orderTotal
-                    break
-                  case "card":
-                    cardSales += orderTotal
-                    break
-                  default:
-                    otherSales += orderTotal
-                    break
-                }
-              }
-            })
-          }
-        }
-      }
-
-      console.log(`Resumen calculado: ${totalOrders} órdenes, ${totalSales} ventas totales`)
-
-      return {
-        totalOrders,
-        totalSales,
-        cashSales,
-        cardSales,
-        otherSales,
-      }
-    } catch (error) {
-      console.error("Error calculando resumen del turno:", error)
-      // Devolver valores por defecto en caso de error
-      return {
-        totalOrders: 0,
-        totalSales: 0,
-        cashSales: 0,
-        cardSales: 0,
-        otherSales: 0,
-      }
-    }
-  }
-
   // Función para obtener un turno por su ID
   const getShift = async (shiftId: string): Promise<Shift | null> => {
     try {
       if (!tenantId) {
-        throw new Error("No tenantId provided")
+        console.error("No tenantId provided to getShift")
+        throw new Error("No se pudo identificar el inquilino")
       }
 
       const shiftRef = ref(rtdb, `tenants/${tenantId}/shifts/${shiftId}`)
