@@ -1,76 +1,99 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useOrderContext } from "./order-context"
+import type { OrderStatus } from "@/lib/types/orders"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { ShoppingBag, Clock, Check, X, AlertCircle } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Clock, Check, X, AlertCircle, Truck, Coffee, User } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { es } from "date-fns/locale"
 
 export const OrderList = () => {
-  const { orders, loading, error, fetchOrders } = useOrderContext()
-  const [statusFilter, setStatusFilter] = useState<string | null>(null)
+  const { orders, loading, error, fetchOrders, updateOrderStatus, completeOrder, cancelOrder } = useOrderContext()
+  const [activeTab, setActiveTab] = useState<OrderStatus>("pending")
 
-  useEffect(() => {
-    fetchOrders()
-  }, [fetchOrders])
+  // Eliminamos el useEffect que llama a fetchOrders ya que ahora se maneja en el contexto
 
-  const filteredOrders = statusFilter ? orders.filter((order) => order.status === statusFilter) : orders
-
-  const getStatusBadge = (status: string) => {
+  const getStatusIcon = (status: OrderStatus) => {
     switch (status) {
       case "pending":
-        return (
-          <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
-            Pendiente
-          </Badge>
-        )
+        return <Clock className="h-4 w-4" />
       case "preparing":
-        return (
-          <Badge variant="outline" className="bg-blue-100 text-blue-800">
-            Preparando
-          </Badge>
-        )
+        return <Coffee className="h-4 w-4" />
       case "ready":
-        return (
-          <Badge variant="outline" className="bg-green-100 text-green-800">
-            Listo
-          </Badge>
-        )
+        return <AlertCircle className="h-4 w-4" />
       case "delivered":
-        return (
-          <Badge variant="outline" className="bg-purple-100 text-purple-800">
-            Entregado
-          </Badge>
-        )
+        return <Truck className="h-4 w-4" />
+      case "completed":
+        return <Check className="h-4 w-4" />
       case "cancelled":
-        return (
-          <Badge variant="outline" className="bg-red-100 text-red-800">
-            Cancelado
-          </Badge>
-        )
+        return <X className="h-4 w-4" />
       default:
-        return <Badge variant="outline">{status}</Badge>
+        return <Clock className="h-4 w-4" />
     }
   }
 
-  const getOrderTypeIcon = (type: string) => {
-    switch (type) {
-      case "dine-in":
-        return <ShoppingBag className="h-4 w-4 text-blue-500" />
-      case "takeaway":
-        return <ShoppingBag className="h-4 w-4 text-green-500" />
-      case "delivery":
-        return <ShoppingBag className="h-4 w-4 text-purple-500" />
-      case "table":
-        return <ShoppingBag className="h-4 w-4 text-orange-500" />
+  const getStatusText = (status: OrderStatus) => {
+    switch (status) {
+      case "pending":
+        return "Pendiente"
+      case "preparing":
+        return "Preparando"
+      case "ready":
+        return "Listo"
+      case "delivered":
+        return "Entregado"
+      case "completed":
+        return "Completado"
+      case "cancelled":
+        return "Cancelado"
       default:
-        return <ShoppingBag className="h-4 w-4" />
+        return status
     }
   }
+
+  const getStatusColor = (status: OrderStatus) => {
+    switch (status) {
+      case "pending":
+        return "bg-yellow-500"
+      case "preparing":
+        return "bg-blue-500"
+      case "ready":
+        return "bg-green-500"
+      case "delivered":
+        return "bg-purple-500"
+      case "completed":
+        return "bg-green-700"
+      case "cancelled":
+        return "bg-red-500"
+      default:
+        return "bg-gray-500"
+    }
+  }
+
+  const getTypeText = (type: string) => {
+    switch (type) {
+      case "dine-in":
+        return "Para consumir"
+      case "takeaway":
+        return "Para llevar"
+      case "delivery":
+        return "Delivery"
+      case "table":
+        return "Mesa"
+      default:
+        return type
+    }
+  }
+
+  const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
+    await updateOrderStatus(orderId, newStatus)
+  }
+
+  const filteredOrders = orders.filter((order) => order.status === activeTab)
 
   if (loading) {
     return (
@@ -88,7 +111,7 @@ export const OrderList = () => {
       <div className="flex items-center justify-center p-8">
         <div className="flex flex-col items-center gap-2 text-destructive">
           <AlertCircle className="h-8 w-8" />
-          <p>Error al cargar los pedidos. Por favor, intenta de nuevo.</p>
+          <p>Error al cargar los pedidos: {error}</p>
           <Button onClick={() => fetchOrders()} variant="outline" size="sm">
             Reintentar
           </Button>
@@ -97,168 +120,126 @@ export const OrderList = () => {
     )
   }
 
-  if (filteredOrders.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center p-8 text-center">
-        <ShoppingBag className="h-12 w-12 text-muted-foreground mb-2" />
-        <h3 className="text-lg font-medium">No hay pedidos {statusFilter ? `con estado ${statusFilter}` : ""}</h3>
-        <p className="text-sm text-muted-foreground mt-1">Los pedidos aparecerán aquí cuando se creen.</p>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 overflow-x-auto pb-2">
-        <Button variant={statusFilter === null ? "default" : "outline"} size="sm" onClick={() => setStatusFilter(null)}>
-          Todos
-        </Button>
-        <Button
-          variant={statusFilter === "pending" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setStatusFilter("pending")}
-        >
-          Pendientes
-        </Button>
-        <Button
-          variant={statusFilter === "preparing" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setStatusFilter("preparing")}
-        >
-          Preparando
-        </Button>
-        <Button
-          variant={statusFilter === "ready" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setStatusFilter("ready")}
-        >
-          Listos
-        </Button>
-        <Button
-          variant={statusFilter === "delivered" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setStatusFilter("delivered")}
-        >
-          Entregados
-        </Button>
-        <Button
-          variant={statusFilter === "cancelled" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setStatusFilter("cancelled")}
-        >
-          Cancelados
-        </Button>
-      </div>
+      <Tabs defaultValue="pending" value={activeTab} onValueChange={(value) => setActiveTab(value as OrderStatus)}>
+        <TabsList className="grid grid-cols-6 mb-4">
+          <TabsTrigger value="pending">Pendientes</TabsTrigger>
+          <TabsTrigger value="preparing">Preparando</TabsTrigger>
+          <TabsTrigger value="ready">Listos</TabsTrigger>
+          <TabsTrigger value="delivered">Entregados</TabsTrigger>
+          <TabsTrigger value="completed">Completados</TabsTrigger>
+          <TabsTrigger value="cancelled">Cancelados</TabsTrigger>
+        </TabsList>
 
-      <div className="grid gap-4">
-        {filteredOrders.map((order) => (
-          <Card key={order.id} className="overflow-hidden">
-            <CardContent className="p-0">
-              <div className="bg-muted p-4 flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  {getOrderTypeIcon(order.type)}
-                  <span className="font-medium">Pedido #{order.orderNumber}</span>
-                  {getStatusBadge(order.status)}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true, locale: es })}
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-4">
-                <div className="space-y-2">
-                  {order.items.map((item) => (
-                    <div key={item.id} className="flex justify-between">
+        <TabsContent value={activeTab} className="mt-0">
+          {filteredOrders.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No hay pedidos {getStatusText(activeTab).toLowerCase()}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredOrders.map((order) => (
+                <Card key={order.id} className="overflow-hidden">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start">
                       <div>
-                        <span className="font-medium">{item.quantity}x</span> {item.productName}
-                        {item.extras.length > 0 && (
-                          <div className="text-sm text-muted-foreground pl-5">
-                            {item.extras.map((extra) => (
-                              <div key={extra.id}>
-                                {extra.quantity}x {extra.name}
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-bold">#{order.orderNumber}</h3>
+                          <Badge className={getStatusColor(order.status)}>
+                            {getStatusIcon(order.status)}
+                            <span className="ml-1">{getStatusText(order.status)}</span>
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-gray-500 mt-1">
+                          {order.createdAt &&
+                            formatDistanceToNow(
+                              new Date(order.createdAt.toDate ? order.createdAt.toDate() : order.createdAt),
+                              { addSuffix: true, locale: es },
+                            )}
+                        </div>
+                        <div className="flex items-center text-sm mt-1">
+                          <Badge variant="outline">{getTypeText(order.type)}</Badge>
+                          {order.tableId && <span className="ml-2">Mesa: {order.tableId}</span>}
+                        </div>
                       </div>
                       <div className="text-right">
-                        $
-                        {(
-                          item.price * item.quantity +
-                          item.extras.reduce((sum, extra) => sum + extra.price * extra.quantity, 0)
-                        ).toFixed(2)}
+                        <div className="font-bold">${order.total.toFixed(2)}</div>
+                        <div className="text-sm text-gray-500">{order.items.length} items</div>
                       </div>
                     </div>
-                  ))}
-                </div>
 
-                <Separator className="my-4" />
-
-                <div className="space-y-1">
-                  <div className="flex justify-between text-sm">
-                    <span>Subtotal:</span>
-                    <span>${order.subtotal.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Impuestos:</span>
-                    <span>${order.tax.toFixed(2)}</span>
-                  </div>
-                  {order.discount > 0 && (
-                    <div className="flex justify-between text-sm text-green-600">
-                      <span>Descuento:</span>
-                      <span>-${order.discount.toFixed(2)}</span>
+                    <div className="mt-4 space-y-2">
+                      {order.items.slice(0, 3).map((item, index) => (
+                        <div key={index} className="flex justify-between text-sm">
+                          <span>
+                            {item.quantity}x {item.productName}
+                          </span>
+                          <span>${(item.price * item.quantity).toFixed(2)}</span>
+                        </div>
+                      ))}
+                      {order.items.length > 3 && (
+                        <div className="text-sm text-gray-500 text-center">+{order.items.length - 3} más...</div>
+                      )}
                     </div>
-                  )}
-                  {order.tip > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span>Propina:</span>
-                      <span>${order.tip.toFixed(2)}</span>
+
+                    {order.customerName && (
+                      <div className="mt-4 flex items-center text-sm">
+                        <User className="h-4 w-4 mr-1" />
+                        <span>{order.customerName}</span>
+                        {order.customerPhone && <span className="ml-2">({order.customerPhone})</span>}
+                      </div>
+                    )}
+
+                    <div className="mt-4 flex justify-between">
+                      {activeTab === "pending" && (
+                        <>
+                          <Button size="sm" onClick={() => handleStatusChange(order.id, "preparing")}>
+                            Preparar
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => cancelOrder(order.id)}>
+                            Cancelar
+                          </Button>
+                        </>
+                      )}
+                      {activeTab === "preparing" && (
+                        <Button size="sm" className="w-full" onClick={() => handleStatusChange(order.id, "ready")}>
+                          Marcar como Listo
+                        </Button>
+                      )}
+                      {activeTab === "ready" && (
+                        <Button size="sm" className="w-full" onClick={() => handleStatusChange(order.id, "delivered")}>
+                          Marcar como Entregado
+                        </Button>
+                      )}
+                      {activeTab === "delivered" && (
+                        <Button size="sm" className="w-full" onClick={() => completeOrder(order.id)}>
+                          Completar Pedido
+                        </Button>
+                      )}
+                      {(activeTab === "completed" || activeTab === "cancelled") && (
+                        <div className="flex items-center text-sm text-gray-500 w-full justify-center">
+                          {activeTab === "completed" ? (
+                            <>
+                              <Check className="h-4 w-4 mr-1 text-green-500" />
+                              <span>Pedido completado</span>
+                            </>
+                          ) : (
+                            <>
+                              <X className="h-4 w-4 mr-1 text-red-500" />
+                              <span>Pedido cancelado</span>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  )}
-                  <div className="flex justify-between font-medium pt-1">
-                    <span>Total:</span>
-                    <span>${order.total.toFixed(2)}</span>
-                  </div>
-                </div>
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {order.customerName && (
-                    <div className="text-sm bg-muted px-2 py-1 rounded-md">Cliente: {order.customerName}</div>
-                  )}
-                  {order.customerPhone && (
-                    <div className="text-sm bg-muted px-2 py-1 rounded-md">Tel: {order.customerPhone}</div>
-                  )}
-                  {order.tableId && <div className="text-sm bg-muted px-2 py-1 rounded-md">Mesa: {order.tableId}</div>}
-                  {order.customerAddress && (
-                    <div className="text-sm bg-muted px-2 py-1 rounded-md">Dirección: {order.customerAddress}</div>
-                  )}
-                </div>
-
-                <div className="mt-4 flex justify-end gap-2">
-                  <Button variant="outline" size="sm">
-                    Detalles
-                  </Button>
-                  {order.status === "pending" && (
-                    <>
-                      <Button variant="default" size="sm">
-                        <Check className="mr-1 h-4 w-4" />
-                        Aceptar
-                      </Button>
-                      <Button variant="destructive" size="sm">
-                        <X className="mr-1 h-4 w-4" />
-                        Rechazar
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
