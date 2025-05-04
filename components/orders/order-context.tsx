@@ -4,7 +4,7 @@ import type React from "react"
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { ref, push, get, update, remove, set } from "firebase/database"
 import { rtdb } from "@/lib/firebase-config"
-import type { Order } from "@/lib/types/orders"
+import type { Order, OrderStatus } from "@/lib/types/orders"
 
 interface OrderContextProps {
   orders: Order[]
@@ -15,6 +15,9 @@ interface OrderContextProps {
   deleteOrder: (id: string) => Promise<void>
   getOrder: (id: string) => Promise<Order | null>
   refreshOrders: () => Promise<void>
+  updateOrderStatus: (id: string, status: OrderStatus) => Promise<void>
+  completeOrder: (id: string) => Promise<void>
+  cancelOrder: (id: string) => Promise<void>
 }
 
 const OrderContext = createContext<OrderContextProps | undefined>(undefined)
@@ -145,9 +148,17 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
       const currentOrderSnapshot = await get(orderRef)
       const currentOrder = currentOrderSnapshot.val() || {}
 
+      // Eliminar propiedades undefined
+      const cleanedOrderData = { ...orderData }
+      Object.keys(cleanedOrderData).forEach((key) => {
+        if (cleanedOrderData[key] === undefined) {
+          delete cleanedOrderData[key]
+        }
+      })
+
       await update(orderRef, {
         ...currentOrder,
-        ...orderData,
+        ...cleanedOrderData,
         updatedAt: Date.now(),
       })
 
@@ -204,6 +215,40 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
     }
   }
 
+  // Implementar las funciones que faltaban
+  const updateOrderStatus = async (id: string, status: OrderStatus) => {
+    try {
+      console.log(`Actualizando estado del pedido ${id} a ${status}`)
+      await updateOrder(id, { status })
+    } catch (err) {
+      console.error("Error updating order status:", err)
+      setError(`Error al actualizar el estado del pedido a ${status}`)
+      throw err
+    }
+  }
+
+  const completeOrder = async (id: string) => {
+    try {
+      console.log(`Completando pedido ${id}`)
+      await updateOrderStatus(id, "completed")
+    } catch (err) {
+      console.error("Error completing order:", err)
+      setError("Error al completar el pedido")
+      throw err
+    }
+  }
+
+  const cancelOrder = async (id: string) => {
+    try {
+      console.log(`Cancelando pedido ${id}`)
+      await updateOrderStatus(id, "cancelled")
+    } catch (err) {
+      console.error("Error cancelling order:", err)
+      setError("Error al cancelar el pedido")
+      throw err
+    }
+  }
+
   const value = {
     orders,
     loading,
@@ -213,6 +258,9 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
     deleteOrder,
     getOrder,
     refreshOrders: fetchOrders,
+    updateOrderStatus,
+    completeOrder,
+    cancelOrder,
   }
 
   return <OrderContext.Provider value={value}>{children}</OrderContext.Provider>
