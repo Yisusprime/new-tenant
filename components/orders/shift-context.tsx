@@ -1,36 +1,39 @@
 "use client"
 
 import type React from "react"
-
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useCallback } from "react"
 import { ref, push, get, update, onValue, off } from "firebase/database"
 import { rtdb } from "@/lib/firebase-config"
-import type { Shift, ShiftContextType } from "@/lib/types/shift"
 import { useAuth } from "@/lib/auth-context"
+import type { Shift, ShiftContextType } from "@/lib/types/shift"
 
+// Crear el contexto
 const ShiftContext = createContext<ShiftContextType | undefined>(undefined)
 
-export const useShiftContext = () => {
+// Hook para usar el contexto
+export function useShiftContext() {
   const context = useContext(ShiftContext)
-  if (!context) {
+  if (context === undefined) {
     throw new Error("useShiftContext must be used within a ShiftProvider")
   }
   return context
 }
 
+// Props del provider
 interface ShiftProviderProps {
-  children: ReactNode
+  children: React.ReactNode
   tenantId: string
 }
 
-export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children, tenantId }) => {
+// Provider component
+export function ShiftProvider({ children, tenantId }: ShiftProviderProps) {
   const [currentShift, setCurrentShift] = useState<Shift | null>(null)
   const [shifts, setShifts] = useState<Shift[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const { user } = useAuth()
 
-  // Usar un listener en tiempo real para los turnos
+  // Cargar turnos al montar el componente
   useEffect(() => {
     if (!tenantId) {
       setLoading(false)
@@ -43,7 +46,7 @@ export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children, tenantId
 
     const shiftsRef = ref(rtdb, `tenants/${tenantId}/shifts`)
 
-    const handleShiftsUpdate = (snapshot) => {
+    const handleShiftsUpdate = (snapshot: any) => {
       try {
         const shiftsData = snapshot.val() || {}
         console.log("Real-time shifts data update:", shiftsData)
@@ -86,7 +89,8 @@ export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children, tenantId
     }
   }, [tenantId])
 
-  const fetchShifts = useCallback(async () => {
+  // Función para recargar los turnos manualmente
+  const refreshShifts = useCallback(async () => {
     try {
       setLoading(true)
       console.log("Manually fetching shifts for tenant:", tenantId)
@@ -129,6 +133,7 @@ export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children, tenantId
     }
   }, [tenantId])
 
+  // Función para iniciar un nuevo turno
   const startShift = async (shiftData: Partial<Shift>): Promise<string> => {
     try {
       if (!tenantId) {
@@ -166,6 +171,7 @@ export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children, tenantId
     }
   }
 
+  // Función para finalizar un turno
   const endShift = async (shiftId: string, summary?: Shift["summary"]): Promise<void> => {
     try {
       if (!tenantId) {
@@ -231,6 +237,7 @@ export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children, tenantId
     }
   }
 
+  // Función para obtener un turno por su ID
   const getShift = async (shiftId: string): Promise<Shift | null> => {
     try {
       if (!tenantId) {
@@ -254,6 +261,7 @@ export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children, tenantId
     }
   }
 
+  // Valor del contexto
   const value: ShiftContextType = {
     currentShift,
     shifts,
@@ -262,7 +270,7 @@ export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children, tenantId
     startShift,
     endShift,
     getShift,
-    refreshShifts: fetchShifts,
+    refreshShifts,
   }
 
   return <ShiftContext.Provider value={value}>{children}</ShiftContext.Provider>
