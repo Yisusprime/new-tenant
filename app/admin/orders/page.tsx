@@ -20,12 +20,14 @@ import { TenantAdminSidebar } from "@/components/tenant-admin-sidebar"
 import { useAuth } from "@/lib/auth-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
-function OrdersContent({ tenantId }: { tenantId: string }) {
+function OrdersContent({
+  tenantId,
+  setIsSidebarOpen,
+}: { tenantId: string; setIsSidebarOpen: (open: boolean) => void }) {
   const router = useRouter()
   const { currentShift, loading: shiftLoading } = useShiftContext()
 
   const [isNewOrderOpen, setIsNewOrderOpen] = useState(false)
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isEndShiftOpen, setIsEndShiftOpen] = useState(false)
   const [isStartShiftOpen, setIsStartShiftOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("all")
@@ -55,7 +57,7 @@ function OrdersContent({ tenantId }: { tenantId: string }) {
         {/* Header */}
         <header className="bg-background border-b h-16 flex items-center justify-between px-4">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="lg:hidden">
+            <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)} className="lg:block">
               <Menu className="h-5 w-5" />
             </Button>
             <h1 className="text-xl font-bold">Gestión de Pedidos</h1>
@@ -177,12 +179,7 @@ export default function OrdersPage() {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Sidebar desktop fijo */}
-      <div className="hidden lg:block">
-        <TenantAdminSidebar tenantid={tenantId} />
-      </div>
-
-      {/* Sidebar móvil/desplegable */}
+      {/* Sidebar móvil/desplegable - ahora siempre es desplegable, no fijo */}
       <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
         <SheetContent side="left" className="p-0 w-64">
           <TenantAdminSidebar tenantid={tenantId} />
@@ -191,7 +188,7 @@ export default function OrdersPage() {
 
       {/* Contenido principal con todos los providers necesarios */}
       <ShiftProvider tenantId={tenantId}>
-        <OrdersContent tenantId={tenantId} />
+        <OrdersContent tenantId={tenantId} setIsSidebarOpen={setIsSidebarOpen} />
       </ShiftProvider>
     </div>
   )

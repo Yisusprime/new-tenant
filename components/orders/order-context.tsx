@@ -46,6 +46,12 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Mejorar la función updateOrderStatus para evitar el problema del doble clic
+  // Añadir un estado de carga para cada operación
+
+  // Añadir estos estados al componente OrderProvider
+  const [updatingOrderIds, setUpdatingOrderIds] = useState<Record<string, boolean>>({})
+
   // Modificar la función fetchOrders para incluir el cooldown:
 
   const fetchOrders = async () => {
@@ -231,17 +237,64 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
     }
   }
 
-  // Implementar las funciones que faltaban
-  const updateOrderStatus = async (id: string, status: OrderStatus) => {
+  // Reemplazar la función updateOrderStatus con esta versión mejorada
+  const updateOrderStatus = async (orderId: string, newStatus: OrderStatus): Promise<void> => {
     try {
-      console.log(`Actualizando estado del pedido ${id} a ${status}`)
-      await updateOrder(id, { status })
-    } catch (err) {
-      console.error("Error updating order status:", err)
-      setError(`Error al actualizar el estado del pedido a ${status}`)
-      throw err
+      // Evitar actualizaciones múltiples del mismo pedido
+      if (updatingOrderIds[orderId]) {
+        console.log(`Ya hay una actualización en curso para el pedido ${orderId}`)
+        return
+      }
+
+      setUpdatingOrderIds((prev) => ({ ...prev, [orderId]: true }))
+
+      if (!tenantId) {
+        throw new Error("No tenant ID provided")
+      }
+
+      console.log(`Actualizando estado del pedido ${orderId} a ${newStatus}`)
+
+      // Obtener la orden actual para verificar que el cambio de estado sea válido
+      const orderRef = ref(rtdb, `tenants/${tenantId}/orders/${orderId}`)
+      const snapshot = await get(orderRef)
+
+      if (!snapshot.exists()) {
+        throw new Error(`Order ${orderId} not found`)
+      }
+
+      const orderData = snapshot.val()
+      const currentStatus = orderData.status
+
+      // Evitar actualizar si ya tiene el estado deseado
+      if (currentStatus === newStatus) {
+        console.log(`El pedido ya tiene el estado ${newStatus}`)
+        setUpdatingOrderIds((prev) => ({ ...prev, [orderId]: false }))
+        return
+      }
+
+      // Actualizar en Firebase
+      await update(orderRef, {
+        status: newStatus,
+        updatedAt: Date.now(),
+      })
+
+      // Actualizar el estado local
+      setOrders((prevOrders) =>
+        prevOrders.map((order) => (order.id === orderId ? { ...order, status: newStatus } : order)),
+      )
+
+      console.log(`Estado del pedido ${orderId} actualizado a ${newStatus}`)
+    } catch (error) {
+      console.error("Error updating order status:", error)
+      setError(`Error al actualizar el estado del pedido: ${error.message}`)
+      throw error
+    } finally {
+      setUpdatingOrderIds((prev) => ({ ...prev, [orderId]: false }))
     }
   }
+
+  // Actualizar también las funciones completeOrder y cancelOrder de manera similar
+  // para evitar múltiples clics
 
   const completeOrder = async (id: string) => {
     try {

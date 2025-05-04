@@ -24,8 +24,13 @@ export function OrderList({ currentShiftId }: OrderListProps) {
     // Si no hay un turno actual especificado, mostrar todas las órdenes
     if (!currentShiftId) return true
 
-    // Si hay un turno actual, solo mostrar órdenes activas (no completadas ni canceladas)
-    return order.status !== "completed" && order.status !== "cancelled"
+    // Si estamos en la pestaña "all" (todos), mostrar solo pedidos activos
+    if (activeTab === "all") {
+      return order.status !== "completed" && order.status !== "cancelled"
+    }
+
+    // En las pestañas específicas, mostrar todos los pedidos que coincidan con ese estado
+    return true
   })
 
   // Filtrar por estado y término de búsqueda

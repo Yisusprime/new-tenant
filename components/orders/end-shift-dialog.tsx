@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, CheckCircle, AlertTriangle } from "lucide-react"
 import { useOrderContext } from "./order-context"
+import { useShiftContext } from "@/components/shifts/shift-context"
+import { toast } from "sonner"
 
 interface EndShiftDialogProps {
   open: boolean
@@ -24,16 +26,23 @@ interface EndShiftDialogProps {
 
 export function EndShiftDialog({ open, onOpenChange, onComplete, tenantId }: EndShiftDialogProps) {
   const { orders, updateOrderStatus, refreshOrders } = useOrderContext()
+  const { currentShift, endShift, refreshShifts, summary } = useShiftContext()
   const router = useRouter()
 
   const [isChecking, setIsChecking] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [activeOrders, setActiveOrders] = useState<{
     pending: number
     preparing: number
     ready: number
     delivered: number
   }>({ pending: 0, preparing: 0, ready: 0, delivered: 0 })
+
+  // Mejorar el manejo del cierre de turno para asegurar que se cierre correctamente
+
+  // Añadir un estado para controlar si el turno se ha cerrado exitosamente
+  const [shiftClosed, setShiftClosed] = useState(false)
 
   // Verificar pedidos activos cuando se abre el diálogo
   useEffect(() => {
@@ -76,10 +85,20 @@ export function EndShiftDialog({ open, onOpenChange, onComplete, tenantId }: End
     return activeOrders.pending > 0 || activeOrders.preparing > 0 || activeOrders.ready > 0
   }
 
+  // Modificar la función handleEndShift
   const handleEndShift = async () => {
-    setIsProcessing(true)
+    if (!currentShift) {
+      toast({
+        title: "Error",
+        description: "No hay un turno activo para finalizar",
+        variant: "destructive",
+      })
+      return
+    }
 
     try {
+      setIsSubmitting(true)
+
       // 1. Completar pedidos entregados pendientes de completar
       const deliveredOrders = orders.filter((order) => order.status === "delivered")
 
@@ -98,24 +117,52 @@ export function EndShiftDialog({ open, onOpenChange, onComplete, tenantId }: End
         }
       }
 
-      // 2. Finalizar turno (aquí podrías agregar lógica adicional si es necesario)
-      console.log("Turno finalizado correctamente")
+      // Cerrar el turno
+      await endShift(currentShift.id, {
+        totalOrders: summary.totalOrders,
+        totalSales: summary.totalSales,
+        cashSales: summary.cashSales,
+        cardSales: summary.cardSales,
+        otherSales: summary.otherSales,
+      })
 
-      // 3. Cerrar el diálogo antes de redirigir
+      // Marcar que el turno se ha cerrado exitosamente
+      setShiftClosed(true)
+
+      toast({
+        title: "Turno finalizado",
+        description: "El turno ha sido finalizado correctamente",
+      })
+
+      // Cerrar el diálogo y ejecutar la función onComplete
       onOpenChange(false)
-
-      // 4. Notificar que se completó el proceso
-      onComplete()
+      if (onComplete) {
+        onComplete()
+      }
 
       // 5. Redirigir a la página de cierre de caja
       router.push(`/admin/cashier?action=close`)
     } catch (error) {
-      console.error("Error al finalizar turno:", error)
+      console.error("Error al finalizar el turno:", error)
+      toast({
+        title: "Error",
+        description: `No se pudo finalizar el turno: ${error.message}`,
+        variant: "destructive",
+      })
       // No cerramos el diálogo para que el usuario pueda ver el error
     } finally {
-      setIsProcessing(false)
+      setIsSubmitting(false)
     }
   }
+
+  // Añadir un efecto para verificar si el turno sigue activo después de intentar cerrarlo
+  useEffect(() => {
+    if (shiftClosed && currentShift) {
+      console.error("El turno sigue apareciendo como activo después de cerrarlo")
+      // Forzar una actualización del estado
+      refreshShifts()
+    }
+  }, [shiftClosed, currentShift, refreshShifts])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -177,15 +224,15 @@ export function EndShiftDialog({ open, onOpenChange, onComplete, tenantId }: End
         )}
 
         <DialogFooter className="flex items-center justify-between sm:justify-between">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isProcessing}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Cancelar
           </Button>
           <Button
             onClick={handleEndShift}
-            disabled={isProcessing || isChecking || hasActiveOrders()}
-            className={isProcessing ? "opacity-80" : ""}
+            disabled={isSubmitting || isChecking || hasActiveOrders()}
+            className={isSubmitting ? "opacity-80" : ""}
           >
-            {isProcessing ? "Procesando..." : "Finalizar Turno"}
+            {isSubmitting ? "Procesando..." : "Finalizar Turno"}
           </Button>
         </DialogFooter>
       </DialogContent>

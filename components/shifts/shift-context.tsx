@@ -2,10 +2,28 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
-import { ref, push, get, update, onValue, off } from "firebase/database"
+import { ref, get, update, push, onValue, off } from "firebase/database"
 import { rtdb } from "@/lib/firebase-config"
-import type { Shift, ShiftContextType } from "@/lib/types/shift"
+import type { Shift } from "@/lib/types/shift"
 import { useAuth } from "@/lib/auth-context"
+
+interface ShiftContextType {
+  currentShift: Shift | null
+  shifts: Shift[]
+  loading: boolean
+  error: string | null
+  startShift: (shiftData?: Partial<Shift>) => Promise<string>
+  endShift: (shiftId: string, summary?: Shift["summary"]) => Promise<void>
+  getShift: (shiftId: string) => Promise<Shift | null>
+  refreshShifts: () => Promise<void>
+  summary: {
+    totalOrders: number
+    totalSales: number
+    cashSales: number
+    cardSales: number
+    otherSales: number
+  }
+}
 
 const ShiftContext = createContext<ShiftContextType | undefined>(undefined)
 
@@ -28,6 +46,13 @@ export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children, tenantId
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const { user } = useAuth()
+  const [summary, setSummary] = useState({
+    totalOrders: 0,
+    totalSales: 0,
+    cashSales: 0,
+    cardSales: 0,
+    otherSales: 0,
+  })
 
   // Usar un listener en tiempo real para los turnos
   useEffect(() => {
@@ -154,7 +179,7 @@ export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children, tenantId
         ...shiftData,
       }
 
-      await update(newShiftRef, newShift)
+      await set(newShiftRef, newShift)
       console.log("Turno creado con ID:", newShiftRef.key)
 
       // El listener se encargará de actualizar el estado
@@ -165,7 +190,7 @@ export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children, tenantId
     }
   }
 
-  const endShift = async (shiftId: string, summary?: Shift["summary"]): Promise<void> => {
+  const endShift = async (shiftId: string, summaryData?: Shift["summary"]): Promise<void> => {
     try {
       if (!tenantId) {
         throw new Error("No tenantId provided")
@@ -192,7 +217,7 @@ export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children, tenantId
         status: "closed",
         endTime: timestamp,
         closedBy: user?.uid || "",
-        summary: summary || {
+        summary: summaryData || {
           totalOrders: 0,
           totalSales: 0,
           cashSales: 0,
@@ -200,28 +225,6 @@ export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children, tenantId
           otherSales: 0,
         },
       })
-
-      // Actualizar el estado local inmediatamente para evitar problemas de sincronización
-      setCurrentShift(null)
-      setShifts((prevShifts) =>
-        prevShifts.map((shift) =>
-          shift.id === shiftId
-            ? {
-                ...shift,
-                status: "closed",
-                endTime: timestamp,
-                closedBy: user?.uid || "",
-                summary: summary || {
-                  totalOrders: 0,
-                  totalSales: 0,
-                  cashSales: 0,
-                  cardSales: 0,
-                  otherSales: 0,
-                },
-              }
-            : shift,
-        ),
-      )
 
       console.log(`Turno ${shiftId} finalizado correctamente`)
     } catch (err) {
@@ -262,6 +265,13 @@ export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children, tenantId
     endShift,
     getShift,
     refreshShifts: fetchShifts,
+    summary: {
+      totalOrders: 0,
+      totalSales: 0,
+      cashSales: 0,
+      cardSales: 0,
+      otherSales: 0,
+    },
   }
 
   return <ShiftContext.Provider value={value}>{children}</ShiftContext.Provider>

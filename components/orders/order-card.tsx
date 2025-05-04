@@ -14,7 +14,8 @@ interface OrderCardProps {
 }
 
 export const OrderCard = ({ order }: OrderCardProps) => {
-  const { updateOrderStatus, completeOrder, cancelOrder } = useOrderContext()
+  // Importar el estado de actualización desde el contexto
+  const { updateOrderStatus, completeOrder, cancelOrder, updatingOrderIds } = useOrderContext()
 
   const getStatusIcon = (status: OrderStatus) => {
     switch (status) {
@@ -118,30 +119,82 @@ export const OrderCard = ({ order }: OrderCardProps) => {
       case "pending":
         return (
           <>
-            <Button size="sm" onClick={() => handleStatusChange(order.id, "preparing")}>
-              Preparar
+            <Button
+              size="sm"
+              onClick={() => handleStatusChange(order.id, "preparing")}
+              disabled={updatingOrderIds[order.id]}
+            >
+              {updatingOrderIds[order.id] ? (
+                <span className="flex items-center">
+                  <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                  Preparando...
+                </span>
+              ) : (
+                "Preparar"
+              )}
             </Button>
-            <Button size="sm" variant="destructive" onClick={() => handleCancelOrder(order.id)}>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => handleCancelOrder(order.id)}
+              disabled={updatingOrderIds[order.id]}
+            >
               Cancelar
             </Button>
           </>
         )
       case "preparing":
         return (
-          <Button size="sm" className="w-full" onClick={() => handleStatusChange(order.id, "ready")}>
-            Marcar como Listo
+          <Button
+            size="sm"
+            className="w-full"
+            onClick={() => handleStatusChange(order.id, "ready")}
+            disabled={updatingOrderIds[order.id]}
+          >
+            {updatingOrderIds[order.id] ? (
+              <span className="flex items-center">
+                <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                Listo...
+              </span>
+            ) : (
+              "Marcar como Listo"
+            )}
           </Button>
         )
       case "ready":
         return (
-          <Button size="sm" className="w-full" onClick={() => handleStatusChange(order.id, "delivered")}>
-            Marcar como Entregado
+          <Button
+            size="sm"
+            className="w-full"
+            onClick={() => handleStatusChange(order.id, "delivered")}
+            disabled={updatingOrderIds[order.id]}
+          >
+            {updatingOrderIds[order.id] ? (
+              <span className="flex items-center">
+                <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                Entregando...
+              </span>
+            ) : (
+              "Marcar como Entregado"
+            )}
           </Button>
         )
       case "delivered":
         return (
-          <Button size="sm" className="w-full" onClick={() => handleCompleteOrder(order.id)}>
-            Completar Pedido
+          <Button
+            size="sm"
+            className="w-full"
+            onClick={() => handleCompleteOrder(order.id)}
+            disabled={updatingOrderIds[order.id]}
+          >
+            {updatingOrderIds[order.id] ? (
+              <span className="flex items-center">
+                <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                Completando...
+              </span>
+            ) : (
+              "Completar Pedido"
+            )}
           </Button>
         )
       case "completed":
