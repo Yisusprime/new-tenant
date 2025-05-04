@@ -35,13 +35,29 @@ interface OrderProviderProps {
   tenantId: string
 }
 
+// Añadamos un mecanismo para evitar múltiples llamadas a fetchOrders en corto tiempo
+// Añadir esta variable fuera del componente OrderProvider:
+
+let lastFetchTime = 0
+const FETCH_COOLDOWN = 2000 // 2 segundos de cooldown entre fetches
+
 export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId }) => {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Modificar la función fetchOrders para incluir el cooldown:
+
   const fetchOrders = async () => {
     try {
+      // Verificar si ha pasado suficiente tiempo desde la última llamada
+      const now = Date.now()
+      if (now - lastFetchTime < FETCH_COOLDOWN) {
+        console.log("Fetch throttled, skipping...")
+        return
+      }
+
+      lastFetchTime = now
       setLoading(true)
       console.log("Fetching orders for tenant:", tenantId)
 

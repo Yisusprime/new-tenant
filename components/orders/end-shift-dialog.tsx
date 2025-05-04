@@ -40,12 +40,13 @@ export function EndShiftDialog({ open, onOpenChange, onComplete, tenantId }: End
     if (open) {
       checkActiveOrders()
     }
-  }, [open, orders])
+  }, [open])
 
   const checkActiveOrders = async () => {
     setIsChecking(true)
 
     try {
+      // Solo refrescar órdenes una vez al abrir
       await refreshOrders()
 
       // Contar pedidos por estado
@@ -82,21 +83,37 @@ export function EndShiftDialog({ open, onOpenChange, onComplete, tenantId }: End
       // 1. Completar pedidos entregados pendientes de completar
       const deliveredOrders = orders.filter((order) => order.status === "delivered")
 
-      for (const order of deliveredOrders) {
-        await updateOrderStatus(order.id, "completed")
+      if (deliveredOrders.length > 0) {
+        console.log(`Completando ${deliveredOrders.length} pedidos entregados`)
+
+        // Procesar los pedidos uno por uno para evitar problemas
+        for (const order of deliveredOrders) {
+          try {
+            await updateOrderStatus(order.id, "completed")
+            console.log(`Pedido ${order.id} completado correctamente`)
+          } catch (err) {
+            console.error(`Error al completar pedido ${order.id}:`, err)
+            // Continuamos con el siguiente pedido
+          }
+        }
       }
 
-      // 2. Finalizar turno
-      await refreshOrders()
+      // 2. Finalizar turno (aquí podrías agregar lógica adicional si es necesario)
+      console.log("Turno finalizado correctamente")
 
-      // 3. Redirigir a la página de cierre de caja
+      // 3. Cerrar el diálogo antes de redirigir
+      onOpenChange(false)
+
+      // 4. Notificar que se completó el proceso
       onComplete()
+
+      // 5. Redirigir a la página de cierre de caja
       router.push(`/admin/cashier?action=close`)
     } catch (error) {
       console.error("Error al finalizar turno:", error)
+      // No cerramos el diálogo para que el usuario pueda ver el error
     } finally {
       setIsProcessing(false)
-      onOpenChange(false)
     }
   }
 
