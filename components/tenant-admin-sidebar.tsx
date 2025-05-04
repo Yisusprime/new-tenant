@@ -36,13 +36,15 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
     }
   }, [])
 
+  // Actualizar el array de enlaces para incluir la página de productos
+
   const links = [
     { href: `/admin/dashboard`, label: "Dashboard", icon: Home },
     { href: `/admin/profile`, label: "Perfil Personal", icon: User },
     { href: `/admin/restaurant`, label: "Datos del Local", icon: Store },
     { href: `/admin/categories`, label: "Categorías", icon: List },
-    { href: `/admin/users`, label: "Usuarios", icon: Users },
     { href: `/admin/products`, label: "Productos", icon: ShoppingCart },
+    { href: `/admin/users`, label: "Usuarios", icon: Users },
     { href: `/admin/stats`, label: "Estadísticas", icon: BarChart3 },
     { href: `/admin/settings`, label: "Configuración", icon: Settings },
   ]
