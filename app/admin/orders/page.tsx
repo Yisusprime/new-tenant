@@ -13,10 +13,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Plus, Menu } from "lucide-react"
 import { TenantAdminSidebar } from "@/components/tenant-admin-sidebar"
+import { useAuth } from "@/lib/auth-context"
 
 export default function OrdersPage() {
+  const { user } = useAuth()
   const params = useParams()
-  const tenantId = (params.tenantId as string) || "demo"
+  // Usar el tenantId del usuario autenticado, no el valor predeterminado "demo"
+  const tenantId = user?.tenantId || (params.tenantId as string)
+
+  console.log("OrdersPage - Using tenant ID:", tenantId)
   const [isNewOrderOpen, setIsNewOrderOpen] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
@@ -51,6 +56,7 @@ export default function OrdersPage() {
               <SheetHeader className="mb-4">
                 <SheetTitle>Nuevo Pedido</SheetTitle>
               </SheetHeader>
+              {console.log("Inicializando proveedores con tenantId:", tenantId)}
               <OrderProvider tenantId={tenantId}>
                 <TableProvider tenantId={tenantId}>
                   <NewOrderForm tenantId={tenantId} onClose={() => setIsNewOrderOpen(false)} />

@@ -37,14 +37,24 @@ export const TableProvider: React.FC<TableProviderProps> = ({ children, tenantId
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Validar el tenantId al inicializar
+  useEffect(() => {
+    if (!tenantId) {
+      console.error("TableProvider initialized with invalid tenantId:", tenantId)
+      setError("Error: No se proporcionó un ID de inquilino válido")
+    } else {
+      console.log("TableProvider initialized with tenantId:", tenantId)
+    }
+  }, [tenantId])
+
   const fetchTables = async () => {
     try {
       setLoading(true)
       console.log("Fetching tables for tenant:", tenantId)
 
-      if (!tenantId) {
-        console.error("No tenantId provided to TableProvider")
-        setError("Error: No se proporcionó un ID de inquilino")
+      if (!tenantId || tenantId === "undefined" || tenantId === "null") {
+        console.error("Invalid tenantId provided to TableProvider:", tenantId)
+        setError("Error: ID de inquilino inválido")
         setLoading(false)
         return
       }
@@ -88,8 +98,10 @@ export const TableProvider: React.FC<TableProviderProps> = ({ children, tenantId
 
   const addTable = async (tableData: Omit<Table, "id" | "createdAt" | "updatedAt">) => {
     try {
-      if (!tenantId) {
-        throw new Error("No tenantId provided")
+      if (!tenantId || tenantId === "undefined" || tenantId === "null") {
+        console.error("Invalid tenantId provided to addTable:", tenantId)
+        setError("Error: ID de inquilino inválido")
+        throw new Error("Invalid tenantId provided")
       }
 
       console.log(`Añadiendo mesa para el tenant: ${tenantId}`)
@@ -117,8 +129,10 @@ export const TableProvider: React.FC<TableProviderProps> = ({ children, tenantId
 
   const updateTable = async (id: string, tableData: Partial<Omit<Table, "id" | "createdAt" | "updatedAt">>) => {
     try {
-      if (!tenantId) {
-        throw new Error("No tenantId provided")
+      if (!tenantId || tenantId === "undefined" || tenantId === "null") {
+        console.error("Invalid tenantId provided to updateTable:", tenantId)
+        setError("Error: ID de inquilino inválido")
+        throw new Error("Invalid tenantId provided")
       }
 
       // Obtener el tenantId de la tabla existente o usar el proporcionado
@@ -149,8 +163,10 @@ export const TableProvider: React.FC<TableProviderProps> = ({ children, tenantId
 
   const deleteTable = async (id: string) => {
     try {
-      if (!tenantId) {
-        throw new Error("No tenantId provided")
+      if (!tenantId || tenantId === "undefined" || tenantId === "null") {
+        console.error("Invalid tenantId provided to deleteTable:", tenantId)
+        setError("Error: ID de inquilino inválido")
+        throw new Error("Invalid tenantId provided")
       }
 
       console.log(`Eliminando mesa para el tenant: ${tenantId}`)
@@ -169,8 +185,10 @@ export const TableProvider: React.FC<TableProviderProps> = ({ children, tenantId
 
   const getTable = async (id: string): Promise<Table | null> => {
     try {
-      if (!tenantId) {
-        throw new Error("No tenantId provided")
+      if (!tenantId || tenantId === "undefined" || tenantId === "null") {
+        console.error("Invalid tenantId provided to getTable:", tenantId)
+        setError("Error: ID de inquilino inválido")
+        throw new Error("Invalid tenantId provided")
       }
 
       // Usar Realtime Database en lugar de Firestore

@@ -20,6 +20,7 @@ interface TableFormProps {
 }
 
 export const TableForm: React.FC<TableFormProps> = ({ table, isOpen, onClose, tenantId }) => {
+  console.log("TableForm - Received tenantId:", tenantId)
   const { addTable, updateTable } = useTableContext()
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
@@ -33,6 +34,16 @@ export const TableForm: React.FC<TableFormProps> = ({ table, isOpen, onClose, te
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (!tenantId) {
+      toast({
+        title: "Error",
+        description: "No se proporcionó un ID de inquilino válido",
+        variant: "destructive",
+      })
+      console.error("TableForm - No valid tenantId provided:", tenantId)
+      return
+    }
+
     if (!number || !capacity) {
       toast({
         title: "Error",
@@ -44,6 +55,7 @@ export const TableForm: React.FC<TableFormProps> = ({ table, isOpen, onClose, te
 
     try {
       setLoading(true)
+      console.log("TableForm - Saving table with tenantId:", tenantId)
 
       const tableData: Omit<Table, "id" | "createdAt" | "updatedAt"> = {
         tenantId,

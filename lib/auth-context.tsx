@@ -47,6 +47,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (userDoc.exists()) {
         const userData = userDoc.data()
         console.log("User data loaded:", userData)
+        console.log("User tenantId:", userData.tenantId)
+
         setUser({
           uid: firebaseUser.uid,
           email: firebaseUser.email,
