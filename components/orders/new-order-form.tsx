@@ -26,7 +26,6 @@ import {
   Tag,
   CreditCard,
   Search,
-  ChevronRight,
   Loader2,
 } from "lucide-react"
 import { ref, get } from "firebase/database"
@@ -107,6 +106,7 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
           name: categoriesData[key].name,
         }))
         setCategories(categoriesList)
+        console.log("Categories loaded:", categoriesList.length)
 
         // Fetch products
         const productsRef = ref(rtdb, `tenants/${tenantId}/products`)
@@ -123,6 +123,7 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
           available: productsData[key].available !== false, // Por defecto true
         }))
         setProducts(productsList)
+        console.log("Products loaded:", productsList.length)
 
         // Fetch extras
         const extrasRef = ref(rtdb, `tenants/${tenantId}/extras`)
@@ -136,11 +137,12 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
           available: extrasData[key].available !== false, // Por defecto true
         }))
         setExtras(extrasList)
+        console.log("Extras loaded:", extrasList.length)
 
         setLoadingProducts(false)
       } catch (error) {
         console.error("Error fetching data:", error)
-        setLoadingError("Error al cargar los datos. Por favor, intenta de nuevo.")
+        setLoadingError(`Error al cargar los datos: ${error instanceof Error ? error.message : "Desconocido"}`)
         setLoadingProducts(false)
       }
     }
@@ -525,7 +527,7 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
                   Añadir Producto
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[90vw] sm:w-[80vw] md:w-[60vw] lg:w-[50vw] p-0">
+              <SheetContent side="right" className="w-[95vw] sm:w-[90vw] md:w-[80vw] lg:w-[70vw] p-0 max-w-[1000px]">
                 <div className="flex flex-col h-full">
                   <SheetHeader className="p-4 border-b">
                     <SheetTitle>Seleccionar Producto</SheetTitle>
@@ -612,23 +614,43 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
                     ) : filteredProducts.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">
                         {products.length === 0
-                          ? "No hay productos disponibles"
-                          : "No se encontraron productos con los filtros actuales"}
+                          ? "No hay productos disponibles en la base de datos"
+                          : `No se encontraron productos con los filtros actuales. Hay ${products.length} productos en total.`}
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                         {filteredProducts.map((product) => (
                           <Card
                             key={product.id}
                             className="cursor-pointer hover:bg-muted/50"
                             onClick={() => handleAddItem(product)}
                           >
-                            <CardContent className="p-3 flex justify-between items-center">
-                              <div>
-                                <div className="font-medium">{product.name}</div>
-                                <div className="text-sm text-muted-foreground">${product.price.toFixed(2)}</div>
+                            <CardContent className="p-3">
+                              <div className="flex justify-between items-start mb-2">
+                                <div className="font-medium line-clamp-2">{product.name}</div>
+                                <Badge variant="outline" className="ml-2 shrink-0">
+                                  ${product.price.toFixed(2)}
+                                </Badge>
                               </div>
-                              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                              {product.description && (
+                                <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{product.description}</p>
+                              )}
+                              {product.categoryId && categories.find((c) => c.id === product.categoryId) && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {categories.find((c) => c.id === product.categoryId)?.name}
+                                </div>
+                              )}
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                className="w-full mt-2"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleAddItem(product)
+                                }}
+                              >
+                                <Plus className="h-4 w-4 mr-1" /> Añadir
+                              </Button>
                             </CardContent>
                           </Card>
                         ))}
