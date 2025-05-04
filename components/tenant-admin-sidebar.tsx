@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { BarChart3, Home, LogOut, Settings, Users, User, Store, Menu, List, Coffee, Plus } from "lucide-react"
+import { BarChart3, Home, LogOut, Settings, Users, User, Store, Menu, List, Coffee, Plus, Package } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
@@ -48,6 +48,7 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
     { href: `/admin/users`, label: "Usuarios", icon: Users },
     { href: `/admin/stats`, label: "Estadísticas", icon: BarChart3 },
     { href: `/admin/settings`, label: "Configuración", icon: Settings },
+    { href: `/admin/inventory`, label: "Inventario", icon: Package },
   ]
 
   const handleLogout = async () => {
