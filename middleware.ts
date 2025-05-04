@@ -36,8 +36,14 @@ export default async function middleware(req: NextRequest) {
     const subdomain = hostname.replace(`.${rootDomain}`, "")
     console.log("Middleware - Subdomain:", subdomain)
 
-    // Para todas las rutas en un subdominio, apuntar a la carpeta (tenant)
-    // Esto incluye la ruta raíz y cualquier subruta
+    // Si la ruta es la raíz, redirigir a la landing page
+    if (path === "/") {
+      const newUrl = new URL(`/(tenant)/home`, req.url)
+      console.log("Middleware - Rewriting root to tenant home:", newUrl.toString())
+      return NextResponse.rewrite(newUrl)
+    }
+
+    // Para todas las demás rutas en un subdominio, apuntar a la carpeta (tenant)
     const newPath = `/(tenant)${path}`
     const newUrl = new URL(newPath, req.url)
     console.log("Middleware - Rewriting to tenant path:", newUrl.toString())
