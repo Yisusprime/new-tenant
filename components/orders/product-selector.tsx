@@ -64,7 +64,11 @@ export function ProductSelector({ isOpen, onOpenChange, tenantId, onProductSelec
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent side="left" className="w-[95vw] sm:w-[90vw] md:w-[80vw] lg:w-[75vw] xl:w-[70vw] p-0">
+      <SheetContent
+        side="left"
+        className="!w-[95vw] !max-w-[95vw] sm:!w-[90vw] sm:!max-w-[90vw] md:!w-[80vw] md:!max-w-[80vw] p-0"
+        style={{ width: "95vw", maxWidth: "95vw" }}
+      >
         <SheetHeader className="p-4 border-b">
           <SheetTitle>Seleccionar Producto</SheetTitle>
         </SheetHeader>
@@ -82,7 +86,7 @@ export function ProductSelector({ isOpen, onOpenChange, tenantId, onProductSelec
           </div>
         </div>
 
-        <div className="flex-grow overflow-auto p-4">
+        <div className="flex-grow overflow-auto p-4 h-[calc(100vh-120px)]">
           {loading ? (
             <div className="flex items-center justify-center h-40">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>

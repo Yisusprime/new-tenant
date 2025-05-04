@@ -15,10 +15,11 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/components/ui/use-toast"
-import { Home, ShoppingBag, MapPin, Utensils, Plus, Minus, Trash2, Tag, CreditCard } from "lucide-react"
+import { Home, ShoppingBag, MapPin, Utensils, Plus, Minus, Trash2, Tag, CreditCard, Info } from "lucide-react"
 import { ref, get } from "firebase/database"
 import { rtdb } from "@/lib/firebase-config"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 // Primero, importa el nuevo componente ProductSelector
 import { ProductSelector } from "./product-selector"
 
@@ -547,142 +548,7 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
               Añadir Producto
             </Button>
           </div>
-          {/* <Sheet open={productSelectorOpen} onOpenChange={setProductSelectorOpen}>
-              <SheetContent side="left" className="w-[95vw] sm:w-[90vw] md:w-[80vw] lg:w-[70vw] p-0 max-w-[1000px]">
-                <div className="flex flex-col h-full">
-                  <SheetHeader className="p-4 border-b">
-                    <SheetTitle>Seleccionar Producto</SheetTitle>
-                  </SheetHeader>
 
-                  <div className="p-4 border-b">
-                    <div className="relative">
-                      <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Buscar productos..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-8"
-                      />
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 mt-4">
-                      <Button
-                        variant={selectedCategory === null ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setSelectedCategory(null)}
-                      >
-                        Todos
-                      </Button>
-                      {categories.map((category) => (
-                        <Button
-                          key={category.id}
-                          variant={selectedCategory === category.id ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setSelectedCategory(category.id)}
-                        >
-                          {category.name}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex-grow overflow-auto p-4">
-                    {loadingProducts ? (
-                      <div className="flex flex-col items-center justify-center h-full">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-                        <p className="text-muted-foreground">Cargando productos...</p>
-                      </div>
-                    ) : loadingError ? (
-                      <div className="flex flex-col items-center justify-center h-full text-center">
-                        <p className="text-destructive mb-2">{loadingError}</p>
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setLoadingProducts(true)
-                            setLoadingError(null)
-                            // Recargar productos
-                            const fetchData = async () => {
-                              try {
-                                const productsRef = ref(rtdb, `tenants/${tenantId}/products`)
-                                const snapshot = await get(productsRef)
-                                const data = snapshot.val() || {}
-
-                                const productsList = Object.keys(data).map((key) => ({
-                                  id: key,
-                                  name: data[key].name,
-                                  description: data[key].description || "",
-                                  price: data[key].price || 0,
-                                  imageUrl: data[key].imageUrl || "",
-                                  categoryId: data[key].categoryId || "",
-                                  available: data[key].available !== false,
-                                }))
-
-                                setProducts(productsList)
-                                setLoadingProducts(false)
-                              } catch (error) {
-                                console.error("Error recargando productos:", error)
-                                setLoadingError("Error al cargar los productos. Por favor, intenta de nuevo.")
-                                setLoadingProducts(false)
-                              }
-                            }
-
-                            fetchData()
-                          }}
-                        >
-                          Reintentar
-                        </Button>
-                      </div>
-                    ) : filteredProducts.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        {products.length === 0
-                          ? "No hay productos disponibles en la base de datos"
-                          : `No se encontraron productos con los filtros actuales. Hay ${products.length} productos en total.`}
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                        {filteredProducts.map((product) => (
-                          <Card
-                            key={product.id}
-                            className="cursor-pointer hover:bg-muted/50"
-                            onClick={() => handleAddItem(product)}
-                          >
-                            <CardContent className="p-3">
-                              <div className="flex justify-between items-start mb-2">
-                                <div className="font-medium line-clamp-2">{product.name}</div>
-                                <Badge variant="outline" className="ml-2 shrink-0">
-                                  ${product.price.toFixed(2)}
-                                </Badge>
-                              </div>
-                              {product.description && (
-                                <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{product.description}</p>
-                              )}
-                              {product.categoryId && categories.find((c) => c.id === product.categoryId) && (
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  {categories.find((c) => c.id === product.categoryId)?.name}
-                                </div>
-                              )}
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                className="w-full mt-2"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleAddItem(product)
-                                }}
-                              >
-                                <Plus className="h-4 w-4 mr-1" /> Añadir
-                              </Button>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet> */}
-          {/* Y donde se renderiza el selector de productos, reemplázalo con: */}
-          {/* Asegurarse de que el ProductSelector reciba los parámetros correctos */}
           <ProductSelector
             isOpen={isProductSelectorOpen}
             onOpenChange={setIsProductSelectorOpen}
@@ -761,23 +627,41 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
                   </div>
                 )}
 
-                <div className="mt-2">
-                  <div className="text-sm font-medium">Añadir extras:</div>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {extras
-                      .filter((extra) => extra.available)
-                      .map((extra) => (
-                        <Badge
-                          key={extra.id}
-                          variant="outline"
-                          className="cursor-pointer hover:bg-primary hover:text-primary-foreground"
-                          onClick={() => handleAddExtra(item.id, extra)}
-                        >
-                          {extra.name} +${extra.price.toFixed(2)}
-                        </Badge>
-                      ))}
+                {/* Modificar esta sección para aclarar que son extras opcionales */}
+                {extras.length > 0 && (
+                  <div className="mt-2">
+                    <div className="flex items-center text-sm font-medium">
+                      <span className="mr-1">Extras opcionales</span>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="w-[200px] text-xs">
+                              Estos son complementos opcionales que puedes añadir al producto principal para
+                              personalizarlo.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {extras
+                        .filter((extra) => extra.available)
+                        .map((extra) => (
+                          <Badge
+                            key={extra.id}
+                            variant="outline"
+                            className="cursor-pointer hover:bg-primary hover:text-primary-foreground"
+                            onClick={() => handleAddExtra(item.id, extra)}
+                          >
+                            {extra.name} +${extra.price.toFixed(2)}
+                          </Badge>
+                        ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </Card>
             ))
           )}
