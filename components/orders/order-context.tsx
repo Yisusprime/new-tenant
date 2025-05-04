@@ -139,7 +139,28 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
     }
   }, [tenantId])
 
-  // Modificar la función createOrder para asegurarnos de que el shiftId se asigne correctamente
+  // Función para generar un número de pedido único
+  const generateOrderNumber = async (): Promise<number> => {
+    try {
+      // Obtener el contador actual de pedidos
+      const counterRef = ref(rtdb, `tenants/${tenantId}/counters/orders`)
+      const snapshot = await get(counterRef)
+
+      let nextNumber = 1
+      if (snapshot.exists()) {
+        nextNumber = snapshot.val() + 1
+      }
+
+      // Actualizar el contador
+      await update(counterRef, nextNumber)
+
+      return nextNumber
+    } catch (error) {
+      console.error("Error generating order number:", error)
+      // En caso de error, generar un número basado en timestamp
+      return Math.floor(Date.now() / 1000) % 10000
+    }
+  }
 
   // Reemplazar la función createOrder con esta versión mejorada:
   const createOrder = async (orderData: Partial<Order>): Promise<string> => {
@@ -155,12 +176,16 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
 
       const timestamp = Date.now()
 
+      // Generar un número de pedido único
+      const orderNumber = await generateOrderNumber()
+
       // Asegurarnos de que el shiftId esté definido
       const shiftId = currentShift?.id || null
       console.log(`Assigning order to shift: ${shiftId}`)
 
       const newOrder: Omit<Order, "id"> = {
         tenantId,
+        orderNumber: orderNumber.toString(), // Asignar el número de pedido
         createdAt: timestamp,
         updatedAt: timestamp,
         status: "pending",

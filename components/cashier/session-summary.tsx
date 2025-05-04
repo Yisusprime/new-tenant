@@ -1,11 +1,136 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useCashier } from "./cashier-context"
 import { formatCurrency } from "@/lib/utils"
+import { ref, get } from "firebase/database"
+import { rtdb } from "@/lib/firebase-config"
 
 export function SessionSummary() {
-  const { currentSession, getSessionSummary } = useCashier()
+  const { currentSession } = useCashier()
+  const [summary, setSummary] = useState<{
+    totalSales: number
+    cashSales: number
+    cardSales: number
+    transferSales: number
+    otherSales: number
+    tips: number
+    totalOrders: number
+    completedOrders: number
+    canceledOrders: number
+  } | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchSessionSummary = async () => {
+      if (!currentSession) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        setLoading(true)
+        // Obtener todas las órdenes para el tenant actual
+        const ordersRef = ref(rtdb, `tenants/${currentSession.tenantId}/orders`)
+        const ordersSnapshot = await get(ordersRef)
+
+        if (ordersSnapshot.exists()) {
+          const ordersData = ordersSnapshot.val()
+
+          // Filtrar órdenes que pertenecen a la sesión actual
+          const sessionOrders = Object.values(ordersData).filter((order: any) => {
+            // Incluir órdenes creadas durante esta sesión
+            return (
+              order.createdAt >= currentSession.startTime &&
+              (!currentSession.endTime || order.createdAt <= currentSession.endTime)
+            )
+          })
+
+          // Calcular totales
+          let totalSales = 0
+          let cashSales = 0
+          let cardSales = 0
+          let transferSales = 0
+          let otherSales = 0
+          let tips = 0
+          let completedOrders = 0
+          let canceledOrders = 0
+
+          sessionOrders.forEach((order: any) => {
+            // Contar órdenes por estado
+            if (order.status === "completed") {
+              completedOrders++
+              // Sumar ventas solo de órdenes completadas
+              totalSales += order.total || 0
+              tips += order.tip || 0
+
+              // Clasificar por método de pago
+              switch (order.paymentMethod) {
+                case "cash":
+                  cashSales += order.total || 0
+                  break
+                case "card":
+                  cardSales += order.total || 0
+                  break
+                case "transfer":
+                  transferSales += order.total || 0
+                  break
+                default:
+                  otherSales += order.total || 0
+                  break
+              }
+            } else if (order.status === "cancelled") {
+              canceledOrders++
+            }
+          })
+
+          setSummary({
+            totalSales,
+            cashSales,
+            cardSales,
+            transferSales,
+            otherSales,
+            tips,
+            totalOrders: sessionOrders.length,
+            completedOrders,
+            canceledOrders,
+          })
+        } else {
+          // No hay órdenes, establecer valores en cero
+          setSummary({
+            totalSales: 0,
+            cashSales: 0,
+            cardSales: 0,
+            transferSales: 0,
+            otherSales: 0,
+            tips: 0,
+            totalOrders: 0,
+            completedOrders: 0,
+            canceledOrders: 0,
+          })
+        }
+      } catch (error) {
+        console.error("Error al obtener el resumen de la sesión:", error)
+        // En caso de error, establecer valores en cero
+        setSummary({
+          totalSales: 0,
+          cashSales: 0,
+          cardSales: 0,
+          transferSales: 0,
+          otherSales: 0,
+          tips: 0,
+          totalOrders: 0,
+          completedOrders: 0,
+          canceledOrders: 0,
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchSessionSummary()
+  }, [currentSession])
 
   if (!currentSession) {
     return (
@@ -18,13 +143,26 @@ export function SessionSummary() {
     )
   }
 
-  const summary = getSessionSummary(currentSession.id)
+  if (loading) {
+    return (
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle>Cargando resumen...</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   if (!summary) {
     return (
       <Card className="w-full">
         <CardHeader>
-          <CardTitle>Cargando resumen...</CardTitle>
+          <CardTitle>Error al cargar el resumen</CardTitle>
         </CardHeader>
       </Card>
     )
@@ -95,7 +233,9 @@ export function SessionSummary() {
 
             <div>Ticket promedio:</div>
             <div className="text-right font-medium">
-              {summary.totalOrders > 0 ? formatCurrency(summary.totalSales / summary.totalOrders) : formatCurrency(0)}
+              {summary.completedOrders > 0
+                ? formatCurrency(summary.totalSales / summary.completedOrders)
+                : formatCurrency(0)}
             </div>
           </div>
         </div>
