@@ -13,10 +13,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Edit, Trash2, Plus, Users, Coffee } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export const TableList = () => {
   const { tables, loading, error, addTable, updateTable, deleteTable } = useTableContext()
-  const { getOrdersByTable } = useOrderContext() // Aquí está usando useOrderContext
+  const { getOrdersByTable } = useOrderContext()
   const { toast } = useToast()
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
@@ -127,12 +128,57 @@ export const TableList = () => {
     }
   }
 
+  // Renderizar esqueletos durante la carga
   if (loading) {
-    return <div className="flex justify-center p-8">Cargando mesas...</div>
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold">Mesas</h2>
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-4">
+                <Skeleton className="h-6 w-24 mb-2" />
+                <Skeleton className="h-4 w-32 mb-1" />
+                <Skeleton className="h-4 w-20" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    )
   }
 
+  // Mostrar mensaje de error si hay alguno
   if (error) {
-    return <div className="text-red-500 p-4">{error}</div>
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold">Mesas</h2>
+          <Button
+            onClick={() => {
+              setNewTable({
+                number: 1,
+                capacity: 4,
+                status: "available",
+                location: "Main",
+              })
+              setIsAddDialogOpen(true)
+            }}
+          >
+            <Plus className="mr-2 h-4 w-4" /> Añadir Mesa
+          </Button>
+        </div>
+        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md">
+          <p>{error}</p>
+          <Button variant="outline" className="mt-2" onClick={() => window.location.reload()}>
+            Reintentar
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -154,70 +200,89 @@ export const TableList = () => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {tables.map((table) => {
-          const tableOrders = getOrdersByTable(table.id)
-          const hasActiveOrders = tableOrders.length > 0
+      {tables.length === 0 ? (
+        <div className="text-center p-8 border border-dashed rounded-lg">
+          <p className="text-muted-foreground mb-4">No hay mesas configuradas</p>
+          <Button
+            onClick={() => {
+              setNewTable({
+                number: 1,
+                capacity: 4,
+                status: "available",
+                location: "Main",
+              })
+              setIsAddDialogOpen(true)
+            }}
+          >
+            <Plus className="mr-2 h-4 w-4" /> Añadir Primera Mesa
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {tables.map((table) => {
+            const tableOrders = getOrdersByTable(table.id)
+            const hasActiveOrders = tableOrders.length > 0
 
-          return (
-            <Card key={table.id} className={`overflow-hidden ${table.status === "occupied" ? "border-red-500" : ""}`}>
-              <CardContent className="p-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-bold">Mesa {table.number}</h3>
-                      <Badge
-                        variant={table.status === "available" ? "outline" : "default"}
-                        className={getStatusColor(table.status)}
-                      >
-                        {getStatusText(table.status)}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center text-sm text-gray-500 mt-1">
-                      <Users className="h-4 w-4 mr-1" />
-                      <span>{table.capacity} personas</span>
-                    </div>
-                    <div className="text-sm text-gray-500">{table.location}</div>
-
-                    {hasActiveOrders && (
-                      <div className="mt-2">
-                        <Badge variant="secondary" className="flex items-center gap-1">
-                          <Coffee className="h-3 w-3" />
-                          {tableOrders.length} {tableOrders.length === 1 ? "pedido activo" : "pedidos activos"}
+            return (
+              <Card key={table.id} className={`overflow-hidden ${table.status === "occupied" ? "border-red-500" : ""}`}>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-bold">Mesa {table.number}</h3>
+                        <Badge
+                          variant={table.status === "available" ? "outline" : "default"}
+                          className={getStatusColor(table.status)}
+                        >
+                          {getStatusText(table.status)}
                         </Badge>
                       </div>
-                    )}
-                  </div>
+                      <div className="flex items-center text-sm text-gray-500 mt-1">
+                        <Users className="h-4 w-4 mr-1" />
+                        <span>{table.capacity} personas</span>
+                      </div>
+                      <div className="text-sm text-gray-500">{table.location}</div>
 
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setSelectedTable(table)
-                        setIsEditDialogOpen(true)
-                      }}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setSelectedTable(table)
-                        setIsDeleteDialogOpen(true)
-                      }}
-                      disabled={hasActiveOrders}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      {hasActiveOrders && (
+                        <div className="mt-2">
+                          <Badge variant="secondary" className="flex items-center gap-1">
+                            <Coffee className="h-3 w-3" />
+                            {tableOrders.length} {tableOrders.length === 1 ? "pedido activo" : "pedidos activos"}
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setSelectedTable(table)
+                          setIsEditDialogOpen(true)
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setSelectedTable(table)
+                          setIsDeleteDialogOpen(true)
+                        }}
+                        disabled={hasActiveOrders}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      )}
 
       {/* Add Table Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>

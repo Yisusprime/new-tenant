@@ -37,11 +37,19 @@ export const TableProvider: React.FC<TableProviderProps> = ({ children, tenantId
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
 
-  const tablesCollectionRef = collection(db, `tenants/${tenantId}/tables`)
-
   const fetchTables = async () => {
     try {
       setLoading(true)
+      console.log("Fetching tables for tenant:", tenantId)
+
+      if (!tenantId) {
+        console.error("No tenantId provided to TableProvider")
+        setError("Error: No se proporcionó un ID de inquilino")
+        setLoading(false)
+        return
+      }
+
+      const tablesCollectionRef = collection(db, `tenants/${tenantId}/tables`)
       const q = query(tablesCollectionRef, orderBy("number", "asc"))
       const querySnapshot = await getDocs(q)
 
@@ -50,6 +58,7 @@ export const TableProvider: React.FC<TableProviderProps> = ({ children, tenantId
         fetchedTables.push({ id: doc.id, ...doc.data() } as Table)
       })
 
+      console.log("Fetched tables:", fetchedTables.length)
       setTables(fetchedTables)
       setError(null)
     } catch (err) {
@@ -63,11 +72,19 @@ export const TableProvider: React.FC<TableProviderProps> = ({ children, tenantId
   useEffect(() => {
     if (tenantId) {
       fetchTables()
+    } else {
+      setLoading(false)
+      setError("No se proporcionó un ID de inquilino")
     }
   }, [tenantId])
 
   const addTable = async (table: Omit<Table, "id" | "createdAt" | "updatedAt">) => {
     try {
+      if (!tenantId) {
+        throw new Error("No tenantId provided")
+      }
+
+      const tablesCollectionRef = collection(db, `tenants/${tenantId}/tables`)
       const timestamp = Date.now()
       const newTable = {
         ...table,
@@ -87,6 +104,10 @@ export const TableProvider: React.FC<TableProviderProps> = ({ children, tenantId
 
   const updateTable = async (id: string, tableData: Partial<Omit<Table, "id" | "createdAt" | "updatedAt">>) => {
     try {
+      if (!tenantId) {
+        throw new Error("No tenantId provided")
+      }
+
       const tableRef = doc(db, `tenants/${tenantId}/tables/${id}`)
       await updateDoc(tableRef, {
         ...tableData,
@@ -102,6 +123,10 @@ export const TableProvider: React.FC<TableProviderProps> = ({ children, tenantId
 
   const deleteTable = async (id: string) => {
     try {
+      if (!tenantId) {
+        throw new Error("No tenantId provided")
+      }
+
       const tableRef = doc(db, `tenants/${tenantId}/tables/${id}`)
       await deleteDoc(tableRef)
       await fetchTables()
@@ -114,6 +139,10 @@ export const TableProvider: React.FC<TableProviderProps> = ({ children, tenantId
 
   const getTable = async (id: string): Promise<Table | null> => {
     try {
+      if (!tenantId) {
+        throw new Error("No tenantId provided")
+      }
+
       const tableRef = doc(db, `tenants/${tenantId}/tables/${id}`)
       const tableDoc = await getDoc(tableRef)
 
@@ -129,8 +158,6 @@ export const TableProvider: React.FC<TableProviderProps> = ({ children, tenantId
     }
   }
 
-  const refreshTables = fetchTables
-
   const value = {
     tables,
     loading,
@@ -139,7 +166,7 @@ export const TableProvider: React.FC<TableProviderProps> = ({ children, tenantId
     updateTable,
     deleteTable,
     getTable,
-    refreshTables,
+    refreshTables: fetchTables,
   }
 
   return <TableContext.Provider value={value}>{children}</TableContext.Provider>
