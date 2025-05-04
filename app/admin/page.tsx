@@ -8,11 +8,28 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { getTenantInfo } from "@/lib/tenant-utils"
 import { useToast } from "@/components/ui/use-toast"
-import { ChevronLeft, ChevronRight, Home, Search, ShoppingBag, Star, User, Heart, Plus } from "lucide-react"
+import {
+  ChevronLeft,
+  ChevronRight,
+  Home,
+  Search,
+  ShoppingBag,
+  Star,
+  User,
+  Heart,
+  Plus,
+  Clock,
+  MapPin,
+  Phone,
+  Globe,
+  Mail,
+} from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { CategoryProvider, useCategories } from "@/components/categories/category-context"
 import { ProductProvider, useProducts } from "@/components/products/product-context"
+import { Separator } from "@/components/ui/separator"
+import { Badge } from "@/components/ui/badge"
 
 // Main component wrapper with providers
 export default function TenantLandingPageWrapper() {
@@ -93,6 +110,7 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
   const { products, loading: productsLoading } = useProducts()
   const [activeSlide, setActiveSlide] = useState(0)
   const [searchQuery, setSearchQuery] = useState("")
+  const [isOpen, setIsOpen] = useState(true) // Estado para el restaurante abierto/cerrado
 
   const featuredSliderRef = useRef<HTMLDivElement>(null)
   const categoriesSliderRef = useRef<HTMLDivElement>(null)
@@ -107,6 +125,28 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
     .filter((product) => !product.featured && product.available)
     .sort((a, b) => a.name.localeCompare(b.name))
     .slice(0, 4) // Limit to 4 items
+
+  // Datos de ejemplo para el restaurante
+  const restaurantInfo = {
+    name: tenantInfo.name || "Restaurante Ejemplo",
+    description:
+      "Disfruta de la mejor experiencia gastronómica con nuestros platos preparados con ingredientes frescos y de alta calidad. Nuestro chef se especializa en fusionar sabores tradicionales con toques modernos.",
+    address: "Calle Principal 123, Ciudad Ejemplo",
+    phone: "+1 234 567 890",
+    email: "info@restauranteejemplo.com",
+    website: "www.restauranteejemplo.com",
+    openingHours: [
+      { day: "Lunes - Viernes", hours: "11:00 - 22:00" },
+      { day: "Sábados", hours: "12:00 - 23:00" },
+      { day: "Domingos", hours: "12:00 - 20:00" },
+    ],
+    features: ["Terraza", "Wi-Fi gratis", "Accesible", "Estacionamiento"],
+    socialMedia: {
+      facebook: "restauranteejemplo",
+      instagram: "@restauranteejemplo",
+      twitter: "@rest_ejemplo",
+    },
+  }
 
   const scrollFeatured = (direction: "left" | "right") => {
     if (featuredSliderRef.current) {
@@ -153,15 +193,108 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
             <Image src="/placeholder.svg?key=i6gc5" alt="Banner de comida" fill className="object-cover" />
           </div>
 
-          {/* Botón de Abierto/Cerrado (izquierda) */}
+          {/* Botón de Abierto/Cerrado (izquierda) con Sheet */}
           <div className="absolute top-4 left-4 z-10">
-            <Button
-              variant="outline"
-              className="bg-white/70 hover:bg-white/90 text-green-600 font-medium border-0"
-              size="sm"
-            >
-              Abierto
-            </Button>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={`${
+                    isOpen
+                      ? "bg-white/70 hover:bg-white/90 text-green-600"
+                      : "bg-white/70 hover:bg-white/90 text-red-600"
+                  } font-medium border-0`}
+                  size="sm"
+                  onClick={() => setIsOpen(!isOpen)}
+                >
+                  {isOpen ? "Abierto" : "Cerrado"}
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-full sm:max-w-md overflow-y-auto">
+                <SheetHeader className="text-left">
+                  <SheetTitle className="text-xl">Información del Restaurante</SheetTitle>
+                </SheetHeader>
+
+                {/* Banner del restaurante */}
+                <div className="mt-4 relative h-40 rounded-lg overflow-hidden">
+                  <Image
+                    src="/modern-restaurant-interior.png"
+                    alt={restaurantInfo.name}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+
+                {/* Información del restaurante */}
+                <div className="mt-4">
+                  <h3 className="text-lg font-bold">{restaurantInfo.name}</h3>
+                  <p className="text-sm text-muted-foreground mt-1">{restaurantInfo.description}</p>
+
+                  <div className="mt-4 space-y-3">
+                    <div className="flex items-start gap-2">
+                      <MapPin size={18} className="text-muted-foreground mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">{restaurantInfo.address}</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Phone size={18} className="text-muted-foreground mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">{restaurantInfo.phone}</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Mail size={18} className="text-muted-foreground mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">{restaurantInfo.email}</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Globe size={18} className="text-muted-foreground mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">{restaurantInfo.website}</span>
+                    </div>
+                  </div>
+
+                  <Separator className="my-4" />
+
+                  {/* Horarios */}
+                  <div>
+                    <h4 className="font-medium flex items-center gap-2 mb-2">
+                      <Clock size={18} />
+                      Horarios
+                    </h4>
+                    <div className="space-y-2">
+                      {restaurantInfo.openingHours.map((schedule, index) => (
+                        <div key={index} className="flex justify-between text-sm">
+                          <span>{schedule.day}</span>
+                          <span>{schedule.hours}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Separator className="my-4" />
+
+                  {/* Características */}
+                  <div>
+                    <h4 className="font-medium mb-2">Características</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {restaurantInfo.features.map((feature, index) => (
+                        <Badge key={index} variant="outline" className="bg-gray-100">
+                          {feature}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Separator className="my-4" />
+
+                  {/* Redes sociales */}
+                  <div>
+                    <h4 className="font-medium mb-2">Redes Sociales</h4>
+                    <div className="space-y-2 text-sm">
+                      <div>Facebook: {restaurantInfo.socialMedia.facebook}</div>
+                      <div>Instagram: {restaurantInfo.socialMedia.instagram}</div>
+                      <div>Twitter: {restaurantInfo.socialMedia.twitter}</div>
+                    </div>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
 
           {/* Botones de acción (derecha) */}
@@ -266,9 +399,9 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
             ref={featuredSliderRef}
           >
             {featuredProducts.map((product) => (
-              <div key={product.id} className="flex-shrink-0 w-[280px] snap-start">
+              <div key={product.id} className="flex-shrink-0 w-[220px] sm:w-[250px] md:w-[280px] snap-start">
                 <Card className="overflow-hidden h-full">
-                  <div className="relative h-40">
+                  <div className="relative h-32 sm:h-36 md:h-40">
                     <Image
                       src={product.imageUrl || "/placeholder.svg?height=200&width=300&query=plato+comida"}
                       alt={product.name}
@@ -285,7 +418,7 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
                   </div>
                   <CardContent className="p-3">
                     <div className="flex justify-between items-start">
-                      <h3 className="font-bold text-base">{product.name}</h3>
+                      <h3 className="font-bold text-sm sm:text-base">{product.name}</h3>
                       <div className="flex items-center gap-1 bg-gray-100 px-1.5 py-0.5 rounded text-xs">
                         <Star size={12} className="fill-yellow-400 text-yellow-400" />
                         <span>4.8</span>
@@ -293,8 +426,8 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
                     </div>
                     <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{product.description}</p>
                     <div className="flex justify-between items-center mt-2">
-                      <span className="font-bold">${product.price.toFixed(2)}</span>
-                      <Button size="sm" className="h-8 rounded-full">
+                      <span className="font-bold text-sm sm:text-base">${product.price.toFixed(2)}</span>
+                      <Button size="sm" className="h-7 sm:h-8 text-xs sm:text-sm rounded-full">
                         Añadir
                       </Button>
                     </div>
@@ -334,8 +467,8 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
           <div className="flex overflow-x-auto scrollbar-hide gap-4 px-4 pb-4" ref={categoriesSliderRef}>
             {categories.slice(0, 8).map((category) => (
               <Link href={`/admin/menu?category=${category.id}`} key={category.id} className="flex-shrink-0">
-                <div className="flex flex-col items-center gap-2 w-16">
-                  <div className="relative w-16 h-16 rounded-full bg-white shadow-sm overflow-hidden">
+                <div className="flex flex-col items-center gap-2 w-14 sm:w-16">
+                  <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white shadow-sm overflow-hidden">
                     <Image
                       src={category.imageUrl || "/placeholder.svg?height=80&width=80&query=categoria+comida"}
                       alt={category.name}
@@ -355,11 +488,11 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
       {popularProducts.length > 0 && (
         <div className="mt-6 px-4">
           <h2 className="text-xl font-bold mb-4">Más populares</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {popularProducts.map((product) => (
               <Card key={product.id} className="overflow-hidden">
-                <div className="flex h-full">
-                  <div className="relative h-auto w-1/3 flex-shrink-0">
+                <div className="flex h-full md:flex-col">
+                  <div className="relative h-auto w-1/3 md:w-full md:h-40 flex-shrink-0">
                     <Image
                       src={product.imageUrl || "/placeholder.svg?height=200&width=300&query=plato+comida"}
                       alt={product.name}
@@ -370,7 +503,7 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
                   <CardContent className="p-3 flex flex-col justify-between flex-grow">
                     <div>
                       <div className="flex justify-between items-start">
-                        <h3 className="font-bold">{product.name}</h3>
+                        <h3 className="font-bold text-sm sm:text-base">{product.name}</h3>
                         <div className="flex items-center gap-1 bg-gray-100 px-1.5 py-0.5 rounded text-xs">
                           <Star size={12} className="fill-yellow-400 text-yellow-400" />
                           <span>4.7</span>
@@ -379,8 +512,8 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
                       <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{product.description}</p>
                     </div>
                     <div className="flex justify-between items-center mt-2">
-                      <span className="font-bold">${product.price.toFixed(2)}</span>
-                      <Button size="sm" className="h-8 rounded-full">
+                      <span className="font-bold text-sm sm:text-base">${product.price.toFixed(2)}</span>
+                      <Button size="sm" className="h-7 sm:h-8 text-xs sm:text-sm rounded-full">
                         Añadir
                       </Button>
                     </div>
@@ -414,14 +547,14 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
             <SheetContent side="bottom" className="h-[80vh] rounded-t-3xl">
               <div className="pt-6">
                 <h2 className="text-xl font-bold mb-6 text-center">Todas las categorías</h2>
-                <div className="grid grid-cols-4 gap-6">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 sm:gap-6">
                   {categories.map((category) => (
                     <Link
                       href={`/admin/menu?category=${category.id}`}
                       key={category.id}
                       className="flex flex-col items-center gap-2"
                     >
-                      <div className="relative w-16 h-16 rounded-full bg-white shadow-sm overflow-hidden">
+                      <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white shadow-sm overflow-hidden">
                         <Image
                           src={category.imageUrl || "/placeholder.svg?height=80&width=80&query=categoria+comida"}
                           alt={category.name}
