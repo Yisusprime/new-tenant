@@ -365,5 +365,21 @@ function TenantLandingPage() {
 }
 
 export default function Page() {
+  const router = useRouter()
+
+  useEffect(() => {
+    // Redirigir a la página del tenant si está presente en el hostname
+    const hostname = typeof window !== "undefined" ? window.location.hostname : ""
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+
+    if (hostname.includes(`.${rootDomain}`) && !hostname.startsWith("www.")) {
+      // Ya estamos en el subdominio, no es necesario redirigir
+      return
+    } else {
+      // Redirigir al dominio principal
+      router.push("/")
+    }
+  }, [router])
+
   return <TenantLandingPage />
 }
