@@ -1,16 +1,16 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getTenantInfo } from "@/lib/tenant-utils"
 import { useToast } from "@/components/ui/use-toast"
-import { ArrowRight, Clock, Search, Star, UtensilsCrossed } from "lucide-react"
+import { ChevronLeft, ChevronRight, Home, Search, ShoppingBag, Star, User, Heart, Plus } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 
 export default function TenantLandingPage() {
   const router = useRouter()
@@ -18,6 +18,11 @@ export default function TenantLandingPage() {
   const [tenantInfo, setTenantInfo] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [tenantId, setTenantId] = useState<string | null>(null)
+  const [activeSlide, setActiveSlide] = useState(0)
+  const [showAllCategories, setShowAllCategories] = useState(false)
+
+  const featuredSliderRef = useRef<HTMLDivElement>(null)
+  const categoriesSliderRef = useRef<HTMLDivElement>(null)
 
   // Obtener el tenantId del hostname
   useEffect(() => {
@@ -48,6 +53,30 @@ export default function TenantLandingPage() {
       fetchTenantInfo()
     }
   }, [tenantId])
+
+  const scrollFeatured = (direction: "left" | "right") => {
+    if (featuredSliderRef.current) {
+      const { scrollLeft, clientWidth } = featuredSliderRef.current
+      const scrollTo = direction === "left" ? scrollLeft - clientWidth * 0.8 : scrollLeft + clientWidth * 0.8
+
+      featuredSliderRef.current.scrollTo({
+        left: scrollTo,
+        behavior: "smooth",
+      })
+    }
+  }
+
+  const scrollCategories = (direction: "left" | "right") => {
+    if (categoriesSliderRef.current) {
+      const { scrollLeft, clientWidth } = categoriesSliderRef.current
+      const scrollTo = direction === "left" ? scrollLeft - clientWidth * 0.8 : scrollLeft + clientWidth * 0.8
+
+      categoriesSliderRef.current.scrollTo({
+        left: scrollTo,
+        behavior: "smooth",
+      })
+    }
+  }
 
   if (loading || !tenantId) {
     return (
@@ -81,7 +110,7 @@ export default function TenantLandingPage() {
       name: "Hamburguesa Especial",
       description: "Carne de res, queso cheddar, bacon, lechuga y tomate",
       price: 12.99,
-      image: "/placeholder.svg?key=sl0yt",
+      image: "/placeholder.svg?key=t4zdp",
       rating: 4.8,
       time: "15-25 min",
     },
@@ -99,7 +128,7 @@ export default function TenantLandingPage() {
       name: "Ensalada César",
       description: "Lechuga romana, crutones, parmesano y aderezo césar",
       price: 9.99,
-      image: "/placeholder.svg?key=agsxn",
+      image: "/placeholder.svg?key=bd3fe",
       rating: 4.5,
       time: "10-15 min",
     },
@@ -112,249 +141,349 @@ export default function TenantLandingPage() {
       rating: 4.9,
       time: "15-25 min",
     },
+    {
+      id: 5,
+      name: "Sushi Mix",
+      description: "Selección de 12 piezas de sushi variado",
+      price: 18.99,
+      image: "/placeholder.svg?key=02qen",
+      rating: 4.8,
+      time: "25-35 min",
+    },
+    {
+      id: 6,
+      name: "Tacos al Pastor",
+      description: "3 tacos de cerdo marinado con piña y cilantro",
+      price: 10.5,
+      image: "/tacos-al-pastor.png",
+      rating: 4.7,
+      time: "15-20 min",
+    },
+  ]
+
+  const popularItems = [
+    {
+      id: 7,
+      name: "Burrito de Pollo",
+      description: "Burrito grande con pollo, arroz, frijoles y guacamole",
+      price: 11.99,
+      image: "/placeholder.svg?key=4a7of",
+      rating: 4.6,
+    },
+    {
+      id: 8,
+      name: "Ramen Tonkotsu",
+      description: "Ramen con caldo de cerdo, huevo y chashu",
+      price: 15.99,
+      image: "/placeholder.svg?key=c82ht",
+      rating: 4.9,
+    },
+    {
+      id: 9,
+      name: "Lasaña Casera",
+      description: "Lasaña de carne con bechamel y queso gratinado",
+      price: 13.5,
+      image: "/placeholder.svg?height=200&width=300&query=lasana+casera",
+      rating: 4.7,
+    },
+    {
+      id: 10,
+      name: "Poke Bowl",
+      description: "Bowl de arroz, salmón, aguacate y vegetales",
+      price: 14.99,
+      image: "/placeholder.svg?height=200&width=300&query=poke+bowl",
+      rating: 4.8,
+    },
   ]
 
   const categories = [
-    { id: 1, name: "Hamburguesas", image: "/placeholder.svg?key=ncq59" },
-    { id: 2, name: "Pizzas", image: "/placeholder.svg?key=ixs22" },
-    { id: 3, name: "Ensaladas", image: "/placeholder.svg?key=zbb51" },
-    { id: 4, name: "Pastas", image: "/placeholder.svg?height=100&width=100&query=pasta+icono" },
-    { id: 5, name: "Postres", image: "/placeholder.svg?height=100&width=100&query=postre+icono" },
-    { id: 6, name: "Bebidas", image: "/placeholder.svg?height=100&width=100&query=bebida+icono" },
+    { id: 1, name: "Hamburguesas", image: "/placeholder.svg?height=80&width=80&query=hamburguesa+icono" },
+    { id: 2, name: "Pizzas", image: "/placeholder.svg?height=80&width=80&query=pizza+icono" },
+    { id: 3, name: "Ensaladas", image: "/placeholder.svg?height=80&width=80&query=ensalada+icono" },
+    { id: 4, name: "Pastas", image: "/placeholder.svg?height=80&width=80&query=pasta+icono" },
+    { id: 5, name: "Postres", image: "/placeholder.svg?height=80&width=80&query=postre+icono" },
+    { id: 6, name: "Bebidas", image: "/placeholder.svg?height=80&width=80&query=bebida+icono" },
+    { id: 7, name: "Sushi", image: "/placeholder.svg?height=80&width=80&query=sushi+icono" },
+    { id: 8, name: "Tacos", image: "/placeholder.svg?height=80&width=80&query=taco+icono" },
+    { id: 9, name: "Desayunos", image: "/placeholder.svg?height=80&width=80&query=desayuno+icono" },
+    { id: 10, name: "Vegetariano", image: "/placeholder.svg?height=80&width=80&query=vegetariano+icono" },
+  ]
+
+  const allCategories = [
+    ...categories,
+    { id: 11, name: "Vegano", image: "/placeholder.svg?height=80&width=80&query=vegano+icono" },
+    { id: 12, name: "Sin Gluten", image: "/placeholder.svg?height=80&width=80&query=sin+gluten+icono" },
+    { id: 13, name: "Mariscos", image: "/placeholder.svg?height=80&width=80&query=mariscos+icono" },
+    { id: 14, name: "Sopas", image: "/placeholder.svg?height=80&width=80&query=sopa+icono" },
+    { id: 15, name: "Carnes", image: "/placeholder.svg?height=80&width=80&query=carne+icono" },
+    { id: 16, name: "Asiático", image: "/placeholder.svg?height=80&width=80&query=asiatico+icono" },
+    { id: 17, name: "Mexicano", image: "/placeholder.svg?height=80&width=80&query=mexicano+icono" },
+    { id: 18, name: "Italiano", image: "/placeholder.svg?height=80&width=80&query=italiano+icono" },
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center">
-            <h1 className="text-xl font-bold">{tenantInfo.name}</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="/admin/dashboard">
-              <Button variant="outline" size="sm">
-                Admin
-              </Button>
-            </Link>
-            <Link href="/admin/menu">
-              <Button size="sm">Ver Menú</Button>
-            </Link>
+    <div className="min-h-screen bg-gray-50 pb-20">
+      {/* Banner y Logo */}
+      <div className="relative">
+        <div className="h-32 bg-gradient-to-r from-orange-500 to-red-600 relative">
+          {/* Banner image */}
+          <div className="absolute inset-0 opacity-20">
+            <Image
+              src="/placeholder.svg?height=200&width=1200&query=comida+gourmet+banner"
+              alt="Banner de comida"
+              fill
+              className="object-cover"
+            />
           </div>
         </div>
-      </header>
 
-      {/* Hero Section */}
-      <section
-        className="relative h-[300px] md:h-[400px] bg-cover bg-center flex items-center"
-        style={{
-          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('/placeholder.svg?height=400&width=1200&query=restaurante+gourmet')`,
-        }}
-      >
-        <div className="container mx-auto px-4 text-white">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">{tenantInfo.name}</h1>
-          <p className="text-xl mb-6 max-w-lg">
-            Disfruta de la mejor comida directamente en tu casa. Haz tu pedido ahora.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Link href="/admin/menu">
-              <Button size="lg" className="bg-white text-black hover:bg-gray-100">
-                Ver Menú Completo
-              </Button>
-            </Link>
-            <Link href="/admin/reservations">
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/20">
-                Hacer Reserva
-              </Button>
-            </Link>
+        {/* Logo flotante */}
+        <div className="absolute left-1/2 transform -translate-x-1/2 -bottom-16">
+          <div className="relative w-32 h-32 rounded-full border-4 border-white overflow-hidden bg-white shadow-lg">
+            <Image
+              src="/placeholder.svg?height=200&width=200&query=restaurante+logo"
+              alt={tenantInfo.name}
+              fill
+              className="object-cover"
+            />
           </div>
         </div>
-      </section>
+      </div>
 
-      {/* Search and Categories */}
-      <section className="container mx-auto px-4 py-8">
-        <div className="relative mb-8">
+      {/* Título del restaurante */}
+      <div className="mt-20 text-center px-4">
+        <h1 className="text-2xl font-bold">{tenantInfo.name}</h1>
+        <div className="flex items-center justify-center gap-2 text-sm text-gray-500 mt-1">
+          <span className="flex items-center">
+            <Star size={16} className="fill-yellow-400 text-yellow-400 mr-1" />
+            4.8
+          </span>
+          <span>•</span>
+          <span>0.8 km</span>
+          <span>•</span>
+          <span>20-35 min</span>
+        </div>
+      </div>
+
+      {/* Barra de búsqueda */}
+      <div className="px-4 mt-6">
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-          <Input type="text" placeholder="Buscar platos, categorías..." className="pl-10 bg-white" />
+          <Input
+            type="text"
+            placeholder="Buscar platos, categorías..."
+            className="pl-10 bg-white rounded-full border-gray-200"
+          />
+        </div>
+      </div>
+
+      {/* Artículos destacados - Slider */}
+      <div className="mt-6">
+        <div className="px-4 flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold">Destacados</h2>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 rounded-full"
+              onClick={() => scrollFeatured("left")}
+            >
+              <ChevronLeft size={18} />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 rounded-full"
+              onClick={() => scrollFeatured("right")}
+            >
+              <ChevronRight size={18} />
+            </Button>
+          </div>
         </div>
 
-        <h2 className="text-xl font-bold mb-4">Categorías</h2>
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
-          {categories.map((category) => (
-            <Link href={`/admin/menu?category=${category.id}`} key={category.id}>
-              <div className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow text-center">
-                <div className="relative h-16 w-16 mx-auto mb-2">
+        <div
+          className="flex overflow-x-auto scrollbar-hide snap-x snap-mandatory gap-4 px-4 pb-4"
+          ref={featuredSliderRef}
+        >
+          {featuredItems.map((item) => (
+            <div key={item.id} className="flex-shrink-0 w-[280px] snap-start">
+              <Card className="overflow-hidden h-full">
+                <div className="relative h-40">
+                  <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-2 right-2 h-8 w-8 rounded-full bg-white/80 hover:bg-white"
+                  >
+                    <Heart size={16} />
+                  </Button>
+                </div>
+                <CardContent className="p-3">
+                  <div className="flex justify-between items-start">
+                    <h3 className="font-bold text-base">{item.name}</h3>
+                    <div className="flex items-center gap-1 bg-gray-100 px-1.5 py-0.5 rounded text-xs">
+                      <Star size={12} className="fill-yellow-400 text-yellow-400" />
+                      <span>{item.rating}</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.description}</p>
+                  <div className="flex justify-between items-center mt-2">
+                    <span className="font-bold">${item.price.toFixed(2)}</span>
+                    <Button size="sm" className="h-8 rounded-full">
+                      Añadir
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Categorías pequeñas - Slider */}
+      <div className="mt-6">
+        <div className="px-4 flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold">Categorías</h2>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 rounded-full"
+              onClick={() => scrollCategories("left")}
+            >
+              <ChevronLeft size={18} />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 rounded-full"
+              onClick={() => scrollCategories("right")}
+            >
+              <ChevronRight size={18} />
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex overflow-x-auto scrollbar-hide gap-4 px-4 pb-4" ref={categoriesSliderRef}>
+          {categories.slice(0, 8).map((category) => (
+            <Link href={`/admin/menu?category=${category.id}`} key={category.id} className="flex-shrink-0">
+              <div className="flex flex-col items-center gap-2 w-16">
+                <div className="relative w-16 h-16 rounded-full bg-white shadow-sm overflow-hidden">
                   <Image
                     src={category.image || "/placeholder.svg"}
                     alt={category.name}
                     fill
-                    className="object-contain"
+                    className="object-cover p-2"
                   />
                 </div>
-                <p className="text-sm font-medium">{category.name}</p>
+                <span className="text-xs text-center font-medium">{category.name}</span>
               </div>
             </Link>
           ))}
         </div>
-      </section>
+      </div>
 
-      {/* Featured Items */}
-      <section className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold">Platos Destacados</h2>
-          <Link href="/admin/menu" className="text-primary flex items-center gap-1 text-sm font-medium">
-            Ver todos <ArrowRight size={16} />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {featuredItems.map((item) => (
-            <Card key={item.id} className="overflow-hidden hover:shadow-md transition-shadow">
-              <div className="relative h-48">
-                <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
-              </div>
-              <CardContent className="p-4">
-                <h3 className="font-bold mb-1">{item.name}</h3>
-                <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{item.description}</p>
-                <div className="flex justify-between items-center">
-                  <span className="font-bold">${item.price.toFixed(2)}</span>
-                  <div className="flex items-center gap-1">
-                    <Star size={16} className="fill-yellow-400 text-yellow-400" />
-                    <span className="text-sm">{item.rating}</span>
+      {/* Productos populares */}
+      <div className="mt-6 px-4">
+        <h2 className="text-xl font-bold mb-4">Más populares</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {popularItems.map((item) => (
+            <Card key={item.id} className="overflow-hidden">
+              <div className="flex h-full">
+                <div className="relative h-auto w-1/3 flex-shrink-0">
+                  <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
+                </div>
+                <CardContent className="p-3 flex flex-col justify-between flex-grow">
+                  <div>
+                    <div className="flex justify-between items-start">
+                      <h3 className="font-bold">{item.name}</h3>
+                      <div className="flex items-center gap-1 bg-gray-100 px-1.5 py-0.5 rounded text-xs">
+                        <Star size={12} className="fill-yellow-400 text-yellow-400" />
+                        <span>{item.rating}</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.description}</p>
                   </div>
-                </div>
-                <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground">
-                  <Clock size={14} />
-                  <span>{item.time}</span>
-                </div>
-              </CardContent>
+                  <div className="flex justify-between items-center mt-2">
+                    <span className="font-bold">${item.price.toFixed(2)}</span>
+                    <Button size="sm" className="h-8 rounded-full">
+                      Añadir
+                    </Button>
+                  </div>
+                </CardContent>
+              </div>
             </Card>
           ))}
         </div>
-      </section>
+      </div>
 
-      {/* Menu Tabs */}
-      <section className="container mx-auto px-4 py-8">
-        <h2 className="text-xl font-bold mb-4">Nuestro Menú</h2>
-        <Tabs defaultValue="all" className="w-full">
-          <TabsList className="mb-6 bg-white p-1 rounded-lg">
-            <TabsTrigger value="all">Todo</TabsTrigger>
-            <TabsTrigger value="popular">Más Popular</TabsTrigger>
-            <TabsTrigger value="offers">Ofertas</TabsTrigger>
-          </TabsList>
+      {/* Menú inferior fijo */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-50">
+        <div className="flex justify-around items-center h-16 px-4">
+          <Button variant="ghost" className="flex flex-col items-center gap-1 h-auto py-2">
+            <Home size={20} />
+            <span className="text-xs">Inicio</span>
+          </Button>
 
-          <TabsContent value="all" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {featuredItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-                >
-                  <div className="relative h-24 w-24 md:h-32 md:w-32 flex-shrink-0">
-                    <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
-                  </div>
-                  <div className="p-4 flex flex-col justify-between flex-grow">
-                    <div>
-                      <h3 className="font-bold">{item.name}</h3>
-                      <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>
-                    </div>
-                    <div className="flex justify-between items-center mt-2">
-                      <span className="font-bold">${item.price.toFixed(2)}</span>
-                      <Button size="sm">Añadir</Button>
-                    </div>
-                  </div>
+          <Button variant="ghost" className="flex flex-col items-center gap-1 h-auto py-2">
+            <Search size={20} />
+            <span className="text-xs">Buscar</span>
+          </Button>
+
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button className="flex items-center justify-center rounded-full h-14 w-14 bg-primary text-white shadow-lg -mt-5">
+                <Plus size={24} />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="h-[80vh] rounded-t-3xl">
+              <div className="pt-6">
+                <h2 className="text-xl font-bold mb-6 text-center">Todas las categorías</h2>
+                <div className="grid grid-cols-4 gap-6">
+                  {allCategories.map((category) => (
+                    <Link
+                      href={`/admin/menu?category=${category.id}`}
+                      key={category.id}
+                      className="flex flex-col items-center gap-2"
+                    >
+                      <div className="relative w-16 h-16 rounded-full bg-white shadow-sm overflow-hidden">
+                        <Image
+                          src={category.image || "/placeholder.svg"}
+                          alt={category.name}
+                          fill
+                          className="object-cover p-2"
+                        />
+                      </div>
+                      <span className="text-xs text-center font-medium">{category.name}</span>
+                    </Link>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <div className="text-center">
-              <Link href="/admin/menu">
-                <Button variant="outline" className="mt-4">
-                  Ver Menú Completo
-                </Button>
-              </Link>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="popular">
-            <div className="text-center py-12">
-              <UtensilsCrossed className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">Próximamente</h3>
-              <p className="text-muted-foreground">Estamos preparando nuestros platos más populares.</p>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="offers">
-            <div className="text-center py-12">
-              <UtensilsCrossed className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">Próximamente</h3>
-              <p className="text-muted-foreground">Estamos preparando nuestras mejores ofertas.</p>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </section>
-
-      {/* CTA Section */}
-      <section className="bg-primary text-primary-foreground py-12">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-2xl md:text-3xl font-bold mb-4">¿Listo para ordenar?</h2>
-          <p className="text-lg mb-6 max-w-lg mx-auto">
-            Haz tu pedido ahora y disfruta de la mejor comida en la comodidad de tu hogar.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/admin/menu">
-              <Button size="lg" className="bg-white text-primary hover:bg-gray-100">
-                Ver Menú Completo
-              </Button>
-            </Link>
-            <Link href="/admin/contact">
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/20">
-                Contactar
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-gray-900 text-gray-300 py-8">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div>
-              <h3 className="text-white text-lg font-bold mb-4">{tenantInfo.name}</h3>
-              <p className="mb-4">La mejor experiencia gastronómica directamente en tu hogar.</p>
-              <div className="flex space-x-4">
-                <a href="#" className="hover:text-white">
-                  Facebook
-                </a>
-                <a href="#" className="hover:text-white">
-                  Instagram
-                </a>
-                <a href="#" className="hover:text-white">
-                  Twitter
-                </a>
               </div>
-            </div>
-            <div>
-              <h3 className="text-white text-lg font-bold mb-4">Horario</h3>
-              <p className="mb-2">Lunes - Viernes: 11:00 - 22:00</p>
-              <p className="mb-2">Sábado - Domingo: 11:00 - 23:00</p>
-              <p>Festivos: 12:00 - 22:00</p>
-            </div>
-            <div>
-              <h3 className="text-white text-lg font-bold mb-4">Contacto</h3>
-              <p className="mb-2">Calle Principal 123</p>
-              <p className="mb-2">Ciudad, CP 12345</p>
-              <p className="mb-2">Teléfono: (123) 456-7890</p>
-              <p>Email: info@{tenantId}.gastroo.online</p>
-            </div>
-          </div>
-          <div className="border-t border-gray-800 mt-8 pt-6 text-sm text-center">
-            <p>
-              &copy; {new Date().getFullYear()} {tenantInfo.name}. Todos los derechos reservados.
-            </p>
-          </div>
+            </SheetContent>
+          </Sheet>
+
+          <Button variant="ghost" className="flex flex-col items-center gap-1 h-auto py-2">
+            <ShoppingBag size={20} />
+            <span className="text-xs">Pedidos</span>
+          </Button>
+
+          <Button variant="ghost" className="flex flex-col items-center gap-1 h-auto py-2">
+            <User size={20} />
+            <span className="text-xs">Perfil</span>
+          </Button>
         </div>
-      </footer>
+      </div>
+
+      {/* Estilos adicionales para ocultar la barra de desplazamiento pero mantener la funcionalidad */}
+      <style jsx global>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </div>
   )
 }
