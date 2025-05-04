@@ -139,6 +139,9 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
     }
   }, [tenantId])
 
+  // Modificar la función createOrder para asegurarnos de que el shiftId se asigne correctamente
+
+  // Reemplazar la función createOrder con esta versión mejorada:
   const createOrder = async (orderData: Partial<Order>): Promise<string> => {
     try {
       if (!tenantId) {
@@ -151,14 +154,25 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
       const newOrderRef = push(ordersRef)
 
       const timestamp = Date.now()
+
+      // Asegurarnos de que el shiftId esté definido
+      const shiftId = currentShift?.id || null
+      console.log(`Assigning order to shift: ${shiftId}`)
+
       const newOrder: Omit<Order, "id"> = {
         tenantId,
         createdAt: timestamp,
+        updatedAt: timestamp,
         status: "pending",
         items: [],
+        subtotal: 0,
+        tax: 0,
+        discount: 0,
+        tip: 0,
         total: 0,
-        // Asignar el turno actual si existe
-        shiftId: currentShift?.id || null,
+        paymentStatus: "pending",
+        paymentMethod: "cash",
+        shiftId, // Asignar el turno actual
         ...orderData,
       }
 

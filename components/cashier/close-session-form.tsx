@@ -14,6 +14,8 @@ import { AlertCircle, CheckCircle2, ArrowLeft } from "lucide-react"
 import { useCashier } from "./cashier-context"
 import { formatCurrency } from "@/lib/utils"
 import { OrderSummaryByPayment } from "./order-summary-by-payment"
+import { ref, get } from "firebase/database"
+import { rtdb } from "@/lib/firebase-config"
 
 export function CloseSessionForm() {
   const { currentSession, closeSession } = useCashier()
@@ -44,29 +46,89 @@ export function CloseSessionForm() {
     notes: "",
   })
 
-  // Cargar resumen de órdenes cuando se monta el componente
+  // Modificar el useEffect para cargar los datos reales de los pedidos del turno actual
+
+  // Reemplazar el useEffect existente con esta versión que carga datos reales:
   useEffect(() => {
-    if (currentSession) {
-      // Aquí cargaríamos los datos reales de Firebase
-      // Por ahora usamos datos de ejemplo
-      const summary = {
-        cashTotal: 1250.75,
-        cardTotal: 850.5,
-        transferTotal: 320.25,
-        otherTotal: 75.0,
+    const loadOrderSummary = async () => {
+      if (currentSession) {
+        try {
+          // Obtener los pedidos del turno actual
+          const ordersRef = ref(rtdb, `tenants/${currentSession.tenantId}/orders`)
+          const ordersSnapshot = await get(ordersRef)
+
+          if (ordersSnapshot.exists()) {
+            const ordersData = ordersSnapshot.val()
+
+            // Filtrar los pedidos que pertenecen al turno actual
+            const sessionOrders = Object.values(ordersData).filter((order: any) => {
+              // Incluir pedidos que tienen el shiftId del turno actual o que fueron creados durante este turno
+              return (
+                order.shiftId === currentSession.id ||
+                (order.createdAt >= currentSession.startTime &&
+                  (!currentSession.endTime || order.createdAt <= currentSession.endTime))
+              )
+            })
+
+            // Calcular los totales por método de pago
+            let cashTotal = 0
+            let cardTotal = 0
+            let transferTotal = 0
+            let otherTotal = 0
+
+            sessionOrders.forEach((order: any) => {
+              // Solo considerar pedidos completados
+              if (order.status === "completed") {
+                switch (order.paymentMethod) {
+                  case "cash":
+                    cashTotal += order.total || 0
+                    break
+                  case "card":
+                    cardTotal += order.total || 0
+                    break
+                  case "transfer":
+                    transferTotal += order.total || 0
+                    break
+                  default:
+                    otherTotal += order.total || 0
+                    break
+                }
+              }
+            })
+
+            const summary = {
+              cashTotal,
+              cardTotal,
+              transferTotal,
+              otherTotal,
+            }
+
+            console.log("Order summary calculated:", summary)
+            setOrderSummary(summary)
+
+            // Pre-llenar los montos con los valores calculados
+            setFormData((prev) => ({
+              ...prev,
+              cashAmount: summary.cashTotal,
+              cardAmount: summary.cardTotal,
+              transferAmount: summary.transferTotal,
+              otherAmount: summary.otherTotal,
+            }))
+          }
+        } catch (error) {
+          console.error("Error loading order summary:", error)
+          // En caso de error, usar valores por defecto
+          setOrderSummary({
+            cashTotal: 0,
+            cardTotal: 0,
+            transferTotal: 0,
+            otherTotal: 0,
+          })
+        }
       }
-
-      setOrderSummary(summary)
-
-      // Pre-llenar los montos con los valores esperados
-      setFormData((prev) => ({
-        ...prev,
-        cashAmount: summary.cashTotal,
-        cardAmount: summary.cardTotal,
-        transferAmount: summary.transferTotal,
-        otherAmount: summary.otherTotal,
-      }))
     }
+
+    loadOrderSummary()
   }, [currentSession])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
