@@ -15,29 +15,22 @@ import { StartShiftDialog } from "@/components/orders/start-shift-dialog"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { Plus, Menu, Clock, History, AlertTriangle } from "lucide-react"
-import { TenantAdminSidebar } from "@/components/tenant-admin-sidebar"
+import { Plus, Clock, History, AlertTriangle, ArrowLeft } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
-// Componente principal que no usa el contexto de turnos directamente
+// Componente principal simplificado sin sidebar
 export default function OrdersPage() {
   const { user } = useAuth()
   const params = useParams()
   const tenantId = user?.tenantId || (params.tenantId as string)
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const router = useRouter()
 
   console.log("OrdersPage - Using tenant ID:", tenantId)
 
   return (
     <ShiftProvider tenantId={tenantId}>
-      <OrdersPageContent
-        tenantId={tenantId}
-        isMobileSidebarOpen={isMobileSidebarOpen}
-        setIsMobileSidebarOpen={setIsMobileSidebarOpen}
-        router={router}
-      />
+      <OrdersPageContent tenantId={tenantId} router={router} />
     </ShiftProvider>
   )
 }
@@ -45,7 +38,7 @@ export default function OrdersPage() {
 // Componente interno que usa el contexto de turnos
 import { useShiftContext } from "@/components/orders/shift-context"
 
-function OrdersPageContent({ tenantId, isMobileSidebarOpen, setIsMobileSidebarOpen, router }) {
+function OrdersPageContent({ tenantId, router }) {
   const { currentShift, loading: shiftLoading } = useShiftContext()
 
   const [isNewOrderOpen, setIsNewOrderOpen] = useState(false)
@@ -74,25 +67,13 @@ function OrdersPageContent({ tenantId, isMobileSidebarOpen, setIsMobileSidebarOp
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Sidebar fijo para pantallas grandes */}
-      <div className="hidden lg:block w-64 border-r">
-        <TenantAdminSidebar tenantid={tenantId} />
-      </div>
-
-      {/* Sidebar móvil/desplegable */}
-      <Sheet open={isMobileSidebarOpen} onOpenChange={setIsMobileSidebarOpen}>
-        <SheetContent side="left" className="p-0 w-64 lg:hidden">
-          <TenantAdminSidebar tenantid={tenantId} />
-        </SheetContent>
-      </Sheet>
-
       <OrderProvider tenantId={tenantId}>
         <div className="flex-1 flex flex-col h-full overflow-hidden">
           {/* Header */}
           <header className="bg-background border-b h-16 flex items-center justify-between px-4">
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => setIsMobileSidebarOpen(true)} className="lg:hidden">
-                <Menu className="h-5 w-5" />
+              <Button variant="ghost" size="icon" onClick={() => router.push("/admin/dashboard")}>
+                <ArrowLeft className="h-5 w-5" />
               </Button>
               <h1 className="text-xl font-bold">Gestión de Pedidos</h1>
 
