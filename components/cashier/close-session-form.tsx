@@ -46,9 +46,7 @@ export function CloseSessionForm() {
     notes: "",
   })
 
-  // Modificar el useEffect para cargar los datos reales de los pedidos del turno actual
-
-  // Reemplazar el useEffect existente con esta versión que carga datos reales:
+  // Cargar resumen de órdenes cuando se monta el componente
   useEffect(() => {
     const loadOrderSummary = async () => {
       if (currentSession) {
@@ -234,7 +232,7 @@ export function CloseSessionForm() {
                 step="0.01"
                 value={formData.cashAmount || ""}
                 onChange={handleChange}
-                required
+                // Quitar el atributo required
               />
             </div>
 
@@ -247,7 +245,7 @@ export function CloseSessionForm() {
                 step="0.01"
                 value={formData.cardAmount || ""}
                 onChange={handleChange}
-                required
+                // Quitar el atributo required
               />
             </div>
 
@@ -260,7 +258,7 @@ export function CloseSessionForm() {
                 step="0.01"
                 value={formData.transferAmount || ""}
                 onChange={handleChange}
-                required
+                // Quitar el atributo required
               />
             </div>
 

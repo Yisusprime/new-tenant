@@ -222,7 +222,9 @@ export const OrderCard = ({ order }: OrderCardProps) => {
         <div className="flex justify-between items-start">
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-lg font-bold">#{order.orderNumber}</h3>
+              {/* Mantener el número de pedido siempre visible */}
+              <h3 className="text-lg font-bold">#{order.orderNumber || "N/A"}</h3>
+              {/* Mostrar el estado como un badge separado */}
               <Badge className={getStatusColor(order.status)}>
                 {getStatusIcon(order.status)}
                 <span className="ml-1">{getStatusText(order.status)}</span>
@@ -243,6 +245,15 @@ export const OrderCard = ({ order }: OrderCardProps) => {
           <div className="text-right">
             <div className="font-bold">${order.total.toFixed(2)}</div>
             <div className="text-sm text-gray-500">{order.items.length} items</div>
+            {/* Mostrar el método de pago si existe */}
+            {order.paymentMethod && (
+              <div className="text-xs text-gray-500 mt-1">
+                {order.paymentMethod === "cash" && "Efectivo"}
+                {order.paymentMethod === "card" && "Tarjeta"}
+                {order.paymentMethod === "transfer" && "Transferencia"}
+                {order.paymentMethod === "other" && "Otro"}
+              </div>
+            )}
           </div>
         </div>
 

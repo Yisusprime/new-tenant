@@ -80,6 +80,10 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
   const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false)
   const [selectedCategoryId, setSelectedCategoryId] = useState(null)
 
+  // Añadir estado para el método de pago
+  const [paymentMethod, setPaymentMethod] = useState("cash")
+  const [paymentStatus, setPaymentStatus] = useState("pending")
+
   // Cargar productos, extras y categorías
   useEffect(() => {
     if (!tenantId) {
@@ -310,7 +314,7 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
     }
   }
 
-  // Modificar la función handleSubmitOrder para usar directamente createOrder
+  // Modificar la función handleSubmitOrder para usar directamente createOrder e incluir el método de pago
   const handleSubmitOrder = async () => {
     if (selectedItems.length === 0) {
       toast({
@@ -357,8 +361,8 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
         discount: couponDiscount,
         tip: tipAmount,
         total,
-        paymentStatus: "pending",
-        paymentMethod: "cash",
+        paymentStatus: paymentStatus,
+        paymentMethod: paymentMethod,
         createdAt: Date.now(),
       }
 
@@ -698,6 +702,36 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Notas adicionales para el pedido"
           />
+        </div>
+
+        {/* Añadir sección de método de pago */}
+        <div className="space-y-2">
+          <Label htmlFor="payment-method">Método de Pago</Label>
+          <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+            <SelectTrigger id="payment-method">
+              <SelectValue placeholder="Selecciona método de pago" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="cash">Efectivo</SelectItem>
+              <SelectItem value="card">Tarjeta</SelectItem>
+              <SelectItem value="transfer">Transferencia</SelectItem>
+              <SelectItem value="other">Otro</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Añadir sección de estado de pago */}
+        <div className="space-y-2">
+          <Label htmlFor="payment-status">Estado de Pago</Label>
+          <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+            <SelectTrigger id="payment-status">
+              <SelectValue placeholder="Selecciona estado de pago" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pending">Pendiente</SelectItem>
+              <SelectItem value="paid">Pagado</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="flex items-center gap-2 justify-end">
