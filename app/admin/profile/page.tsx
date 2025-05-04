@@ -100,7 +100,7 @@ export default function ProfilePage() {
   return (
     <div className="flex min-h-screen">
       <TenantAdminSidebar tenantid={tenantId} />
-      <div className="flex-1 p-4 md:p-8 overflow-auto">
+      <div className="flex-1 p-4 md:p-8 overflow-auto w-full">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">Perfil Personal</h1>

@@ -1,12 +1,14 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { BarChart3, Home, LogOut, Settings, ShoppingCart, Users, User, Store } from "lucide-react"
+import { BarChart3, Home, LogOut, Settings, ShoppingCart, Users, User, Store, Menu } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
 import { useRef } from "react"
+import { Sheet, SheetContent } from "@/components/ui/sheet"
 
 export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
   const pathname = usePathname()
@@ -14,6 +16,25 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
   const router = useRouter()
   const { toast } = useToast()
   const isLogoutRef = useRef(false)
+  const [isMobile, setIsMobile] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
+
+  // Detectar si estamos en un dispositivo móvil
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 1024)
+    }
+
+    // Comprobar al cargar
+    checkIsMobile()
+
+    // Comprobar al cambiar el tamaño de la ventana
+    window.addEventListener("resize", checkIsMobile)
+
+    return () => {
+      window.removeEventListener("resize", checkIsMobile)
+    }
+  }, [])
 
   const links = [
     { href: `/admin/dashboard`, label: "Dashboard", icon: Home },
@@ -35,8 +56,8 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
     router.push(`/login`)
   }
 
-  return (
-    <div className="w-64 bg-muted h-screen p-4 border-r flex flex-col">
+  const SidebarContent = () => (
+    <div className="flex flex-col h-full">
       <div className="mb-8">
         <h2 className="text-xl font-bold">Admin Panel</h2>
         <p className="text-sm text-muted-foreground">{tenantid}.gastroo.online</p>
@@ -54,6 +75,7 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
               className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm ${
                 isActive ? "bg-primary text-primary-foreground" : "hover:bg-muted-foreground/10"
               }`}
+              onClick={() => isMobile && setIsOpen(false)}
             >
               <Icon className="h-4 w-4" />
               <span>{link.label}</span>
@@ -68,6 +90,35 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
           Cerrar sesión
         </Button>
       </div>
+    </div>
+  )
+
+  // Versión móvil con Sheet
+  if (isMobile) {
+    return (
+      <>
+        <Button
+          variant="outline"
+          size="icon"
+          className="fixed top-4 left-4 z-40 lg:hidden"
+          onClick={() => setIsOpen(true)}
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+
+        <Sheet open={isOpen} onOpenChange={setIsOpen}>
+          <SheetContent side="left" className="w-64 p-4">
+            <SidebarContent />
+          </SheetContent>
+        </Sheet>
+      </>
+    )
+  }
+
+  // Versión desktop
+  return (
+    <div className="hidden lg:flex w-64 bg-muted h-screen p-4 border-r flex-col overflow-y-auto">
+      <SidebarContent />
     </div>
   )
 }
