@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useOrderContext } from "./order-context"
 import { useTableContext } from "./table-context"
@@ -28,9 +27,10 @@ import {
   CreditCard,
   Search,
   ChevronRight,
+  Loader2,
 } from "lucide-react"
-import { collection, getDocs } from "firebase/firestore"
-import { db } from "@/lib/firebase-config"
+import { ref, get } from "firebase/database"
+import { rtdb } from "@/lib/firebase-config"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
@@ -39,9 +39,14 @@ interface Product {
   name: string
   description: string
   price: number
-  image?: string
+  imageUrl?: string
   categoryId: string
   available: boolean
+}
+
+interface Category {
+  id: string
+  name: string
 }
 
 interface Extra {
@@ -64,6 +69,7 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
   const [orderType, setOrderType] = useState<OrderType>("dine-in")
   const [products, setProducts] = useState<Product[]>([])
   const [extras, setExtras] = useState<Extra[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [selectedItems, setSelectedItems] = useState<OrderItem[]>([])
   const [customerName, setCustomerName] = useState("")
   const [customerPhone, setCustomerPhone] = useState("")
@@ -78,42 +84,64 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
   const [productSelectorOpen, setProductSelectorOpen] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [loadingProducts, setLoadingProducts] = useState(true)
+  const [loadingError, setLoadingError] = useState<string | null>(null)
 
   // Cargar productos, extras y categorías
   useEffect(() => {
+    if (!tenantId) return
+
+    setLoadingProducts(true)
+    setLoadingError(null)
+
     const fetchData = async () => {
       try {
         // Fetch categories
-        const categoriesRef = collection(db, `tenants/${tenantId}/categories`)
-        const categoriesSnapshot = await getDocs(categoriesRef)
-        const categoriesList: { id: string; name: string }[] = []
-        categoriesSnapshot.forEach((doc) => {
-          categoriesList.push({ id: doc.id, name: doc.data().name })
-        })
+        const categoriesRef = ref(rtdb, `tenants/${tenantId}/categories`)
+        const categoriesSnapshot = await get(categoriesRef)
+        const categoriesData = categoriesSnapshot.val() || {}
+
+        const categoriesList: Category[] = Object.keys(categoriesData).map((key) => ({
+          id: key,
+          name: categoriesData[key].name,
+        }))
         setCategories(categoriesList)
 
         // Fetch products
-        const productsRef = collection(db, `tenants/${tenantId}/products`)
-        const productsSnapshot = await getDocs(productsRef)
-        const productsList: Product[] = []
-        productsSnapshot.forEach((doc) => {
-          productsList.push({ id: doc.id, ...doc.data() } as Product)
-        })
+        const productsRef = ref(rtdb, `tenants/${tenantId}/products`)
+        const productsSnapshot = await get(productsRef)
+        const productsData = productsSnapshot.val() || {}
+
+        const productsList: Product[] = Object.keys(productsData).map((key) => ({
+          id: key,
+          name: productsData[key].name,
+          description: productsData[key].description || "",
+          price: productsData[key].price || 0,
+          imageUrl: productsData[key].imageUrl || "",
+          categoryId: productsData[key].categoryId || "",
+          available: productsData[key].available !== false, // Por defecto true
+        }))
         setProducts(productsList)
 
         // Fetch extras
-        const extrasRef = collection(db, `tenants/${tenantId}/extras`)
-        const extrasSnapshot = await getDocs(extrasRef)
-        const extrasList: Extra[] = []
-        extrasSnapshot.forEach((doc) => {
-          extrasList.push({ id: doc.id, ...doc.data() } as Extra)
-        })
+        const extrasRef = ref(rtdb, `tenants/${tenantId}/extras`)
+        const extrasSnapshot = await get(extrasRef)
+        const extrasData = extrasSnapshot.val() || {}
+
+        const extrasList: Extra[] = Object.keys(extrasData).map((key) => ({
+          id: key,
+          name: extrasData[key].name,
+          price: extrasData[key].price || 0,
+          available: extrasData[key].available !== false, // Por defecto true
+        }))
         setExtras(extrasList)
+
+        setLoadingProducts(false)
       } catch (error) {
         console.error("Error fetching data:", error)
+        setLoadingError("Error al cargar los datos. Por favor, intenta de nuevo.")
+        setLoadingProducts(false)
       }
     }
 
@@ -497,7 +525,7 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
                   Añadir Producto
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-full sm:max-w-md p-0">
+              <SheetContent side="right" className="w-[90vw] sm:w-[80vw] md:w-[60vw] lg:w-[50vw] p-0">
                 <div className="flex flex-col h-full">
                   <SheetHeader className="p-4 border-b">
                     <SheetTitle>Seleccionar Producto</SheetTitle>
@@ -536,11 +564,60 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
                   </div>
 
                   <div className="flex-grow overflow-auto p-4">
-                    <div className="grid grid-cols-1 gap-2">
-                      {filteredProducts.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">No se encontraron productos</div>
-                      ) : (
-                        filteredProducts.map((product) => (
+                    {loadingProducts ? (
+                      <div className="flex flex-col items-center justify-center h-full">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+                        <p className="text-muted-foreground">Cargando productos...</p>
+                      </div>
+                    ) : loadingError ? (
+                      <div className="flex flex-col items-center justify-center h-full text-center">
+                        <p className="text-destructive mb-2">{loadingError}</p>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setLoadingProducts(true)
+                            setLoadingError(null)
+                            // Recargar productos
+                            const fetchData = async () => {
+                              try {
+                                const productsRef = ref(rtdb, `tenants/${tenantId}/products`)
+                                const snapshot = await get(productsRef)
+                                const data = snapshot.val() || {}
+
+                                const productsList = Object.keys(data).map((key) => ({
+                                  id: key,
+                                  name: data[key].name,
+                                  description: data[key].description || "",
+                                  price: data[key].price || 0,
+                                  imageUrl: data[key].imageUrl || "",
+                                  categoryId: data[key].categoryId || "",
+                                  available: data[key].available !== false,
+                                }))
+
+                                setProducts(productsList)
+                                setLoadingProducts(false)
+                              } catch (error) {
+                                console.error("Error recargando productos:", error)
+                                setLoadingError("Error al cargar los productos. Por favor, intenta de nuevo.")
+                                setLoadingProducts(false)
+                              }
+                            }
+
+                            fetchData()
+                          }}
+                        >
+                          Reintentar
+                        </Button>
+                      </div>
+                    ) : filteredProducts.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        {products.length === 0
+                          ? "No hay productos disponibles"
+                          : "No se encontraron productos con los filtros actuales"}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {filteredProducts.map((product) => (
                           <Card
                             key={product.id}
                             className="cursor-pointer hover:bg-muted/50"
@@ -554,9 +631,9 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
                               <ChevronRight className="h-5 w-5 text-muted-foreground" />
                             </CardContent>
                           </Card>
-                        ))
-                      )}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </SheetContent>
@@ -669,96 +746,80 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-start">
-                  <Tag className="mr-2 h-4 w-4" />
-                  Cupón de Descuento
-                  {couponDiscount > 0 && (
-                    <Badge variant="secondary" className="ml-auto">
-                      -${couponDiscount.toFixed(2)}
-                    </Badge>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
-                <div className="space-y-4">
-                  <h4 className="font-medium">Aplicar Cupón</h4>
-                  <div className="flex gap-2">
-                    <Input
-                      value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value)}
-                      placeholder="Código de cupón"
-                    />
-                    <Button onClick={handleApplyCoupon}>Aplicar</Button>
-                  </div>
-                  {couponDiscount > 0 && (
-                    <p className="text-sm text-green-600">Descuento aplicado: ${couponDiscount.toFixed(2)}</p>
-                  )}
+        <div className="flex items-center gap-2 justify-end">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="icon" className="h-8 w-8">
+                <Tag className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80">
+              <div className="space-y-4">
+                <h4 className="font-medium">Aplicar Cupón</h4>
+                <div className="flex gap-2">
+                  <Input
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value)}
+                    placeholder="Código de cupón"
+                  />
+                  <Button onClick={handleApplyCoupon}>Aplicar</Button>
                 </div>
-              </PopoverContent>
-            </Popover>
-          </div>
+                {couponDiscount > 0 && (
+                  <p className="text-sm text-green-600">Descuento aplicado: ${couponDiscount.toFixed(2)}</p>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
 
-          <div className="space-y-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-start">
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  Propina
-                  {tipAmount > 0 && (
-                    <Badge variant="secondary" className="ml-auto">
-                      ${tipAmount.toFixed(2)}
-                    </Badge>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
-                <div className="space-y-4">
-                  <h4 className="font-medium">Añadir Propina</h4>
-                  <div className="flex gap-2">
-                    <Button
-                      variant={tipPercentage === 0 ? "default" : "outline"}
-                      onClick={() => handleTipPercentageChange(0)}
-                    >
-                      0%
-                    </Button>
-                    <Button
-                      variant={tipPercentage === 10 ? "default" : "outline"}
-                      onClick={() => handleTipPercentageChange(10)}
-                    >
-                      10%
-                    </Button>
-                    <Button
-                      variant={tipPercentage === 15 ? "default" : "outline"}
-                      onClick={() => handleTipPercentageChange(15)}
-                    >
-                      15%
-                    </Button>
-                    <Button
-                      variant={tipPercentage === 20 ? "default" : "outline"}
-                      onClick={() => handleTipPercentageChange(20)}
-                    >
-                      20%
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">Monto:</span>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={tipAmount}
-                      onChange={(e) => handleTipAmountChange(Number.parseFloat(e.target.value) || 0)}
-                      className="max-w-[100px]"
-                    />
-                  </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="icon" className="h-8 w-8">
+                <CreditCard className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80">
+              <div className="space-y-4">
+                <h4 className="font-medium">Añadir Propina</h4>
+                <div className="flex gap-2">
+                  <Button
+                    variant={tipPercentage === 0 ? "default" : "outline"}
+                    onClick={() => handleTipPercentageChange(0)}
+                  >
+                    0%
+                  </Button>
+                  <Button
+                    variant={tipPercentage === 10 ? "default" : "outline"}
+                    onClick={() => handleTipPercentageChange(10)}
+                  >
+                    10%
+                  </Button>
+                  <Button
+                    variant={tipPercentage === 15 ? "default" : "outline"}
+                    onClick={() => handleTipPercentageChange(15)}
+                  >
+                    15%
+                  </Button>
+                  <Button
+                    variant={tipPercentage === 20 ? "default" : "outline"}
+                    onClick={() => handleTipPercentageChange(20)}
+                  >
+                    20%
+                  </Button>
                 </div>
-              </PopoverContent>
-            </Popover>
-          </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">Monto:</span>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={tipAmount}
+                    onChange={(e) => handleTipAmountChange(Number.parseFloat(e.target.value) || 0)}
+                    className="max-w-[100px]"
+                  />
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
 
         <div className="bg-muted p-4 rounded-md">
