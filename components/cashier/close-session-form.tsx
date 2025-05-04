@@ -15,12 +15,14 @@ import { useCashier } from "./cashier-context"
 import { formatCurrency } from "@/lib/utils"
 import { OrderSummaryByPayment } from "./order-summary-by-payment"
 import { ref, get } from "firebase/database"
-import { database } from "@/lib/firebase-config"
+import { rtdb } from "@/lib/firebase-config"
 import { useAuth } from "@/lib/auth-context"
+import { useShift } from "../orders/shift-provider"
 
 export function CloseSessionForm() {
   const { currentSession, closeSession } = useCashier()
   const { tenantId } = useAuth()
+  const { currentShift } = useShift()
   const router = useRouter()
   const searchParams = useSearchParams()
   const fromOrders = searchParams.get("action") === "close"
@@ -62,9 +64,10 @@ export function CloseSessionForm() {
 
       try {
         console.log("Loading orders for session:", currentSession.id)
+        console.log("Current shift:", currentShift?.id)
 
         // Obtener los pedidos del tenant
-        const ordersRef = ref(database, `tenants/${tenantId}/orders`)
+        const ordersRef = ref(rtdb, `tenants/${tenantId}/orders`)
         const ordersSnapshot = await get(ordersRef)
 
         if (!ordersSnapshot.exists()) {
@@ -82,7 +85,7 @@ export function CloseSessionForm() {
         const ordersData = ordersSnapshot.val()
         console.log(`Found ${Object.keys(ordersData).length} orders total`)
 
-        // Filtrar los pedidos que pertenecen a la sesión actual
+        // Filtrar los pedidos que pertenecen a la sesión actual o al turno actual
         const sessionOrders = Object.entries(ordersData)
           .map(([id, order]) => ({ id, ...(order as any) }))
           .filter((order: any) => {
@@ -91,15 +94,25 @@ export function CloseSessionForm() {
               return false
             }
 
-            // Incluir pedidos que fueron creados durante esta sesión
+            // Si hay un turno actual, incluir pedidos de ese turno
+            if (currentShift && order.shiftId === currentShift.id) {
+              console.log(`Order ${order.id} belongs to current shift ${currentShift.id}`)
+              return true
+            }
+
+            // Como respaldo, incluir pedidos que fueron creados durante esta sesión
             const orderTime = order.createdAt
             const belongsToSession =
               orderTime >= currentSession.startTime && (!currentSession.endTime || orderTime <= currentSession.endTime)
 
+            if (belongsToSession) {
+              console.log(`Order ${order.id} belongs to current session by time range`)
+            }
+
             return belongsToSession
           })
 
-        console.log(`Found ${sessionOrders.length} completed orders for this session`)
+        console.log(`Found ${sessionOrders.length} completed orders for this session/shift`)
 
         // Calcular los totales por método de pago
         let cashTotal = 0
@@ -109,6 +122,7 @@ export function CloseSessionForm() {
 
         sessionOrders.forEach((order: any) => {
           const orderTotal = Number(order.total) || 0
+          console.log(`Order ${order.id}: ${orderTotal} - Payment method: ${order.paymentMethod}`)
 
           switch (order.paymentMethod) {
             case "cash":
@@ -160,7 +174,7 @@ export function CloseSessionForm() {
     }
 
     loadOrderSummary()
-  }, [currentSession, tenantId])
+  }, [currentSession, tenantId, currentShift])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -194,8 +208,8 @@ export function CloseSessionForm() {
       await closeSession({
         sessionId: currentSession.id,
         endCash: formData.cashAmount,
-        endCard: formData.cardAmount + formData.transferAmount + formData.otherAmount,
-        endOther: 0,
+        endCard: formData.cardAmount,
+        endOther: formData.transferAmount + formData.otherAmount,
         difference,
         notes: formData.notes,
       })
