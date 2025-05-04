@@ -29,15 +29,20 @@ export async function POST(request: NextRequest) {
     // Crear un nombre único para el archivo
     const filename = `${folder}/${nanoid()}-${file.name.replace(/[^a-zA-Z0-9.]/g, "-")}`
 
+    console.log("Subiendo archivo a Vercel Blob:", filename) // Log para depuración
+
     // Subir el archivo a Vercel Blob
     const blob = await put(filename, file, {
       access: "public",
     })
 
+    console.log("Archivo subido con éxito:", blob.url) // Log para depuración
+
     // Devolver la URL del archivo subido
     return NextResponse.json({
       success: true,
       url: blob.url,
+      path: filename,
     })
   } catch (error: any) {
     console.error("Error al subir archivo:", error)

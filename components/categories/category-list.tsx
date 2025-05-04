@@ -17,6 +17,7 @@ export function CategoryList() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null)
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null)
+  const [imageError, setImageError] = useState<Record<string, boolean>>({})
 
   const handleAddCategory = () => {
     setIsAddingCategory(true)
@@ -51,6 +52,10 @@ export function CategoryList() {
         setSelectedCategory(category)
       }
     }
+  }
+
+  const handleImageError = (categoryId: string) => {
+    setImageError((prev) => ({ ...prev, [categoryId]: true }))
   }
 
   if (loading) {
@@ -92,14 +97,17 @@ export function CategoryList() {
                 <CardContent className="p-0">
                   <div className="flex items-center p-4">
                     <div className="h-12 w-12 rounded-md overflow-hidden bg-muted mr-4 flex-shrink-0">
-                      {category.imageUrl ? (
-                        <Image
-                          src={category.imageUrl || "/placeholder.svg"}
-                          alt={category.name}
-                          width={48}
-                          height={48}
-                          className="object-cover h-full w-full"
-                        />
+                      {category.imageUrl && !imageError[category.id] ? (
+                        <div className="relative h-full w-full">
+                          <Image
+                            src={category.imageUrl || "/placeholder.svg"}
+                            alt={category.name}
+                            fill
+                            className="object-cover"
+                            onError={() => handleImageError(category.id)}
+                            sizes="48px"
+                          />
+                        </div>
                       ) : (
                         <div className="flex items-center justify-center h-full w-full bg-muted">
                           <ImageIcon className="h-6 w-6 text-muted-foreground" />
@@ -110,6 +118,11 @@ export function CategoryList() {
                       <h3 className="font-medium">{category.name}</h3>
                       {category.description && (
                         <p className="text-sm text-muted-foreground line-clamp-1">{category.description}</p>
+                      )}
+                      {category.imageUrl && (
+                        <p className="text-xs text-muted-foreground mt-1 truncate">
+                          <span className="font-medium">URL:</span> {category.imageUrl}
+                        </p>
                       )}
                     </div>
                     <div className="flex items-center gap-2">

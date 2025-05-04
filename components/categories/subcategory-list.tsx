@@ -19,6 +19,7 @@ export function SubcategoryList({ categoryId }: SubcategoryListProps) {
   const [editingSubcategory, setEditingSubcategory] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [subcategoryToDelete, setSubcategoryToDelete] = useState<string | null>(null)
+  const [imageError, setImageError] = useState<Record<string, boolean>>({})
 
   const category = categories.find((c) => c.id === categoryId)
   const subcategories: Subcategory[] = category?.subcategories
@@ -51,6 +52,10 @@ export function SubcategoryList({ categoryId }: SubcategoryListProps) {
     }
   }
 
+  const handleImageError = (subcategoryId: string) => {
+    setImageError((prev) => ({ ...prev, [subcategoryId]: true }))
+  }
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
@@ -71,14 +76,17 @@ export function SubcategoryList({ categoryId }: SubcategoryListProps) {
             <Card key={subcategory.id} className="overflow-hidden">
               <CardContent className="p-3 flex items-center">
                 <div className="h-10 w-10 rounded-md overflow-hidden bg-muted mr-3 flex-shrink-0">
-                  {subcategory.imageUrl ? (
-                    <Image
-                      src={subcategory.imageUrl || "/placeholder.svg"}
-                      alt={subcategory.name}
-                      width={40}
-                      height={40}
-                      className="object-cover h-full w-full"
-                    />
+                  {subcategory.imageUrl && !imageError[subcategory.id] ? (
+                    <div className="relative h-full w-full">
+                      <Image
+                        src={subcategory.imageUrl || "/placeholder.svg"}
+                        alt={subcategory.name}
+                        fill
+                        className="object-cover"
+                        onError={() => handleImageError(subcategory.id)}
+                        sizes="40px"
+                      />
+                    </div>
                   ) : (
                     <div className="flex items-center justify-center h-full w-full bg-muted">
                       <ImageIcon className="h-5 w-5 text-muted-foreground" />
@@ -89,6 +97,11 @@ export function SubcategoryList({ categoryId }: SubcategoryListProps) {
                   <h4 className="font-medium text-sm">{subcategory.name}</h4>
                   {subcategory.description && (
                     <p className="text-xs text-muted-foreground line-clamp-1">{subcategory.description}</p>
+                  )}
+                  {subcategory.imageUrl && (
+                    <p className="text-xs text-muted-foreground mt-1 truncate">
+                      <span className="font-medium">URL:</span> {subcategory.imageUrl}
+                    </p>
                   )}
                 </div>
                 <div className="flex items-center gap-1">

@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { ImageUpload } from "./image-upload"
 import { useCategories } from "./category-context"
 import { Loader2 } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
 
 interface CategoryFormProps {
   categoryId: string | null
@@ -24,6 +25,7 @@ export function CategoryForm({ categoryId, onCancel }: CategoryFormProps) {
   const [imageUrl, setImageUrl] = useState("")
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     if (categoryId) {
@@ -48,18 +50,32 @@ export function CategoryForm({ categoryId, onCancel }: CategoryFormProps) {
     try {
       if (categoryId) {
         await updateCategory(categoryId, { name, description, imageUrl })
+        toast({
+          title: "Categoría actualizada",
+          description: `La categoría "${name}" ha sido actualizada correctamente.`,
+        })
       } else {
         await addCategory({ name, description, imageUrl })
+        toast({
+          title: "Categoría añadida",
+          description: `La categoría "${name}" ha sido añadida correctamente.`,
+        })
       }
       onCancel()
     } catch (error) {
       console.error("Error al guardar categoría:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo guardar la categoría. Por favor, inténtalo de nuevo.",
+        variant: "destructive",
+      })
     } finally {
       setSubmitting(false)
     }
   }
 
   const handleImageUploaded = (url: string) => {
+    console.log("Imagen subida:", url) // Añadimos log para depuración
     setImageUrl(url)
   }
 
@@ -98,8 +114,14 @@ export function CategoryForm({ categoryId, onCancel }: CategoryFormProps) {
               currentImageUrl={imageUrl}
               onImageUploaded={handleImageUploaded}
               folder="categories"
-              tenantId={tenantId} // Pasamos el tenantId
+              tenantId={tenantId}
             />
+            {imageUrl && (
+              <div className="mt-2">
+                <p className="text-xs text-muted-foreground">URL de la imagen:</p>
+                <code className="text-xs block bg-muted p-2 rounded mt-1 break-all">{imageUrl}</code>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

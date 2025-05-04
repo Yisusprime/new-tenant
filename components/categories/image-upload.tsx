@@ -12,7 +12,7 @@ interface ImageUploadProps {
   currentImageUrl: string
   onImageUploaded: (url: string) => void
   folder: string
-  tenantId?: string // Añadimos el tenantId como prop opcional
+  tenantId?: string
 }
 
 export function ImageUpload({ currentImageUrl, onImageUploaded, folder, tenantId }: ImageUploadProps) {
@@ -34,6 +34,11 @@ export function ImageUpload({ currentImageUrl, onImageUploaded, folder, tenantId
       }
     }
   }, [tenantId])
+
+  // Asegurarnos de que la URL actual se muestra correctamente
+  useEffect(() => {
+    setPreviewUrl(currentImageUrl)
+  }, [currentImageUrl])
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -77,6 +82,8 @@ export function ImageUpload({ currentImageUrl, onImageUploaded, folder, tenantId
       const folderPath = localTenantId ? `${localTenantId}/${folder}` : folder
       formData.append("folder", folderPath)
 
+      console.log("Subiendo imagen a:", folderPath) // Log para depuración
+
       // Enviar el archivo a nuestro endpoint de API
       const response = await fetch("/api/upload", {
         method: "POST",
@@ -90,6 +97,7 @@ export function ImageUpload({ currentImageUrl, onImageUploaded, folder, tenantId
         setPreviewUrl(result.url)
 
         // Notificar al componente padre
+        console.log("URL de imagen recibida:", result.url) // Log para depuración
         onImageUploaded(result.url)
 
         toast({
@@ -137,7 +145,23 @@ export function ImageUpload({ currentImageUrl, onImageUploaded, folder, tenantId
 
       {previewUrl ? (
         <div className="relative w-full h-48 rounded-md overflow-hidden border">
-          <Image src={previewUrl || "/placeholder.svg"} alt="Preview" fill className="object-cover" />
+          <div className="relative h-full w-full">
+            <Image
+              src={previewUrl || "/placeholder.svg"}
+              alt="Preview"
+              fill
+              className="object-cover"
+              onError={() => {
+                console.error("Error al cargar la imagen:", previewUrl)
+                toast({
+                  title: "Error",
+                  description: "No se pudo cargar la imagen. La URL podría ser inválida.",
+                  variant: "destructive",
+                })
+              }}
+              sizes="(max-width: 768px) 100vw, 768px"
+            />
+          </div>
           <Button
             type="button"
             variant="destructive"
