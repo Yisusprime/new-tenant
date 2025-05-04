@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { OrderProvider } from "@/components/orders/order-context"
 import { TableProvider } from "@/components/orders/table-context"
@@ -20,6 +20,9 @@ import { TenantAdminSidebar } from "@/components/tenant-admin-sidebar"
 import { useAuth } from "@/lib/auth-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
+// Importamos el contexto de ShiftProvider
+import { useShiftContext } from "@/components/orders/shift-context"
+
 // Componente interno que usa el contexto de turnos
 function OrdersContent({ tenantId, setIsSidebarOpen }) {
   const router = useRouter()
@@ -28,7 +31,7 @@ function OrdersContent({ tenantId, setIsSidebarOpen }) {
   const [isStartShiftOpen, setIsStartShiftOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("all")
 
-  // Importamos el contexto de ShiftProvider
+  // Usamos el contexto de ShiftProvider
   const { currentShift, loading: shiftLoading } = useShiftContext()
 
   // Verificar si hay un turno activo al cargar
@@ -168,11 +171,8 @@ function OrdersContent({ tenantId, setIsSidebarOpen }) {
   )
 }
 
-// Componente principal que importa y usa el hook useShiftContext
-import { useEffect } from "react"
-import { useShiftContext } from "@/components/orders/shift-context"
-
-export default function OrdersPage() {
+// Componente contenedor que no usa el contexto directamente
+const OrdersPageWrapper = () => {
   const { user } = useAuth()
   const params = useParams()
   const tenantId = user?.tenantId || (params.tenantId as string)
@@ -196,3 +196,6 @@ export default function OrdersPage() {
     </div>
   )
 }
+
+// Exportamos el componente contenedor como página principal
+export default OrdersPageWrapper
