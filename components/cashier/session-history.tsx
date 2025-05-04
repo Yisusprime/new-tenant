@@ -10,7 +10,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { CalendarIcon } from "lucide-react"
+import { CalendarIcon, Loader2 } from "lucide-react"
 import { useCashier } from "./cashier-context"
 import { formatCurrency } from "@/lib/utils"
 import type { CashierSession } from "@/lib/types/cashier"
@@ -34,6 +34,7 @@ export function SessionHistory() {
   const [expandedSession, setExpandedSession] = useState<string | null>(null)
   const [sessionOrders, setSessionOrders] = useState<Record<string, Order[]>>({})
   const [isLoading, setIsLoading] = useState(false)
+  const [loadingErrors, setLoadingErrors] = useState<Record<string, string>>({})
 
   // Filter sessions based on selected period
   useEffect(() => {
@@ -91,6 +92,8 @@ export function SessionHistory() {
       if (sessionOrders[expandedSession]) return
 
       setIsLoading(true)
+      setLoadingErrors((prev) => ({ ...prev, [expandedSession]: "" }))
+
       try {
         const orders = await getSessionOrders(expandedSession)
         setSessionOrders((prev) => ({
@@ -99,6 +102,10 @@ export function SessionHistory() {
         }))
       } catch (err) {
         console.error("Error loading session orders:", err)
+        setLoadingErrors((prev) => ({
+          ...prev,
+          [expandedSession]: "No se pudieron cargar las órdenes. Por favor, inténtelo de nuevo más tarde.",
+        }))
       } finally {
         setIsLoading(false)
       }
@@ -174,6 +181,7 @@ export function SessionHistory() {
                 {filteredSessions.map((session) => {
                   const summary = getSessionSummary(session.id)
                   const orders = sessionOrders[session.id] || []
+                  const hasError = loadingErrors[session.id]
 
                   return (
                     <AccordionItem key={session.id} value={session.id}>
@@ -296,10 +304,15 @@ export function SessionHistory() {
 
                           <div>
                             <h4 className="text-sm font-medium mb-2">Órdenes ({orders.length})</h4>
-                            {isLoading ? (
-                              <div className="text-center py-4 text-muted-foreground">Cargando órdenes...</div>
+                            {isLoading && expandedSession === session.id ? (
+                              <div className="text-center py-8 text-muted-foreground flex items-center justify-center">
+                                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                                <span>Cargando órdenes...</span>
+                              </div>
+                            ) : hasError ? (
+                              <div className="text-center py-8 text-red-500">{loadingErrors[session.id]}</div>
                             ) : orders.length === 0 ? (
-                              <div className="text-center py-4 text-muted-foreground">
+                              <div className="text-center py-8 text-muted-foreground">
                                 No hay órdenes en esta sesión
                               </div>
                             ) : (
@@ -318,7 +331,7 @@ export function SessionHistory() {
                                   <tbody>
                                     {orders.map((order) => (
                                       <tr key={order.id} className="border-b hover:bg-gray-50">
-                                        <td className="py-2 px-3">{order.id.slice(-6)}</td>
+                                        <td className="py-2 px-3">{order.orderNumber || order.id.slice(-6)}</td>
                                         <td className="py-2 px-3">{new Date(order.createdAt).toLocaleTimeString()}</td>
                                         <td className="py-2 px-3">{order.table || order.customerName || "—"}</td>
                                         <td className="py-2 px-3 text-right">{formatCurrency(order.total || 0)}</td>
@@ -332,10 +345,22 @@ export function SessionHistory() {
                                                   : "default"
                                             }
                                           >
-                                            {order.status}
+                                            {order.status === "completed"
+                                              ? "Completado"
+                                              : order.status === "canceled"
+                                                ? "Cancelado"
+                                                : order.status === "in-progress"
+                                                  ? "En progreso"
+                                                  : order.status}
                                           </Badge>
                                         </td>
-                                        <td className="py-2 px-3">{order.paymentMethod || "—"}</td>
+                                        <td className="py-2 px-3">
+                                          {order.paymentMethod === "cash"
+                                            ? "Efectivo"
+                                            : order.paymentMethod === "card"
+                                              ? "Tarjeta"
+                                              : order.paymentMethod || "—"}
+                                        </td>
                                       </tr>
                                     ))}
                                   </tbody>
