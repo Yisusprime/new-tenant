@@ -115,6 +115,14 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
   const featuredSliderRef = useRef<HTMLDivElement>(null)
   const categoriesSliderRef = useRef<HTMLDivElement>(null)
 
+  // Obtener colores personalizados o usar valores predeterminados
+  const primaryColor = tenantInfo.primaryColor || "#f97316"
+  const secondaryColor = tenantInfo.secondaryColor || "#dc2626"
+  const buttonColor = tenantInfo.buttonColor || "#f97316"
+  const productButtonColor = tenantInfo.productButtonColor || "#f97316"
+  const buttonTextColor = tenantInfo.buttonTextColor || "#ffffff"
+  const backgroundColor = tenantInfo.backgroundColor || "#f9fafb"
+
   // Filter featured products
   const featuredProducts = products
     .filter((product) => product.featured && product.available)
@@ -184,10 +192,15 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen pb-20" style={{ backgroundColor: backgroundColor }}>
       {/* Banner y Logo */}
       <div className="relative">
-        <div className="h-32 bg-gradient-to-r from-orange-500 to-red-600 relative">
+        <div
+          className="h-32 relative"
+          style={{
+            background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`,
+          }}
+        >
           {/* Banner image */}
           <div className="absolute inset-0 opacity-20">
             <Image src="/placeholder.svg?key=i6gc5" alt="Banner de comida" fill className="object-cover" />
@@ -427,7 +440,14 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
                     <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{product.description}</p>
                     <div className="flex justify-between items-center mt-2">
                       <span className="font-bold text-sm sm:text-base">${product.price.toFixed(2)}</span>
-                      <Button size="sm" className="h-7 sm:h-8 text-xs sm:text-sm rounded-full">
+                      <Button
+                        size="sm"
+                        className="h-7 sm:h-8 text-xs sm:text-sm rounded-full"
+                        style={{
+                          backgroundColor: productButtonColor,
+                          color: buttonTextColor,
+                        }}
+                      >
                         Añadir
                       </Button>
                     </div>
@@ -513,7 +533,14 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
                     </div>
                     <div className="flex justify-between items-center mt-2">
                       <span className="font-bold text-sm sm:text-base">${product.price.toFixed(2)}</span>
-                      <Button size="sm" className="h-7 sm:h-8 text-xs sm:text-sm rounded-full">
+                      <Button
+                        size="sm"
+                        className="h-7 sm:h-8 text-xs sm:text-sm rounded-full"
+                        style={{
+                          backgroundColor: productButtonColor,
+                          color: buttonTextColor,
+                        }}
+                      >
                         Añadir
                       </Button>
                     </div>
@@ -540,7 +567,13 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
 
           <Sheet>
             <SheetTrigger asChild>
-              <Button className="flex items-center justify-center rounded-full h-14 w-14 bg-primary text-white shadow-lg -mt-5">
+              <Button
+                className="flex items-center justify-center rounded-full h-14 w-14 shadow-lg -mt-5"
+                style={{
+                  backgroundColor: buttonColor,
+                  color: buttonTextColor,
+                }}
+              >
                 <Plus size={24} />
               </Button>
             </SheetTrigger>
