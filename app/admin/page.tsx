@@ -152,6 +152,46 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
           <div className="absolute inset-0 opacity-20">
             <Image src="/placeholder.svg?key=i6gc5" alt="Banner de comida" fill className="object-cover" />
           </div>
+
+          {/* Botón de Abierto/Cerrado (izquierda) */}
+          <div className="absolute top-4 left-4 z-10">
+            <Button
+              variant="outline"
+              className="bg-white/70 hover:bg-white/90 text-green-600 font-medium border-0"
+              size="sm"
+            >
+              Abierto
+            </Button>
+          </div>
+
+          {/* Botones de acción (derecha) */}
+          <div className="absolute top-4 right-4 z-10 flex gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 rounded-full bg-white/50 hover:bg-white/80 border-0"
+            >
+              <Heart size={16} />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 rounded-full bg-white/50 hover:bg-white/80 border-0"
+            >
+              <Search size={16} />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 rounded-full bg-white/50 hover:bg-white/80 border-0"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="8" cy="3" r="1.5" fill="currentColor" />
+                <circle cx="8" cy="8" r="1.5" fill="currentColor" />
+                <circle cx="8" cy="13" r="1.5" fill="currentColor" />
+              </svg>
+            </Button>
+          </div>
         </div>
 
         {/* Logo flotante */}
