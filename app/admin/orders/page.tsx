@@ -20,19 +20,38 @@ import { TenantAdminSidebar } from "@/components/tenant-admin-sidebar"
 import { useAuth } from "@/lib/auth-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
-// Importamos el contexto de ShiftProvider
-import { useShiftContext } from "@/components/orders/shift-context"
+// Componente principal que no usa el contexto de turnos directamente
+export default function OrdersPage() {
+  const { user } = useAuth()
+  const params = useParams()
+  const tenantId = user?.tenantId || (params.tenantId as string)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const router = useRouter()
+
+  console.log("OrdersPage - Using tenant ID:", tenantId)
+
+  return (
+    <ShiftProvider tenantId={tenantId}>
+      <OrdersPageContent
+        tenantId={tenantId}
+        isMobileSidebarOpen={isMobileSidebarOpen}
+        setIsMobileSidebarOpen={setIsMobileSidebarOpen}
+        router={router}
+      />
+    </ShiftProvider>
+  )
+}
 
 // Componente interno que usa el contexto de turnos
-function OrdersContent({ tenantId, setIsSidebarOpen }) {
-  const router = useRouter()
+import { useShiftContext } from "@/components/orders/shift-context"
+
+function OrdersPageContent({ tenantId, isMobileSidebarOpen, setIsMobileSidebarOpen, router }) {
+  const { currentShift, loading: shiftLoading } = useShiftContext()
+
   const [isNewOrderOpen, setIsNewOrderOpen] = useState(false)
   const [isEndShiftOpen, setIsEndShiftOpen] = useState(false)
   const [isStartShiftOpen, setIsStartShiftOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("all")
-
-  // Usamos el contexto de ShiftProvider
-  const { currentShift, loading: shiftLoading } = useShiftContext()
 
   // Verificar si hay un turno activo al cargar
   useEffect(() => {
@@ -54,148 +73,133 @@ function OrdersContent({ tenantId, setIsSidebarOpen }) {
   }
 
   return (
-    <OrderProvider tenantId={tenantId}>
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Header */}
-        <header className="bg-background border-b h-16 flex items-center justify-between px-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)}>
-              <Menu className="h-5 w-5" />
-            </Button>
-            <h1 className="text-xl font-bold">Gestión de Pedidos</h1>
-
-            {currentShift && (
-              <div className="hidden md:flex items-center">
-                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                  Turno activo desde {new Date(currentShift.startTime).toLocaleTimeString()}
-                </span>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {currentShift ? (
-              <>
-                <Button variant="outline" onClick={() => setIsEndShiftOpen(true)} className="hidden sm:flex">
-                  <Clock className="mr-2 h-4 w-4" />
-                  Finalizar Turno
-                </Button>
-
-                <Sheet open={isNewOrderOpen} onOpenChange={setIsNewOrderOpen}>
-                  <SheetTrigger asChild>
-                    <Button>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Nuevo Pedido
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
-                    <SheetHeader className="mb-4">
-                      <SheetTitle>Nuevo Pedido</SheetTitle>
-                    </SheetHeader>
-                    <TableProvider tenantId={tenantId}>
-                      <NewOrderForm tenantId={tenantId} onClose={() => setIsNewOrderOpen(false)} />
-                    </TableProvider>
-                  </SheetContent>
-                </Sheet>
-              </>
-            ) : (
-              <Button onClick={() => setIsStartShiftOpen(true)}>
-                <Clock className="mr-2 h-4 w-4" />
-                Iniciar Turno
-              </Button>
-            )}
-          </div>
-        </header>
-
-        {/* Contenido */}
-        <div className="flex-1 overflow-auto p-4">
-          {!currentShift ? (
-            <Alert className="border-yellow-500 bg-yellow-50">
-              <AlertTriangle className="h-4 w-4 text-yellow-600" />
-              <AlertDescription>
-                No hay un turno activo. Inicia un turno para comenzar a recibir pedidos.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-              <TabsList>
-                <TabsTrigger value="all">Pedidos Activos</TabsTrigger>
-                <TabsTrigger value="tables">Mesas</TabsTrigger>
-                <TabsTrigger value="delivery">Delivery</TabsTrigger>
-                <TabsTrigger value="history">
-                  <History className="mr-2 h-4 w-4" />
-                  Historial
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="all" className="mt-4">
-                <OrderList currentShiftId={currentShift.id} />
-              </TabsContent>
-              <TabsContent value="tables" className="mt-4">
-                <TableProvider tenantId={tenantId}>
-                  <TableList currentShiftId={currentShift.id} />
-                </TableProvider>
-              </TabsContent>
-              <TabsContent value="delivery" className="mt-4">
-                <DeliveryList currentShiftId={currentShift.id} />
-              </TabsContent>
-              <TabsContent value="history" className="mt-4">
-                <OrderHistory />
-              </TabsContent>
-            </Tabs>
-          )}
-        </div>
-
-        {/* Diálogos de turno */}
-        <StartShiftDialog
-          open={isStartShiftOpen}
-          onOpenChange={setIsStartShiftOpen}
-          onComplete={() => {
-            // Redirigir a abrir caja
-            router.push("/admin/cashier?action=open")
-          }}
-          tenantId={tenantId}
-        />
-
-        <EndShiftDialog
-          open={isEndShiftOpen}
-          onOpenChange={setIsEndShiftOpen}
-          onComplete={() => {
-            setActiveTab("all")
-            // Redirigir a cerrar caja
-            router.push("/admin/cashier?action=close")
-          }}
-          tenantId={tenantId}
-        />
-      </div>
-    </OrderProvider>
-  )
-}
-
-// Componente contenedor que no usa el contexto directamente
-const OrdersPageWrapper = () => {
-  const { user } = useAuth()
-  const params = useParams()
-  const tenantId = user?.tenantId || (params.tenantId as string)
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-
-  console.log("OrdersPage - Using tenant ID:", tenantId)
-
-  return (
     <div className="flex h-screen overflow-hidden">
+      {/* Sidebar fijo para pantallas grandes */}
+      <div className="hidden lg:block w-64 border-r">
+        <TenantAdminSidebar tenantid={tenantId} />
+      </div>
+
       {/* Sidebar móvil/desplegable */}
-      <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
-        <SheetContent side="left" className="p-0 w-64">
+      <Sheet open={isMobileSidebarOpen} onOpenChange={setIsMobileSidebarOpen}>
+        <SheetContent side="left" className="p-0 w-64 lg:hidden">
           <TenantAdminSidebar tenantid={tenantId} />
         </SheetContent>
       </Sheet>
 
-      {/* Contenido principal con todos los providers necesarios */}
-      <ShiftProvider tenantId={tenantId}>
-        <OrdersContent tenantId={tenantId} setIsSidebarOpen={setIsSidebarOpen} />
-      </ShiftProvider>
+      <OrderProvider tenantId={tenantId}>
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
+          {/* Header */}
+          <header className="bg-background border-b h-16 flex items-center justify-between px-4">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" onClick={() => setIsMobileSidebarOpen(true)} className="lg:hidden">
+                <Menu className="h-5 w-5" />
+              </Button>
+              <h1 className="text-xl font-bold">Gestión de Pedidos</h1>
+
+              {currentShift && (
+                <div className="hidden md:flex items-center">
+                  <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                    Turno activo desde {new Date(currentShift.startTime).toLocaleTimeString()}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {currentShift ? (
+                <>
+                  <Button variant="outline" onClick={() => setIsEndShiftOpen(true)} className="hidden sm:flex">
+                    <Clock className="mr-2 h-4 w-4" />
+                    Finalizar Turno
+                  </Button>
+
+                  <Sheet open={isNewOrderOpen} onOpenChange={setIsNewOrderOpen}>
+                    <SheetTrigger asChild>
+                      <Button>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Nuevo Pedido
+                      </Button>
+                    </SheetTrigger>
+                    <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
+                      <SheetHeader className="mb-4">
+                        <SheetTitle>Nuevo Pedido</SheetTitle>
+                      </SheetHeader>
+                      <TableProvider tenantId={tenantId}>
+                        <NewOrderForm tenantId={tenantId} onClose={() => setIsNewOrderOpen(false)} />
+                      </TableProvider>
+                    </SheetContent>
+                  </Sheet>
+                </>
+              ) : (
+                <Button onClick={() => setIsStartShiftOpen(true)}>
+                  <Clock className="mr-2 h-4 w-4" />
+                  Iniciar Turno
+                </Button>
+              )}
+            </div>
+          </header>
+
+          {/* Contenido */}
+          <div className="flex-1 overflow-auto p-4">
+            {!currentShift ? (
+              <Alert className="border-yellow-500 bg-yellow-50">
+                <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                <AlertDescription>
+                  No hay un turno activo. Inicia un turno para comenzar a recibir pedidos.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
+                <TabsList>
+                  <TabsTrigger value="all">Pedidos Activos</TabsTrigger>
+                  <TabsTrigger value="tables">Mesas</TabsTrigger>
+                  <TabsTrigger value="delivery">Delivery</TabsTrigger>
+                  <TabsTrigger value="history">
+                    <History className="mr-2 h-4 w-4" />
+                    Historial
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="all" className="mt-4">
+                  <OrderList currentShiftId={currentShift.id} />
+                </TabsContent>
+                <TabsContent value="tables" className="mt-4">
+                  <TableProvider tenantId={tenantId}>
+                    <TableList currentShiftId={currentShift.id} />
+                  </TableProvider>
+                </TabsContent>
+                <TabsContent value="delivery" className="mt-4">
+                  <DeliveryList currentShiftId={currentShift.id} />
+                </TabsContent>
+                <TabsContent value="history" className="mt-4">
+                  <OrderHistory />
+                </TabsContent>
+              </Tabs>
+            )}
+          </div>
+
+          {/* Diálogos de turno */}
+          <StartShiftDialog
+            open={isStartShiftOpen}
+            onOpenChange={setIsStartShiftOpen}
+            onComplete={() => {
+              // Redirigir a abrir caja
+              router.push("/admin/cashier?action=open")
+            }}
+            tenantId={tenantId}
+          />
+
+          <EndShiftDialog
+            open={isEndShiftOpen}
+            onOpenChange={setIsEndShiftOpen}
+            onComplete={() => {
+              setActiveTab("all")
+              // Redirigir a cerrar caja
+              router.push("/admin/cashier?action=close")
+            }}
+            tenantId={tenantId}
+          />
+        </div>
+      </OrderProvider>
     </div>
   )
 }
-
-// Exportamos el componente contenedor como página principal
-export default OrdersPageWrapper

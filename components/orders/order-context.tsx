@@ -1,26 +1,27 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { ref, push, get, update, remove, set } from "firebase/database"
+
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
+import { ref, push, get, update, onValue, off } from "firebase/database"
 import { rtdb } from "@/lib/firebase-config"
 import type { Order, OrderStatus } from "@/lib/types/orders"
 
-interface OrderContextProps {
+interface OrderContextType {
   orders: Order[]
   loading: boolean
   error: string | null
-  addOrder: (order: Omit<Order, "id" | "createdAt" | "updatedAt" | "orderNumber">) => Promise<string>
-  updateOrder: (id: string, order: Partial<Omit<Order, "id" | "createdAt" | "updatedAt">>) => Promise<void>
-  deleteOrder: (id: string) => Promise<void>
-  getOrder: (id: string) => Promise<Order | null>
+  createOrder: (orderData: Partial<Order>) => Promise<string>
+  updateOrder: (orderId: string, orderData: Partial<Order>) => Promise<void>
+  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>
+  completeOrder: (orderId: string) => Promise<void>
+  cancelOrder: (orderId: string) => Promise<void>
+  getOrder: (orderId: string) => Promise<Order | null>
   refreshOrders: () => Promise<void>
-  updateOrderStatus: (id: string, status: OrderStatus) => Promise<void>
-  completeOrder: (id: string) => Promise<void>
-  cancelOrder: (id: string) => Promise<void>
+  updatingOrderIds: Record<string, boolean> // Añadido para rastrear órdenes en actualización
 }
 
-const OrderContext = createContext<OrderContextProps | undefined>(undefined)
+const OrderContext = createContext<OrderContextType | undefined>(undefined)
 
 export const useOrderContext = () => {
   const context = useContext(OrderContext)
@@ -35,37 +36,70 @@ interface OrderProviderProps {
   tenantId: string
 }
 
-// Añadamos un mecanismo para evitar múltiples llamadas a fetchOrders en corto tiempo
-// Añadir esta variable fuera del componente OrderProvider:
-
-let lastFetchTime = 0
-const FETCH_COOLDOWN = 2000 // 2 segundos de cooldown entre fetches
-
 export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId }) => {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
+  const [updatingOrderIds, setUpdatingOrderIds] = useState<Record<string, boolean>>({}) // Estado para rastrear órdenes en actualización
 
-  // Mejorar la función updateOrderStatus para evitar el problema del doble clic
-  // Añadir un estado de carga para cada operación
+  // Usar suscripción en tiempo real para las órdenes
+  useEffect(() => {
+    if (!tenantId) {
+      setLoading(false)
+      setError("No se proporcionó un ID de inquilino")
+      return
+    }
 
-  // Añadir estos estados al componente OrderProvider
-  const [updatingOrderIds, setUpdatingOrderIds] = useState<Record<string, boolean>>({})
+    setLoading(true)
+    console.log("Setting up real-time listener for orders, tenant:", tenantId)
 
-  // Modificar la función fetchOrders para incluir el cooldown:
+    const ordersRef = ref(rtdb, `tenants/${tenantId}/orders`)
 
-  const fetchOrders = async () => {
-    try {
-      // Verificar si ha pasado suficiente tiempo desde la última llamada
-      const now = Date.now()
-      if (now - lastFetchTime < FETCH_COOLDOWN) {
-        console.log("Fetch throttled, skipping...")
-        return
+    const handleOrdersUpdate = (snapshot) => {
+      try {
+        const ordersData = snapshot.val() || {}
+        console.log("Real-time orders data update received")
+
+        const fetchedOrders: Order[] = Object.keys(ordersData).map((key) => ({
+          id: key,
+          ...ordersData[key],
+        }))
+
+        // Ordenar las órdenes por fecha de creación (más recientes primero)
+        fetchedOrders.sort((a, b) => {
+          const dateA = a.createdAt ? new Date(a.createdAt.toDate ? a.createdAt.toDate() : a.createdAt).getTime() : 0
+          const dateB = b.createdAt ? new Date(b.createdAt.toDate ? b.createdAt.toDate() : b.createdAt).getTime() : 0
+          return dateB - dateA
+        })
+
+        setOrders(fetchedOrders)
+        setError(null)
+      } catch (err) {
+        console.error("Error processing orders data:", err)
+        setError("Error al procesar los datos de pedidos")
+      } finally {
+        setLoading(false)
       }
+    }
 
-      lastFetchTime = now
+    // Establecer el listener
+    onValue(ordersRef, handleOrdersUpdate, (err) => {
+      console.error("Error in orders listener:", err)
+      setError("Error en la conexión con la base de datos")
+      setLoading(false)
+    })
+
+    // Limpiar el listener cuando el componente se desmonte
+    return () => {
+      console.log("Cleaning up orders listener")
+      off(ordersRef)
+    }
+  }, [tenantId])
+
+  const fetchOrders = useCallback(async () => {
+    try {
       setLoading(true)
-      console.log("Fetching orders for tenant:", tenantId)
+      console.log("Manually fetching orders for tenant:", tenantId)
 
       if (!tenantId) {
         console.error("No tenantId provided to OrderProvider")
@@ -74,14 +108,12 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
         return
       }
 
-      // Usar Realtime Database en lugar de Firestore
+      // Obtener todas las órdenes del inquilino
       const ordersRef = ref(rtdb, `tenants/${tenantId}/orders`)
-      console.log(`Ruta de órdenes: tenants/${tenantId}/orders`)
-
       const ordersSnapshot = await get(ordersRef)
       const ordersData = ordersSnapshot.val() || {}
 
-      console.log("Datos de órdenes cargados:", ordersData)
+      console.log("Orders data loaded")
 
       const fetchedOrders: Order[] = Object.keys(ordersData).map((key) => ({
         id: key,
@@ -89,9 +121,12 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
       }))
 
       // Ordenar las órdenes por fecha de creación (más recientes primero)
-      fetchedOrders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+      fetchedOrders.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt.toDate ? a.createdAt.toDate() : a.createdAt).getTime() : 0
+        const dateB = b.createdAt ? new Date(b.createdAt.toDate ? b.createdAt.toDate() : b.createdAt).getTime() : 0
+        return dateB - dateA
+      })
 
-      console.log("Fetched orders:", fetchedOrders.length)
       setOrders(fetchedOrders)
       setError(null)
     } catch (err) {
@@ -100,131 +135,195 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
     } finally {
       setLoading(false)
     }
-  }
-
-  useEffect(() => {
-    if (tenantId) {
-      fetchOrders()
-    } else {
-      setLoading(false)
-      setError("No se proporcionó un ID de inquilino")
-    }
   }, [tenantId])
 
-  const addOrder = async (orderData: Omit<Order, "id" | "createdAt" | "updatedAt" | "orderNumber">) => {
+  const createOrder = async (orderData: Partial<Order>): Promise<string> => {
     try {
       if (!tenantId) {
         throw new Error("No tenantId provided")
       }
 
-      console.log(`Añadiendo pedido para el tenant: ${tenantId}`)
+      console.log(`Creating order for tenant: ${tenantId}`)
 
-      // Usar Realtime Database en lugar de Firestore
       const ordersRef = ref(rtdb, `tenants/${tenantId}/orders`)
       const newOrderRef = push(ordersRef)
 
-      // Generar número de orden
       const timestamp = Date.now()
-      const randomPart = Math.floor(Math.random() * 1000)
-        .toString()
-        .padStart(3, "0")
-      const orderNumber = `ORD-${timestamp.toString().slice(-6)}-${randomPart}`
-
-      // Crear una copia del objeto y eliminar propiedades undefined
-      const cleanedOrderData = { ...orderData }
-      Object.keys(cleanedOrderData).forEach((key) => {
-        if (cleanedOrderData[key] === undefined) {
-          delete cleanedOrderData[key]
-        }
-      })
-
-      const newOrder = {
-        ...cleanedOrderData,
-        orderNumber,
+      const newOrder: Omit<Order, "id"> = {
+        tenantId,
         createdAt: timestamp,
-        updatedAt: timestamp,
+        status: "pending",
+        items: [],
+        total: 0,
+        ...orderData,
       }
 
-      await set(newOrderRef, newOrder)
-      await fetchOrders()
+      await update(newOrderRef, newOrder)
+      console.log("New order created with ID:", newOrderRef.key)
+
       return newOrderRef.key || ""
     } catch (err) {
-      console.error("Error adding order:", err)
-      setError("Error al añadir el pedido")
+      console.error("Error creating order:", err)
       throw err
     }
   }
 
-  const updateOrder = async (id: string, orderData: Partial<Omit<Order, "id" | "createdAt" | "updatedAt">>) => {
+  const updateOrder = async (orderId: string, orderData: Partial<Order>): Promise<void> => {
     try {
       if (!tenantId) {
         throw new Error("No tenantId provided")
       }
 
-      console.log(`Actualizando pedido para el tenant: ${tenantId}`)
+      console.log(`Updating order ${orderId} for tenant: ${tenantId}`)
 
-      // Usar Realtime Database en lugar de Firestore
-      const orderRef = ref(rtdb, `tenants/${tenantId}/orders/${id}`)
-
-      // Obtener datos actuales para no sobrescribir campos que no se están actualizando
-      const currentOrderSnapshot = await get(orderRef)
-      const currentOrder = currentOrderSnapshot.val() || {}
-
-      // Eliminar propiedades undefined
-      const cleanedOrderData = { ...orderData }
-      Object.keys(cleanedOrderData).forEach((key) => {
-        if (cleanedOrderData[key] === undefined) {
-          delete cleanedOrderData[key]
-        }
-      })
-
-      await update(orderRef, {
-        ...currentOrder,
-        ...cleanedOrderData,
-        updatedAt: Date.now(),
-      })
-
-      await fetchOrders()
+      const orderRef = ref(rtdb, `tenants/${tenantId}/orders/${orderId}`)
+      await update(orderRef, orderData)
     } catch (err) {
       console.error("Error updating order:", err)
-      setError("Error al actualizar el pedido")
       throw err
     }
   }
 
-  const deleteOrder = async (id: string) => {
+  const updateOrderStatus = async (orderId: string, status: OrderStatus): Promise<void> => {
     try {
+      // Marcar esta orden como "en actualización"
+      setUpdatingOrderIds((prev) => ({ ...prev, [orderId]: true }))
+
       if (!tenantId) {
         throw new Error("No tenantId provided")
       }
 
-      console.log(`Eliminando pedido para el tenant: ${tenantId}`)
+      console.log(`Updating order ${orderId} status to ${status} for tenant: ${tenantId}`)
 
-      // Usar Realtime Database en lugar de Firestore
-      const orderRef = ref(rtdb, `tenants/${tenantId}/orders/${id}`)
-      await remove(orderRef)
+      const orderRef = ref(rtdb, `tenants/${tenantId}/orders/${orderId}`)
+      const orderSnapshot = await get(orderRef)
 
-      await fetchOrders()
+      if (!orderSnapshot.exists()) {
+        throw new Error("La orden no existe")
+      }
+
+      const orderData = orderSnapshot.val()
+
+      // Verificar si el estado ya es el mismo para evitar actualizaciones innecesarias
+      if (orderData.status === status) {
+        console.log(`Order ${orderId} already has status ${status}`)
+        return
+      }
+
+      const timestamp = Date.now()
+      await update(orderRef, {
+        status,
+        updatedAt: timestamp,
+        statusHistory: {
+          ...(orderData.statusHistory || {}),
+          [status]: timestamp,
+        },
+      })
+
+      console.log(`Order ${orderId} status updated to ${status}`)
     } catch (err) {
-      console.error("Error deleting order:", err)
-      setError("Error al eliminar el pedido")
+      console.error("Error updating order status:", err)
       throw err
+    } finally {
+      // Desmarcar esta orden como "en actualización"
+      setUpdatingOrderIds((prev) => {
+        const newState = { ...prev }
+        delete newState[orderId]
+        return newState
+      })
     }
   }
 
-  const getOrder = async (id: string): Promise<Order | null> => {
+  const completeOrder = async (orderId: string): Promise<void> => {
+    try {
+      // Marcar esta orden como "en actualización"
+      setUpdatingOrderIds((prev) => ({ ...prev, [orderId]: true }))
+
+      if (!tenantId) {
+        throw new Error("No tenantId provided")
+      }
+
+      console.log(`Completing order ${orderId} for tenant: ${tenantId}`)
+
+      const orderRef = ref(rtdb, `tenants/${tenantId}/orders/${orderId}`)
+      const orderSnapshot = await get(orderRef)
+
+      if (!orderSnapshot.exists()) {
+        throw new Error("La orden no existe")
+      }
+
+      const timestamp = Date.now()
+      await update(orderRef, {
+        status: "completed",
+        completedAt: timestamp,
+        updatedAt: timestamp,
+      })
+
+      console.log(`Order ${orderId} completed`)
+    } catch (err) {
+      console.error("Error completing order:", err)
+      throw err
+    } finally {
+      // Desmarcar esta orden como "en actualización"
+      setUpdatingOrderIds((prev) => {
+        const newState = { ...prev }
+        delete newState[orderId]
+        return newState
+      })
+    }
+  }
+
+  const cancelOrder = async (orderId: string): Promise<void> => {
+    try {
+      // Marcar esta orden como "en actualización"
+      setUpdatingOrderIds((prev) => ({ ...prev, [orderId]: true }))
+
+      if (!tenantId) {
+        throw new Error("No tenantId provided")
+      }
+
+      console.log(`Cancelling order ${orderId} for tenant: ${tenantId}`)
+
+      const orderRef = ref(rtdb, `tenants/${tenantId}/orders/${orderId}`)
+      const orderSnapshot = await get(orderRef)
+
+      if (!orderSnapshot.exists()) {
+        throw new Error("La orden no existe")
+      }
+
+      const timestamp = Date.now()
+      await update(orderRef, {
+        status: "cancelled",
+        cancelledAt: timestamp,
+        updatedAt: timestamp,
+      })
+
+      console.log(`Order ${orderId} cancelled`)
+    } catch (err) {
+      console.error("Error cancelling order:", err)
+      throw err
+    } finally {
+      // Desmarcar esta orden como "en actualización"
+      setUpdatingOrderIds((prev) => {
+        const newState = { ...prev }
+        delete newState[orderId]
+        return newState
+      })
+    }
+  }
+
+  const getOrder = async (orderId: string): Promise<Order | null> => {
     try {
       if (!tenantId) {
         throw new Error("No tenantId provided")
       }
 
-      // Usar Realtime Database en lugar de Firestore
-      const orderRef = ref(rtdb, `tenants/${tenantId}/orders/${id}`)
+      const orderRef = ref(rtdb, `tenants/${tenantId}/orders/${orderId}`)
       const orderSnapshot = await get(orderRef)
 
       if (orderSnapshot.exists()) {
         return {
-          id,
+          id: orderId,
           ...orderSnapshot.val(),
         } as Order
       }
@@ -232,104 +331,22 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
       return null
     } catch (err) {
       console.error("Error getting order:", err)
-      setError("Error al obtener el pedido")
       throw err
     }
   }
 
-  // Reemplazar la función updateOrderStatus con esta versión mejorada
-  const updateOrderStatus = async (orderId: string, newStatus: OrderStatus): Promise<void> => {
-    try {
-      // Evitar actualizaciones múltiples del mismo pedido
-      if (updatingOrderIds[orderId]) {
-        console.log(`Ya hay una actualización en curso para el pedido ${orderId}`)
-        return
-      }
-
-      setUpdatingOrderIds((prev) => ({ ...prev, [orderId]: true }))
-
-      if (!tenantId) {
-        throw new Error("No tenant ID provided")
-      }
-
-      console.log(`Actualizando estado del pedido ${orderId} a ${newStatus}`)
-
-      // Obtener la orden actual para verificar que el cambio de estado sea válido
-      const orderRef = ref(rtdb, `tenants/${tenantId}/orders/${orderId}`)
-      const snapshot = await get(orderRef)
-
-      if (!snapshot.exists()) {
-        throw new Error(`Order ${orderId} not found`)
-      }
-
-      const orderData = snapshot.val()
-      const currentStatus = orderData.status
-
-      // Evitar actualizar si ya tiene el estado deseado
-      if (currentStatus === newStatus) {
-        console.log(`El pedido ya tiene el estado ${newStatus}`)
-        setUpdatingOrderIds((prev) => ({ ...prev, [orderId]: false }))
-        return
-      }
-
-      // Actualizar en Firebase
-      await update(orderRef, {
-        status: newStatus,
-        updatedAt: Date.now(),
-      })
-
-      // Actualizar el estado local
-      setOrders((prevOrders) =>
-        prevOrders.map((order) => (order.id === orderId ? { ...order, status: newStatus } : order)),
-      )
-
-      console.log(`Estado del pedido ${orderId} actualizado a ${newStatus}`)
-    } catch (error) {
-      console.error("Error updating order status:", error)
-      setError(`Error al actualizar el estado del pedido: ${error.message}`)
-      throw error
-    } finally {
-      setUpdatingOrderIds((prev) => ({ ...prev, [orderId]: false }))
-    }
-  }
-
-  // Actualizar también las funciones completeOrder y cancelOrder de manera similar
-  // para evitar múltiples clics
-
-  const completeOrder = async (id: string) => {
-    try {
-      console.log(`Completando pedido ${id}`)
-      await updateOrderStatus(id, "completed")
-    } catch (err) {
-      console.error("Error completing order:", err)
-      setError("Error al completar el pedido")
-      throw err
-    }
-  }
-
-  const cancelOrder = async (id: string) => {
-    try {
-      console.log(`Cancelando pedido ${id}`)
-      await updateOrderStatus(id, "cancelled")
-    } catch (err) {
-      console.error("Error cancelling order:", err)
-      setError("Error al cancelar el pedido")
-      throw err
-    }
-  }
-
-  const value = {
+  const value: OrderContextType = {
     orders,
     loading,
     error,
-    addOrder,
+    createOrder,
     updateOrder,
-    deleteOrder,
-    getOrder,
-    refreshOrders: fetchOrders,
     updateOrderStatus,
     completeOrder,
     cancelOrder,
+    getOrder,
+    refreshOrders: fetchOrders,
+    updatingOrderIds, // Exportar el estado de actualización
   }
 
   return <OrderContext.Provider value={value}>{children}</OrderContext.Provider>
