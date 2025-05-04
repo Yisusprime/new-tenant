@@ -78,16 +78,17 @@ export const TableProvider: React.FC<TableProviderProps> = ({ children, tenantId
     }
   }, [tenantId])
 
-  const addTable = async (table: Omit<Table, "id" | "createdAt" | "updatedAt">) => {
+  const addTable = async (tableData: Omit<Table, "id" | "createdAt" | "updatedAt">) => {
     try {
       if (!tenantId) {
         throw new Error("No tenantId provided")
       }
 
+      console.log(`Añadiendo mesa para el tenant: ${tenantId}`)
       const tablesCollectionRef = collection(db, `tenants/${tenantId}/tables`)
       const timestamp = Date.now()
       const newTable = {
-        ...table,
+        ...tableData,
         createdAt: timestamp,
         updatedAt: timestamp,
       }
@@ -108,7 +109,16 @@ export const TableProvider: React.FC<TableProviderProps> = ({ children, tenantId
         throw new Error("No tenantId provided")
       }
 
-      const tableRef = doc(db, `tenants/${tenantId}/tables/${id}`)
+      // Obtener el tenantId de la tabla existente o usar el proporcionado
+      const tenantIdFromTable = tables.find((t) => t.id === id)?.tenantId
+      const tenantIdToUse = tableData.tenantId || tenantIdFromTable || tenantId
+
+      if (!tenantIdToUse) {
+        throw new Error("No se pudo determinar el tenantId para actualizar la mesa")
+      }
+
+      console.log(`Actualizando mesa para el tenant: ${tenantIdToUse}`)
+      const tableRef = doc(db, `tenants/${tenantIdToUse}/tables/${id}`)
       await updateDoc(tableRef, {
         ...tableData,
         updatedAt: Date.now(),
@@ -127,7 +137,20 @@ export const TableProvider: React.FC<TableProviderProps> = ({ children, tenantId
         throw new Error("No tenantId provided")
       }
 
-      const tableRef = doc(db, `tenants/${tenantId}/tables/${id}`)
+      // Obtener el tenantId de la tabla existente
+      const table = tables.find((t) => t.id === id)
+      if (!table) {
+        throw new Error("No se pudo determinar el tenantId para eliminar la mesa")
+      }
+
+      const tenantIdToUse = table.tenantId || tenantId
+
+      if (!tenantIdToUse) {
+        throw new Error("No se pudo determinar el tenantId para eliminar la mesa")
+      }
+
+      console.log(`Eliminando mesa para el tenant: ${tenantIdToUse}`)
+      const tableRef = doc(db, `tenants/${tenantIdToUse}/tables/${id}`)
       await deleteDoc(tableRef)
       await fetchTables()
     } catch (err) {

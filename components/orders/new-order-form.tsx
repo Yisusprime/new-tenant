@@ -89,18 +89,25 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
 
   // Cargar productos, extras y categorías
   useEffect(() => {
-    if (!tenantId) return
+    if (!tenantId) {
+      console.error("No hay tenantId disponible para cargar productos")
+      return
+    }
 
     setLoadingProducts(true)
     setLoadingError(null)
 
     const fetchData = async () => {
       try {
+        console.log(`Intentando cargar datos para el tenant: ${tenantId}`)
+
         // Fetch categories
         const categoriesRef = ref(rtdb, `tenants/${tenantId}/categories`)
+        console.log(`Ruta de categorías: tenants/${tenantId}/categories`)
         const categoriesSnapshot = await get(categoriesRef)
         const categoriesData = categoriesSnapshot.val() || {}
 
+        console.log("Datos de categorías cargados:", categoriesData)
         const categoriesList: Category[] = Object.keys(categoriesData).map((key) => ({
           id: key,
           name: categoriesData[key].name,
@@ -110,9 +117,11 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
 
         // Fetch products
         const productsRef = ref(rtdb, `tenants/${tenantId}/products`)
+        console.log(`Ruta de productos: tenants/${tenantId}/products`)
         const productsSnapshot = await get(productsRef)
         const productsData = productsSnapshot.val() || {}
 
+        console.log("Datos de productos cargados:", productsData)
         const productsList: Product[] = Object.keys(productsData).map((key) => ({
           id: key,
           name: productsData[key].name,
@@ -127,9 +136,11 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
 
         // Fetch extras
         const extrasRef = ref(rtdb, `tenants/${tenantId}/extras`)
+        console.log(`Ruta de extras: tenants/${tenantId}/extras`)
         const extrasSnapshot = await get(extrasRef)
         const extrasData = extrasSnapshot.val() || {}
 
+        console.log("Datos de extras cargados:", extrasData)
         const extrasList: Extra[] = Object.keys(extrasData).map((key) => ({
           id: key,
           name: extrasData[key].name,
