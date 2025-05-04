@@ -22,7 +22,7 @@ import { useShift } from "../orders/shift-provider"
 export function CloseSessionForm() {
   const { currentSession, closeSession } = useCashier()
   const { tenantId } = useAuth()
-  const { currentShift } = useShift()
+  const { shifts } = useShift()
   const router = useRouter()
   const searchParams = useSearchParams()
   const fromOrders = searchParams.get("action") === "close"
@@ -64,97 +64,95 @@ export function CloseSessionForm() {
 
       try {
         console.log("Loading orders for session:", currentSession.id)
-        console.log("Current shift:", currentShift?.id)
 
-        // Obtener los pedidos del tenant
-        const ordersRef = ref(rtdb, `tenants/${tenantId}/orders`)
-        const ordersSnapshot = await get(ordersRef)
+        // Buscar el turno más reciente que se cerró (debería ser el que acabamos de cerrar)
+        const recentClosedShift = shifts
+          .filter((shift) => shift.status === "closed")
+          .sort((a, b) => (b.endTime || 0) - (a.endTime || 0))[0]
 
-        if (!ordersSnapshot.exists()) {
-          console.log("No orders found in database")
-          setOrderSummary({
-            cashTotal: 0,
-            cardTotal: 0,
-            transferTotal: 0,
-            otherTotal: 0,
-          })
-          setIsLoading(false)
-          return
-        }
+        console.log("Recent closed shift:", recentClosedShift)
 
-        const ordersData = ordersSnapshot.val()
-        console.log(`Found ${Object.keys(ordersData).length} orders total in database`)
-
-        // Filtrar los pedidos que pertenecen a la sesión actual o al turno actual
-        const sessionOrders = Object.entries(ordersData)
-          .map(([id, order]) => ({ id, ...(order as any) }))
-          .filter((order: any) => {
-            // Solo incluir pedidos completados
-            if (order.status !== "completed") {
-              console.log(`Order ${order.id} skipped: not completed (status: ${order.status})`)
-              return false
-            }
-
-            // Si hay un turno actual, incluir pedidos de ese turno
-            if (currentShift && order.shiftId === currentShift.id) {
-              console.log(`Order ${order.id} belongs to current shift ${currentShift.id}`)
-              return true
-            }
-
-            // Como respaldo, incluir pedidos que fueron creados durante esta sesión
-            if (!order.createdAt) {
-              console.log(`Order ${order.id} has no createdAt timestamp`)
-              return false
-            }
-
-            // Convert timestamp if needed
-            const orderTime =
-              typeof order.createdAt === "object" && order.createdAt.toDate
-                ? order.createdAt.toDate().getTime()
-                : Number(order.createdAt)
-
-            const belongsToSession =
-              orderTime >= currentSession.startTime && (!currentSession.endTime || orderTime <= currentSession.endTime)
-
-            if (belongsToSession) {
-              console.log(
-                `Order ${order.id} belongs to current session by time range (${new Date(orderTime).toLocaleString()})`,
-              )
-              return true
-            }
-
-            console.log(`Order ${order.id} skipped: not in current shift or session time range`)
-            return false
-          })
-
-        console.log(`Found ${sessionOrders.length} completed orders for this session/shift`)
-
-        // Calcular los totales por método de pago
         let cashTotal = 0
         let cardTotal = 0
         let transferTotal = 0
         let otherTotal = 0
 
-        sessionOrders.forEach((order: any) => {
-          // Asegurarse de que el total sea un número
-          const orderTotal = Number.parseFloat(String(order.total)) || 0
-          console.log(`Order ${order.id}: ${orderTotal} - Payment method: ${order.paymentMethod}`)
+        // Si encontramos un turno cerrado reciente, usar su resumen
+        if (recentClosedShift && recentClosedShift.summary) {
+          console.log("Using summary from recent closed shift:", recentClosedShift.summary)
 
-          switch (order.paymentMethod) {
-            case "cash":
-              cashTotal += orderTotal
-              break
-            case "card":
-              cardTotal += orderTotal
-              break
-            case "transfer":
-              transferTotal += orderTotal
-              break
-            default:
-              otherTotal += orderTotal
-              break
+          cashTotal = recentClosedShift.summary.cashSales || 0
+          cardTotal = recentClosedShift.summary.cardSales || 0
+          otherTotal = recentClosedShift.summary.otherSales || 0
+        } else {
+          // Si no hay resumen en el turno, buscar órdenes manualmente
+          console.log("No summary found in shift, fetching orders manually")
+
+          // Obtener los pedidos del tenant
+          const ordersRef = ref(rtdb, `tenants/${tenantId}/orders`)
+          const ordersSnapshot = await get(ordersRef)
+
+          if (!ordersSnapshot.exists()) {
+            console.log("No orders found in database")
+            setOrderSummary({
+              cashTotal: 0,
+              cardTotal: 0,
+              transferTotal: 0,
+              otherTotal: 0,
+            })
+            setIsLoading(false)
+            return
           }
-        })
+
+          const ordersData = ordersSnapshot.val()
+          console.log(`Found ${Object.keys(ordersData).length} orders total in database`)
+
+          // Filtrar los pedidos completados
+          const sessionOrders = Object.entries(ordersData)
+            .map(([id, order]) => ({ id, ...(order as any) }))
+            .filter((order: any) => {
+              // Solo incluir pedidos completados
+              if (order.status !== "completed") {
+                return false
+              }
+
+              // Convertir timestamp si es necesario
+              const orderTime =
+                typeof order.createdAt === "object" && order.createdAt.toDate
+                  ? order.createdAt.toDate().getTime()
+                  : Number(order.createdAt)
+
+              // Verificar si la orden está dentro del rango de tiempo de la sesión
+              const belongsToSession =
+                orderTime >= currentSession.startTime &&
+                (!currentSession.endTime || orderTime <= currentSession.endTime)
+
+              return belongsToSession
+            })
+
+          console.log(`Found ${sessionOrders.length} completed orders for this session`)
+
+          // Calcular los totales por método de pago
+          sessionOrders.forEach((order: any) => {
+            // Asegurarse de que el total sea un número
+            const orderTotal = Number.parseFloat(String(order.total)) || 0
+
+            switch (order.paymentMethod) {
+              case "cash":
+                cashTotal += orderTotal
+                break
+              case "card":
+                cardTotal += orderTotal
+                break
+              case "transfer":
+                transferTotal += orderTotal
+                break
+              default:
+                otherTotal += orderTotal
+                break
+            }
+          })
+        }
 
         const summary = {
           cashTotal,
@@ -190,7 +188,7 @@ export function CloseSessionForm() {
     }
 
     loadOrderSummary()
-  }, [currentSession, tenantId, currentShift])
+  }, [currentSession, tenantId, shifts])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
