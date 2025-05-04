@@ -70,6 +70,10 @@ export function OrderSummaryByPayment({ cashTotal, cardTotal, transferTotal, oth
           <span className="font-medium">Total de ventas:</span>
           <span className="text-lg font-bold">{formatCurrency(total)}</span>
         </div>
+
+        {total === 0 && (
+          <div className="mt-2 text-center text-sm text-gray-500">No hay ventas registradas en esta sesión</div>
+        )}
       </CardContent>
     </Card>
   )

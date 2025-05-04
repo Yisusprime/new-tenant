@@ -10,20 +10,23 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, CheckCircle2, ArrowLeft } from "lucide-react"
+import { AlertCircle, CheckCircle2, ArrowLeft, Loader2 } from "lucide-react"
 import { useCashier } from "./cashier-context"
 import { formatCurrency } from "@/lib/utils"
 import { OrderSummaryByPayment } from "./order-summary-by-payment"
 import { ref, get } from "firebase/database"
-import { rtdb } from "@/lib/firebase-config"
+import { database } from "@/lib/firebase-config"
+import { useAuth } from "@/lib/auth-context"
 
 export function CloseSessionForm() {
   const { currentSession, closeSession } = useCashier()
+  const { tenantId } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const fromOrders = searchParams.get("action") === "close"
 
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [orderSummary, setOrderSummary] = useState<{
@@ -49,85 +52,115 @@ export function CloseSessionForm() {
   // Cargar resumen de órdenes cuando se monta el componente
   useEffect(() => {
     const loadOrderSummary = async () => {
-      if (currentSession) {
-        try {
-          // Obtener los pedidos del turno actual
-          const ordersRef = ref(rtdb, `tenants/${currentSession.tenantId}/orders`)
-          const ordersSnapshot = await get(ordersRef)
+      if (!currentSession || !tenantId) {
+        setIsLoading(false)
+        return
+      }
 
-          if (ordersSnapshot.exists()) {
-            const ordersData = ordersSnapshot.val()
+      setIsLoading(true)
+      setError(null)
 
-            // Filtrar los pedidos que pertenecen al turno actual
-            const sessionOrders = Object.values(ordersData).filter((order: any) => {
-              // Incluir pedidos que tienen el shiftId del turno actual o que fueron creados durante este turno
-              return (
-                order.shiftId === currentSession.id ||
-                (order.createdAt >= currentSession.startTime &&
-                  (!currentSession.endTime || order.createdAt <= currentSession.endTime))
-              )
-            })
+      try {
+        console.log("Loading orders for session:", currentSession.id)
 
-            // Calcular los totales por método de pago
-            let cashTotal = 0
-            let cardTotal = 0
-            let transferTotal = 0
-            let otherTotal = 0
+        // Obtener los pedidos del tenant
+        const ordersRef = ref(database, `tenants/${tenantId}/orders`)
+        const ordersSnapshot = await get(ordersRef)
 
-            sessionOrders.forEach((order: any) => {
-              // Solo considerar pedidos completados
-              if (order.status === "completed") {
-                switch (order.paymentMethod) {
-                  case "cash":
-                    cashTotal += order.total || 0
-                    break
-                  case "card":
-                    cardTotal += order.total || 0
-                    break
-                  case "transfer":
-                    transferTotal += order.total || 0
-                    break
-                  default:
-                    otherTotal += order.total || 0
-                    break
-                }
-              }
-            })
-
-            const summary = {
-              cashTotal,
-              cardTotal,
-              transferTotal,
-              otherTotal,
-            }
-
-            console.log("Order summary calculated:", summary)
-            setOrderSummary(summary)
-
-            // Pre-llenar los montos con los valores calculados
-            setFormData((prev) => ({
-              ...prev,
-              cashAmount: summary.cashTotal,
-              cardAmount: summary.cardTotal,
-              transferAmount: summary.transferTotal,
-              otherAmount: summary.otherTotal,
-            }))
-          }
-        } catch (error) {
-          console.error("Error loading order summary:", error)
-          // En caso de error, usar valores por defecto
+        if (!ordersSnapshot.exists()) {
+          console.log("No orders found")
           setOrderSummary({
             cashTotal: 0,
             cardTotal: 0,
             transferTotal: 0,
             otherTotal: 0,
           })
+          setIsLoading(false)
+          return
         }
+
+        const ordersData = ordersSnapshot.val()
+        console.log(`Found ${Object.keys(ordersData).length} orders total`)
+
+        // Filtrar los pedidos que pertenecen a la sesión actual
+        const sessionOrders = Object.entries(ordersData)
+          .map(([id, order]) => ({ id, ...(order as any) }))
+          .filter((order: any) => {
+            // Solo incluir pedidos completados
+            if (order.status !== "completed") {
+              return false
+            }
+
+            // Incluir pedidos que fueron creados durante esta sesión
+            const orderTime = order.createdAt
+            const belongsToSession =
+              orderTime >= currentSession.startTime && (!currentSession.endTime || orderTime <= currentSession.endTime)
+
+            return belongsToSession
+          })
+
+        console.log(`Found ${sessionOrders.length} completed orders for this session`)
+
+        // Calcular los totales por método de pago
+        let cashTotal = 0
+        let cardTotal = 0
+        let transferTotal = 0
+        let otherTotal = 0
+
+        sessionOrders.forEach((order: any) => {
+          const orderTotal = Number(order.total) || 0
+
+          switch (order.paymentMethod) {
+            case "cash":
+              cashTotal += orderTotal
+              break
+            case "card":
+              cardTotal += orderTotal
+              break
+            case "transfer":
+              transferTotal += orderTotal
+              break
+            default:
+              otherTotal += orderTotal
+              break
+          }
+        })
+
+        const summary = {
+          cashTotal,
+          cardTotal,
+          transferTotal,
+          otherTotal,
+        }
+
+        console.log("Order summary calculated:", summary)
+        setOrderSummary(summary)
+
+        // Pre-llenar los montos con los valores calculados
+        setFormData((prev) => ({
+          ...prev,
+          cashAmount: summary.cashTotal,
+          cardAmount: summary.cardTotal,
+          transferAmount: summary.transferTotal,
+          otherAmount: summary.otherTotal,
+        }))
+      } catch (error) {
+        console.error("Error loading order summary:", error)
+        setError("Error al cargar el resumen de órdenes")
+        // En caso de error, usar valores por defecto
+        setOrderSummary({
+          cashTotal: 0,
+          cardTotal: 0,
+          transferTotal: 0,
+          otherTotal: 0,
+        })
+      } finally {
+        setIsLoading(false)
       }
     }
 
     loadOrderSummary()
-  }, [currentSession])
+  }, [currentSession, tenantId])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -161,9 +194,8 @@ export function CloseSessionForm() {
       await closeSession({
         sessionId: currentSession.id,
         endCash: formData.cashAmount,
-        endCard: formData.cardAmount,
-        endTransfer: formData.transferAmount,
-        endOther: formData.otherAmount,
+        endCard: formData.cardAmount + formData.transferAmount + formData.otherAmount,
+        endOther: 0,
         difference,
         notes: formData.notes,
       })
@@ -213,117 +245,121 @@ export function CloseSessionForm() {
       </CardHeader>
 
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Resumen de pedidos por método de pago */}
-          <OrderSummaryByPayment
-            cashTotal={orderSummary.cashTotal}
-            cardTotal={orderSummary.cardTotal}
-            transferTotal={orderSummary.transferTotal}
-            otherTotal={orderSummary.otherTotal}
-          />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="cashAmount">Efectivo en caja</Label>
-              <Input
-                id="cashAmount"
-                name="cashAmount"
-                type="number"
-                step="0.01"
-                value={formData.cashAmount || ""}
-                onChange={handleChange}
-                // Quitar el atributo required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="cardAmount">Total en tarjetas</Label>
-              <Input
-                id="cardAmount"
-                name="cardAmount"
-                type="number"
-                step="0.01"
-                value={formData.cardAmount || ""}
-                onChange={handleChange}
-                // Quitar el atributo required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="transferAmount">Total en transferencias</Label>
-              <Input
-                id="transferAmount"
-                name="transferAmount"
-                type="number"
-                step="0.01"
-                value={formData.transferAmount || ""}
-                onChange={handleChange}
-                // Quitar el atributo required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="otherAmount">Otros métodos de pago</Label>
-              <Input
-                id="otherAmount"
-                name="otherAmount"
-                type="number"
-                step="0.01"
-                value={formData.otherAmount || ""}
-                onChange={handleChange}
-              />
-            </div>
+        {isLoading ? (
+          <div className="flex justify-center items-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="ml-2">Cargando datos de ventas...</span>
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notas</Label>
-            <Textarea
-              id="notes"
-              name="notes"
-              value={formData.notes}
-              onChange={handleChange}
-              placeholder="Observaciones, incidencias, etc."
-              rows={3}
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Resumen de pedidos por método de pago */}
+            <OrderSummaryByPayment
+              cashTotal={orderSummary.cashTotal}
+              cardTotal={orderSummary.cardTotal}
+              transferTotal={orderSummary.transferTotal}
+              otherTotal={orderSummary.otherTotal}
             />
-          </div>
 
-          <div className="bg-gray-50 p-4 rounded-md space-y-2">
-            <h3 className="font-medium text-sm">Cuadre de caja</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="cashAmount">Efectivo en caja</Label>
+                <Input
+                  id="cashAmount"
+                  name="cashAmount"
+                  type="number"
+                  step="0.01"
+                  value={formData.cashAmount || ""}
+                  onChange={handleChange}
+                />
+              </div>
 
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div>Total contado:</div>
-              <div className="text-right font-medium">{formatCurrency(totalCounted)}</div>
+              <div className="space-y-2">
+                <Label htmlFor="cardAmount">Total en tarjetas</Label>
+                <Input
+                  id="cardAmount"
+                  name="cardAmount"
+                  type="number"
+                  step="0.01"
+                  value={formData.cardAmount || ""}
+                  onChange={handleChange}
+                />
+              </div>
 
-              <div>Total esperado:</div>
-              <div className="text-right font-medium">{formatCurrency(expectedTotal)}</div>
+              <div className="space-y-2">
+                <Label htmlFor="transferAmount">Total en transferencias</Label>
+                <Input
+                  id="transferAmount"
+                  name="transferAmount"
+                  type="number"
+                  step="0.01"
+                  value={formData.transferAmount || ""}
+                  onChange={handleChange}
+                />
+              </div>
 
-              <div>Diferencia:</div>
-              <div
-                className={`text-right font-medium ${difference < 0 ? "text-red-600" : difference > 0 ? "text-green-600" : ""}`}
-              >
-                {formatCurrency(difference)}
+              <div className="space-y-2">
+                <Label htmlFor="otherAmount">Otros métodos de pago</Label>
+                <Input
+                  id="otherAmount"
+                  name="otherAmount"
+                  type="number"
+                  step="0.01"
+                  value={formData.otherAmount || ""}
+                  onChange={handleChange}
+                />
               </div>
             </div>
-          </div>
 
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notas</Label>
+              <Textarea
+                id="notes"
+                name="notes"
+                value={formData.notes}
+                onChange={handleChange}
+                placeholder="Observaciones, incidencias, etc."
+                rows={3}
+              />
+            </div>
 
-          {success && (
-            <Alert className="bg-green-50 text-green-800 border-green-200">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <AlertDescription>Sesión cerrada correctamente. Redirigiendo...</AlertDescription>
-            </Alert>
-          )}
+            <div className="bg-gray-50 p-4 rounded-md space-y-2">
+              <h3 className="font-medium text-sm">Cuadre de caja</h3>
 
-          <Button type="submit" className="w-full" disabled={isSubmitting || success}>
-            {isSubmitting ? "Cerrando caja..." : "Cerrar caja"}
-          </Button>
-        </form>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>Total contado:</div>
+                <div className="text-right font-medium">{formatCurrency(totalCounted)}</div>
+
+                <div>Total esperado:</div>
+                <div className="text-right font-medium">{formatCurrency(expectedTotal)}</div>
+
+                <div>Diferencia:</div>
+                <div
+                  className={`text-right font-medium ${difference < 0 ? "text-red-600" : difference > 0 ? "text-green-600" : ""}`}
+                >
+                  {formatCurrency(difference)}
+                </div>
+              </div>
+            </div>
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {success && (
+              <Alert className="bg-green-50 text-green-800 border-green-200">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <AlertDescription>Sesión cerrada correctamente. Redirigiendo...</AlertDescription>
+              </Alert>
+            )}
+
+            <Button type="submit" className="w-full" disabled={isSubmitting || success}>
+              {isSubmitting ? "Cerrando caja..." : "Cerrar caja"}
+            </Button>
+          </form>
+        )}
       </CardContent>
 
       <CardFooter className="flex justify-between text-sm text-muted-foreground">
