@@ -50,6 +50,32 @@ export default async function middleware(req: NextRequest) {
       console.log("Middleware - Rewriting to:", newUrl.toString())
       return NextResponse.rewrite(newUrl)
     }
+
+    // Handle custom routes that should map to admin routes without showing "admin" in the URL
+    if (isTenantDomain) {
+      // Map /dashboard to /admin/dashboard
+      if (path === "/dashboard") {
+        const newUrl = new URL(`/admin/dashboard`, req.url)
+        console.log("Middleware - Rewriting to:", newUrl.toString())
+        return NextResponse.rewrite(newUrl)
+      }
+
+      // Map /menu to /admin/menu
+      if (path === "/menu") {
+        const newUrl = new URL(`/admin/menu`, req.url)
+        console.log("Middleware - Rewriting to:", newUrl.toString())
+        return NextResponse.rewrite(newUrl)
+      }
+
+      // Map /settings to /admin/settings
+      if (path === "/settings") {
+        const newUrl = new URL(`/admin/settings`, req.url)
+        console.log("Middleware - Rewriting to:", newUrl.toString())
+        return NextResponse.rewrite(newUrl)
+      }
+
+      // You can add more custom routes as needed
+    }
   }
 
   // Si estamos en el dominio principal, no hacer nada

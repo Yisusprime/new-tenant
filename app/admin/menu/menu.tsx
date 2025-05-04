@@ -68,7 +68,7 @@ export default function MenuPage() {
       name: "Hamburguesa Clásica",
       description: "Carne de res, queso cheddar, lechuga, tomate y cebolla",
       price: 10.99,
-      image: "/placeholder.svg?height=200&width=300&query=hamburguesa+clasica",
+      image: "/placeholder.svg?key=kkua0",
       rating: 4.5,
       category: "1",
     },
