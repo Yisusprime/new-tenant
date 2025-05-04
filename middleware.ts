@@ -38,16 +38,18 @@ export default async function middleware(req: NextRequest) {
 
     // Si la ruta es la raíz, redirigir a la landing page
     if (path === "/") {
-      const newUrl = new URL(`/(tenant)/home`, req.url)
-      console.log("Middleware - Rewriting root to tenant home:", newUrl.toString())
+      const newUrl = new URL(`/admin`, req.url)
+      console.log("Middleware - Rewriting to:", newUrl.toString())
       return NextResponse.rewrite(newUrl)
     }
 
-    // Para todas las demás rutas en un subdominio, apuntar a la carpeta (tenant)
-    const newPath = `/(tenant)${path}`
-    const newUrl = new URL(newPath, req.url)
-    console.log("Middleware - Rewriting to tenant path:", newUrl.toString())
-    return NextResponse.rewrite(newUrl)
+    // Si la ruta comienza con /[tenantid], redirigir a la ruta sin el tenant
+    if (path.startsWith(`/${subdomain}/`)) {
+      const newPath = path.replace(`/${subdomain}`, "")
+      const newUrl = new URL(newPath, req.url)
+      console.log("Middleware - Rewriting to:", newUrl.toString())
+      return NextResponse.rewrite(newUrl)
+    }
   }
 
   // Si estamos en el dominio principal, no hacer nada

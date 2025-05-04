@@ -118,9 +118,9 @@ export default function TenantLandingPage() {
     { id: 1, name: "Hamburguesas", image: "/placeholder.svg?key=ncq59" },
     { id: 2, name: "Pizzas", image: "/placeholder.svg?key=ixs22" },
     { id: 3, name: "Ensaladas", image: "/placeholder.svg?key=zbb51" },
-    { id: 4, name: "Pastas", image: "/placeholder.svg?key=da4cm" },
-    { id: 5, name: "Postres", image: "/placeholder.svg?key=vo9og" },
-    { id: 6, name: "Bebidas", image: "/placeholder.svg?key=cyyji" },
+    { id: 4, name: "Pastas", image: "/placeholder.svg?height=100&width=100&query=pasta+icono" },
+    { id: 5, name: "Postres", image: "/placeholder.svg?height=100&width=100&query=postre+icono" },
+    { id: 6, name: "Bebidas", image: "/placeholder.svg?height=100&width=100&query=bebida+icono" },
   ]
 
   return (
@@ -132,12 +132,12 @@ export default function TenantLandingPage() {
             <h1 className="text-xl font-bold">{tenantInfo.name}</h1>
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/dashboard">
+            <Link href="/admin/dashboard">
               <Button variant="outline" size="sm">
                 Admin
               </Button>
             </Link>
-            <Link href="/menu">
+            <Link href="/admin/menu">
               <Button size="sm">Ver Menú</Button>
             </Link>
           </div>
@@ -148,7 +148,7 @@ export default function TenantLandingPage() {
       <section
         className="relative h-[300px] md:h-[400px] bg-cover bg-center flex items-center"
         style={{
-          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('/placeholder.svg?key=9lj3b')`,
+          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('/placeholder.svg?height=400&width=1200&query=restaurante+gourmet')`,
         }}
       >
         <div className="container mx-auto px-4 text-white">
@@ -157,12 +157,12 @@ export default function TenantLandingPage() {
             Disfruta de la mejor comida directamente en tu casa. Haz tu pedido ahora.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
-            <Link href="/menu">
+            <Link href="/admin/menu">
               <Button size="lg" className="bg-white text-black hover:bg-gray-100">
                 Ver Menú Completo
               </Button>
             </Link>
-            <Link href="/reservations">
+            <Link href="/admin/reservations">
               <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/20">
                 Hacer Reserva
               </Button>
@@ -181,7 +181,7 @@ export default function TenantLandingPage() {
         <h2 className="text-xl font-bold mb-4">Categorías</h2>
         <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
           {categories.map((category) => (
-            <Link href={`/menu?category=${category.id}`} key={category.id}>
+            <Link href={`/admin/menu?category=${category.id}`} key={category.id}>
               <div className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow text-center">
                 <div className="relative h-16 w-16 mx-auto mb-2">
                   <Image
@@ -202,7 +202,7 @@ export default function TenantLandingPage() {
       <section className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold">Platos Destacados</h2>
-          <Link href="/menu" className="text-primary flex items-center gap-1 text-sm font-medium">
+          <Link href="/admin/menu" className="text-primary flex items-center gap-1 text-sm font-medium">
             Ver todos <ArrowRight size={16} />
           </Link>
         </div>
@@ -267,7 +267,7 @@ export default function TenantLandingPage() {
               ))}
             </div>
             <div className="text-center">
-              <Link href="/menu">
+              <Link href="/admin/menu">
                 <Button variant="outline" className="mt-4">
                   Ver Menú Completo
                 </Button>
@@ -301,12 +301,12 @@ export default function TenantLandingPage() {
             Haz tu pedido ahora y disfruta de la mejor comida en la comodidad de tu hogar.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/menu">
+            <Link href="/admin/menu">
               <Button size="lg" className="bg-white text-primary hover:bg-gray-100">
                 Ver Menú Completo
               </Button>
             </Link>
-            <Link href="/contact">
+            <Link href="/admin/contact">
               <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/20">
                 Contactar
               </Button>
