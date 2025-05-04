@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { OrderProvider } from "@/components/orders/order-context"
 import { TableProvider } from "@/components/orders/table-context"
-import { ShiftProvider, useShiftContext } from "@/components/orders/shift-context"
+import { ShiftProvider } from "@/components/orders/shift-context"
 import { OrderList } from "@/components/orders/order-list"
 import { TableList } from "@/components/orders/table-list"
 import { DeliveryList } from "@/components/orders/delivery-list"
@@ -20,17 +20,16 @@ import { TenantAdminSidebar } from "@/components/tenant-admin-sidebar"
 import { useAuth } from "@/lib/auth-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
-function OrdersContent({
-  tenantId,
-  setIsSidebarOpen,
-}: { tenantId: string; setIsSidebarOpen: (open: boolean) => void }) {
+// Componente interno que usa el contexto de turnos
+function OrdersContent({ tenantId, setIsSidebarOpen }) {
   const router = useRouter()
-  const { currentShift, loading: shiftLoading } = useShiftContext()
-
   const [isNewOrderOpen, setIsNewOrderOpen] = useState(false)
   const [isEndShiftOpen, setIsEndShiftOpen] = useState(false)
   const [isStartShiftOpen, setIsStartShiftOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("all")
+
+  // Importamos el contexto de ShiftProvider
+  const { currentShift, loading: shiftLoading } = useShiftContext()
 
   // Verificar si hay un turno activo al cargar
   useEffect(() => {
@@ -57,7 +56,7 @@ function OrdersContent({
         {/* Header */}
         <header className="bg-background border-b h-16 flex items-center justify-between px-4">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)} className="lg:block">
+            <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)}>
               <Menu className="h-5 w-5" />
             </Button>
             <h1 className="text-xl font-bold">Gestión de Pedidos</h1>
@@ -169,6 +168,10 @@ function OrdersContent({
   )
 }
 
+// Componente principal que importa y usa el hook useShiftContext
+import { useEffect } from "react"
+import { useShiftContext } from "@/components/orders/shift-context"
+
 export default function OrdersPage() {
   const { user } = useAuth()
   const params = useParams()
@@ -179,7 +182,7 @@ export default function OrdersPage() {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Sidebar móvil/desplegable - ahora siempre es desplegable, no fijo */}
+      {/* Sidebar móvil/desplegable */}
       <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
         <SheetContent side="left" className="p-0 w-64">
           <TenantAdminSidebar tenantid={tenantId} />
