@@ -12,17 +12,12 @@ import { useToast } from "@/components/ui/use-toast"
 import { ArrowRight, Clock, Search, Star, UtensilsCrossed } from "lucide-react"
 import { Input } from "@/components/ui/input"
 
-interface TenantInfo {
-  name: string;
-  // Add other properties based on your actual tenant info structure
-}
-
-function TenantLandingPage() {
+export default function TenantLandingPage() {
   const router = useRouter()
   const { toast } = useToast()
-  const [tenantInfo, setTenantInfo] = (useState < TenantInfo) | (null > null)
+  const [tenantInfo, setTenantInfo] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [tenantId, setTenantId] = (useState < string) | (null > null)
+  const [tenantId, setTenantId] = useState(null)
 
   // Obtener el tenantId del hostname
   useEffect(() => {
@@ -86,7 +81,7 @@ function TenantLandingPage() {
       name: "Hamburguesa Especial",
       description: "Carne de res, queso cheddar, bacon, lechuga y tomate",
       price: 12.99,
-      image: "/placeholder.svg?key=sl0yt",
+      image: "/placeholder.svg?key=l5wzr",
       rating: 4.8,
       time: "15-25 min",
     },
@@ -104,7 +99,7 @@ function TenantLandingPage() {
       name: "Ensalada César",
       description: "Lechuga romana, crutones, parmesano y aderezo césar",
       price: 9.99,
-      image: "/placeholder.svg?key=agsxn",
+      image: "/placeholder.svg?key=p746w",
       rating: 4.5,
       time: "10-15 min",
     },
@@ -120,12 +115,12 @@ function TenantLandingPage() {
   ]
 
   const categories = [
-    { id: 1, name: "Hamburguesas", image: "/placeholder.svg?key=ncq59" },
-    { id: 2, name: "Pizzas", image: "/placeholder.svg?key=ixs22" },
-    { id: 3, name: "Ensaladas", image: "/placeholder.svg?key=zbb51" },
-    { id: 4, name: "Pastas", image: "/placeholder.svg?key=shefp" },
-    { id: 5, name: "Postres", image: "/placeholder.svg?key=ou7e0" },
-    { id: 6, name: "Bebidas", image: "/placeholder.svg?key=uth7b" },
+    { id: 1, name: "Hamburguesas", image: "/placeholder.svg?key=iyjn2" },
+    { id: 2, name: "Pizzas", image: "/placeholder.svg?key=94g7h" },
+    { id: 3, name: "Ensaladas", image: "/placeholder.svg?key=opxda" },
+    { id: 4, name: "Pastas", image: "/placeholder.svg?height=100&width=100&query=pasta+icono" },
+    { id: 5, name: "Postres", image: "/placeholder.svg?height=100&width=100&query=postre+icono" },
+    { id: 6, name: "Bebidas", image: "/placeholder.svg?height=100&width=100&query=bebida+icono" },
   ]
 
   return (
@@ -134,7 +129,7 @@ function TenantLandingPage() {
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center">
-            <h1 className="text-xl font-bold">{tenantInfo?.name}</h1>
+            <h1 className="text-xl font-bold">{tenantInfo.name}</h1>
           </div>
           <div className="flex items-center gap-4">
             <Link href="/dashboard">
@@ -153,11 +148,11 @@ function TenantLandingPage() {
       <section
         className="relative h-[300px] md:h-[400px] bg-cover bg-center flex items-center"
         style={{
-          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('/placeholder.svg?key=yed0i')`,
+          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('/placeholder.svg?height=400&width=1200&query=restaurante+gourmet')`,
         }}
       >
         <div className="container mx-auto px-4 text-white">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">{tenantInfo?.name}</h1>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">{tenantInfo.name}</h1>
           <p className="text-xl mb-6 max-w-lg">
             Disfruta de la mejor comida directamente en tu casa. Haz tu pedido ahora.
           </p>
@@ -325,7 +320,7 @@ function TenantLandingPage() {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
-              <h3 className="text-white text-lg font-bold mb-4">{tenantInfo?.name}</h3>
+              <h3 className="text-white text-lg font-bold mb-4">{tenantInfo.name}</h3>
               <p className="mb-4">La mejor experiencia gastronómica directamente en tu hogar.</p>
               <div className="flex space-x-4">
                 <a href="#" className="hover:text-white">
@@ -355,15 +350,11 @@ function TenantLandingPage() {
           </div>
           <div className="border-t border-gray-800 mt-8 pt-6 text-sm text-center">
             <p>
-              &copy; {new Date().getFullYear()} {tenantInfo?.name}. Todos los derechos reservados.
+              &copy; {new Date().getFullYear()} {tenantInfo.name}. Todos los derechos reservados.
             </p>
           </div>
         </div>
       </footer>
     </div>
   )
-}
-
-export default function Page() {
-  return <TenantLandingPage />
 }
