@@ -22,14 +22,9 @@ export default function OrdersPage() {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Sidebar para desktop */}
-      <div className="hidden lg:block">
-        <TenantAdminSidebar tenantid={tenantId} />
-      </div>
-
-      {/* Sidebar móvil */}
+      {/* Sidebar móvil/desplegable */}
       <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
-        <SheetContent side="left" className="p-0">
+        <SheetContent side="left" className="p-0 w-64">
           <TenantAdminSidebar tenantid={tenantId} />
         </SheetContent>
       </Sheet>
@@ -39,7 +34,7 @@ export default function OrdersPage() {
         {/* Header */}
         <header className="bg-background border-b h-16 flex items-center justify-between px-4">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setIsSidebarOpen(true)}>
+            <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)}>
               <Menu className="h-5 w-5" />
             </Button>
             <h1 className="text-xl font-bold">Gestión de Pedidos</h1>

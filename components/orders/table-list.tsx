@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export const TableList = () => {
   const { tables, loading, error, addTable, updateTable, deleteTable } = useTableContext()
-  const { getOrdersByTable } = useOrderContext()
+  const orderContext = useOrderContext()
   const { toast } = useToast()
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
@@ -31,6 +31,19 @@ export const TableList = () => {
     status: "available",
     location: "Main",
   })
+
+  // Función segura para obtener órdenes por mesa
+  const getTableOrders = (tableId: string) => {
+    try {
+      if (orderContext && typeof orderContext.getOrdersByTable === "function") {
+        return orderContext.getOrdersByTable(tableId) || []
+      }
+      return []
+    } catch (error) {
+      console.error("Error getting orders for table:", error)
+      return []
+    }
+  }
 
   const handleAddTable = async () => {
     try {
@@ -220,7 +233,7 @@ export const TableList = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {tables.map((table) => {
-            const tableOrders = getOrdersByTable(table.id)
+            const tableOrders = getTableOrders(table.id)
             const hasActiveOrders = tableOrders.length > 0
 
             return (
