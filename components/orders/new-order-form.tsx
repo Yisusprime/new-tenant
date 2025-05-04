@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+
 import { useState, useEffect } from "react"
 import { useOrderContext } from "./order-context"
 import { useTableContext } from "./table-context"
@@ -15,9 +16,23 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/components/ui/use-toast"
-import { Home, ShoppingBag, MapPin, Utensils, Plus, Minus, Trash2, Tag, CreditCard } from "lucide-react"
+import {
+  Home,
+  ShoppingBag,
+  MapPin,
+  Utensils,
+  Plus,
+  Minus,
+  Trash2,
+  Tag,
+  CreditCard,
+  Search,
+  ChevronRight,
+} from "lucide-react"
 import { collection, getDocs } from "firebase/firestore"
 import { db } from "@/lib/firebase-config"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 interface Product {
   id: string
@@ -64,6 +79,8 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
+  const [productSelectorOpen, setProductSelectorOpen] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
 
   // Cargar productos, extras y categorías
   useEffect(() => {
@@ -116,6 +133,7 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
       status: "pending",
     }
     setSelectedItems([...selectedItems, newItem])
+    setProductSelectorOpen(false)
   }
 
   const handleRemoveItem = (itemId: string) => {
@@ -469,145 +487,171 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
       <Separator className="my-4" />
 
       <div className="flex-grow overflow-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="search-products">Buscar Productos</Label>
-              <Input
-                id="search-products"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar productos..."
-                className="mb-2"
-              />
-
-              <div className="flex flex-wrap gap-2 mb-4">
-                <Button
-                  variant={selectedCategory === null ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedCategory(null)}
-                >
-                  Todos
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="font-medium">Productos</h3>
+            <Sheet open={productSelectorOpen} onOpenChange={setProductSelectorOpen}>
+              <SheetTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Añadir Producto
                 </Button>
-                {categories.map((category) => (
-                  <Button
-                    key={category.id}
-                    variant={selectedCategory === category.id ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setSelectedCategory(category.id)}
-                  >
-                    {category.name}
-                  </Button>
-                ))}
-              </div>
-            </div>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-full sm:max-w-md p-0">
+                <div className="flex flex-col h-full">
+                  <SheetHeader className="p-4 border-b">
+                    <SheetTitle>Seleccionar Producto</SheetTitle>
+                  </SheetHeader>
 
-            <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto">
-              {filteredProducts.map((product) => (
-                <Card
-                  key={product.id}
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => handleAddItem(product)}
-                >
-                  <CardContent className="p-3">
-                    <div className="font-medium">{product.name}</div>
-                    <div className="text-sm text-muted-foreground">${product.price.toFixed(2)}</div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                  <div className="p-4 border-b">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar productos..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-8"
+                      />
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 mt-4">
+                      <Button
+                        variant={selectedCategory === null ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setSelectedCategory(null)}
+                      >
+                        Todos
+                      </Button>
+                      {categories.map((category) => (
+                        <Button
+                          key={category.id}
+                          variant={selectedCategory === category.id ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setSelectedCategory(category.id)}
+                        >
+                          {category.name}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex-grow overflow-auto p-4">
+                    <div className="grid grid-cols-1 gap-2">
+                      {filteredProducts.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">No se encontraron productos</div>
+                      ) : (
+                        filteredProducts.map((product) => (
+                          <Card
+                            key={product.id}
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => handleAddItem(product)}
+                          >
+                            <CardContent className="p-3 flex justify-between items-center">
+                              <div>
+                                <div className="font-medium">{product.name}</div>
+                                <div className="text-sm text-muted-foreground">${product.price.toFixed(2)}</div>
+                              </div>
+                              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                            </CardContent>
+                          </Card>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
 
-          <div className="space-y-4">
-            <h3 className="font-medium">Productos Seleccionados</h3>
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
-              {selectedItems.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No hay productos seleccionados</p>
-              ) : (
-                selectedItems.map((item) => (
-                  <Card key={item.id} className="p-3">
-                    <div className="flex justify-between items-center">
-                      <div className="font-medium">{item.productName}</div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() => handleUpdateItemQuantity(item.id, item.quantity - 1)}
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span>{item.quantity}</span>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() => handleUpdateItemQuantity(item.id, item.quantity + 1)}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="icon"
-                          className="h-6 w-6 ml-2"
-                          onClick={() => handleRemoveItem(item.id)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
+          <div className="space-y-2 max-h-[300px] overflow-y-auto">
+            {selectedItems.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground border rounded-md">
+                No hay productos seleccionados
+              </div>
+            ) : (
+              selectedItems.map((item) => (
+                <Card key={item.id} className="p-3">
+                  <div className="flex justify-between items-center">
+                    <div className="font-medium">{item.productName}</div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => handleUpdateItemQuantity(item.id, item.quantity - 1)}
+                      >
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <span>{item.quantity}</span>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => handleUpdateItemQuantity(item.id, item.quantity + 1)}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="h-6 w-6 ml-2"
+                        onClick={() => handleRemoveItem(item.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
                     </div>
+                  </div>
 
-                    {item.extras.length > 0 && (
-                      <div className="mt-2 pl-4 border-l-2 border-muted">
-                        {item.extras.map((extra) => (
-                          <div key={extra.id} className="flex justify-between items-center text-sm">
-                            <span>{extra.name}</span>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-5 w-5"
-                                onClick={() => handleUpdateExtraQuantity(item.id, extra.id, extra.quantity - 1)}
-                              >
-                                <Minus className="h-2 w-2" />
-                              </Button>
-                              <span>{extra.quantity}</span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-5 w-5"
-                                onClick={() => handleUpdateExtraQuantity(item.id, extra.id, extra.quantity + 1)}
-                              >
-                                <Plus className="h-2 w-2" />
-                              </Button>
-                              <span>${(extra.price * extra.quantity).toFixed(2)}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="mt-2">
-                      <div className="text-sm font-medium">Añadir extras:</div>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {extras
-                          .filter((extra) => extra.available)
-                          .map((extra) => (
-                            <Badge
-                              key={extra.id}
-                              variant="outline"
-                              className="cursor-pointer hover:bg-primary hover:text-primary-foreground"
-                              onClick={() => handleAddExtra(item.id, extra)}
+                  {item.extras.length > 0 && (
+                    <div className="mt-2 pl-4 border-l-2 border-muted">
+                      {item.extras.map((extra) => (
+                        <div key={extra.id} className="flex justify-between items-center text-sm">
+                          <span>{extra.name}</span>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5"
+                              onClick={() => handleUpdateExtraQuantity(item.id, extra.id, extra.quantity - 1)}
                             >
-                              {extra.name} +${extra.price.toFixed(2)}
-                            </Badge>
-                          ))}
-                      </div>
+                              <Minus className="h-2 w-2" />
+                            </Button>
+                            <span>{extra.quantity}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5"
+                              onClick={() => handleUpdateExtraQuantity(item.id, extra.id, extra.quantity + 1)}
+                            >
+                              <Plus className="h-2 w-2" />
+                            </Button>
+                            <span>${(extra.price * extra.quantity).toFixed(2)}</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </Card>
-                ))
-              )}
-            </div>
+                  )}
+
+                  <div className="mt-2">
+                    <div className="text-sm font-medium">Añadir extras:</div>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {extras
+                        .filter((extra) => extra.available)
+                        .map((extra) => (
+                          <Badge
+                            key={extra.id}
+                            variant="outline"
+                            className="cursor-pointer hover:bg-primary hover:text-primary-foreground"
+                            onClick={() => handleAddExtra(item.id, extra)}
+                          >
+                            {extra.name} +${extra.price.toFixed(2)}
+                          </Badge>
+                        ))}
+                    </div>
+                  </div>
+                </Card>
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -627,61 +671,93 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label className="flex items-center">
-              <Tag className="mr-2 h-4 w-4" />
-              Cupón de Descuento
-            </Label>
-            <div className="flex gap-2">
-              <Input value={couponCode} onChange={(e) => setCouponCode(e.target.value)} placeholder="Código de cupón" />
-              <Button onClick={handleApplyCoupon}>Aplicar</Button>
-            </div>
-            {couponDiscount > 0 && (
-              <p className="text-sm text-green-600">Descuento aplicado: ${couponDiscount.toFixed(2)}</p>
-            )}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-start">
+                  <Tag className="mr-2 h-4 w-4" />
+                  Cupón de Descuento
+                  {couponDiscount > 0 && (
+                    <Badge variant="secondary" className="ml-auto">
+                      -${couponDiscount.toFixed(2)}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80">
+                <div className="space-y-4">
+                  <h4 className="font-medium">Aplicar Cupón</h4>
+                  <div className="flex gap-2">
+                    <Input
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value)}
+                      placeholder="Código de cupón"
+                    />
+                    <Button onClick={handleApplyCoupon}>Aplicar</Button>
+                  </div>
+                  {couponDiscount > 0 && (
+                    <p className="text-sm text-green-600">Descuento aplicado: ${couponDiscount.toFixed(2)}</p>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="space-y-2">
-            <Label className="flex items-center">
-              <CreditCard className="mr-2 h-4 w-4" />
-              Propina
-            </Label>
-            <div className="flex gap-2">
-              <Button
-                variant={tipPercentage === 0 ? "default" : "outline"}
-                onClick={() => handleTipPercentageChange(0)}
-              >
-                0%
-              </Button>
-              <Button
-                variant={tipPercentage === 10 ? "default" : "outline"}
-                onClick={() => handleTipPercentageChange(10)}
-              >
-                10%
-              </Button>
-              <Button
-                variant={tipPercentage === 15 ? "default" : "outline"}
-                onClick={() => handleTipPercentageChange(15)}
-              >
-                15%
-              </Button>
-              <Button
-                variant={tipPercentage === 20 ? "default" : "outline"}
-                onClick={() => handleTipPercentageChange(20)}
-              >
-                20%
-              </Button>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm">Monto:</span>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={tipAmount}
-                onChange={(e) => handleTipAmountChange(Number.parseFloat(e.target.value) || 0)}
-                className="max-w-[100px]"
-              />
-            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-start">
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Propina
+                  {tipAmount > 0 && (
+                    <Badge variant="secondary" className="ml-auto">
+                      ${tipAmount.toFixed(2)}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80">
+                <div className="space-y-4">
+                  <h4 className="font-medium">Añadir Propina</h4>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={tipPercentage === 0 ? "default" : "outline"}
+                      onClick={() => handleTipPercentageChange(0)}
+                    >
+                      0%
+                    </Button>
+                    <Button
+                      variant={tipPercentage === 10 ? "default" : "outline"}
+                      onClick={() => handleTipPercentageChange(10)}
+                    >
+                      10%
+                    </Button>
+                    <Button
+                      variant={tipPercentage === 15 ? "default" : "outline"}
+                      onClick={() => handleTipPercentageChange(15)}
+                    >
+                      15%
+                    </Button>
+                    <Button
+                      variant={tipPercentage === 20 ? "default" : "outline"}
+                      onClick={() => handleTipPercentageChange(20)}
+                    >
+                      20%
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">Monto:</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={tipAmount}
+                      onChange={(e) => handleTipAmountChange(Number.parseFloat(e.target.value) || 0)}
+                      className="max-w-[100px]"
+                    />
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
 
