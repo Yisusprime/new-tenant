@@ -16,7 +16,7 @@ import { useToast } from "@/components/ui/use-toast"
 
 export const TableList = () => {
   const { tables, loading, error, addTable, updateTable, deleteTable } = useTableContext()
-  const { getOrdersByTable } = useOrderContext()
+  const { getOrdersByTable } = useOrderContext() // Aquí está usando useOrderContext
   const { toast } = useToast()
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)

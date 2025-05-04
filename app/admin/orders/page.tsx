@@ -54,9 +54,11 @@ export default function OrdersPage() {
           </OrderProvider>
         </TabsContent>
         <TabsContent value="tables" className="mt-4">
-          <TableProvider tenantId={tenantId}>
-            <TableList />
-          </TableProvider>
+          <OrderProvider tenantId={tenantId}>
+            <TableProvider tenantId={tenantId}>
+              <TableList />
+            </TableProvider>
+          </OrderProvider>
         </TabsContent>
         <TabsContent value="delivery" className="mt-4">
           <OrderProvider tenantId={tenantId}>
