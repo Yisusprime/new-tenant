@@ -51,7 +51,7 @@ interface NewOrderFormProps {
 }
 
 export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose }) => {
-  const { addOrder } = useOrderContext()
+  const { addOrder, createOrder } = useOrderContext()
   const { tables } = useTableContext()
   const { toast } = useToast()
 
@@ -310,9 +310,7 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
     }
   }
 
-  // Modificar la función handleSubmitOrder para asegurarse de que no se envíen valores undefined
-
-  // Busca la función handleSubmitOrder y modifica la creación del objeto newOrder:
+  // Modificar la función handleSubmitOrder para usar directamente createOrder
   const handleSubmitOrder = async () => {
     if (selectedItems.length === 0) {
       toast({
@@ -361,6 +359,7 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
         total,
         paymentStatus: "pending",
         paymentMethod: "cash",
+        createdAt: Date.now(),
       }
 
       // Añadir campos condicionales solo si tienen valor
@@ -385,7 +384,9 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
         newOrder.couponDiscount = couponDiscount
       }
 
-      await addOrder(newOrder)
+      // Usar directamente la función createOrder del contexto
+      const orderId = await createOrder(newOrder)
+      console.log("Orden creada con ID:", orderId)
 
       toast({
         title: "Pedido creado",

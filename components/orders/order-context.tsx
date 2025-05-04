@@ -6,6 +6,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { ref, push, get, update, onValue, off } from "firebase/database"
 import { rtdb } from "@/lib/firebase-config"
 import type { Order, OrderStatus } from "@/lib/types/orders"
+import { useShift } from "./shift-provider"
 
 interface OrderContextType {
   orders: Order[]
@@ -41,6 +42,7 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [updatingOrderIds, setUpdatingOrderIds] = useState<Record<string, boolean>>({}) // Estado para rastrear órdenes en actualización
+  const { currentShift } = useShift()
 
   // Usar suscripción en tiempo real para las órdenes
   useEffect(() => {
@@ -155,6 +157,8 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
         status: "pending",
         items: [],
         total: 0,
+        // Asignar el turno actual si existe
+        shiftId: currentShift?.id || null,
         ...orderData,
       }
 
@@ -257,6 +261,8 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
         status: "completed",
         completedAt: timestamp,
         updatedAt: timestamp,
+        // Asegurarse de que la orden tenga asignado el turno actual
+        shiftId: currentShift?.id || null,
       })
 
       console.log(`Order ${orderId} completed`)
@@ -296,6 +302,8 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
         status: "cancelled",
         cancelledAt: timestamp,
         updatedAt: timestamp,
+        // Asegurarse de que la orden tenga asignado el turno actual
+        shiftId: currentShift?.id || null,
       })
 
       console.log(`Order ${orderId} cancelled`)

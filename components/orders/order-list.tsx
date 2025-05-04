@@ -24,25 +24,28 @@ export function OrderList({ currentShiftId }: OrderListProps) {
     // Si no hay un turno actual especificado, mostrar todas las órdenes
     if (!currentShiftId) return true
 
+    // Si la orden tiene un shiftId y es diferente al turno actual, no mostrarla
+    if (order.shiftId && order.shiftId !== currentShiftId) return false
+
     // Si estamos en la pestaña "all" (todos), mostrar solo pedidos activos
     if (activeTab === "all") {
       return order.status !== "completed" && order.status !== "cancelled"
     }
 
     // En las pestañas específicas, mostrar todos los pedidos que coincidan con ese estado
-    return true
+    // y que pertenezcan al turno actual o no tengan turno asignado
+    return order.status === activeTab
   })
 
   // Filtrar por estado y término de búsqueda
   const displayedOrders = filteredOrders.filter((order) => {
-    const matchesStatus = activeTab === "all" || order.status === activeTab
     const matchesSearch =
       searchTerm === "" ||
       order.orderNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.tableNumber?.toString().includes(searchTerm)
 
-    return matchesStatus && matchesSearch
+    return matchesSearch
   })
 
   const handleRefresh = async () => {
