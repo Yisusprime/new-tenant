@@ -1,534 +1,308 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { format } from "date-fns"
-import { es } from "date-fns/locale"
-import { CalendarIcon, Loader2 } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Eye, FileDown } from "lucide-react"
 import { useCashier } from "./cashier-context"
 import { formatCurrency } from "@/lib/utils"
-import type { CashierSession } from "@/lib/types/cashier"
-import type { Order } from "@/lib/types/orders"
 import { ref, get } from "firebase/database"
 import { rtdb } from "@/lib/firebase-config"
 import { useAuth } from "@/lib/auth-context"
-
-type DateRange = {
-  from: Date | undefined
-  to: Date | undefined
-}
-
-type FilterPeriod = "today" | "week" | "month" | "year" | "custom"
+import { SessionDetailsDialog } from "./session-details-dialog"
 
 export function SessionHistory() {
-  const { sessions } = useCashier()
-  const { tenantId } = useAuth()
-  const [filterPeriod, setFilterPeriod] = useState<FilterPeriod>("week")
-  const [dateRange, setDateRange] = useState<DateRange>({
-    from: undefined,
-    to: undefined,
-  })
-  const [filteredSessions, setFilteredSessions] = useState<CashierSession[]>([])
-  const [expandedSession, setExpandedSession] = useState<string | null>(null)
-  const [sessionOrders, setSessionOrders] = useState<Record<string, Order[]>>({})
-  const [sessionSummaries, setSessionSummaries] = useState<Record<string, any>>({})
-  const [isLoading, setIsLoading] = useState(false)
-  const [loadingErrors, setLoadingErrors] = useState<Record<string, string>>({})
+  const { sessions, isLoading } = useCashier()
+  const { user } = useAuth()
+  const [selectedSession, setSelectedSession] = useState<string | null>(null)
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  const [sessionDetails, setSessionDetails] = useState<any>(null)
+  const [loadingDetails, setLoadingDetails] = useState(false)
 
-  // Filter sessions based on selected period
-  useEffect(() => {
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  // Función para ver detalles de una sesión
+  const handleViewDetails = async (sessionId: string) => {
+    setSelectedSession(sessionId)
+    setIsDetailsOpen(true)
+    await loadSessionDetails(sessionId)
+  }
 
-    let fromDate: Date
+  // Cargar detalles de una sesión específica
+  const loadSessionDetails = async (sessionId: string) => {
+    setLoadingDetails(true)
+    try {
+      const session = sessions.find((s) => s.id === sessionId)
+      if (!session) {
+        throw new Error("Sesión no encontrada")
+      }
 
-    switch (filterPeriod) {
-      case "today":
-        fromDate = today
-        break
-      case "week":
-        fromDate = new Date(today)
-        fromDate.setDate(today.getDate() - 7)
-        break
-      case "month":
-        fromDate = new Date(today)
-        fromDate.setMonth(today.getMonth() - 1)
-        break
-      case "year":
-        fromDate = new Date(today)
-        fromDate.setFullYear(today.getFullYear() - 1)
-        break
-      case "custom":
-        if (dateRange.from && dateRange.to) {
-          fromDate = dateRange.from
-          const toDate = new Date(dateRange.to)
-          toDate.setHours(23, 59, 59, 999)
+      const tenantId = user?.tenantId
+      if (!tenantId) {
+        throw new Error("No se pudo identificar el inquilino")
+      }
 
-          setFilteredSessions(
-            sessions.filter(
-              (session) => session.startTime >= fromDate.getTime() && session.startTime <= toDate.getTime(),
-            ),
-          )
-          return
-        } else {
-          // If custom range is not complete, show all sessions
-          setFilteredSessions(sessions)
-          return
-        }
-      default:
-        fromDate = new Date(today)
-        fromDate.setDate(today.getDate() - 7)
-    }
+      // Obtener órdenes para esta sesión
+      const ordersRef = ref(rtdb, `tenants/${tenantId}/orders`)
+      const ordersSnapshot = await get(ordersRef)
 
-    setFilteredSessions(sessions.filter((session) => session.startTime >= fromDate.getTime()))
-  }, [filterPeriod, dateRange, sessions])
+      let sessionOrders: any[] = []
+      let financialSummary = {
+        totalSales: 0,
+        cashSales: 0,
+        cardSales: 0,
+        transferSales: 0,
+        otherSales: 0,
+        totalOrders: 0,
+        completedOrders: 0,
+        canceledOrders: 0,
+      }
 
-  // Load orders for expanded session
-  useEffect(() => {
-    if (!expandedSession || !tenantId) return
+      if (ordersSnapshot.exists()) {
+        const ordersData = ordersSnapshot.val()
 
-    const loadSessionData = async () => {
-      if (sessionOrders[expandedSession]) return
-
-      setIsLoading(true)
-      setLoadingErrors((prev) => ({ ...prev, [expandedSession]: "" }))
-
-      try {
-        // Get session details
-        const session = sessions.find((s) => s.id === expandedSession)
-        if (!session) {
-          throw new Error("Sesión no encontrada")
-        }
-
-        console.log(`Loading orders for session ${expandedSession}`)
-
-        // Get all orders
-        const ordersRef = ref(rtdb, `tenants/${tenantId}/orders`)
-        const snapshot = await get(ordersRef)
-
-        if (!snapshot.exists()) {
-          console.log("No orders found in database")
-          setSessionOrders((prev) => ({
-            ...prev,
-            [expandedSession]: [],
-          }))
-          setSessionSummaries((prev) => ({
-            ...prev,
-            [expandedSession]: {
-              totalSales: 0,
-              cashSales: 0,
-              cardSales: 0,
-              otherSales: 0,
-              tips: 0,
-            },
-          }))
-          setIsLoading(false)
-          return
-        }
-
-        const ordersData = snapshot.val()
-        console.log(`Found ${Object.keys(ordersData).length} total orders in database`)
-
-        // Filter orders for this session
-        const sessionStart = session.startTime
-        const sessionEnd = session.endTime || Date.now()
-
-        const filteredOrders = Object.entries(ordersData)
-          .map(([id, data]) => ({
-            id,
-            ...(data as any),
-          }))
+        // Filtrar órdenes que pertenecen a esta sesión
+        sessionOrders = Object.entries(ordersData)
+          .map(([id, data]) => ({ id, ...(data as any) }))
           .filter((order: any) => {
-            // Only include completed orders
-            if (order.status !== "completed") {
-              return false
-            }
-
-            // Check if order has a timestamp
-            if (!order.createdAt) {
-              console.log(`Order ${order.id} has no createdAt timestamp`)
-              return false
-            }
-
-            // Convert timestamp if needed
+            // Convertir timestamp si es necesario
             const orderTime =
               typeof order.createdAt === "object" && order.createdAt.toDate
                 ? order.createdAt.toDate().getTime()
                 : Number(order.createdAt)
 
-            // Include orders created during this session
-            const belongsToSession = orderTime >= sessionStart && orderTime <= sessionEnd
+            // Verificar si la orden está dentro del rango de tiempo de la sesión
+            return orderTime >= session.startTime && (session.endTime ? orderTime <= session.endTime : true)
+          })
+          .sort((a: any, b: any) => b.createdAt - a.createdAt)
 
-            if (belongsToSession) {
-              console.log(
-                `Order ${order.id} belongs to session ${expandedSession} (time: ${new Date(orderTime).toLocaleString()})`,
-              )
-              return true
+        // Calcular resumen financiero
+        sessionOrders.forEach((order: any) => {
+          if (order.status === "completed") {
+            financialSummary.completedOrders++
+            financialSummary.totalSales += Number(order.total) || 0
+
+            // Clasificar por método de pago
+            switch (order.paymentMethod) {
+              case "cash":
+                financialSummary.cashSales += Number(order.total) || 0
+                break
+              case "card":
+                financialSummary.cardSales += Number(order.total) || 0
+                break
+              case "transfer":
+                financialSummary.transferSales += Number(order.total) || 0
+                break
+              default:
+                financialSummary.otherSales += Number(order.total) || 0
+                break
             }
-
-            return false
-          })
-          .sort((a, b) => {
-            const timeA =
-              typeof a.createdAt === "object" && a.createdAt.toDate
-                ? a.createdAt.toDate().getTime()
-                : Number(a.createdAt)
-            const timeB =
-              typeof b.createdAt === "object" && b.createdAt.toDate
-                ? b.createdAt.toDate().getTime()
-                : Number(b.createdAt)
-            return timeB - timeA
-          })
-
-        console.log(`Found ${filteredOrders.length} completed orders for session ${expandedSession}`)
-
-        // Calculate summary
-        let totalSales = 0
-        let cashSales = 0
-        let cardSales = 0
-        let otherSales = 0
-        let tips = 0
-
-        filteredOrders.forEach((order: any) => {
-          // Ensure total is a number
-          const orderTotal = Number.parseFloat(order.total) || 0
-          totalSales += orderTotal
-
-          // Categorize by payment method
-          if (order.paymentMethod === "cash") {
-            cashSales += orderTotal
-          } else if (order.paymentMethod === "card") {
-            cardSales += orderTotal
-          } else {
-            otherSales += orderTotal
+          } else if (order.status === "cancelled") {
+            financialSummary.canceledOrders++
           }
-
-          // Add tips
-          tips += Number.parseFloat(order.tip) || 0
-
-          console.log(`Order ${order.id}: ${orderTotal} via ${order.paymentMethod}`)
         })
 
-        console.log(`Session ${expandedSession} summary: total=${totalSales}, cash=${cashSales}, card=${cardSales}`)
-
-        // Store the results
-        setSessionOrders((prev) => ({
-          ...prev,
-          [expandedSession]: filteredOrders,
-        }))
-
-        setSessionSummaries((prev) => ({
-          ...prev,
-          [expandedSession]: {
-            totalSales,
-            cashSales,
-            cardSales,
-            otherSales,
-            tips,
-          },
-        }))
-      } catch (err) {
-        console.error("Error loading session orders:", err)
-        setLoadingErrors((prev) => ({
-          ...prev,
-          [expandedSession]: "No se pudieron cargar las órdenes. Por favor, inténtelo de nuevo más tarde.",
-        }))
-      } finally {
-        setIsLoading(false)
+        financialSummary.totalOrders = sessionOrders.length
       }
+
+      // Si la sesión tiene un resumen guardado, usarlo como respaldo
+      if (session.summary) {
+        console.log("Using saved summary from session:", session.summary)
+        // Solo usar el resumen guardado si no encontramos órdenes
+        if (financialSummary.totalOrders === 0) {
+          financialSummary = {
+            ...financialSummary,
+            totalSales: session.summary.totalSales || 0,
+            cashSales: session.summary.cashSales || 0,
+            cardSales: session.summary.cardSales || 0,
+            transferSales: 0,
+            otherSales: session.summary.otherSales || 0,
+            totalOrders: session.summary.totalOrders || 0,
+            completedOrders: session.summary.completedOrders || 0,
+            canceledOrders: session.summary.canceledOrders || 0,
+          }
+        }
+      }
+
+      setSessionDetails({
+        session,
+        orders: sessionOrders,
+        financialSummary,
+      })
+    } catch (error) {
+      console.error("Error loading session details:", error)
+      setSessionDetails({
+        session: sessions.find((s) => s.id === sessionId),
+        orders: [],
+        financialSummary: {
+          totalSales: 0,
+          cashSales: 0,
+          cardSales: 0,
+          transferSales: 0,
+          otherSales: 0,
+          totalOrders: 0,
+          completedOrders: 0,
+          canceledOrders: 0,
+        },
+      })
+    } finally {
+      setLoadingDetails(false)
     }
+  }
 
-    loadSessionData()
-  }, [expandedSession, tenantId, sessions, sessionOrders])
+  // Exportar historial a CSV
+  const exportToCSV = () => {
+    if (sessions.length === 0) return
 
-  const handleAccordionChange = (value: string) => {
-    setExpandedSession(value === expandedSession ? null : value)
+    const headers = ["ID", "Fecha Inicio", "Fecha Fin", "Estado", "Efectivo Inicial", "Efectivo Final", "Diferencia"]
+    const rows = sessions.map((session) => [
+      session.id,
+      new Date(session.startTime).toLocaleString(),
+      session.endTime ? new Date(session.endTime).toLocaleString() : "En curso",
+      session.status === "open" ? "Abierta" : "Cerrada",
+      session.initialCash?.toString() || "0",
+      session.endCash?.toString() || "0",
+      session.difference?.toString() || "0",
+    ])
+
+    const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n")
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.setAttribute("href", url)
+    link.setAttribute("download", `historial_caja_${new Date().toISOString().split("T")[0]}.csv`)
+    link.style.visibility = "hidden"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Historial de Sesiones</CardTitle>
+          <CardDescription>Cargando historial...</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   if (sessions.length === 0) {
     return (
-      <Card className="w-full">
+      <Card>
         <CardHeader>
           <CardTitle>Historial de Sesiones</CardTitle>
           <CardDescription>No hay sesiones registradas</CardDescription>
         </CardHeader>
+        <CardContent>
+          <div className="flex justify-center items-center p-8 text-muted-foreground">
+            No se han registrado sesiones de caja
+          </div>
+        </CardContent>
       </Card>
     )
   }
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle>Historial de Sesiones</CardTitle>
-        <CardDescription>Consulta el historial de sesiones de caja</CardDescription>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>Historial de Sesiones</CardTitle>
+          <CardDescription>Registro de sesiones de caja</CardDescription>
+        </div>
+        <Button variant="outline" size="sm" onClick={exportToCSV}>
+          <FileDown className="mr-2 h-4 w-4" />
+          Exportar
+        </Button>
       </CardHeader>
-
       <CardContent>
-        <Tabs defaultValue="week" value={filterPeriod} onValueChange={(v) => setFilterPeriod(v as FilterPeriod)}>
-          <TabsList className="mb-4">
-            <TabsTrigger value="today">Hoy</TabsTrigger>
-            <TabsTrigger value="week">Semana</TabsTrigger>
-            <TabsTrigger value="month">Mes</TabsTrigger>
-            <TabsTrigger value="year">Año</TabsTrigger>
-            <TabsTrigger value="custom">Personalizado</TabsTrigger>
-          </TabsList>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Fecha</TableHead>
+                <TableHead>Duración</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Efectivo Inicial</TableHead>
+                <TableHead>Efectivo Final</TableHead>
+                <TableHead>Diferencia</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sessions.map((session) => {
+                const startDate = new Date(session.startTime)
+                const endDate = session.endTime ? new Date(session.endTime) : new Date()
+                const duration = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60)) // en minutos
 
-          {filterPeriod === "custom" && (
-            <div className="flex flex-wrap items-center gap-2 mb-4">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="justify-start text-left font-normal">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateRange.from ? (
-                      dateRange.to ? (
-                        <>
-                          {format(dateRange.from, "dd/MM/yyyy", { locale: es })} -{" "}
-                          {format(dateRange.to, "dd/MM/yyyy", { locale: es })}
-                        </>
+                return (
+                  <TableRow key={session.id}>
+                    <TableCell>
+                      <div className="font-medium">{startDate.toLocaleDateString()}</div>
+                      <div className="text-sm text-muted-foreground">{startDate.toLocaleTimeString()}</div>
+                    </TableCell>
+                    <TableCell>
+                      {duration < 60 ? `${duration} min` : `${Math.floor(duration / 60)}h ${duration % 60}min`}
+                    </TableCell>
+                    <TableCell>
+                      {session.status === "open" ? (
+                        <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Abierta</Badge>
                       ) : (
-                        format(dateRange.from, "dd/MM/yyyy", { locale: es })
-                      )
-                    ) : (
-                      <span>Seleccionar fechas</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="range" selected={dateRange} onSelect={setDateRange as any} initialFocus />
-                </PopoverContent>
-              </Popover>
-            </div>
-          )}
-
-          <div className="mt-4">
-            {filteredSessions.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">No hay sesiones en el período seleccionado</div>
-            ) : (
-              <Accordion type="single" collapsible value={expandedSession || ""} onValueChange={handleAccordionChange}>
-                {filteredSessions.map((session) => {
-                  const summary = sessionSummaries[session.id]
-                  const orders = sessionOrders[session.id] || []
-                  const hasError = loadingErrors[session.id]
-
-                  return (
-                    <AccordionItem key={session.id} value={session.id}>
-                      <AccordionTrigger className="hover:bg-gray-50 px-4">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between w-full text-left">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{new Date(session.startTime).toLocaleDateString()}</span>
-                            <Badge variant={session.status === "open" ? "default" : "secondary"}>
-                              {session.status === "open" ? "Abierta" : "Cerrada"}
-                            </Badge>
-                          </div>
-
-                          <div className="flex items-center gap-4">
-                            <span className="text-sm text-muted-foreground">
-                              {session.status === "open" ? "Desde" : "Duración"}:{" "}
-                              {session.status === "open"
-                                ? format(new Date(session.startTime), "HH:mm", { locale: es })
-                                : session.endTime
-                                  ? `${Math.round((session.endTime - session.startTime) / (1000 * 60 * 60))}h ${Math.round(((session.endTime - session.startTime) % (1000 * 60 * 60)) / (1000 * 60))}m`
-                                  : "—"}
-                            </span>
-
-                            {summary && <span className="font-medium">{formatCurrency(summary.totalSales || 0)}</span>}
-                          </div>
-                        </div>
-                      </AccordionTrigger>
-
-                      <AccordionContent className="px-4 pb-4">
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <h4 className="text-sm font-medium mb-2">Información de apertura</h4>
-                              <div className="bg-gray-50 p-3 rounded-md space-y-1 text-sm">
-                                <div className="grid grid-cols-2">
-                                  <span className="text-muted-foreground">Fecha:</span>
-                                  <span>{new Date(session.startTime).toLocaleDateString()}</span>
-                                </div>
-                                <div className="grid grid-cols-2">
-                                  <span className="text-muted-foreground">Hora:</span>
-                                  <span>{new Date(session.startTime).toLocaleTimeString()}</span>
-                                </div>
-                                <div className="grid grid-cols-2">
-                                  <span className="text-muted-foreground">Efectivo inicial:</span>
-                                  <span>{formatCurrency(session.initialCash)}</span>
-                                </div>
-                                <div className="grid grid-cols-2">
-                                  <span className="text-muted-foreground">Abierto por:</span>
-                                  <span>{session.openedBy}</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {session.status === "closed" && (
-                              <div>
-                                <h4 className="text-sm font-medium mb-2">Información de cierre</h4>
-                                <div className="bg-gray-50 p-3 rounded-md space-y-1 text-sm">
-                                  <div className="grid grid-cols-2">
-                                    <span className="text-muted-foreground">Fecha:</span>
-                                    <span>
-                                      {session.endTime ? new Date(session.endTime).toLocaleDateString() : "—"}
-                                    </span>
-                                  </div>
-                                  <div className="grid grid-cols-2">
-                                    <span className="text-muted-foreground">Hora:</span>
-                                    <span>
-                                      {session.endTime ? new Date(session.endTime).toLocaleTimeString() : "—"}
-                                    </span>
-                                  </div>
-                                  <div className="grid grid-cols-2">
-                                    <span className="text-muted-foreground">Efectivo final:</span>
-                                    <span>{session.endCash ? formatCurrency(session.endCash) : "—"}</span>
-                                  </div>
-                                  <div className="grid grid-cols-2">
-                                    <span className="text-muted-foreground">Tarjeta final:</span>
-                                    <span>{session.endCard ? formatCurrency(session.endCard) : "—"}</span>
-                                  </div>
-                                  <div className="grid grid-cols-2">
-                                    <span className="text-muted-foreground">Diferencia:</span>
-                                    <span
-                                      className={`${session.difference && session.difference < 0 ? "text-red-600" : session.difference && session.difference > 0 ? "text-green-600" : ""}`}
-                                    >
-                                      {session.difference ? formatCurrency(session.difference) : "—"}
-                                    </span>
-                                  </div>
-                                  <div className="grid grid-cols-2">
-                                    <span className="text-muted-foreground">Cerrado por:</span>
-                                    <span>{session.closedBy || "—"}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {expandedSession === session.id && (
-                            <div>
-                              <h4 className="text-sm font-medium mb-2">Resumen financiero</h4>
-                              {isLoading ? (
-                                <div className="flex justify-center items-center py-4">
-                                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                                  <span>Cargando datos...</span>
-                                </div>
-                              ) : summary && summary.totalSales > 0 ? (
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                  <div className="bg-blue-50 p-3 rounded-md">
-                                    <div className="text-xs text-blue-600">Ventas Totales</div>
-                                    <div className="text-lg font-bold">{formatCurrency(summary.totalSales || 0)}</div>
-                                  </div>
-
-                                  <div className="bg-green-50 p-3 rounded-md">
-                                    <div className="text-xs text-green-600">Efectivo</div>
-                                    <div className="text-lg font-bold">{formatCurrency(summary.cashSales || 0)}</div>
-                                  </div>
-
-                                  <div className="bg-orange-50 p-3 rounded-md">
-                                    <div className="text-xs text-orange-600">Tarjeta</div>
-                                    <div className="text-lg font-bold">{formatCurrency(summary.cardSales || 0)}</div>
-                                  </div>
-
-                                  <div className="bg-purple-50 p-3 rounded-md">
-                                    <div className="text-xs text-purple-600">Propinas</div>
-                                    <div className="text-lg font-bold">{formatCurrency(summary.tips || 0)}</div>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="text-center py-4 text-muted-foreground">
-                                  No hay ventas registradas en esta sesión
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          <div>
-                            <h4 className="text-sm font-medium mb-2">Órdenes ({orders.length})</h4>
-                            {isLoading && expandedSession === session.id ? (
-                              <div className="text-center py-8 text-muted-foreground flex items-center justify-center">
-                                <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                                <span>Cargando órdenes...</span>
-                              </div>
-                            ) : hasError ? (
-                              <div className="text-center py-8 text-red-500">{loadingErrors[session.id]}</div>
-                            ) : orders.length === 0 ? (
-                              <div className="text-center py-8 text-muted-foreground">
-                                No hay órdenes completadas en esta sesión
-                              </div>
-                            ) : (
-                              <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
-                                  <thead>
-                                    <tr className="border-b">
-                                      <th className="text-left py-2 px-3">ID</th>
-                                      <th className="text-left py-2 px-3">Hora</th>
-                                      <th className="text-left py-2 px-3">Mesa/Cliente</th>
-                                      <th className="text-right py-2 px-3">Total</th>
-                                      <th className="text-left py-2 px-3">Estado</th>
-                                      <th className="text-left py-2 px-3">Pago</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {orders.map((order) => (
-                                      <tr key={order.id} className="border-b hover:bg-gray-50">
-                                        <td className="py-2 px-3">{order.orderNumber || order.id.slice(-6)}</td>
-                                        <td className="py-2 px-3">{new Date(order.createdAt).toLocaleTimeString()}</td>
-                                        <td className="py-2 px-3">{order.tableNumber || order.customerName || "—"}</td>
-                                        <td className="py-2 px-3 text-right">{formatCurrency(order.total || 0)}</td>
-                                        <td className="py-2 px-3">
-                                          <Badge
-                                            variant={
-                                              order.status === "completed"
-                                                ? "success"
-                                                : order.status === "cancelled"
-                                                  ? "destructive"
-                                                  : "default"
-                                            }
-                                          >
-                                            {order.status === "completed"
-                                              ? "Completado"
-                                              : order.status === "cancelled"
-                                                ? "Cancelado"
-                                                : order.status === "in-progress"
-                                                  ? "En progreso"
-                                                  : order.status}
-                                          </Badge>
-                                        </td>
-                                        <td className="py-2 px-3">
-                                          {order.paymentMethod === "cash"
-                                            ? "Efectivo"
-                                            : order.paymentMethod === "card"
-                                              ? "Tarjeta"
-                                              : order.paymentMethod || "—"}
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            )}
-                          </div>
-
-                          {session.notes && (
-                            <div>
-                              <h4 className="text-sm font-medium mb-2">Notas</h4>
-                              <div className="bg-gray-50 p-3 rounded-md text-sm">{session.notes}</div>
-                            </div>
-                          )}
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  )
-                })}
-              </Accordion>
-            )}
-          </div>
-        </Tabs>
+                        <Badge variant="outline" className="bg-gray-100 text-gray-800 hover:bg-gray-100">
+                          Cerrada
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>{formatCurrency(session.initialCash || 0)}</TableCell>
+                    <TableCell>{session.status === "closed" ? formatCurrency(session.endCash || 0) : "-"}</TableCell>
+                    <TableCell>
+                      {session.status === "closed" ? (
+                        <span
+                          className={
+                            session.difference && session.difference < 0
+                              ? "text-red-600"
+                              : session.difference && session.difference > 0
+                                ? "text-green-600"
+                                : ""
+                          }
+                        >
+                          {formatCurrency(session.difference || 0)}
+                        </span>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" onClick={() => handleViewDetails(session.id)}>
+                        <Eye className="h-4 w-4" />
+                        <span className="sr-only">Ver detalles</span>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
+
+      {selectedSession && (
+        <SessionDetailsDialog
+          open={isDetailsOpen}
+          onOpenChange={setIsDetailsOpen}
+          sessionDetails={sessionDetails}
+          loading={loadingDetails}
+        />
+      )}
     </Card>
   )
 }

@@ -4,7 +4,7 @@ import type React from "react"
 
 import { createContext, useContext, useState, useEffect, useCallback } from "react"
 import { database } from "@/lib/firebase-config"
-import { ref, get, set, push, onValue } from "firebase/database"
+import { ref, get, set, push, onValue, update } from "firebase/database"
 import { useAuth } from "@/lib/auth-context"
 import type {
   CashierSession,
@@ -14,6 +14,7 @@ import type {
   SalesDataPoint,
 } from "@/lib/types/cashier"
 import type { Order } from "@/lib/types/orders"
+import { useToast } from "@/components/ui/use-toast"
 
 interface CashierContextType {
   currentSession: CashierSession | null
@@ -37,6 +38,7 @@ export function CashierProvider({
   tenantId: string
 }) {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [currentSession, setCurrentSession] = useState<CashierSession | null>(null)
   const [sessions, setSessions] = useState<CashierSession[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -118,9 +120,11 @@ export function CashierProvider({
       }
 
       const newSession = {
+        tenantId,
         startTime: Date.now(),
         initialCash: initialCash,
-        openedBy: params.openedBy || "Usuario desconocido",
+        openedBy: params.openedBy || user.displayName || user.email || "Usuario desconocido",
+        createdBy: user.uid,
         status: "open",
         notes: params.notes || "",
       }
@@ -140,9 +144,19 @@ export function CashierProvider({
       setCurrentSession(sessionWithId)
       setSessions((prev) => [sessionWithId, ...prev])
 
+      toast({
+        title: "Sesión abierta",
+        description: "La sesión de caja se ha abierto correctamente",
+      })
+
       return
     } catch (error) {
       console.error("Error opening session:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo abrir la sesión de caja",
+        variant: "destructive",
+      })
       throw new Error("No se pudo abrir la sesión de caja")
     }
   }
@@ -170,6 +184,49 @@ export function CashierProvider({
       const endOther = Number(params.endOther) || 0
       const difference = Number(params.difference) || 0
 
+      // Get session orders to calculate summary
+      const sessionOrders = await getSessionOrders(params.sessionId)
+
+      // Calculate financial summary
+      let totalSales = 0
+      let cashSales = 0
+      let cardSales = 0
+      let otherSales = 0
+      const totalOrders = sessionOrders.length
+      let completedOrders = 0
+      let canceledOrders = 0
+
+      sessionOrders.forEach((order) => {
+        if (order.status === "completed") {
+          completedOrders++
+          totalSales += Number(order.total) || 0
+
+          // Count by payment method
+          if (order.paymentMethod === "cash") {
+            cashSales += Number(order.total) || 0
+          } else if (order.paymentMethod === "card") {
+            cardSales += Number(order.total) || 0
+          } else {
+            otherSales += Number(order.total) || 0
+          }
+        } else if (order.status === "cancelled") {
+          canceledOrders++
+        }
+      })
+
+      // Create summary object
+      const summary = {
+        totalSales,
+        cashSales,
+        cardSales,
+        otherSales,
+        totalOrders,
+        completedOrders,
+        canceledOrders,
+      }
+
+      console.log("Session summary calculated:", summary)
+
       // Update session data
       const updatedSession: CashierSession = {
         ...session,
@@ -179,21 +236,32 @@ export function CashierProvider({
         endOther,
         difference,
         notes: params.notes || "",
-        closedBy: user.displayName || user.email || "Usuario desconocido",
+        closedBy: user.uid,
         status: "closed",
+        summary, // Add summary to session data
       }
 
       // Save to Firebase
       const sessionRef = ref(database, `tenants/${tenantId}/cashier/sessions/${params.sessionId}`)
-      await set(sessionRef, updatedSession)
+      await update(sessionRef, updatedSession)
 
       // Update local state
       setCurrentSession(null)
       setSessions((prev) => prev.map((s) => (s.id === params.sessionId ? updatedSession : s)))
 
+      toast({
+        title: "Sesión cerrada",
+        description: "La sesión de caja se ha cerrado correctamente",
+      })
+
       return
     } catch (error) {
       console.error("Error closing session:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo cerrar la sesión de caja",
+        variant: "destructive",
+      })
       throw new Error("No se pudo cerrar la sesión de caja")
     }
   }
@@ -207,7 +275,12 @@ export function CashierProvider({
           throw new Error("Sesión no encontrada")
         }
 
-        // Get orders for this session
+        // If session has a saved summary, use it
+        if (session.summary) {
+          return session.summary
+        }
+
+        // Otherwise, calculate from orders
         const orders = await getSessionOrders(sessionId)
 
         // Calculate totals
@@ -215,7 +288,6 @@ export function CashierProvider({
         let cashSales = 0
         let cardSales = 0
         let otherSales = 0
-        let tips = 0
         const totalOrders = orders.length
         let completedOrders = 0
         let canceledOrders = 0
@@ -224,19 +296,16 @@ export function CashierProvider({
         orders.forEach((order) => {
           if (order.status === "completed") {
             completedOrders++
-            totalSales += order.total || 0
+            totalSales += Number(order.total) || 0
 
             // Count by payment method
             if (order.paymentMethod === "cash") {
-              cashSales += order.total || 0
+              cashSales += Number(order.total) || 0
             } else if (order.paymentMethod === "card") {
-              cardSales += order.total || 0
+              cardSales += Number(order.total) || 0
             } else {
-              otherSales += order.total || 0
+              otherSales += Number(order.total) || 0
             }
-
-            // Add tips
-            tips += order.tip || 0
 
             // Count items
             orderItems += order.items?.length || 0
@@ -250,7 +319,6 @@ export function CashierProvider({
           cashSales,
           cardSales,
           otherSales,
-          tips,
           totalOrders,
           completedOrders,
           canceledOrders,
@@ -263,7 +331,6 @@ export function CashierProvider({
           cashSales: 0,
           cardSales: 0,
           otherSales: 0,
-          tips: 0,
           totalOrders: 0,
           completedOrders: 0,
           canceledOrders: 0,
@@ -493,11 +560,15 @@ export function CashierProvider({
 
   // Helper functions for sales data
   function calculateTotal(orders: Order[]): number {
-    return orders.filter((order) => order.status === "completed").reduce((sum, order) => sum + (order.total || 0), 0)
+    return orders
+      .filter((order) => order.status === "completed")
+      .reduce((sum, order) => sum + (Number(order.total) || 0), 0)
   }
 
   function calculateTips(orders: Order[]): number {
-    return orders.filter((order) => order.status === "completed").reduce((sum, order) => sum + (order.tip || 0), 0)
+    return orders
+      .filter((order) => order.status === "completed")
+      .reduce((sum, order) => sum + (Number(order.tip) || 0), 0)
   }
 
   const value = {
