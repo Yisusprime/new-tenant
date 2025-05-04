@@ -3,7 +3,7 @@
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
 import { ref, onValue, push, set, remove, update } from "firebase/database"
-import { db } from "@/lib/firebase-config"
+import { rtdb } from "@/lib/firebase-config"
 import { useToast } from "@/components/ui/use-toast"
 
 export type Subcategory = {
@@ -63,7 +63,7 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode; tenantId: s
   useEffect(() => {
     if (!tenantId) return
 
-    const categoriesRef = ref(db, `tenants/${tenantId}/categories`)
+    const categoriesRef = ref(rtdb, `tenants/${tenantId}/categories`)
 
     const unsubscribe = onValue(
       categoriesRef,
@@ -103,7 +103,7 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode; tenantId: s
 
   const addCategory = async (category: Omit<Category, "id" | "subcategories">) => {
     try {
-      const newCategoryRef = push(ref(db, `tenants/${tenantId}/categories`))
+      const newCategoryRef = push(ref(rtdb, `tenants/${tenantId}/categories`))
       await set(newCategoryRef, {
         ...category,
         subcategories: {},
@@ -124,7 +124,7 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode; tenantId: s
 
   const updateCategory = async (id: string, category: Partial<Omit<Category, "id" | "subcategories">>) => {
     try {
-      const categoryRef = ref(db, `tenants/${tenantId}/categories/${id}`)
+      const categoryRef = ref(rtdb, `tenants/${tenantId}/categories/${id}`)
       await update(categoryRef, category)
       toast({
         title: "Categoría actualizada",
@@ -142,7 +142,7 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode; tenantId: s
 
   const deleteCategory = async (id: string) => {
     try {
-      const categoryRef = ref(db, `tenants/${tenantId}/categories/${id}`)
+      const categoryRef = ref(rtdb, `tenants/${tenantId}/categories/${id}`)
       await remove(categoryRef)
       toast({
         title: "Categoría eliminada",
@@ -160,7 +160,7 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode; tenantId: s
 
   const addSubcategory = async (categoryId: string, subcategory: Omit<Subcategory, "id">) => {
     try {
-      const newSubcategoryRef = push(ref(db, `tenants/${tenantId}/categories/${categoryId}/subcategories`))
+      const newSubcategoryRef = push(ref(rtdb, `tenants/${tenantId}/categories/${categoryId}/subcategories`))
       await set(newSubcategoryRef, subcategory)
       toast({
         title: "Subcategoría añadida",
@@ -182,7 +182,7 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode; tenantId: s
     subcategory: Partial<Omit<Subcategory, "id">>,
   ) => {
     try {
-      const subcategoryRef = ref(db, `tenants/${tenantId}/categories/${categoryId}/subcategories/${subcategoryId}`)
+      const subcategoryRef = ref(rtdb, `tenants/${tenantId}/categories/${categoryId}/subcategories/${subcategoryId}`)
       await update(subcategoryRef, subcategory)
       toast({
         title: "Subcategoría actualizada",
@@ -200,7 +200,7 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode; tenantId: s
 
   const deleteSubcategory = async (categoryId: string, subcategoryId: string) => {
     try {
-      const subcategoryRef = ref(db, `tenants/${tenantId}/categories/${categoryId}/subcategories/${subcategoryId}`)
+      const subcategoryRef = ref(rtdb, `tenants/${tenantId}/categories/${categoryId}/subcategories/${subcategoryId}`)
       await remove(subcategoryRef)
       toast({
         title: "Subcategoría eliminada",
