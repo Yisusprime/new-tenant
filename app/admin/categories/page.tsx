@@ -59,7 +59,7 @@ export default function CategoriesPage() {
       <div className="flex-1 p-4 md:p-8 overflow-auto w-full">
         <div className="mb-6">
           <h1 className="text-2xl md:text-3xl font-bold">Categorías</h1>
-          <p className="text-muted-foreground">Gestiona las categorías y subcategorías de tu menú</p>
+          <p className="text-muted-foreground">Gestiona las categorías</p>
         </div>
 
         <CategoryProvider tenantId={tenantId}>
