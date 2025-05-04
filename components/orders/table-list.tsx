@@ -15,7 +15,14 @@ import { Edit, Trash2, Plus, Users, Coffee } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
 
-export const TableList = () => {
+// Asegurarnos de que TableList no intente usar OrderContext directamente
+// ya que ahora está envuelto en OrderProvider desde el componente padre
+
+// Si TableList usa useOrderContext(), asegurarnos de que reciba las props necesarias
+// para no depender del contexto directamente
+
+// Añadir la prop currentShiftId
+export function TableList({ currentShiftId }: { currentShiftId?: string }) {
   const { tables, loading, error, addTable, updateTable, deleteTable } = useTableContext()
   const orderContext = useOrderContext()
   const { toast } = useToast()

@@ -7,7 +7,8 @@ import { formatDistanceToNow } from "date-fns"
 import { es } from "date-fns/locale"
 import { MapPin, Phone, Clock, CheckCircle, Truck } from "lucide-react"
 
-export const DeliveryList = () => {
+// Añadir la prop currentShiftId
+export function DeliveryList({ currentShiftId }: { currentShiftId?: string }) {
   const { orders, loading, error, updateOrderStatus, completeOrder } = useOrderContext()
 
   // Filtrar solo pedidos de delivery que no estén completados o cancelados

@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import {
   Dialog,
   DialogContent,
@@ -11,111 +10,86 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, CheckCircle } from "lucide-react"
-import { useAuth } from "@/lib/auth-context"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { useShiftContext } from "./shift-context"
+import { useToast } from "@/components/ui/use-toast"
 
 interface StartShiftDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onComplete: () => void
+  onComplete?: () => void
   tenantId: string
 }
 
 export function StartShiftDialog({ open, onOpenChange, onComplete, tenantId }: StartShiftDialogProps) {
-  const { user } = useAuth()
-  const router = useRouter()
-
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [success, setSuccess] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { startShift, loading } = useShiftContext()
+  const { toast } = useToast()
+  const [notes, setNotes] = useState("")
 
   const handleStartShift = async () => {
-    setIsProcessing(true)
-    setError(null)
-
     try {
-      // 1. Verificar si hay una sesión de caja abierta
-      // En una implementación real, verificaríamos con Firebase
-      const hasCashierSession = false // Simulamos que no hay sesión abierta
+      if (!tenantId) {
+        throw new Error("ID de inquilino no válido")
+      }
 
-      if (!hasCashierSession) {
-        // 2. Si no hay sesión de caja, redirigir a abrir caja
-        setSuccess(true)
+      await startShift({
+        notes,
+        startTime: Date.now(),
+      })
 
-        // Esperar un momento para mostrar el mensaje de éxito
-        setTimeout(() => {
-          onOpenChange(false)
-          onComplete()
-          router.push(`/admin/cashier?action=open`)
-        }, 1500)
-      } else {
-        // 3. Si ya hay una sesión, simplemente iniciar turno
-        setSuccess(true)
+      toast({
+        title: "Turno iniciado",
+        description: "El turno se ha iniciado correctamente.",
+      })
 
-        setTimeout(() => {
-          onOpenChange(false)
-          onComplete()
-        }, 1500)
+      onOpenChange(false)
+      if (onComplete) {
+        onComplete()
       }
     } catch (error) {
       console.error("Error al iniciar turno:", error)
-      setError("Ha ocurrido un error al iniciar el turno. Por favor, inténtalo de nuevo.")
-    } finally {
-      setIsProcessing(false)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo iniciar el turno. Por favor, inténtalo de nuevo.",
+      })
     }
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(newOpen) => {
-        if (!isProcessing) {
-          onOpenChange(newOpen)
-        }
-      }}
-    >
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Iniciar Turno</DialogTitle>
-          <DialogDescription>Inicia un nuevo turno para comenzar a recibir pedidos.</DialogDescription>
+          <DialogDescription>
+            Inicia un nuevo turno para comenzar a recibir pedidos. Después de iniciar el turno, se te pedirá abrir caja.
+          </DialogDescription>
         </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          {success ? (
-            <Alert className="border-green-500 bg-green-50">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <AlertDescription>Turno iniciado correctamente. Redirigiendo...</AlertDescription>
-            </Alert>
-          ) : (
-            <div className="text-sm text-muted-foreground">
-              <p>Al iniciar el turno:</p>
-              <ul className="list-disc pl-5 mt-2">
-                <li>Se verificará si hay una sesión de caja abierta</li>
-                <li>Si no hay sesión abierta, serás redirigido para abrir caja</li>
-                <li>Podrás comenzar a recibir y procesar pedidos</li>
-              </ul>
-            </div>
-          )}
-
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+        <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor="notes">Notas (opcional)</Label>
+            <Textarea
+              id="notes"
+              placeholder="Añade notas sobre este turno..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </div>
         </div>
-
-        <DialogFooter className="flex items-center justify-between sm:justify-between">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isProcessing || success}>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancelar
           </Button>
-          <Button
-            onClick={handleStartShift}
-            disabled={isProcessing || success}
-            className={isProcessing ? "opacity-80" : ""}
-          >
-            {isProcessing ? "Procesando..." : "Iniciar Turno"}
+          <Button onClick={handleStartShift} disabled={loading}>
+            {loading ? (
+              <>
+                <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent"></span>
+                Iniciando...
+              </>
+            ) : (
+              "Iniciar Turno"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
