@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { BarChart3, Home, LogOut, Settings, ShoppingCart, Users, User, Store, Menu } from "lucide-react"
+import { BarChart3, Home, LogOut, Settings, ShoppingCart, Users, User, Store, Menu, List } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
@@ -40,6 +40,7 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
     { href: `/admin/dashboard`, label: "Dashboard", icon: Home },
     { href: `/admin/profile`, label: "Perfil Personal", icon: User },
     { href: `/admin/restaurant`, label: "Datos del Local", icon: Store },
+    { href: `/admin/categories`, label: "Categorías", icon: List },
     { href: `/admin/users`, label: "Usuarios", icon: Users },
     { href: `/admin/products`, label: "Productos", icon: ShoppingCart },
     { href: `/admin/stats`, label: "Estadísticas", icon: BarChart3 },
