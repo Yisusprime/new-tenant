@@ -5,34 +5,46 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
-import Image from "next/image"
-import { collection, getDocs, query, where } from "firebase/firestore"
-import { db } from "@/lib/firebase-config"
+// Modificar la importación de Firebase para usar rtdb en lugar de db
+import { ref, get } from "firebase/database"
+//import { collection, getDocs, query, where } from "firebase/firestore"
+import { rtdb } from "@/lib/firebase-config"
 
+// Actualizar la función para obtener productos desde rtdb
 export function ProductSelector({ isOpen, onOpenChange, tenantId, onProductSelect, selectedCategoryId = null }) {
   const [products, setProducts] = useState([])
   const [filteredProducts, setFilteredProducts] = useState([])
   const [searchTerm, setSearchTerm] = useState("")
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     const fetchProducts = async () => {
+      if (!tenantId) return
+
       try {
-        const productsRef = collection(db, `tenants/${tenantId}/products`)
-        let productsQuery = productsRef
+        setLoading(true)
+        setError(null)
 
-        if (selectedCategoryId) {
-          productsQuery = query(productsRef, where("categoryId", "==", selectedCategoryId))
-        }
+        // Usar rtdb en lugar de Firestore
+        const productsRef = ref(rtdb, `tenants/${tenantId}/products`)
+        const snapshot = await get(productsRef)
+        const productsData = snapshot.val() || {}
 
-        const snapshot = await getDocs(productsQuery)
-        const productsData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
+        console.log("Productos obtenidos:", productsData)
+
+        const productsArray = Object.keys(productsData).map((key) => ({
+          id: key,
+          ...productsData[key],
         }))
-        setProducts(productsData)
-        setFilteredProducts(productsData)
-      } catch (error) {
-        console.error("Error fetching products:", error)
+
+        setProducts(productsArray)
+        setFilteredProducts(productsArray)
+        setLoading(false)
+      } catch (err) {
+        console.error("Error al cargar productos:", err)
+        setError("Error al cargar productos")
+        setLoading(false)
       }
     }
 
@@ -52,55 +64,55 @@ export function ProductSelector({ isOpen, onOpenChange, tenantId, onProductSelec
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent side="left" className="w-full sm:max-w-md overflow-y-auto">
-        <SheetHeader className="mb-4">
+      <SheetContent side="left" className="w-[95vw] sm:w-[90vw] md:w-[80vw] lg:w-[75vw] xl:w-[70vw] p-0">
+        <SheetHeader className="p-4 border-b">
           <SheetTitle>Seleccionar Producto</SheetTitle>
         </SheetHeader>
 
-        <div className="relative mb-4">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Buscar productos..."
-            className="pl-8"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="p-4 border-b">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Buscar productos..."
+              className="pl-8"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 mt-4">
-          {filteredProducts.map((product) => (
-            <Button
-              key={product.id}
-              variant="outline"
-              className="flex items-center justify-start h-auto p-3 text-left"
-              onClick={() => {
-                onProductSelect(product)
-                onOpenChange(false)
-              }}
-            >
-              <div className="flex items-center gap-3 w-full">
-                {product.imageUrl && (
-                  <div className="flex-shrink-0">
-                    <Image
-                      src={product.imageUrl || "/placeholder.svg"}
-                      alt={product.name}
-                      width={50}
-                      height={50}
-                      className="rounded-md object-cover"
-                    />
-                  </div>
-                )}
-                <div className="flex-1">
-                  <h3 className="font-medium">{product.name}</h3>
-                  <p className="text-sm text-muted-foreground">${product.price.toFixed(2)}</p>
-                </div>
-              </div>
-            </Button>
-          ))}
-
-          {filteredProducts.length === 0 && (
+        <div className="flex-grow overflow-auto p-4">
+          {loading ? (
+            <div className="flex items-center justify-center h-40">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : error ? (
+            <div className="text-center py-8 text-destructive">{error}</div>
+          ) : filteredProducts.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">No se encontraron productos</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {filteredProducts.map((product) => (
+                <Button
+                  key={product.id}
+                  variant="outline"
+                  className="h-auto p-4 flex flex-col items-start text-left"
+                  onClick={() => {
+                    onProductSelect(product)
+                    onOpenChange(false)
+                  }}
+                >
+                  <div className="w-full">
+                    <div className="font-medium mb-1">{product.name}</div>
+                    <div className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                      {product.description || "Sin descripción"}
+                    </div>
+                    <div className="font-bold">${product.price?.toFixed(2) || "0.00"}</div>
+                  </div>
+                </Button>
+              ))}
+            </div>
           )}
         </div>
       </SheetContent>

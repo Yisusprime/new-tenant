@@ -169,13 +169,14 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
     setProductSelectorOpen(false)
   }
 
-  const handleAddProduct = (product: Product) => {
-    const newItem: OrderItem = {
+  // Actualizar la función handleAddProduct para manejar correctamente los productos
+  const handleAddProduct = (product) => {
+    const newItem = {
       id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       productId: product.id,
       productName: product.name,
       quantity: 1,
-      price: product.price,
+      price: product.price || 0,
       discount: 0,
       notes: "",
       extras: [],
@@ -538,12 +539,15 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
 
       <div className="flex-grow overflow-auto">
         <div className="space-y-4">
+          {/* Actualizar el botón para abrir el selector de productos */}
           <div className="flex justify-between items-center">
             <h3 className="font-medium">Productos</h3>
-            <Button variant="outline" onClick={() => setIsProductSelectorOpen(true)}>
-              Agregar Producto
+            <Button onClick={() => setIsProductSelectorOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Añadir Producto
             </Button>
-            {/* <Sheet open={productSelectorOpen} onOpenChange={setProductSelectorOpen}>
+          </div>
+          {/* <Sheet open={productSelectorOpen} onOpenChange={setProductSelectorOpen}>
               <SheetContent side="left" className="w-[95vw] sm:w-[90vw] md:w-[80vw] lg:w-[70vw] p-0 max-w-[1000px]">
                 <div className="flex flex-col h-full">
                   <SheetHeader className="p-4 border-b">
@@ -677,109 +681,106 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
                 </div>
               </SheetContent>
             </Sheet> */}
-            {/* Y donde se renderiza el selector de productos, reemplázalo con: */}
-            <ProductSelector
-              isOpen={isProductSelectorOpen}
-              onOpenChange={setIsProductSelectorOpen}
-              tenantId={tenantId}
-              selectedCategoryId={selectedCategoryId}
-              onProductSelect={(product) => {
-                // Aquí va la lógica para agregar el producto seleccionado al pedido
-                handleAddProduct(product)
-              }}
-            />
-          </div>
+          {/* Y donde se renderiza el selector de productos, reemplázalo con: */}
+          {/* Asegurarse de que el ProductSelector reciba los parámetros correctos */}
+          <ProductSelector
+            isOpen={isProductSelectorOpen}
+            onOpenChange={setIsProductSelectorOpen}
+            tenantId={tenantId}
+            selectedCategoryId={selectedCategory}
+            onProductSelect={handleAddProduct}
+          />
+        </div>
 
-          <div className="space-y-2 max-h-[300px] overflow-y-auto">
-            {selectedItems.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground border rounded-md">
-                No hay productos seleccionados
-              </div>
-            ) : (
-              selectedItems.map((item) => (
-                <Card key={item.id} className="p-3">
-                  <div className="flex justify-between items-center">
-                    <div className="font-medium">{item.productName}</div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => handleUpdateItemQuantity(item.id, item.quantity - 1)}
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span>{item.quantity}</span>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => handleUpdateItemQuantity(item.id, item.quantity + 1)}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="h-6 w-6 ml-2"
-                        onClick={() => handleRemoveItem(item.id)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
+        <div className="space-y-2 max-h-[300px] overflow-y-auto">
+          {selectedItems.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground border rounded-md">
+              No hay productos seleccionados
+            </div>
+          ) : (
+            selectedItems.map((item) => (
+              <Card key={item.id} className="p-3">
+                <div className="flex justify-between items-center">
+                  <div className="font-medium">{item.productName}</div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => handleUpdateItemQuantity(item.id, item.quantity - 1)}
+                    >
+                      <Minus className="h-3 w-3" />
+                    </Button>
+                    <span>{item.quantity}</span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => handleUpdateItemQuantity(item.id, item.quantity + 1)}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="h-6 w-6 ml-2"
+                      onClick={() => handleRemoveItem(item.id)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
                   </div>
+                </div>
 
-                  {item.extras.length > 0 && (
-                    <div className="mt-2 pl-4 border-l-2 border-muted">
-                      {item.extras.map((extra) => (
-                        <div key={extra.id} className="flex justify-between items-center text-sm">
-                          <span>{extra.name}</span>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-5 w-5"
-                              onClick={() => handleUpdateExtraQuantity(item.id, extra.id, extra.quantity - 1)}
-                            >
-                              <Minus className="h-2 w-2" />
-                            </Button>
-                            <span>{extra.quantity}</span>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-5 w-5"
-                              onClick={() => handleUpdateExtraQuantity(item.id, extra.id, extra.quantity + 1)}
-                            >
-                              <Plus className="h-2 w-2" />
-                            </Button>
-                            <span>${(extra.price * extra.quantity).toFixed(2)}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="mt-2">
-                    <div className="text-sm font-medium">Añadir extras:</div>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {extras
-                        .filter((extra) => extra.available)
-                        .map((extra) => (
-                          <Badge
-                            key={extra.id}
-                            variant="outline"
-                            className="cursor-pointer hover:bg-primary hover:text-primary-foreground"
-                            onClick={() => handleAddExtra(item.id, extra)}
+                {item.extras.length > 0 && (
+                  <div className="mt-2 pl-4 border-l-2 border-muted">
+                    {item.extras.map((extra) => (
+                      <div key={extra.id} className="flex justify-between items-center text-sm">
+                        <span>{extra.name}</span>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5"
+                            onClick={() => handleUpdateExtraQuantity(item.id, extra.id, extra.quantity - 1)}
                           >
-                            {extra.name} +${extra.price.toFixed(2)}
-                          </Badge>
-                        ))}
-                    </div>
+                            <Minus className="h-2 w-2" />
+                          </Button>
+                          <span>{extra.quantity}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5"
+                            onClick={() => handleUpdateExtraQuantity(item.id, extra.id, extra.quantity + 1)}
+                          >
+                            <Plus className="h-2 w-2" />
+                          </Button>
+                          <span>${(extra.price * extra.quantity).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </Card>
-              ))
-            )}
-          </div>
+                )}
+
+                <div className="mt-2">
+                  <div className="text-sm font-medium">Añadir extras:</div>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {extras
+                      .filter((extra) => extra.available)
+                      .map((extra) => (
+                        <Badge
+                          key={extra.id}
+                          variant="outline"
+                          className="cursor-pointer hover:bg-primary hover:text-primary-foreground"
+                          onClick={() => handleAddExtra(item.id, extra)}
+                        >
+                          {extra.name} +${extra.price.toFixed(2)}
+                        </Badge>
+                      ))}
+                  </div>
+                </div>
+              </Card>
+            ))
+          )}
         </div>
       </div>
 
