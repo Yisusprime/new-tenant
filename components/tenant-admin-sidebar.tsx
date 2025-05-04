@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { BarChart3, Home, LogOut, Settings, ShoppingCart, Users, User, Store, Menu, List } from "lucide-react"
+import { BarChart3, Home, LogOut, Settings, Users, User, Store, Menu, List, Coffee, Plus } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
@@ -36,14 +36,15 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
     }
   }, [])
 
-  // Actualizar el array de enlaces para incluir la página de productos
+  // Actualizar el array de enlaces para incluir la página de extras
 
   const links = [
     { href: `/admin/dashboard`, label: "Dashboard", icon: Home },
     { href: `/admin/profile`, label: "Perfil Personal", icon: User },
     { href: `/admin/restaurant`, label: "Datos del Local", icon: Store },
     { href: `/admin/categories`, label: "Categorías", icon: List },
-    { href: `/admin/products`, label: "Productos", icon: ShoppingCart },
+    { href: `/admin/extras`, label: "Extras", icon: Plus },
+    { href: `/admin/products`, label: "Productos", icon: Coffee },
     { href: `/admin/users`, label: "Usuarios", icon: Users },
     { href: `/admin/stats`, label: "Estadísticas", icon: BarChart3 },
     { href: `/admin/settings`, label: "Configuración", icon: Settings },

@@ -7,7 +7,7 @@ import { Plus, Edit, Trash2, ChevronRight, ImageIcon, Loader2, Star } from "luci
 import { useProducts } from "./product-context"
 import { ProductForm } from "./product-form"
 import { DeleteConfirmDialog } from "../categories/delete-confirm-dialog"
-import { ExtrasList } from "./extras-list"
+import { ProductExtrasManager } from "./product-extras-manager"
 import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
@@ -202,7 +202,7 @@ export function ProductList() {
                   </div>
                   {expandedProduct === product.id && (
                     <div className="border-t p-4 bg-muted/30">
-                      <ExtrasList productId={product.id} />
+                      <ProductExtrasManager productId={product.id} />
                     </div>
                   )}
                 </CardContent>
@@ -229,7 +229,7 @@ export function ProductList() {
         onOpenChange={setDeleteDialogOpen}
         onConfirm={confirmDeleteProduct}
         title="Eliminar producto"
-        description="¿Estás seguro de que quieres eliminar este producto? Esta acción no se puede deshacer y también eliminará todos los extras asociados."
+        description="¿Estás seguro de que quieres eliminar este producto? Esta acción no se puede deshacer."
       />
     </div>
   )

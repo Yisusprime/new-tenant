@@ -6,12 +6,10 @@ import { TenantAdminSidebar } from "@/components/tenant-admin-sidebar"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2 } from "lucide-react"
-import { ProductList } from "@/components/products/product-list"
-import { ProductProvider } from "@/components/products/product-context"
-import { CategoryProvider } from "@/components/categories/category-context"
+import { ExtraList } from "@/components/extras/extra-list"
 import { ExtraProvider } from "@/components/extras/extra-context"
 
-export default function ProductsPage() {
+export default function ExtrasPage() {
   const { user, loading, checkUserRole } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
@@ -60,17 +58,13 @@ export default function ProductsPage() {
       <TenantAdminSidebar tenantid={tenantId} />
       <div className="flex-1 p-4 md:p-8 overflow-auto w-full">
         <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold">Productos</h1>
-          <p className="text-muted-foreground">Gestiona los productos de tu menú</p>
+          <h1 className="text-2xl md:text-3xl font-bold">Extras</h1>
+          <p className="text-muted-foreground">Gestiona los extras que pueden añadirse a tus productos</p>
         </div>
 
-        <CategoryProvider tenantId={tenantId}>
-          <ExtraProvider tenantId={tenantId}>
-            <ProductProvider tenantId={tenantId}>
-              <ProductList />
-            </ProductProvider>
-          </ExtraProvider>
-        </CategoryProvider>
+        <ExtraProvider tenantId={tenantId}>
+          <ExtraList />
+        </ExtraProvider>
       </div>
     </div>
   )

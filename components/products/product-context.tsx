@@ -6,13 +6,11 @@ import { ref, onValue, push, set, remove, update } from "firebase/database"
 import { rtdb } from "@/lib/firebase-config"
 import { useToast } from "@/components/ui/use-toast"
 
-export type Extra = {
-  id: string
-  name: string
-  description?: string
-  price: number
-  imageUrl?: string
-  available: boolean
+export type ProductExtra = {
+  extraId: string
+  included: boolean // Si está incluido por defecto
+  required: boolean // Si es obligatorio
+  price?: number // Precio específico para este producto (anula el precio del extra)
 }
 
 export type Product = {
@@ -24,22 +22,29 @@ export type Product = {
   categoryId?: string
   available: boolean
   featured: boolean
-  extras: Record<string, Extra>
+  productExtras: Record<string, ProductExtra> // Asociaciones con extras
+}
+
+export type Extra = {
+  id: string
+  name: string
+  description?: string
+  price: number
+  imageUrl?: string
+  available: boolean
 }
 
 type ProductContextType = {
   products: Product[]
   loading: boolean
-  addProduct: (product: Omit<Product, "id" | "extras">) => Promise<void>
-  updateProduct: (id: string, product: Partial<Omit<Product, "id" | "extras">>) => Promise<void>
+  addProduct: (product: Omit<Product, "id" | "productExtras">) => Promise<string | null> // Devuelve el ID del producto creado
+  updateProduct: (id: string, product: Partial<Omit<Product, "id" | "productExtras">>) => Promise<void>
   deleteProduct: (id: string) => Promise<void>
-  addExtra: (productId: string, extra: Omit<Extra, "id">) => Promise<void>
-  updateExtra: (productId: string, extraId: string, extra: Partial<Omit<Extra, "id">>) => Promise<void>
-  deleteExtra: (productId: string, extraId: string) => Promise<void>
+  addProductExtra: (productId: string, productExtra: ProductExtra) => Promise<void>
+  updateProductExtra: (productId: string, extraId: string, productExtra: Partial<ProductExtra>) => Promise<void>
+  removeProductExtra: (productId: string, extraId: string) => Promise<void>
   selectedProduct: Product | null
   setSelectedProduct: (product: Product | null) => void
-  selectedExtra: { product: Product; extra: Extra } | null
-  setSelectedExtra: (data: { product: Product; extra: Extra } | null) => void
   tenantId: string
 }
 
@@ -57,10 +62,6 @@ export const ProductProvider: React.FC<{ children: React.ReactNode; tenantId: st
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
-  const [selectedExtra, setSelectedExtra] = useState<{
-    product: Product
-    extra: Extra
-  } | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -85,7 +86,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode; tenantId: st
               categoryId: data[key].categoryId || "",
               available: data[key].available !== false, // Por defecto true
               featured: data[key].featured || false,
-              extras: data[key].extras || {},
+              productExtras: data[key].productExtras || {},
             }
             productsArray.push(product)
           })
@@ -108,17 +109,18 @@ export const ProductProvider: React.FC<{ children: React.ReactNode; tenantId: st
     return () => unsubscribe()
   }, [tenantId, toast])
 
-  const addProduct = async (product: Omit<Product, "id" | "extras">) => {
+  const addProduct = async (product: Omit<Product, "id" | "productExtras">): Promise<string | null> => {
     try {
       const newProductRef = push(ref(rtdb, `tenants/${tenantId}/products`))
       await set(newProductRef, {
         ...product,
-        extras: {},
+        productExtras: {},
       })
       toast({
         title: "Producto añadido",
         description: "El producto se ha añadido correctamente",
       })
+      return newProductRef.key
     } catch (error) {
       console.error("Error al añadir producto:", error)
       toast({
@@ -126,10 +128,11 @@ export const ProductProvider: React.FC<{ children: React.ReactNode; tenantId: st
         description: "No se pudo añadir el producto",
         variant: "destructive",
       })
+      return null
     }
   }
 
-  const updateProduct = async (id: string, product: Partial<Omit<Product, "id" | "extras">>) => {
+  const updateProduct = async (id: string, product: Partial<Omit<Product, "id" | "productExtras">>) => {
     try {
       const productRef = ref(rtdb, `tenants/${tenantId}/products/${id}`)
       await update(productRef, product)
@@ -165,55 +168,56 @@ export const ProductProvider: React.FC<{ children: React.ReactNode; tenantId: st
     }
   }
 
-  const addExtra = async (productId: string, extra: Omit<Extra, "id">) => {
+  const addProductExtra = async (productId: string, productExtra: ProductExtra) => {
     try {
-      const newExtraRef = push(ref(rtdb, `tenants/${tenantId}/products/${productId}/extras`))
-      await set(newExtraRef, extra)
+      const { extraId } = productExtra
+      const productExtraRef = ref(rtdb, `tenants/${tenantId}/products/${productId}/productExtras/${extraId}`)
+      await set(productExtraRef, productExtra)
       toast({
-        title: "Extra añadido",
-        description: "El extra se ha añadido correctamente",
+        title: "Extra añadido al producto",
+        description: "El extra se ha asociado correctamente al producto",
       })
     } catch (error) {
-      console.error("Error al añadir extra:", error)
+      console.error("Error al añadir extra al producto:", error)
       toast({
         title: "Error",
-        description: "No se pudo añadir el extra",
+        description: "No se pudo añadir el extra al producto",
         variant: "destructive",
       })
     }
   }
 
-  const updateExtra = async (productId: string, extraId: string, extra: Partial<Omit<Extra, "id">>) => {
+  const updateProductExtra = async (productId: string, extraId: string, productExtra: Partial<ProductExtra>) => {
     try {
-      const extraRef = ref(rtdb, `tenants/${tenantId}/products/${productId}/extras/${extraId}`)
-      await update(extraRef, extra)
+      const productExtraRef = ref(rtdb, `tenants/${tenantId}/products/${productId}/productExtras/${extraId}`)
+      await update(productExtraRef, productExtra)
       toast({
         title: "Extra actualizado",
-        description: "El extra se ha actualizado correctamente",
+        description: "El extra del producto se ha actualizado correctamente",
       })
     } catch (error) {
-      console.error("Error al actualizar extra:", error)
+      console.error("Error al actualizar extra del producto:", error)
       toast({
         title: "Error",
-        description: "No se pudo actualizar el extra",
+        description: "No se pudo actualizar el extra del producto",
         variant: "destructive",
       })
     }
   }
 
-  const deleteExtra = async (productId: string, extraId: string) => {
+  const removeProductExtra = async (productId: string, extraId: string) => {
     try {
-      const extraRef = ref(rtdb, `tenants/${tenantId}/products/${productId}/extras/${extraId}`)
-      await remove(extraRef)
+      const productExtraRef = ref(rtdb, `tenants/${tenantId}/products/${productId}/productExtras/${extraId}`)
+      await remove(productExtraRef)
       toast({
         title: "Extra eliminado",
-        description: "El extra se ha eliminado correctamente",
+        description: "El extra se ha eliminado del producto correctamente",
       })
     } catch (error) {
-      console.error("Error al eliminar extra:", error)
+      console.error("Error al eliminar extra del producto:", error)
       toast({
         title: "Error",
-        description: "No se pudo eliminar el extra",
+        description: "No se pudo eliminar el extra del producto",
         variant: "destructive",
       })
     }
@@ -227,13 +231,11 @@ export const ProductProvider: React.FC<{ children: React.ReactNode; tenantId: st
         addProduct,
         updateProduct,
         deleteProduct,
-        addExtra,
-        updateExtra,
-        deleteExtra,
+        addProductExtra,
+        updateProductExtra,
+        removeProductExtra,
         selectedProduct,
         setSelectedProduct,
-        selectedExtra,
-        setSelectedExtra,
         tenantId,
       }}
     >
