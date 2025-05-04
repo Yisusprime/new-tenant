@@ -2,8 +2,8 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { collection, query, orderBy, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc } from "firebase/firestore"
-import { db } from "@/lib/firebase-config"
+import { ref, get, set, push, remove, update } from "firebase/database"
+import { rtdb } from "@/lib/firebase-config"
 import type { Table } from "@/lib/types/orders"
 
 interface TableContextProps {
@@ -49,14 +49,22 @@ export const TableProvider: React.FC<TableProviderProps> = ({ children, tenantId
         return
       }
 
-      const tablesCollectionRef = collection(db, `tenants/${tenantId}/tables`)
-      const q = query(tablesCollectionRef, orderBy("number", "asc"))
-      const querySnapshot = await getDocs(q)
+      // Usar Realtime Database en lugar de Firestore
+      const tablesRef = ref(rtdb, `tenants/${tenantId}/tables`)
+      console.log(`Ruta de tablas: tenants/${tenantId}/tables`)
 
-      const fetchedTables: Table[] = []
-      querySnapshot.forEach((doc) => {
-        fetchedTables.push({ id: doc.id, ...doc.data() } as Table)
-      })
+      const tablesSnapshot = await get(tablesRef)
+      const tablesData = tablesSnapshot.val() || {}
+
+      console.log("Datos de tablas cargados:", tablesData)
+
+      const fetchedTables: Table[] = Object.keys(tablesData).map((key) => ({
+        id: key,
+        ...tablesData[key],
+      }))
+
+      // Ordenar las mesas por número
+      fetchedTables.sort((a, b) => a.number - b.number)
 
       console.log("Fetched tables:", fetchedTables.length)
       setTables(fetchedTables)
@@ -85,7 +93,11 @@ export const TableProvider: React.FC<TableProviderProps> = ({ children, tenantId
       }
 
       console.log(`Añadiendo mesa para el tenant: ${tenantId}`)
-      const tablesCollectionRef = collection(db, `tenants/${tenantId}/tables`)
+
+      // Usar Realtime Database en lugar de Firestore
+      const tablesRef = ref(rtdb, `tenants/${tenantId}/tables`)
+      const newTableRef = push(tablesRef)
+
       const timestamp = Date.now()
       const newTable = {
         ...tableData,
@@ -93,9 +105,9 @@ export const TableProvider: React.FC<TableProviderProps> = ({ children, tenantId
         updatedAt: timestamp,
       }
 
-      const docRef = await addDoc(tablesCollectionRef, newTable)
+      await set(newTableRef, newTable)
       await fetchTables()
-      return docRef.id
+      return newTableRef.key || ""
     } catch (err) {
       console.error("Error adding table:", err)
       setError("Error al añadir la mesa")
@@ -110,19 +122,23 @@ export const TableProvider: React.FC<TableProviderProps> = ({ children, tenantId
       }
 
       // Obtener el tenantId de la tabla existente o usar el proporcionado
-      const tenantIdFromTable = tables.find((t) => t.id === id)?.tenantId
-      const tenantIdToUse = tableData.tenantId || tenantIdFromTable || tenantId
-
-      if (!tenantIdToUse) {
-        throw new Error("No se pudo determinar el tenantId para actualizar la mesa")
-      }
+      const tenantIdToUse = tableData.tenantId || tenantId
 
       console.log(`Actualizando mesa para el tenant: ${tenantIdToUse}`)
-      const tableRef = doc(db, `tenants/${tenantIdToUse}/tables/${id}`)
-      await updateDoc(tableRef, {
+
+      // Usar Realtime Database en lugar de Firestore
+      const tableRef = ref(rtdb, `tenants/${tenantIdToUse}/tables/${id}`)
+
+      // Obtener datos actuales para no sobrescribir campos que no se están actualizando
+      const currentTableSnapshot = await get(tableRef)
+      const currentTable = currentTableSnapshot.val() || {}
+
+      await update(tableRef, {
+        ...currentTable,
         ...tableData,
         updatedAt: Date.now(),
       })
+
       await fetchTables()
     } catch (err) {
       console.error("Error updating table:", err)
@@ -137,21 +153,12 @@ export const TableProvider: React.FC<TableProviderProps> = ({ children, tenantId
         throw new Error("No tenantId provided")
       }
 
-      // Obtener el tenantId de la tabla existente
-      const table = tables.find((t) => t.id === id)
-      if (!table) {
-        throw new Error("No se pudo determinar el tenantId para eliminar la mesa")
-      }
+      console.log(`Eliminando mesa para el tenant: ${tenantId}`)
 
-      const tenantIdToUse = table.tenantId || tenantId
+      // Usar Realtime Database en lugar de Firestore
+      const tableRef = ref(rtdb, `tenants/${tenantId}/tables/${id}`)
+      await remove(tableRef)
 
-      if (!tenantIdToUse) {
-        throw new Error("No se pudo determinar el tenantId para eliminar la mesa")
-      }
-
-      console.log(`Eliminando mesa para el tenant: ${tenantIdToUse}`)
-      const tableRef = doc(db, `tenants/${tenantIdToUse}/tables/${id}`)
-      await deleteDoc(tableRef)
       await fetchTables()
     } catch (err) {
       console.error("Error deleting table:", err)
@@ -166,11 +173,15 @@ export const TableProvider: React.FC<TableProviderProps> = ({ children, tenantId
         throw new Error("No tenantId provided")
       }
 
-      const tableRef = doc(db, `tenants/${tenantId}/tables/${id}`)
-      const tableDoc = await getDoc(tableRef)
+      // Usar Realtime Database en lugar de Firestore
+      const tableRef = ref(rtdb, `tenants/${tenantId}/tables/${id}`)
+      const tableSnapshot = await get(tableRef)
 
-      if (tableDoc.exists()) {
-        return { id: tableDoc.id, ...tableDoc.data() } as Table
+      if (tableSnapshot.exists()) {
+        return {
+          id,
+          ...tableSnapshot.val(),
+        } as Table
       }
 
       return null

@@ -388,6 +388,7 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
     <div className="flex flex-col h-full">
       <div className="flex-shrink-0 border-b pb-4">
         <h2 className="text-xl font-bold">Nuevo Pedido</h2>
+        <p className="text-sm text-muted-foreground">Tenant ID: {tenantId}</p>
       </div>
 
       <Tabs defaultValue="dine-in" className="flex-grow overflow-hidden flex flex-col">
