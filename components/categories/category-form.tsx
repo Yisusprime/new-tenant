@@ -18,7 +18,7 @@ interface CategoryFormProps {
 }
 
 export function CategoryForm({ categoryId, onCancel }: CategoryFormProps) {
-  const { categories, addCategory, updateCategory } = useCategories()
+  const { categories, addCategory, updateCategory, tenantId } = useCategories()
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [imageUrl, setImageUrl] = useState("")
@@ -94,7 +94,12 @@ export function CategoryForm({ categoryId, onCancel }: CategoryFormProps) {
 
           <div className="space-y-2">
             <Label>Imagen (opcional)</Label>
-            <ImageUpload currentImageUrl={imageUrl} onImageUploaded={handleImageUploaded} folder={`categories`} />
+            <ImageUpload
+              currentImageUrl={imageUrl}
+              onImageUploaded={handleImageUploaded}
+              folder="categories"
+              tenantId={tenantId} // Pasamos el tenantId
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

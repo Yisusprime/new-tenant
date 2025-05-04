@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Loader2, Upload, X, ImageIcon } from "lucide-react"
@@ -12,13 +12,28 @@ interface ImageUploadProps {
   currentImageUrl: string
   onImageUploaded: (url: string) => void
   folder: string
+  tenantId?: string // Añadimos el tenantId como prop opcional
 }
 
-export function ImageUpload({ currentImageUrl, onImageUploaded, folder }: ImageUploadProps) {
+export function ImageUpload({ currentImageUrl, onImageUploaded, folder, tenantId }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string>(currentImageUrl)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
+  const [localTenantId, setLocalTenantId] = useState<string | null>(tenantId || null)
+
+  // Si no se proporciona tenantId, intentamos obtenerlo del hostname
+  useEffect(() => {
+    if (!tenantId) {
+      const hostname = window.location.hostname
+      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+
+      if (hostname.includes(`.${rootDomain}`) && !hostname.startsWith("www.")) {
+        const subdomain = hostname.replace(`.${rootDomain}`, "")
+        setLocalTenantId(subdomain)
+      }
+    }
+  }, [tenantId])
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -57,7 +72,10 @@ export function ImageUpload({ currentImageUrl, onImageUploaded, folder }: ImageU
       // Crear FormData para enviar el archivo
       const formData = new FormData()
       formData.append("file", file)
-      formData.append("folder", folder)
+
+      // Incluir el tenantId en la ruta de la carpeta
+      const folderPath = localTenantId ? `${localTenantId}/${folder}` : folder
+      formData.append("folder", folderPath)
 
       // Enviar el archivo a nuestro endpoint de API
       const response = await fetch("/api/upload", {

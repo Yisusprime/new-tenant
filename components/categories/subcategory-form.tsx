@@ -19,7 +19,7 @@ interface SubcategoryFormProps {
 }
 
 export function SubcategoryForm({ categoryId, subcategoryId, onCancel }: SubcategoryFormProps) {
-  const { categories, addSubcategory, updateSubcategory } = useCategories()
+  const { categories, addSubcategory, updateSubcategory, tenantId } = useCategories()
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [imageUrl, setImageUrl] = useState("")
@@ -95,7 +95,12 @@ export function SubcategoryForm({ categoryId, subcategoryId, onCancel }: Subcate
 
           <div className="space-y-2">
             <Label>Imagen (opcional)</Label>
-            <ImageUpload currentImageUrl={imageUrl} onImageUploaded={handleImageUploaded} folder={`subcategories`} />
+            <ImageUpload
+              currentImageUrl={imageUrl}
+              onImageUploaded={handleImageUploaded}
+              folder="subcategories"
+              tenantId={tenantId} // Pasamos el tenantId
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

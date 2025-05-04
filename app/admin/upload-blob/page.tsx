@@ -83,7 +83,8 @@ export default function BlobUploadPage() {
               <CardContent>
                 <BlobImageUploader
                   onImageUploaded={(url) => setUploadedImageUrl(url)}
-                  folder={`${tenantId}/test-uploads`}
+                  folder="test-uploads"
+                  tenantId={tenantId} // Pasamos el tenantId
                 />
               </CardContent>
             </Card>
@@ -98,8 +99,9 @@ export default function BlobUploadPage() {
               <CardContent>
                 <BlobImageUploader
                   onImageUploaded={(url) => setUploadedImageUrl(url)}
-                  folder={`${tenantId}/test-uploads`}
+                  folder="test-uploads"
                   aspectRatio="square"
+                  tenantId={tenantId} // Pasamos el tenantId
                 />
               </CardContent>
             </Card>
@@ -114,8 +116,9 @@ export default function BlobUploadPage() {
               <CardContent>
                 <BlobImageUploader
                   onImageUploaded={(url) => setUploadedImageUrl(url)}
-                  folder={`${tenantId}/test-uploads`}
+                  folder="test-uploads"
                   aspectRatio="wide"
+                  tenantId={tenantId} // Pasamos el tenantId
                 />
               </CardContent>
             </Card>
@@ -130,8 +133,9 @@ export default function BlobUploadPage() {
               <CardContent>
                 <BlobImageUploader
                   onImageUploaded={(url) => setUploadedImageUrl(url)}
-                  folder={`${tenantId}/test-uploads`}
+                  folder="test-uploads"
                   aspectRatio={4 / 3}
+                  tenantId={tenantId} // Pasamos el tenantId
                 />
               </CardContent>
             </Card>

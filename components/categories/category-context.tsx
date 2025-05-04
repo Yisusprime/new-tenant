@@ -38,6 +38,7 @@ type CategoryContextType = {
   setSelectedCategory: (category: Category | null) => void
   selectedSubcategory: { category: Category; subcategory: Subcategory } | null
   setSelectedSubcategory: (data: { category: Category; subcategory: Subcategory } | null) => void
+  tenantId: string // Añadimos el tenantId al contexto
 }
 
 const CategoryContext = createContext<CategoryContextType | undefined>(undefined)
@@ -204,7 +205,7 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode; tenantId: s
       await remove(subcategoryRef)
       toast({
         title: "Subcategoría eliminada",
-        description: "La subcategoría se ha eliminado correctamente",
+        description: "La subcategoría se ha eliminada correctamente",
       })
     } catch (error) {
       console.error("Error al eliminar subcategoría:", error)
@@ -231,6 +232,7 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode; tenantId: s
         setSelectedCategory,
         selectedSubcategory,
         setSelectedSubcategory,
+        tenantId, // Pasamos el tenantId al contexto
       }}
     >
       {children}
