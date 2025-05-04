@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -9,11 +10,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { useShiftContext } from "./shift-context"
 import { useToast } from "@/components/ui/use-toast"
+import { useShiftContext } from "./shift-context"
 
 interface StartShiftDialogProps {
   open: boolean
@@ -23,19 +22,18 @@ interface StartShiftDialogProps {
 }
 
 export function StartShiftDialog({ open, onOpenChange, onComplete, tenantId }: StartShiftDialogProps) {
-  const { startShift, loading } = useShiftContext()
-  const { toast } = useToast()
   const [notes, setNotes] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { startShift } = useShiftContext()
+  const { toast } = useToast()
 
   const handleStartShift = async () => {
     try {
-      if (!tenantId) {
-        throw new Error("ID de inquilino no válido")
-      }
+      setIsSubmitting(true)
 
+      // Iniciar turno
       await startShift({
         notes,
-        startTime: Date.now(),
       })
 
       toast({
@@ -44,52 +42,50 @@ export function StartShiftDialog({ open, onOpenChange, onComplete, tenantId }: S
       })
 
       onOpenChange(false)
+
+      // Llamar al callback si existe
       if (onComplete) {
         onComplete()
       }
     } catch (error) {
       console.error("Error al iniciar turno:", error)
       toast({
-        variant: "destructive",
         title: "Error",
-        description: "No se pudo iniciar el turno. Por favor, inténtalo de nuevo.",
+        description: "No se pudo iniciar el turno. Inténtalo de nuevo.",
+        variant: "destructive",
       })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Iniciar Turno</DialogTitle>
           <DialogDescription>
-            Inicia un nuevo turno para comenzar a recibir pedidos. Después de iniciar el turno, se te pedirá abrir caja.
+            Estás a punto de iniciar un nuevo turno. Después de iniciar el turno, podrás comenzar a recibir pedidos.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label htmlFor="notes">Notas (opcional)</Label>
+
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
             <Textarea
-              id="notes"
-              placeholder="Añade notas sobre este turno..."
+              placeholder="Notas adicionales (opcional)"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
+              className="min-h-[100px]"
             />
           </div>
         </div>
+
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Cancelar
           </Button>
-          <Button onClick={handleStartShift} disabled={loading}>
-            {loading ? (
-              <>
-                <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent"></span>
-                Iniciando...
-              </>
-            ) : (
-              "Iniciar Turno"
-            )}
+          <Button onClick={handleStartShift} disabled={isSubmitting}>
+            {isSubmitting ? "Iniciando..." : "Iniciar Turno"}
           </Button>
         </DialogFooter>
       </DialogContent>

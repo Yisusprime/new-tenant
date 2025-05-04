@@ -1,8 +1,8 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { ref, push, get, update } from "firebase/database"
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
+import { ref, push, get, update, onValue, off } from "firebase/database"
 import { rtdb } from "@/lib/firebase-config"
 import type { Shift, ShiftContextType } from "@/lib/types/shift"
 import { useAuth } from "@/lib/auth-context"
@@ -29,10 +29,66 @@ export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children, tenantId
   const [error, setError] = useState<string | null>(null)
   const { user } = useAuth()
 
-  const fetchShifts = async () => {
+  // Usar un listener en tiempo real para los turnos
+  useEffect(() => {
+    if (!tenantId) {
+      setLoading(false)
+      setError("No se proporcionó un ID de inquilino")
+      return
+    }
+
+    setLoading(true)
+    console.log("Setting up real-time listener for shifts, tenant:", tenantId)
+
+    const shiftsRef = ref(rtdb, `tenants/${tenantId}/shifts`)
+
+    const handleShiftsUpdate = (snapshot: any) => {
+      try {
+        const shiftsData = snapshot.val() || {}
+        console.log("Real-time shifts data update:", shiftsData)
+
+        const fetchedShifts: Shift[] = Object.keys(shiftsData).map((key) => ({
+          id: key,
+          ...shiftsData[key],
+        }))
+
+        // Ordenar los turnos por fecha de inicio (más recientes primero)
+        fetchedShifts.sort((a, b) => (b.startTime || 0) - (a.startTime || 0))
+
+        setShifts(fetchedShifts)
+
+        // Buscar el turno activo actual
+        const activeShift = fetchedShifts.find((shift) => shift.status === "active")
+        console.log("Active shift found:", activeShift)
+        setCurrentShift(activeShift || null)
+
+        setError(null)
+      } catch (err) {
+        console.error("Error processing shifts data:", err)
+        setError("Error al procesar los datos de turnos")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    // Establecer el listener
+    onValue(shiftsRef, handleShiftsUpdate, (err) => {
+      console.error("Firebase shifts listener error:", err)
+      setError("Error en la conexión con la base de datos")
+      setLoading(false)
+    })
+
+    // Limpiar el listener cuando el componente se desmonte
+    return () => {
+      console.log("Cleaning up shifts listener")
+      off(shiftsRef)
+    }
+  }, [tenantId])
+
+  const fetchShifts = useCallback(async () => {
     try {
       setLoading(true)
-      console.log("Fetching shifts for tenant:", tenantId)
+      console.log("Manually fetching shifts for tenant:", tenantId)
 
       if (!tenantId) {
         console.error("No tenantId provided to ShiftProvider")
@@ -60,6 +116,7 @@ export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children, tenantId
 
       // Buscar el turno activo actual
       const activeShift = fetchedShifts.find((shift) => shift.status === "active")
+      console.log("Active shift found:", activeShift)
       setCurrentShift(activeShift || null)
 
       setError(null)
@@ -68,15 +125,6 @@ export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children, tenantId
       setError("Error al cargar los turnos")
     } finally {
       setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    if (tenantId) {
-      fetchShifts()
-    } else {
-      setLoading(false)
-      setError("No se proporcionó un ID de inquilino")
     }
   }, [tenantId])
 
@@ -88,7 +136,8 @@ export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children, tenantId
 
       // Verificar si ya hay un turno activo
       if (currentShift) {
-        throw new Error("Ya hay un turno activo. Cierra el turno actual antes de iniciar uno nuevo.")
+        console.log("Ya existe un turno activo:", currentShift)
+        return currentShift.id // Devolver el ID del turno existente
       }
 
       console.log(`Iniciando turno para el tenant: ${tenantId}`)
@@ -106,16 +155,9 @@ export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children, tenantId
       }
 
       await update(newShiftRef, newShift)
+      console.log("Turno creado con ID:", newShiftRef.key)
 
-      // Actualizar el estado local
-      const newShiftWithId: Shift = {
-        id: newShiftRef.key || "",
-        ...newShift,
-      }
-
-      setCurrentShift(newShiftWithId)
-      setShifts([newShiftWithId, ...shifts])
-
+      // El listener se encargará de actualizar el estado
       return newShiftRef.key || ""
     } catch (err) {
       console.error("Error starting shift:", err)
@@ -157,9 +199,7 @@ export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children, tenantId
         },
       })
 
-      // Actualizar el estado local
-      setCurrentShift(null)
-      await fetchShifts() // Recargar todos los turnos
+      // El listener se encargará de actualizar el estado
     } catch (err) {
       console.error("Error ending shift:", err)
       throw err

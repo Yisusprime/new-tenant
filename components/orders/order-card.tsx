@@ -11,10 +11,9 @@ import { useOrderContext } from "./order-context"
 
 interface OrderCardProps {
   order: Order
-  activeTab: OrderStatus
 }
 
-export const OrderCard = ({ order, activeTab }: OrderCardProps) => {
+export const OrderCard = ({ order }: OrderCardProps) => {
   const { updateOrderStatus, completeOrder, cancelOrder } = useOrderContext()
 
   const getStatusIcon = (status: OrderStatus) => {
@@ -113,6 +112,57 @@ export const OrderCard = ({ order, activeTab }: OrderCardProps) => {
     }
   }
 
+  // Renderizar botones de acción según el estado actual
+  const renderActionButtons = () => {
+    switch (order.status) {
+      case "pending":
+        return (
+          <>
+            <Button size="sm" onClick={() => handleStatusChange(order.id, "preparing")}>
+              Preparar
+            </Button>
+            <Button size="sm" variant="destructive" onClick={() => handleCancelOrder(order.id)}>
+              Cancelar
+            </Button>
+          </>
+        )
+      case "preparing":
+        return (
+          <Button size="sm" className="w-full" onClick={() => handleStatusChange(order.id, "ready")}>
+            Marcar como Listo
+          </Button>
+        )
+      case "ready":
+        return (
+          <Button size="sm" className="w-full" onClick={() => handleStatusChange(order.id, "delivered")}>
+            Marcar como Entregado
+          </Button>
+        )
+      case "delivered":
+        return (
+          <Button size="sm" className="w-full" onClick={() => handleCompleteOrder(order.id)}>
+            Completar Pedido
+          </Button>
+        )
+      case "completed":
+        return (
+          <div className="flex items-center text-sm text-gray-500 w-full justify-center">
+            <Check className="h-4 w-4 mr-1 text-green-500" />
+            <span>Pedido completado</span>
+          </div>
+        )
+      case "cancelled":
+        return (
+          <div className="flex items-center text-sm text-gray-500 w-full justify-center">
+            <X className="h-4 w-4 mr-1 text-red-500" />
+            <span>Pedido cancelado</span>
+          </div>
+        )
+      default:
+        return null
+    }
+  }
+
   return (
     <Card key={order.id} className="overflow-hidden">
       <CardContent className="p-4">
@@ -165,48 +215,7 @@ export const OrderCard = ({ order, activeTab }: OrderCardProps) => {
           </div>
         )}
 
-        <div className="mt-4 flex justify-between">
-          {activeTab === "pending" && (
-            <>
-              <Button size="sm" onClick={() => handleStatusChange(order.id, "preparing")}>
-                Preparar
-              </Button>
-              <Button size="sm" variant="destructive" onClick={() => handleCancelOrder(order.id)}>
-                Cancelar
-              </Button>
-            </>
-          )}
-          {activeTab === "preparing" && (
-            <Button size="sm" className="w-full" onClick={() => handleStatusChange(order.id, "ready")}>
-              Marcar como Listo
-            </Button>
-          )}
-          {activeTab === "ready" && (
-            <Button size="sm" className="w-full" onClick={() => handleStatusChange(order.id, "delivered")}>
-              Marcar como Entregado
-            </Button>
-          )}
-          {activeTab === "delivered" && (
-            <Button size="sm" className="w-full" onClick={() => handleCompleteOrder(order.id)}>
-              Completar Pedido
-            </Button>
-          )}
-          {(activeTab === "completed" || activeTab === "cancelled") && (
-            <div className="flex items-center text-sm text-gray-500 w-full justify-center">
-              {activeTab === "completed" ? (
-                <>
-                  <Check className="h-4 w-4 mr-1 text-green-500" />
-                  <span>Pedido completado</span>
-                </>
-              ) : (
-                <>
-                  <X className="h-4 w-4 mr-1 text-red-500" />
-                  <span>Pedido cancelado</span>
-                </>
-              )}
-            </div>
-          )}
-        </div>
+        <div className="mt-4 flex justify-between">{renderActionButtons()}</div>
       </CardContent>
     </Card>
   )
