@@ -1,192 +1,268 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { ref, onValue, push, set, get, query, orderByChild, equalTo } from "firebase/database"
-import { db } from "@/lib/firebase-config"
-import type { Shift } from "@/lib/types/shift"
+import type React from "react"
 
-// Definir la interfaz para el contexto
-interface ShiftContextType {
-  currentShift: Shift | null
-  loading: boolean
-  error: string | null
-  startShift: (employeeId: string, notes: string) => Promise<Shift>
-  endShift: (notes: string) => Promise<void>
-  getShiftById: (shiftId: string) => Promise<Shift | null>
-}
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
+import { ref, push, get, update, onValue, off } from "firebase/database"
+import { rtdb } from "@/lib/firebase-config"
+import type { Shift, ShiftContextType } from "@/lib/types/shift"
+import { useAuth } from "@/lib/auth-context"
 
-// Crear el contexto con un valor por defecto
 const ShiftContext = createContext<ShiftContextType | undefined>(undefined)
 
-// Hook personalizado para usar el contexto
-export function useShiftContext() {
+export const useShiftContext = () => {
   const context = useContext(ShiftContext)
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useShiftContext must be used within a ShiftProvider")
   }
   return context
 }
 
-// Proveedor del contexto
-export function ShiftProvider({ children, tenantId }: { children: ReactNode; tenantId: string }) {
-  const [currentShift, setCurrentShift] = useState<Shift | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+interface ShiftProviderProps {
+  children: ReactNode
+  tenantId: string
+}
 
-  // Cargar el turno activo al montar el componente
+export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children, tenantId }) => {
+  const [currentShift, setCurrentShift] = useState<Shift | null>(null)
+  const [shifts, setShifts] = useState<Shift[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
+  const { user } = useAuth()
+
+  // Usar un listener en tiempo real para los turnos
   useEffect(() => {
     if (!tenantId) {
-      console.error("ShiftProvider: No tenant ID provided")
       setLoading(false)
+      setError("No se proporcionó un ID de inquilino")
       return
     }
 
-    console.log("ShiftProvider: Loading active shift for tenant", tenantId)
+    setLoading(true)
+    console.log("Setting up real-time listener for shifts, tenant:", tenantId)
 
-    const shiftsRef = ref(db, `tenants/${tenantId}/shifts`)
-    const activeShiftQuery = query(shiftsRef, orderByChild("active"), equalTo(true))
+    const shiftsRef = ref(rtdb, `tenants/${tenantId}/shifts`)
 
-    const unsubscribe = onValue(
-      activeShiftQuery,
-      (snapshot) => {
-        try {
-          const data = snapshot.val()
-          console.log("ShiftProvider: Active shift data", data)
+    const handleShiftsUpdate = (snapshot) => {
+      try {
+        const shiftsData = snapshot.val() || {}
+        console.log("Real-time shifts data update:", shiftsData)
 
-          if (data) {
-            // Convertir el objeto a un array y tomar el primer turno activo
-            const shifts = Object.entries(data).map(([id, shift]) => ({
-              id,
-              ...(shift as any),
-            }))
+        const fetchedShifts: Shift[] = Object.keys(shiftsData).map((key) => ({
+          id: key,
+          ...shiftsData[key],
+        }))
 
-            if (shifts.length > 0) {
-              console.log("ShiftProvider: Found active shift", shifts[0])
-              setCurrentShift(shifts[0] as Shift)
-            } else {
-              console.log("ShiftProvider: No active shift found")
-              setCurrentShift(null)
-            }
-          } else {
-            console.log("ShiftProvider: No active shift data")
-            setCurrentShift(null)
-          }
+        // Ordenar los turnos por fecha de inicio (más recientes primero)
+        fetchedShifts.sort((a, b) => (b.startTime || 0) - (a.startTime || 0))
 
-          setLoading(false)
-        } catch (err) {
-          console.error("ShiftProvider: Error loading active shift", err)
-          setError("Error al cargar el turno activo")
-          setLoading(false)
-        }
-      },
-      (err) => {
-        console.error("ShiftProvider: Firebase error", err)
-        setError("Error de conexión con la base de datos")
+        setShifts(fetchedShifts)
+
+        // Buscar el turno activo actual
+        const activeShift = fetchedShifts.find((shift) => shift.status === "active")
+        console.log("Active shift found:", activeShift)
+        setCurrentShift(activeShift || null)
+
+        setError(null)
+      } catch (err) {
+        console.error("Error processing shifts data:", err)
+        setError("Error al procesar los datos de turnos")
+      } finally {
         setLoading(false)
-      },
-    )
+      }
+    }
 
+    // Establecer el listener
+    onValue(shiftsRef, handleShiftsUpdate, (err) => {
+      console.error("Firebase shifts listener error:", err)
+      setError("Error en la conexión con la base de datos")
+      setLoading(false)
+    })
+
+    // Limpiar el listener cuando el componente se desmonte
     return () => {
-      console.log("ShiftProvider: Unsubscribing from active shift")
-      unsubscribe()
+      console.log("Cleaning up shifts listener")
+      off(shiftsRef)
     }
   }, [tenantId])
 
-  // Iniciar un nuevo turno
-  const startShift = async (employeeId: string, notes: string): Promise<Shift> => {
+  const fetchShifts = useCallback(async () => {
     try {
-      if (currentShift) {
-        throw new Error("Ya hay un turno activo")
+      setLoading(true)
+      console.log("Manually fetching shifts for tenant:", tenantId)
+
+      if (!tenantId) {
+        console.error("No tenantId provided to ShiftProvider")
+        setError("Error: No se proporcionó un ID de inquilino")
+        setLoading(false)
+        return
       }
 
-      const shiftsRef = ref(db, `tenants/${tenantId}/shifts`)
-      const newShiftRef = push(shiftsRef)
-      const shiftId = newShiftRef.key
+      // Obtener todos los turnos del inquilino
+      const shiftsRef = ref(rtdb, `tenants/${tenantId}/shifts`)
+      const shiftsSnapshot = await get(shiftsRef)
+      const shiftsData = shiftsSnapshot.val() || {}
 
-      if (!shiftId) {
-        throw new Error("Error al generar ID para el nuevo turno")
-      }
+      console.log("Shifts data loaded:", shiftsData)
 
-      const now = Date.now()
-      const newShift: Shift = {
-        id: shiftId,
-        employeeId,
-        startTime: now,
-        endTime: null,
-        active: true,
-        notes: notes || "",
-        endNotes: "",
-      }
+      const fetchedShifts: Shift[] = Object.keys(shiftsData).map((key) => ({
+        id: key,
+        ...shiftsData[key],
+      }))
 
-      await set(newShiftRef, newShift)
-      setCurrentShift(newShift)
-      return newShift
+      // Ordenar los turnos por fecha de inicio (más recientes primero)
+      fetchedShifts.sort((a, b) => (b.startTime || 0) - (a.startTime || 0))
+
+      setShifts(fetchedShifts)
+
+      // Buscar el turno activo actual
+      const activeShift = fetchedShifts.find((shift) => shift.status === "active")
+      console.log("Active shift found:", activeShift)
+      setCurrentShift(activeShift || null)
+
+      setError(null)
     } catch (err) {
-      console.error("Error al iniciar turno:", err)
-      setError("Error al iniciar el turno")
+      console.error("Error fetching shifts:", err)
+      setError("Error al cargar los turnos")
+    } finally {
+      setLoading(false)
+    }
+  }, [tenantId])
+
+  const startShift = async (shiftData: Partial<Shift>): Promise<string> => {
+    try {
+      if (!tenantId) {
+        throw new Error("No tenantId provided")
+      }
+
+      // Verificar si ya hay un turno activo
+      if (currentShift) {
+        console.log("Ya existe un turno activo:", currentShift)
+        return currentShift.id // Devolver el ID del turno existente
+      }
+
+      console.log(`Iniciando turno para el tenant: ${tenantId}`)
+
+      const shiftsRef = ref(rtdb, `tenants/${tenantId}/shifts`)
+      const newShiftRef = push(shiftsRef)
+
+      const timestamp = Date.now()
+      const newShift: Omit<Shift, "id"> = {
+        tenantId,
+        startTime: timestamp,
+        status: "active",
+        createdBy: user?.uid || "",
+        ...shiftData,
+      }
+
+      await update(newShiftRef, newShift)
+      console.log("Turno creado con ID:", newShiftRef.key)
+
+      // El listener se encargará de actualizar el estado
+      return newShiftRef.key || ""
+    } catch (err) {
+      console.error("Error starting shift:", err)
       throw err
     }
   }
 
-  // Finalizar el turno activo
-  const endShift = async (notes: string): Promise<void> => {
+  const endShift = async (shiftId: string, summary?: Shift["summary"]): Promise<void> => {
     try {
-      if (!currentShift) {
-        throw new Error("No hay un turno activo para finalizar")
+      if (!tenantId) {
+        throw new Error("No tenantId provided")
       }
 
-      const shiftRef = ref(db, `tenants/${tenantId}/shifts/${currentShift.id}`)
-      const now = Date.now()
+      console.log(`Finalizando turno ${shiftId} para el tenant: ${tenantId}`)
 
-      // Actualizar el turno en Firebase
-      await set(shiftRef, {
-        ...currentShift,
-        endTime: now,
-        active: false,
-        endNotes: notes || "",
+      const shiftRef = ref(rtdb, `tenants/${tenantId}/shifts/${shiftId}`)
+      const shiftSnapshot = await get(shiftRef)
+
+      if (!shiftSnapshot.exists()) {
+        throw new Error("El turno no existe")
+      }
+
+      const shiftData = shiftSnapshot.val()
+      if (shiftData.status !== "active") {
+        throw new Error("El turno ya está cerrado")
+      }
+
+      const timestamp = Date.now()
+
+      // Actualizar el estado en Firebase
+      await update(shiftRef, {
+        status: "closed",
+        endTime: timestamp,
+        closedBy: user?.uid || "",
+        summary: summary || {
+          totalOrders: 0,
+          totalSales: 0,
+          cashSales: 0,
+          cardSales: 0,
+          otherSales: 0,
+        },
       })
 
-      // Actualizar el estado local inmediatamente
+      // Actualizar el estado local inmediatamente para evitar problemas de sincronización
       setCurrentShift(null)
+      setShifts((prevShifts) =>
+        prevShifts.map((shift) =>
+          shift.id === shiftId
+            ? {
+                ...shift,
+                status: "closed",
+                endTime: timestamp,
+                closedBy: user?.uid || "",
+                summary: summary || {
+                  totalOrders: 0,
+                  totalSales: 0,
+                  cashSales: 0,
+                  cardSales: 0,
+                  otherSales: 0,
+                },
+              }
+            : shift,
+        ),
+      )
 
-      console.log("Turno finalizado correctamente")
+      console.log(`Turno ${shiftId} finalizado correctamente`)
     } catch (err) {
-      console.error("Error al finalizar turno:", err)
-      setError("Error al finalizar el turno")
+      console.error("Error ending shift:", err)
       throw err
     }
   }
 
-  // Obtener un turno por su ID
-  const getShiftById = async (shiftId: string): Promise<Shift | null> => {
+  const getShift = async (shiftId: string): Promise<Shift | null> => {
     try {
-      const shiftRef = ref(db, `tenants/${tenantId}/shifts/${shiftId}`)
-      const snapshot = await get(shiftRef)
+      if (!tenantId) {
+        throw new Error("No tenantId provided")
+      }
 
-      if (snapshot.exists()) {
-        const shiftData = snapshot.val()
+      const shiftRef = ref(rtdb, `tenants/${tenantId}/shifts/${shiftId}`)
+      const shiftSnapshot = await get(shiftRef)
+
+      if (shiftSnapshot.exists()) {
         return {
           id: shiftId,
-          ...shiftData,
-        }
+          ...shiftSnapshot.val(),
+        } as Shift
       }
 
       return null
     } catch (err) {
-      console.error("Error al obtener turno:", err)
-      setError("Error al obtener información del turno")
+      console.error("Error getting shift:", err)
       throw err
     }
   }
 
-  // Valor del contexto
-  const value = {
+  const value: ShiftContextType = {
     currentShift,
+    shifts,
     loading,
     error,
     startShift,
     endShift,
-    getShiftById,
+    getShift,
+    refreshShifts: fetchShifts,
   }
 
   return <ShiftContext.Provider value={value}>{children}</ShiftContext.Provider>
