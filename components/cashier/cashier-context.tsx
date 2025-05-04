@@ -3,329 +3,507 @@
 import type React from "react"
 
 import { createContext, useContext, useState, useEffect, useCallback } from "react"
+import { database } from "@/lib/firebase-config"
 import { ref, get, set, push, onValue } from "firebase/database"
-import { rtdb } from "@/lib/firebase-config"
 import { useAuth } from "@/lib/auth-context"
-import { toast } from "@/components/ui/use-toast"
-import type { CashierSession, SessionSummary } from "@/lib/types/cashier"
+import type {
+  CashierSession,
+  SessionSummary,
+  OpenSessionParams,
+  CloseSessionParams,
+  SalesDataPoint,
+} from "@/lib/types/cashier"
 import type { Order } from "@/lib/types/orders"
 
 interface CashierContextType {
   currentSession: CashierSession | null
   sessions: CashierSession[]
   isLoading: boolean
-  openSession: (initialCash: number, notes?: string) => Promise<void>
-  closeSession: (endCash: number, endCard: number, notes?: string) => Promise<void>
-  getSessionSummary: (sessionId: string) => SessionSummary | null
+  error: string | null
+  openSession: (params: OpenSessionParams) => Promise<void>
+  closeSession: (params: CloseSessionParams) => Promise<void>
+  getSessionSummary: (sessionId: string) => Promise<SessionSummary>
   getSessionOrders: (sessionId: string) => Promise<Order[]>
+  getSalesData: (period: "day" | "week" | "month" | "year") => Promise<SalesDataPoint[]>
 }
 
 const CashierContext = createContext<CashierContextType | undefined>(undefined)
 
-export function CashierProvider({ children }: { children: React.ReactNode }) {
-  const { user, tenantId } = useAuth()
+export function CashierProvider({
+  children,
+  tenantId,
+}: {
+  children: React.ReactNode
+  tenantId: string
+}) {
+  const { user } = useAuth()
   const [currentSession, setCurrentSession] = useState<CashierSession | null>(null)
   const [sessions, setSessions] = useState<CashierSession[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [sessionSummaries, setSessionSummaries] = useState<Record<string, SessionSummary>>({})
+  const [error, setError] = useState<string | null>(null)
 
-  // Load sessions
+  // Fetch current session and session history
   useEffect(() => {
     if (!tenantId) return
 
-    const sessionsRef = ref(rtdb, `tenants/${tenantId}/cashier/sessions`)
-    const unsubscribe = onValue(
-      sessionsRef,
-      (snapshot) => {
-        const data = snapshot.val()
-        if (!data) {
-          setSessions([])
-          setIsLoading(false)
-          return
-        }
+    const fetchSessions = async () => {
+      setIsLoading(true)
+      setError(null)
 
-        const sessionsArray = Object.entries(data).map(([id, session]) => ({
-          id,
-          ...(session as any),
-        })) as CashierSession[]
+      try {
+        // Get all sessions for this tenant
+        const sessionsRef = ref(database, `tenants/${tenantId}/cashier/sessions`)
+        const unsubscribe = onValue(
+          sessionsRef,
+          (snapshot) => {
+            if (snapshot.exists()) {
+              const sessionsData = snapshot.val()
+              const sessionsArray: CashierSession[] = Object.keys(sessionsData).map((key) => ({
+                id: key,
+                ...sessionsData[key],
+              }))
 
-        // Sort by startTime descending (newest first)
-        sessionsArray.sort((a, b) => b.startTime - a.startTime)
+              // Sort sessions by startTime (newest first)
+              sessionsArray.sort((a, b) => b.startTime - a.startTime)
 
-        setSessions(sessionsArray)
+              setSessions(sessionsArray)
 
-        // Find current open session
-        const openSession = sessionsArray.find((session) => session.status === "open")
-        setCurrentSession(openSession || null)
+              // Find current open session if any
+              const openSession = sessionsArray.find((session) => session.status === "open")
+              if (openSession) {
+                setCurrentSession(openSession)
+              } else {
+                setCurrentSession(null)
+              }
+            } else {
+              setSessions([])
+              setCurrentSession(null)
+            }
+            setIsLoading(false)
+          },
+          (error) => {
+            console.error("Error fetching cashier sessions:", error)
+            setError("Error al cargar las sesiones de caja")
+            setIsLoading(false)
+          },
+        )
 
+        return () => unsubscribe()
+      } catch (err) {
+        console.error("Error fetching cashier sessions:", err)
+        setError("Error al cargar las sesiones de caja")
         setIsLoading(false)
-      },
-      (error) => {
-        console.error("Error loading cashier sessions:", error)
-        toast({
-          title: "Error",
-          description: "No se pudieron cargar las sesiones de caja",
-          variant: "destructive",
-        })
-        setIsLoading(false)
-      },
-    )
+      }
+    }
 
-    return () => unsubscribe()
-  }, [tenantId, toast])
+    fetchSessions()
+  }, [tenantId])
 
   // Open a new session
-  const openSession = useCallback(
-    async (initialCash: number, notes?: string) => {
-      if (!tenantId || !user) {
-        toast({
-          title: "Error",
-          description: "No se pudo abrir la sesión de caja",
-          variant: "destructive",
-        })
-        return
+  const openSession = async (params: OpenSessionParams) => {
+    if (!tenantId || !user) {
+      throw new Error("No hay un tenant o usuario válido")
+    }
+
+    // Check if there's already an open session
+    if (currentSession && currentSession.status === "open") {
+      throw new Error("Ya hay una sesión de caja abierta")
+    }
+
+    try {
+      const newSession: Omit<CashierSession, "id"> = {
+        tenantId,
+        startTime: Date.now(),
+        initialCash: params.initialCash,
+        openedBy: params.openedBy,
+        status: "open",
       }
 
-      try {
-        // Check if there's already an open session
-        if (currentSession) {
-          toast({
-            title: "Error",
-            description: "Ya hay una sesión de caja abierta",
-            variant: "destructive",
-          })
-          return
-        }
+      // Save to Firebase
+      const sessionsRef = ref(database, `tenants/${tenantId}/cashier/sessions`)
+      const newSessionRef = push(sessionsRef)
 
-        const sessionsRef = ref(rtdb, `tenants/${tenantId}/cashier/sessions`)
-        const newSessionRef = push(sessionsRef)
+      await set(newSessionRef, newSession)
 
-        const newSession: Omit<CashierSession, "id"> = {
-          startTime: Date.now(),
-          initialCash,
-          status: "open",
-          openedBy: user.displayName || user.email || "Usuario desconocido",
-          notes: notes || "",
-        }
-
-        await set(newSessionRef, newSession)
-
-        toast({
-          title: "Éxito",
-          description: "Sesión de caja abierta correctamente",
-        })
-      } catch (error) {
-        console.error("Error opening cashier session:", error)
-        toast({
-          title: "Error",
-          description: "No se pudo abrir la sesión de caja",
-          variant: "destructive",
-        })
-      }
-    },
-    [currentSession, tenantId, user, toast],
-  )
-
-  // Close the current session
-  const closeSession = useCallback(
-    async (endCash: number, endCard: number, notes?: string) => {
-      if (!tenantId || !user || !currentSession) {
-        toast({
-          title: "Error",
-          description: "No hay una sesión de caja abierta",
-          variant: "destructive",
-        })
-        return
+      // Update local state
+      const sessionWithId = {
+        id: newSessionRef.key as string,
+        ...newSession,
       }
 
-      try {
-        const sessionRef = ref(rtdb, `tenants/${tenantId}/cashier/sessions/${currentSession.id}`)
+      setCurrentSession(sessionWithId)
+      setSessions((prev) => [sessionWithId, ...prev])
 
-        // Calculate difference (expected cash - actual cash)
-        const summary = await calculateSessionSummary(currentSession.id)
-        const expectedCash = currentSession.initialCash + summary.cashSales
-        const difference = endCash - expectedCash
+      return
+    } catch (error) {
+      console.error("Error opening session:", error)
+      throw new Error("No se pudo abrir la sesión de caja")
+    }
+  }
 
-        const updatedSession: Partial<CashierSession> = {
-          status: "closed",
-          endTime: Date.now(),
-          endCash,
-          endCard,
-          difference,
-          closedBy: user.displayName || user.email || "Usuario desconocido",
-        }
+  // Close an existing session
+  const closeSession = async (params: CloseSessionParams) => {
+    if (!tenantId || !user) {
+      throw new Error("No hay un tenant o usuario válido")
+    }
 
-        if (notes) {
-          updatedSession.notes = currentSession.notes
-            ? `${currentSession.notes}\n\nNotas de cierre: ${notes}`
-            : `Notas de cierre: ${notes}`
-        }
+    // Check if the session exists and is open
+    const session = sessions.find((s) => s.id === params.sessionId)
+    if (!session) {
+      throw new Error("Sesión no encontrada")
+    }
 
-        // Update the session
-        await set(sessionRef, {
-          ...currentSession,
-          ...updatedSession,
-        })
+    if (session.status !== "open") {
+      throw new Error("La sesión ya está cerrada")
+    }
 
-        toast({
-          title: "Éxito",
-          description: "Sesión de caja cerrada correctamente",
-        })
-      } catch (error) {
-        console.error("Error closing cashier session:", error)
-        toast({
-          title: "Error",
-          description: "No se pudo cerrar la sesión de caja",
-          variant: "destructive",
-        })
+    try {
+      // Update session data
+      const updatedSession: CashierSession = {
+        ...session,
+        endTime: Date.now(),
+        endCash: params.endCash,
+        endCard: params.endCard,
+        endOther: params.endOther,
+        difference: params.difference,
+        notes: params.notes,
+        closedBy: user.displayName || user.email || "Usuario desconocido",
+        status: "closed",
       }
-    },
-    [currentSession, tenantId, user, toast],
-  )
 
-  // Calculate session summary
-  const calculateSessionSummary = useCallback(
+      // Save to Firebase
+      const sessionRef = ref(database, `tenants/${tenantId}/cashier/sessions/${params.sessionId}`)
+      await set(sessionRef, updatedSession)
+
+      // Update local state
+      setCurrentSession(null)
+      setSessions((prev) => prev.map((s) => (s.id === params.sessionId ? updatedSession : s)))
+
+      return
+    } catch (error) {
+      console.error("Error closing session:", error)
+      throw new Error("No se pudo cerrar la sesión de caja")
+    }
+  }
+
+  // Get summary for a specific session
+  const getSessionSummary = useCallback(
     async (sessionId: string): Promise<SessionSummary> => {
-      if (!tenantId) {
-        return {
-          totalSales: 0,
-          cashSales: 0,
-          cardSales: 0,
-          tips: 0,
-          orderCount: 0,
-        }
-      }
-
       try {
         const session = sessions.find((s) => s.id === sessionId)
-        if (!session) throw new Error("Sesión no encontrada")
+        if (!session) {
+          throw new Error("Sesión no encontrada")
+        }
 
-        // Get all orders for this session
+        // Get orders for this session
         const orders = await getSessionOrders(sessionId)
 
         // Calculate totals
         let totalSales = 0
         let cashSales = 0
         let cardSales = 0
+        let otherSales = 0
         let tips = 0
-        let orderCount = 0
+        const totalOrders = orders.length
+        let completedOrders = 0
+        let canceledOrders = 0
+        let orderItems = 0
 
         orders.forEach((order) => {
-          if (order.status !== "canceled") {
-            const orderTotal = order.total || 0
-            totalSales += orderTotal
+          if (order.status === "completed") {
+            completedOrders++
+            totalSales += order.total || 0
 
+            // Count by payment method
             if (order.paymentMethod === "cash") {
-              cashSales += orderTotal
+              cashSales += order.total || 0
             } else if (order.paymentMethod === "card") {
-              cardSales += orderTotal
+              cardSales += order.total || 0
+            } else {
+              otherSales += order.total || 0
             }
 
-            if (order.tip) {
-              tips += order.tip
-            }
+            // Add tips
+            tips += order.tip || 0
 
-            orderCount++
+            // Count items
+            orderItems += order.items?.length || 0
+          } else if (order.status === "canceled") {
+            canceledOrders++
           }
         })
 
-        const summary = {
+        return {
           totalSales,
           cashSales,
           cardSales,
+          otherSales,
           tips,
-          orderCount,
+          totalOrders,
+          completedOrders,
+          canceledOrders,
+          orderItems,
         }
-
-        // Cache the summary
-        setSessionSummaries((prev) => ({
-          ...prev,
-          [sessionId]: summary,
-        }))
-
-        return summary
-      } catch (error) {
-        console.error("Error calculating session summary:", error)
+      } catch (err) {
+        console.error("Error getting session summary:", err)
         return {
           totalSales: 0,
           cashSales: 0,
           cardSales: 0,
+          otherSales: 0,
           tips: 0,
-          orderCount: 0,
+          totalOrders: 0,
+          completedOrders: 0,
+          canceledOrders: 0,
+          orderItems: 0,
         }
       }
     },
-    [tenantId, sessions],
+    [sessions],
   )
 
-  // Get session summary (from cache or calculate)
-  const getSessionSummary = useCallback(
-    (sessionId: string): SessionSummary | null => {
-      if (sessionSummaries[sessionId]) {
-        return sessionSummaries[sessionId]
-      }
-
-      // Calculate and cache for next time
-      calculateSessionSummary(sessionId).catch(console.error)
-      return null
-    },
-    [sessionSummaries, calculateSessionSummary],
-  )
-
-  // Get all orders for a session
+  // Get orders for a specific session
   const getSessionOrders = useCallback(
     async (sessionId: string): Promise<Order[]> => {
-      if (!tenantId) return []
+      if (!tenantId) {
+        throw new Error("No hay un tenant válido")
+      }
+
+      const session = sessions.find((s) => s.id === sessionId)
+      if (!session) {
+        return []
+      }
 
       try {
-        const session = sessions.find((s) => s.id === sessionId)
-        if (!session) throw new Error("Sesión no encontrada")
-
         // Get all orders
-        const ordersRef = ref(rtdb, `tenants/${tenantId}/orders`)
+        const ordersRef = ref(database, `tenants/${tenantId}/orders`)
         const snapshot = await get(ordersRef)
 
-        if (!snapshot.exists()) return []
+        if (snapshot.exists()) {
+          const ordersData = snapshot.val()
+          const ordersArray: Order[] = Object.keys(ordersData).map((key) => ({
+            id: key,
+            ...ordersData[key],
+          }))
 
-        const ordersData = snapshot.val()
-        const allOrders = Object.entries(ordersData).map(([id, data]) => ({
-          id,
-          ...(data as any),
-        })) as Order[]
+          // Filter orders that were created during the session
+          return ordersArray.filter((order) => {
+            const orderTime = order.createdAt
+            return orderTime >= session.startTime && (session.endTime ? orderTime <= session.endTime : true)
+          })
+        }
 
-        // Filter orders by session time range
-        const sessionStart = session.startTime
-        const sessionEnd = session.endTime || Date.now()
-
-        const sessionOrders = allOrders.filter((order) => {
-          const orderTime = order.createdAt
-          return orderTime >= sessionStart && orderTime <= sessionEnd
-        })
-
-        // Sort by creation time (newest first)
-        return sessionOrders.sort((a, b) => b.createdAt - a.createdAt)
-      } catch (error) {
-        console.error("Error fetching session orders:", error)
+        return []
+      } catch (err) {
+        console.error("Error fetching session orders:", err)
         throw new Error("Error al cargar las órdenes de la sesión")
       }
     },
     [tenantId, sessions],
   )
 
+  // Get sales data for charts
+  const getSalesData = useCallback(
+    async (period: "day" | "week" | "month" | "year"): Promise<SalesDataPoint[]> => {
+      if (!tenantId || !currentSession) {
+        return []
+      }
+
+      try {
+        // Get all orders for the current session
+        const orders = await getSessionOrders(currentSession.id)
+
+        if (orders.length === 0) {
+          return []
+        }
+
+        // Group orders by time period
+        const now = new Date()
+        const dataPoints: SalesDataPoint[] = []
+
+        switch (period) {
+          case "day": {
+            // Group by hour
+            const hourlyData: Record<number, Order[]> = {}
+
+            // Initialize hours (9am to 11pm)
+            for (let i = 9; i <= 23; i++) {
+              hourlyData[i] = []
+            }
+
+            // Group orders by hour
+            orders.forEach((order) => {
+              const orderDate = new Date(order.createdAt)
+              const hour = orderDate.getHours()
+              if (hourlyData[hour]) {
+                hourlyData[hour].push(order)
+              }
+            })
+
+            // Create data points
+            Object.entries(hourlyData).forEach(([hour, hourOrders]) => {
+              const hourNum = Number.parseInt(hour)
+              dataPoints.push({
+                label: `${hourNum}:00`,
+                totalSales: calculateTotal(hourOrders),
+                cashSales: calculateTotal(hourOrders.filter((o) => o.paymentMethod === "cash")),
+                cardSales: calculateTotal(hourOrders.filter((o) => o.paymentMethod === "card")),
+                otherSales: calculateTotal(
+                  hourOrders.filter((o) => o.paymentMethod !== "cash" && o.paymentMethod !== "card"),
+                ),
+                tips: calculateTips(hourOrders),
+                orders: hourOrders.length,
+              })
+            })
+            break
+          }
+
+          case "week": {
+            // Group by day of week
+            const days = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
+            const dailyData: Record<number, Order[]> = {}
+
+            // Initialize days
+            for (let i = 0; i < 7; i++) {
+              dailyData[i] = []
+            }
+
+            // Group orders by day
+            orders.forEach((order) => {
+              const orderDate = new Date(order.createdAt)
+              const day = orderDate.getDay() // 0 = Sunday, 6 = Saturday
+              dailyData[day].push(order)
+            })
+
+            // Create data points
+            Object.entries(dailyData).forEach(([day, dayOrders]) => {
+              const dayNum = Number.parseInt(day)
+              dataPoints.push({
+                label: days[dayNum],
+                totalSales: calculateTotal(dayOrders),
+                cashSales: calculateTotal(dayOrders.filter((o) => o.paymentMethod === "cash")),
+                cardSales: calculateTotal(dayOrders.filter((o) => o.paymentMethod === "card")),
+                otherSales: calculateTotal(
+                  dayOrders.filter((o) => o.paymentMethod !== "cash" && o.paymentMethod !== "card"),
+                ),
+                tips: calculateTips(dayOrders),
+                orders: dayOrders.length,
+              })
+            })
+
+            // Reorder to start with Monday
+            const sunday = dataPoints.shift()
+            if (sunday) dataPoints.push(sunday)
+            break
+          }
+
+          case "month": {
+            // Group by week
+            const weeklyData: Record<number, Order[]> = {}
+
+            // Initialize weeks (4 weeks)
+            for (let i = 0; i < 4; i++) {
+              weeklyData[i] = []
+            }
+
+            // Group orders by week
+            orders.forEach((order) => {
+              const orderDate = new Date(order.createdAt)
+              const dayOfMonth = orderDate.getDate()
+              const weekOfMonth = Math.floor(dayOfMonth / 7)
+              if (weekOfMonth < 4) {
+                weeklyData[weekOfMonth].push(order)
+              }
+            })
+
+            // Create data points
+            Object.entries(weeklyData).forEach(([week, weekOrders]) => {
+              const weekNum = Number.parseInt(week)
+              dataPoints.push({
+                label: `Semana ${weekNum + 1}`,
+                totalSales: calculateTotal(weekOrders),
+                cashSales: calculateTotal(weekOrders.filter((o) => o.paymentMethod === "cash")),
+                cardSales: calculateTotal(weekOrders.filter((o) => o.paymentMethod === "card")),
+                otherSales: calculateTotal(
+                  weekOrders.filter((o) => o.paymentMethod !== "cash" && o.paymentMethod !== "card"),
+                ),
+                tips: calculateTips(weekOrders),
+                orders: weekOrders.length,
+              })
+            })
+            break
+          }
+
+          case "year": {
+            // Group by month
+            const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+            const monthlyData: Record<number, Order[]> = {}
+
+            // Initialize months
+            for (let i = 0; i < 12; i++) {
+              monthlyData[i] = []
+            }
+
+            // Group orders by month
+            orders.forEach((order) => {
+              const orderDate = new Date(order.createdAt)
+              const month = orderDate.getMonth()
+              monthlyData[month].push(order)
+            })
+
+            // Create data points
+            Object.entries(monthlyData).forEach(([month, monthOrders]) => {
+              const monthNum = Number.parseInt(month)
+              dataPoints.push({
+                label: months[monthNum],
+                totalSales: calculateTotal(monthOrders),
+                cashSales: calculateTotal(monthOrders.filter((o) => o.paymentMethod === "cash")),
+                cardSales: calculateTotal(monthOrders.filter((o) => o.paymentMethod === "card")),
+                otherSales: calculateTotal(
+                  monthOrders.filter((o) => o.paymentMethod !== "cash" && o.paymentMethod !== "card"),
+                ),
+                tips: calculateTips(monthOrders),
+                orders: monthOrders.length,
+              })
+            })
+            break
+          }
+        }
+
+        return dataPoints
+      } catch (error) {
+        console.error("Error getting sales data:", error)
+        return []
+      }
+    },
+    [tenantId, currentSession, getSessionOrders],
+  )
+
+  // Helper functions for sales data
+  function calculateTotal(orders: Order[]): number {
+    return orders.filter((order) => order.status === "completed").reduce((sum, order) => sum + (order.total || 0), 0)
+  }
+
+  function calculateTips(orders: Order[]): number {
+    return orders.filter((order) => order.status === "completed").reduce((sum, order) => sum + (order.tip || 0), 0)
+  }
+
   const value = {
     currentSession,
     sessions,
     isLoading,
+    error,
     openSession,
     closeSession,
     getSessionSummary,
     getSessionOrders,
+    getSalesData,
   }
 
   return <CashierContext.Provider value={value}>{children}</CashierContext.Provider>
 }
 
-export const useCashier = () => {
+export function useCashier() {
   const context = useContext(CashierContext)
   if (context === undefined) {
     throw new Error("useCashier must be used within a CashierProvider")

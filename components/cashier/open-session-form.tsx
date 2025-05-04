@@ -36,10 +36,7 @@ export function OpenSessionForm() {
         throw new Error("Debes iniciar sesión para abrir caja")
       }
 
-      await openSession({
-        initialCash,
-        openedBy: user.displayName || user.email || "Usuario desconocido",
-      })
+      await openSession(initialCash)
 
       setSuccess(true)
 
