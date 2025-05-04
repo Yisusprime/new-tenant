@@ -11,27 +11,16 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/components/ui/use-toast"
-import {
-  Home,
-  ShoppingBag,
-  MapPin,
-  Utensils,
-  Plus,
-  Minus,
-  Trash2,
-  Tag,
-  CreditCard,
-  Search,
-  Loader2,
-} from "lucide-react"
+import { Home, ShoppingBag, MapPin, Utensils, Plus, Minus, Trash2, Tag, CreditCard } from "lucide-react"
 import { ref, get } from "firebase/database"
 import { rtdb } from "@/lib/firebase-config"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+// Primero, importa el nuevo componente ProductSelector
+import { ProductSelector } from "./product-selector"
 
 interface Product {
   id: string
@@ -86,6 +75,9 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
   const [productSelectorOpen, setProductSelectorOpen] = useState(false)
   const [loadingProducts, setLoadingProducts] = useState(true)
   const [loadingError, setLoadingError] = useState<string | null>(null)
+  // Luego, busca donde se maneja la selección de productos y reemplázalo con:
+  const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false)
+  const [selectedCategoryId, setSelectedCategoryId] = useState(null)
 
   // Cargar productos, extras y categorías
   useEffect(() => {
@@ -175,6 +167,22 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
     }
     setSelectedItems([...selectedItems, newItem])
     setProductSelectorOpen(false)
+  }
+
+  const handleAddProduct = (product: Product) => {
+    const newItem: OrderItem = {
+      id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      productId: product.id,
+      productName: product.name,
+      quantity: 1,
+      price: product.price,
+      discount: 0,
+      notes: "",
+      extras: [],
+      status: "pending",
+    }
+    setSelectedItems([...selectedItems, newItem])
+    setIsProductSelectorOpen(false)
   }
 
   const handleRemoveItem = (itemId: string) => {
@@ -532,14 +540,11 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="font-medium">Productos</h3>
-            <Sheet open={productSelectorOpen} onOpenChange={setProductSelectorOpen}>
-              <SheetTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Añadir Producto
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-[95vw] sm:w-[90vw] md:w-[80vw] lg:w-[70vw] p-0 max-w-[1000px]">
+            <Button variant="outline" onClick={() => setIsProductSelectorOpen(true)}>
+              Agregar Producto
+            </Button>
+            {/* <Sheet open={productSelectorOpen} onOpenChange={setProductSelectorOpen}>
+              <SheetContent side="left" className="w-[95vw] sm:w-[90vw] md:w-[80vw] lg:w-[70vw] p-0 max-w-[1000px]">
                 <div className="flex flex-col h-full">
                   <SheetHeader className="p-4 border-b">
                     <SheetTitle>Seleccionar Producto</SheetTitle>
@@ -671,7 +676,18 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
                   </div>
                 </div>
               </SheetContent>
-            </Sheet>
+            </Sheet> */}
+            {/* Y donde se renderiza el selector de productos, reemplázalo con: */}
+            <ProductSelector
+              isOpen={isProductSelectorOpen}
+              onOpenChange={setIsProductSelectorOpen}
+              tenantId={tenantId}
+              selectedCategoryId={selectedCategoryId}
+              onProductSelect={(product) => {
+                // Aquí va la lógica para agregar el producto seleccionado al pedido
+                handleAddProduct(product)
+              }}
+            />
           </div>
 
           <div className="space-y-2 max-h-[300px] overflow-y-auto">
