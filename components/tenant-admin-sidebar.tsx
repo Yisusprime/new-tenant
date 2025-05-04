@@ -17,6 +17,7 @@ import {
   Plus,
   Package,
   ShoppingBag,
+  DollarSign,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
@@ -64,6 +65,7 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
     { href: `/admin/settings`, label: "Configuración", icon: Settings },
     { href: `/admin/inventory`, label: "Inventario", icon: Package },
     { href: `/admin/orders`, label: "Pedidos", icon: ShoppingBag },
+    { href: `/admin/cashier`, label: "Caja", icon: DollarSign },
   ]
 
   const handleLogout = async () => {

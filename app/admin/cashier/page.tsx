@@ -11,6 +11,7 @@ import { CloseSessionForm } from "@/components/cashier/close-session-form"
 import { SessionSummary } from "@/components/cashier/session-summary"
 import { SessionHistory } from "@/components/cashier/session-history"
 import { SalesChart } from "@/components/cashier/sales-chart"
+import { TenantAdminSidebar } from "@/components/tenant-admin-sidebar"
 
 function CashierDashboard() {
   const { currentSession } = useCashier()
@@ -70,10 +71,13 @@ export default function CashierPage() {
   }
 
   return (
-    <div className="p-6">
-      <CashierProvider tenantId={tenantId}>
-        <CashierDashboard />
-      </CashierProvider>
+    <div className="flex h-screen">
+      <TenantAdminSidebar tenantid={tenantId} />
+      <div className="flex-1 overflow-y-auto p-6">
+        <CashierProvider tenantId={tenantId}>
+          <CashierDashboard />
+        </CashierProvider>
+      </div>
     </div>
   )
 }
