@@ -1,82 +1,77 @@
 "use client"
 
 import { useState } from "react"
-import { useSearchParams } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useAuth } from "@/lib/auth-context"
-import { CashierProvider, useCashier } from "@/components/cashier/cashier-context"
+import { useParams } from "next/navigation"
+import { CashierProvider } from "@/components/cashier/cashier-context"
 import { OpenSessionForm } from "@/components/cashier/open-session-form"
 import { CloseSessionForm } from "@/components/cashier/close-session-form"
 import { SessionSummary } from "@/components/cashier/session-summary"
 import { SessionHistory } from "@/components/cashier/session-history"
 import { SalesChart } from "@/components/cashier/sales-chart"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Sheet, SheetContent } from "@/components/ui/sheet"
+import { Menu } from "lucide-react"
 import { TenantAdminSidebar } from "@/components/tenant-admin-sidebar"
-
-function CashierDashboard() {
-  const { currentSession } = useCashier()
-  const [activeTab, setActiveTab] = useState("current")
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold">Cierre de Caja</h1>
-
-        {currentSession ? <Button variant="destructive">Cerrar Caja</Button> : <Button>Abrir Caja</Button>}
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="current">Sesión Actual</TabsTrigger>
-          <TabsTrigger value="history">Historial</TabsTrigger>
-          <TabsTrigger value="reports">Informes</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="current" className="mt-6">
-          {currentSession ? (
-            <div className="space-y-6">
-              <SessionSummary />
-              <CloseSessionForm />
-            </div>
-          ) : (
-            <OpenSessionForm />
-          )}
-        </TabsContent>
-
-        <TabsContent value="history" className="mt-6">
-          <SessionHistory />
-        </TabsContent>
-
-        <TabsContent value="reports" className="mt-6">
-          <SalesChart />
-        </TabsContent>
-      </Tabs>
-    </div>
-  )
-}
+import { useAuth } from "@/lib/auth-context"
 
 export default function CashierPage() {
   const { user } = useAuth()
-  const searchParams = useSearchParams()
-  const tenantId = user?.tenantId || searchParams.get("tenantId") || ""
-
-  if (!tenantId) {
-    return (
-      <div className="p-6">
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-md">
-          No se ha encontrado un tenant válido. Por favor, inicia sesión o proporciona un ID de tenant.
-        </div>
-      </div>
-    )
-  }
+  const params = useParams()
+  const tenantId = user?.tenantId || (params.tenantId as string)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   return (
-    <div className="flex h-screen">
-      <TenantAdminSidebar tenantid={tenantId} />
-      <div className="flex-1 overflow-y-auto p-6">
-        <CashierProvider tenantId={tenantId}>
-          <CashierDashboard />
-        </CashierProvider>
+    <div className="flex h-screen overflow-hidden">
+      {/* Sidebar móvil/desplegable */}
+      <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
+        <SheetContent side="left" className="p-0 w-64">
+          <TenantAdminSidebar tenantid={tenantId} />
+        </SheetContent>
+      </Sheet>
+
+      {/* Contenido principal */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
+        {/* Header */}
+        <header className="bg-background border-b h-16 flex items-center justify-between px-4">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)}>
+              <Menu className="h-5 w-5" />
+            </Button>
+            <h1 className="text-xl font-bold">Gestión de Caja</h1>
+          </div>
+        </header>
+
+        {/* Contenido */}
+        <div className="flex-1 overflow-auto p-4">
+          <CashierProvider tenantId={tenantId}>
+            <Tabs defaultValue="dashboard">
+              <TabsList>
+                <TabsTrigger value="dashboard">Panel</TabsTrigger>
+                <TabsTrigger value="open">Abrir Caja</TabsTrigger>
+                <TabsTrigger value="close">Cerrar Caja</TabsTrigger>
+                <TabsTrigger value="history">Historial</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="dashboard" className="mt-4 space-y-6">
+                <SessionSummary />
+                <SalesChart />
+              </TabsContent>
+
+              <TabsContent value="open" className="mt-4">
+                <OpenSessionForm />
+              </TabsContent>
+
+              <TabsContent value="close" className="mt-4">
+                <CloseSessionForm />
+              </TabsContent>
+
+              <TabsContent value="history" className="mt-4">
+                <SessionHistory />
+              </TabsContent>
+            </Tabs>
+          </CashierProvider>
+        </div>
       </div>
     </div>
   )
