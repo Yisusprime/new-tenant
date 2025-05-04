@@ -15,6 +15,9 @@ import { useCashier } from "./cashier-context"
 import { formatCurrency } from "@/lib/utils"
 import type { CashierSession } from "@/lib/types/cashier"
 import type { Order } from "@/lib/types/orders"
+import { ref, get } from "firebase/database"
+import { rtdb } from "@/lib/firebase-config"
+import { useAuth } from "@/lib/auth-context"
 
 type DateRange = {
   from: Date | undefined
@@ -24,7 +27,8 @@ type DateRange = {
 type FilterPeriod = "today" | "week" | "month" | "year" | "custom"
 
 export function SessionHistory() {
-  const { sessions, getSessionSummary, getSessionOrders } = useCashier()
+  const { sessions } = useCashier()
+  const { tenantId } = useAuth()
   const [filterPeriod, setFilterPeriod] = useState<FilterPeriod>("week")
   const [dateRange, setDateRange] = useState<DateRange>({
     from: undefined,
@@ -33,6 +37,7 @@ export function SessionHistory() {
   const [filteredSessions, setFilteredSessions] = useState<CashierSession[]>([])
   const [expandedSession, setExpandedSession] = useState<string | null>(null)
   const [sessionOrders, setSessionOrders] = useState<Record<string, Order[]>>({})
+  const [sessionSummaries, setSessionSummaries] = useState<Record<string, any>>({})
   const [isLoading, setIsLoading] = useState(false)
   const [loadingErrors, setLoadingErrors] = useState<Record<string, string>>({})
 
@@ -86,19 +91,103 @@ export function SessionHistory() {
 
   // Load orders for expanded session
   useEffect(() => {
-    if (!expandedSession) return
+    if (!expandedSession || !tenantId) return
 
-    const loadSessionOrders = async () => {
+    const loadSessionData = async () => {
       if (sessionOrders[expandedSession]) return
 
       setIsLoading(true)
       setLoadingErrors((prev) => ({ ...prev, [expandedSession]: "" }))
 
       try {
-        const orders = await getSessionOrders(expandedSession)
+        // Get session details
+        const session = sessions.find((s) => s.id === expandedSession)
+        if (!session) {
+          throw new Error("Sesión no encontrada")
+        }
+
+        // Get all orders
+        const ordersRef = ref(rtdb, `tenants/${tenantId}/orders`)
+        const snapshot = await get(ordersRef)
+
+        if (!snapshot.exists()) {
+          setSessionOrders((prev) => ({
+            ...prev,
+            [expandedSession]: [],
+          }))
+          setSessionSummaries((prev) => ({
+            ...prev,
+            [expandedSession]: {
+              totalSales: 0,
+              cashSales: 0,
+              cardSales: 0,
+              otherSales: 0,
+              tips: 0,
+            },
+          }))
+          return
+        }
+
+        const ordersData = snapshot.val()
+
+        // Filter orders for this session
+        const sessionStart = session.startTime
+        const sessionEnd = session.endTime || Date.now()
+
+        const filteredOrders = Object.entries(ordersData)
+          .map(([id, data]) => ({
+            id,
+            ...(data as any),
+          }))
+          .filter((order: any) => {
+            // Only include completed orders
+            if (order.status !== "completed") {
+              return false
+            }
+
+            // Include orders created during this session
+            const orderTime = order.createdAt
+            return orderTime >= sessionStart && orderTime <= sessionEnd
+          })
+          .sort((a, b) => b.createdAt - a.createdAt) // Sort by creation time (newest first)
+
+        // Calculate summary
+        let totalSales = 0
+        let cashSales = 0
+        let cardSales = 0
+        let otherSales = 0
+        let tips = 0
+
+        filteredOrders.forEach((order: any) => {
+          const orderTotal = Number.parseFloat(order.total) || 0
+          totalSales += orderTotal
+
+          if (order.paymentMethod === "cash") {
+            cashSales += orderTotal
+          } else if (order.paymentMethod === "card") {
+            cardSales += orderTotal
+          } else {
+            otherSales += orderTotal
+          }
+
+          tips += Number.parseFloat(order.tip) || 0
+        })
+
+        // Store the results
         setSessionOrders((prev) => ({
           ...prev,
-          [expandedSession]: orders,
+          [expandedSession]: filteredOrders,
+        }))
+
+        setSessionSummaries((prev) => ({
+          ...prev,
+          [expandedSession]: {
+            totalSales,
+            cashSales,
+            cardSales,
+            otherSales,
+            tips,
+          },
         }))
       } catch (err) {
         console.error("Error loading session orders:", err)
@@ -111,8 +200,8 @@ export function SessionHistory() {
       }
     }
 
-    loadSessionOrders()
-  }, [expandedSession, getSessionOrders, sessionOrders])
+    loadSessionData()
+  }, [expandedSession, tenantId, sessions, sessionOrders])
 
   const handleAccordionChange = (value: string) => {
     setExpandedSession(value === expandedSession ? null : value)
@@ -179,7 +268,7 @@ export function SessionHistory() {
             ) : (
               <Accordion type="single" collapsible value={expandedSession || ""} onValueChange={handleAccordionChange}>
                 {filteredSessions.map((session) => {
-                  const summary = getSessionSummary(session.id)
+                  const summary = sessionSummaries[session.id]
                   const orders = sessionOrders[session.id] || []
                   const hasError = loadingErrors[session.id]
 
@@ -204,7 +293,7 @@ export function SessionHistory() {
                                   : "—"}
                             </span>
 
-                            {summary && <span className="font-medium">{formatCurrency(summary.totalSales)}</span>}
+                            {summary && <span className="font-medium">{formatCurrency(summary.totalSales || 0)}</span>}
                           </div>
                         </div>
                       </AccordionTrigger>
@@ -275,30 +364,41 @@ export function SessionHistory() {
                             )}
                           </div>
 
-                          {summary && (
+                          {expandedSession === session.id && (
                             <div>
                               <h4 className="text-sm font-medium mb-2">Resumen financiero</h4>
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                <div className="bg-blue-50 p-3 rounded-md">
-                                  <div className="text-xs text-blue-600">Ventas Totales</div>
-                                  <div className="text-lg font-bold">{formatCurrency(summary.totalSales)}</div>
+                              {isLoading ? (
+                                <div className="flex justify-center items-center py-4">
+                                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                                  <span>Cargando datos...</span>
                                 </div>
+                              ) : summary ? (
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  <div className="bg-blue-50 p-3 rounded-md">
+                                    <div className="text-xs text-blue-600">Ventas Totales</div>
+                                    <div className="text-lg font-bold">{formatCurrency(summary.totalSales || 0)}</div>
+                                  </div>
 
-                                <div className="bg-green-50 p-3 rounded-md">
-                                  <div className="text-xs text-green-600">Efectivo</div>
-                                  <div className="text-lg font-bold">{formatCurrency(summary.cashSales)}</div>
-                                </div>
+                                  <div className="bg-green-50 p-3 rounded-md">
+                                    <div className="text-xs text-green-600">Efectivo</div>
+                                    <div className="text-lg font-bold">{formatCurrency(summary.cashSales || 0)}</div>
+                                  </div>
 
-                                <div className="bg-orange-50 p-3 rounded-md">
-                                  <div className="text-xs text-orange-600">Tarjeta</div>
-                                  <div className="text-lg font-bold">{formatCurrency(summary.cardSales)}</div>
-                                </div>
+                                  <div className="bg-orange-50 p-3 rounded-md">
+                                    <div className="text-xs text-orange-600">Tarjeta</div>
+                                    <div className="text-lg font-bold">{formatCurrency(summary.cardSales || 0)}</div>
+                                  </div>
 
-                                <div className="bg-purple-50 p-3 rounded-md">
-                                  <div className="text-xs text-purple-600">Propinas</div>
-                                  <div className="text-lg font-bold">{formatCurrency(summary.tips)}</div>
+                                  <div className="bg-purple-50 p-3 rounded-md">
+                                    <div className="text-xs text-purple-600">Propinas</div>
+                                    <div className="text-lg font-bold">{formatCurrency(summary.tips || 0)}</div>
+                                  </div>
                                 </div>
-                              </div>
+                              ) : (
+                                <div className="text-center py-4 text-muted-foreground">
+                                  No hay datos financieros disponibles
+                                </div>
+                              )}
                             </div>
                           )}
 

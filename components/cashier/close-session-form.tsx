@@ -91,6 +91,7 @@ export function CloseSessionForm() {
           .filter((order: any) => {
             // Solo incluir pedidos completados
             if (order.status !== "completed") {
+              console.log(`Order ${order.id} skipped: not completed (status: ${order.status})`)
               return false
             }
 
@@ -107,9 +108,11 @@ export function CloseSessionForm() {
 
             if (belongsToSession) {
               console.log(`Order ${order.id} belongs to current session by time range`)
+              return true
             }
 
-            return belongsToSession
+            console.log(`Order ${order.id} skipped: not in current shift or session time range`)
+            return false
           })
 
         console.log(`Found ${sessionOrders.length} completed orders for this session/shift`)
@@ -121,7 +124,8 @@ export function CloseSessionForm() {
         let otherTotal = 0
 
         sessionOrders.forEach((order: any) => {
-          const orderTotal = Number(order.total) || 0
+          // Asegurarse de que el total sea un número
+          const orderTotal = Number.parseFloat(order.total) || 0
           console.log(`Order ${order.id}: ${orderTotal} - Payment method: ${order.paymentMethod}`)
 
           switch (order.paymentMethod) {
