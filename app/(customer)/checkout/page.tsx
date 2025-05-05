@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useCart } from "@/components/cart/cart-context"
 import { useRouter, useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -43,12 +43,37 @@ export default function CheckoutPage() {
     isStoreOpen = true,
     serviceOptions = defaultServiceOptions,
     paymentMethods = defaultPaymentMethods,
+    tenantId: cartTenantId = "", // Obtener tenantId del contexto
   } = useCart()
 
   const router = useRouter()
   const params = useParams()
-  const tenantId =
-    typeof params?.tenant === "string" ? params.tenant : Array.isArray(params?.tenant) ? params.tenant[0] : ""
+  const [tenantId, setTenantId] = useState<string>("")
+
+  useEffect(() => {
+    // Obtener el tenantId del hostname (subdominio)
+    const hostname = window.location.hostname
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+
+    // Verificar si estamos en un subdominio
+    if (hostname.includes(`.${rootDomain}`) && !hostname.startsWith("www.")) {
+      // Extraer el subdominio (tenant)
+      const subdomain = hostname.replace(`.${rootDomain}`, "")
+      console.log("Checkout - Subdomain detected:", subdomain)
+      setTenantId(subdomain)
+    } else {
+      // Si no estamos en un subdominio, intentar obtener el tenantId de los parámetros
+      const paramTenantId =
+        typeof params?.tenant === "string" ? params.tenant : Array.isArray(params?.tenant) ? params.tenant[0] : ""
+      console.log("Checkout - Using param tenantId:", paramTenantId)
+      setTenantId(paramTenantId)
+    }
+  }, [params])
+
+  // Añadir un log para depuración
+  useEffect(() => {
+    console.log("Checkout - Final tenantId:", tenantId)
+  }, [tenantId])
   const { toast } = useToast()
 
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("pickup")
@@ -75,7 +100,11 @@ export default function CheckoutPage() {
   }
 
   const handleSubmitOrder = async () => {
-    if (!tenantId) {
+    // Usar el tenantId del contexto si el de la URL está vacío
+    const effectiveTenantId = tenantId || cartTenantId
+
+    if (!effectiveTenantId) {
+      console.error("No tenant ID found. URL tenantId:", tenantId, "Cart tenantId:", cartTenantId)
       toast({
         title: "Error en el pedido",
         description: "No se pudo identificar el restaurante. Por favor, intenta nuevamente.",
@@ -144,7 +173,7 @@ export default function CheckoutPage() {
       }))
 
       const orderData = {
-        tenantId,
+        tenantId: effectiveTenantId,
         orderNumber: `ORD-${Date.now().toString().slice(-6)}`,
         type: deliveryMethod === "pickup" ? "dine-in" : deliveryMethod === "takeaway" ? "takeaway" : "delivery",
         status: "pending",
@@ -169,7 +198,7 @@ export default function CheckoutPage() {
       }
 
       // Guardar el pedido en Firebase
-      const ordersRef = ref(rtdb, `tenants/${tenantId}/orders`)
+      const ordersRef = ref(rtdb, `tenants/${effectiveTenantId}/orders`)
       const newOrderRef = await push(ordersRef, orderData)
 
       // Limpiar el carrito

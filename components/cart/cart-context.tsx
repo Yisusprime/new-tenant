@@ -52,6 +52,9 @@ interface CartContextType {
   tax: number
   total: number
   isStoreOpen: boolean
+  serviceOptions: ServiceOptions
+  paymentMethods: PaymentMethods
+  tenantId: string
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
@@ -86,6 +89,27 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const params = useParams()
   const tenantId =
     typeof params?.tenant === "string" ? params.tenant : Array.isArray(params?.tenant) ? params.tenant[0] : ""
+
+  const [serviceOptions, setServiceOptions] = useState<ServiceOptions>(defaultServiceOptions)
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethods>(defaultPaymentMethods)
+
+  // Añadir tenantId al estado del contexto
+  const [tenantIdState, setTenantId] = useState<string>("")
+
+  // Añadir un useEffect para obtener el tenantId
+  useEffect(() => {
+    // Obtener el tenantId del hostname (subdominio)
+    const hostname = window.location.hostname
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+
+    // Verificar si estamos en un subdominio
+    if (hostname.includes(`.${rootDomain}`) && !hostname.startsWith("www.")) {
+      // Extraer el subdominio (tenant)
+      const subdomain = hostname.replace(`.${rootDomain}`, "")
+      console.log("CartContext - Subdomain detected:", subdomain)
+      setTenantId(subdomain)
+    }
+  }, [])
 
   // Load cart from localStorage on mount
   useEffect(() => {
@@ -197,6 +221,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // Calculate total
   const total = subtotal + tax
 
+  // Modificar el valor del contexto para incluir tenantId
   const value = {
     items,
     addItem,
@@ -209,6 +234,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     tax,
     total,
     isStoreOpen,
+    serviceOptions,
+    paymentMethods,
+    tenantId: tenantIdState, // Añadir tenantId al contexto
   }
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
