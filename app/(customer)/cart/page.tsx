@@ -1,4 +1,5 @@
 "use client"
+
 import { useCart } from "@/components/cart/cart-context"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
@@ -11,12 +12,33 @@ import Image from "next/image"
 import { Textarea } from "@/components/ui/textarea"
 import { StoreStatusBadge } from "@/components/store-status-badge"
 import { useToast } from "@/components/ui/use-toast"
+import { useEffect } from "react"
 
 export default function CartPage() {
   const { items, removeItem, updateItemQuantity, updateItemNotes, subtotal, tax, total, isStoreOpen } = useCart()
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
+
+  // Redireccionar si no hay usuario autenticado
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login")
+    }
+  }, [user, loading, router])
+
+  // Si está cargando o no hay usuario, mostrar un estado de carga
+  if (loading || !user) {
+    return (
+      <div className="container max-w-4xl py-8">
+        <Card>
+          <CardContent className="flex items-center justify-center py-12">
+            <p>Cargando...</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   const handleCheckout = () => {
     if (!isStoreOpen) {
@@ -48,7 +70,7 @@ export default function CartPage() {
     <div className="container max-w-4xl py-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Tu Carrito</h1>
-        <StoreStatusBadge tenantId={user?.tenantId || ""} />
+        <StoreStatusBadge tenantId={user.tenantId || ""} />
       </div>
 
       {items.length === 0 ? (

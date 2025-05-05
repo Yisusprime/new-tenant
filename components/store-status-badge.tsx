@@ -2,16 +2,14 @@
 
 import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
-import { Clock } from "lucide-react"
 import { ref, onValue, off } from "firebase/database"
 import { rtdb } from "@/lib/firebase-config"
 
 interface StoreStatusBadgeProps {
   tenantId: string
-  className?: string
 }
 
-export function StoreStatusBadge({ tenantId, className = "" }: StoreStatusBadgeProps) {
+export function StoreStatusBadge({ tenantId }: StoreStatusBadgeProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -40,18 +38,8 @@ export function StoreStatusBadge({ tenantId, className = "" }: StoreStatusBadgeP
   }, [tenantId])
 
   if (loading) {
-    return (
-      <Badge variant="outline" className={`animate-pulse ${className}`}>
-        <Clock className="h-3 w-3 mr-1" />
-        Cargando...
-      </Badge>
-    )
+    return <Badge variant="outline">Cargando...</Badge>
   }
 
-  return (
-    <Badge variant={isOpen ? "default" : "destructive"} className={className}>
-      <Clock className="h-3 w-3 mr-1" />
-      {isOpen ? "Abierto" : "Cerrado"}
-    </Badge>
-  )
+  return <Badge variant={isOpen ? "success" : "destructive"}>{isOpen ? "Abierto" : "Cerrado"}</Badge>
 }
