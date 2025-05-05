@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
-import { ref, push, get, update, onValue, off } from "firebase/database"
+import { ref, push, get, update, onValue, off, set } from "firebase/database"
 import { rtdb } from "@/lib/firebase-config"
 import type { Order, OrderStatus } from "@/lib/types/orders"
 import { useShift } from "./shift-provider"
@@ -57,11 +57,12 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
 
     // CORREGIDO: Ruta correcta para las órdenes
     const ordersRef = ref(rtdb, `${tenantId}/orders`)
+    console.log("Orders reference path:", ordersRef.toString())
 
     const handleOrdersUpdate = (snapshot) => {
       try {
         const ordersData = snapshot.val() || {}
-        console.log("Real-time orders data update received")
+        console.log("Real-time orders data update received:", ordersData)
 
         const fetchedOrders: Order[] = Object.keys(ordersData).map((key) => ({
           id: key,
@@ -113,10 +114,12 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
 
       // CORREGIDO: Ruta correcta para las órdenes
       const ordersRef = ref(rtdb, `${tenantId}/orders`)
+      console.log("Fetching orders from path:", ordersRef.toString())
+
       const ordersSnapshot = await get(ordersRef)
       const ordersData = ordersSnapshot.val() || {}
 
-      console.log("Orders data loaded")
+      console.log("Orders data loaded:", ordersData)
 
       const fetchedOrders: Order[] = Object.keys(ordersData).map((key) => ({
         id: key,
@@ -145,6 +148,8 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
     try {
       // CORREGIDO: Ruta correcta para el contador
       const counterRef = ref(rtdb, `${tenantId}/counters/orders`)
+      console.log("Counter reference path:", counterRef.toString())
+
       const snapshot = await get(counterRef)
 
       let nextNumber = 1
@@ -153,7 +158,7 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
       }
 
       // Actualizar el contador
-      await update(counterRef, nextNumber)
+      await set(counterRef, nextNumber)
 
       return nextNumber
     } catch (error) {
@@ -174,7 +179,10 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
 
       // CORREGIDO: Ruta correcta para las órdenes
       const ordersRef = ref(rtdb, `${tenantId}/orders`)
+      console.log("Creating order at path:", ordersRef.toString())
+
       const newOrderRef = push(ordersRef)
+      console.log("New order reference:", newOrderRef.toString())
 
       const timestamp = Date.now()
 
@@ -207,7 +215,8 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
         ...orderData,
       }
 
-      await update(newOrderRef, newOrder)
+      // Usar set en lugar de update para asegurarnos de que se crea correctamente
+      await set(newOrderRef, newOrder)
       console.log("New order created with ID:", newOrderRef.key)
 
       return newOrderRef.key || ""
@@ -227,6 +236,8 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
 
       // CORREGIDO: Ruta correcta para las órdenes
       const orderRef = ref(rtdb, `${tenantId}/orders/${orderId}`)
+      console.log("Updating order at path:", orderRef.toString())
+
       await update(orderRef, orderData)
     } catch (err) {
       console.error("Error updating order:", err)
@@ -247,6 +258,8 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
 
       // CORREGIDO: Ruta correcta para las órdenes
       const orderRef = ref(rtdb, `${tenantId}/orders/${orderId}`)
+      console.log("Updating order status at path:", orderRef.toString())
+
       const orderSnapshot = await get(orderRef)
 
       if (!orderSnapshot.exists()) {
@@ -298,6 +311,8 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
 
       // CORREGIDO: Ruta correcta para las órdenes
       const orderRef = ref(rtdb, `${tenantId}/orders/${orderId}`)
+      console.log("Completing order at path:", orderRef.toString())
+
       const orderSnapshot = await get(orderRef)
 
       if (!orderSnapshot.exists()) {
@@ -340,6 +355,8 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
 
       // CORREGIDO: Ruta correcta para las órdenes
       const orderRef = ref(rtdb, `${tenantId}/orders/${orderId}`)
+      console.log("Cancelling order at path:", orderRef.toString())
+
       const orderSnapshot = await get(orderRef)
 
       if (!orderSnapshot.exists()) {
@@ -377,6 +394,8 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
 
       // CORREGIDO: Ruta correcta para las órdenes
       const orderRef = ref(rtdb, `${tenantId}/orders/${orderId}`)
+      console.log("Getting order from path:", orderRef.toString())
+
       const orderSnapshot = await get(orderRef)
 
       if (orderSnapshot.exists()) {

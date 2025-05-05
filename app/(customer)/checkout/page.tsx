@@ -158,9 +158,14 @@ export default function CheckoutPage() {
         updatedAt: Date.now(),
       }
 
-      // Guardar el pedido en Firebase
-      const ordersRef = ref(rtdb, `tenants/${tenantId}/orders`)
+      // CORREGIDO: Guardar el pedido en la ruta correcta de Firebase
+      // Antes: const ordersRef = ref(rtdb, `tenants/${tenantId}/orders`)
+      // Ahora: Usar la ruta correcta
+      const ordersRef = ref(rtdb, `${tenantId}/orders`)
+      console.log("Creating order at path:", ordersRef.toString())
+
       const newOrderRef = await push(ordersRef, orderData)
+      console.log("Order created with ID:", newOrderRef.key)
 
       // Limpiar el carrito
       clearCart()
