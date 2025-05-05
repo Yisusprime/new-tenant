@@ -47,7 +47,8 @@ export default function CheckoutPage() {
 
   const router = useRouter()
   const params = useParams()
-  const tenantId = params?.tenant || ""
+  const tenantId =
+    typeof params?.tenant === "string" ? params.tenant : Array.isArray(params?.tenant) ? params.tenant[0] : ""
   const { toast } = useToast()
 
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("pickup")
@@ -74,6 +75,15 @@ export default function CheckoutPage() {
   }
 
   const handleSubmitOrder = async () => {
+    if (!tenantId) {
+      toast({
+        title: "Error en el pedido",
+        description: "No se pudo identificar el restaurante. Por favor, intenta nuevamente.",
+        variant: "destructive",
+      })
+      return
+    }
+
     if (!isStoreOpen) {
       toast({
         title: "Restaurante cerrado",
