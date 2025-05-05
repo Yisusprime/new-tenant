@@ -83,26 +83,18 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
         { href: `/admin/orders`, label: "Pedidos", icon: ShoppingBag },
         { href: `/admin/inventory`, label: "Inventario", icon: Package },
         { href: `/admin/cashier`, label: "Caja", icon: DollarSign },
-        { href: `/admin/reservations`, label: "Reservas", icon: CalendarDays },
-        { href: `/admin/delivery`, label: "Entregas", icon: Truck },
-        { href: `/admin/kitchen`, label: "Cocina", icon: Utensils },
-        { href: `/admin/shifts`, label: "Turnos", icon: Clock },
       ],
     },
     {
       title: "Marketing",
       links: [
         { href: `/admin/theme`, label: "Personalización", icon: Palette },
-        { href: `/admin/promotions`, label: "Promociones", icon: Bell },
-        { href: `/admin/reviews`, label: "Reseñas", icon: MessageSquare },
       ],
     },
     {
       title: "Administración",
       links: [
         { href: `/admin/users`, label: "Usuarios", icon: Users },
-        { href: `/admin/stats`, label: "Estadísticas", icon: BarChart3 },
-        { href: `/admin/reports`, label: "Informes", icon: FileText },
         { href: `/admin/settings`, label: "Configuración", icon: Settings },
       ],
     },
