@@ -1,11 +1,11 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { useToast } from "@/components/ui/use-toast"
-import { useAuth } from "@/lib/auth-context"
-import { ref, onValue, off, get } from "firebase/database"
+import { ref, onValue, off } from "firebase/database"
 import { rtdb } from "@/lib/firebase-config"
+import { useParams } from "next/navigation"
 
+// Tipos
 export interface CartItem {
   id: string
   productId: string
@@ -25,279 +25,198 @@ export interface CartItemExtra {
   quantity: number
 }
 
+interface ServiceOptions {
+  offersPickup: boolean
+  offersTakeaway: boolean
+  offersDelivery: boolean
+  deliveryFee: number
+}
+
+interface PaymentMethods {
+  acceptsCash: boolean
+  acceptsCard: boolean
+  acceptsTransfer: boolean
+  onlinePaymentInstructions?: string
+}
+
 interface CartContextType {
   items: CartItem[]
   addItem: (item: CartItem) => void
   removeItem: (itemId: string) => void
   updateItemQuantity: (itemId: string, quantity: number) => void
   updateItemNotes: (itemId: string, notes: string) => void
-  addItemExtra: (itemId: string, extra: CartItemExtra) => void
-  removeItemExtra: (itemId: string, extraId: string) => void
-  updateItemExtraQuantity: (itemId: string, extraId: string, quantity: number) => void
   clearCart: () => void
-  isStoreOpen: boolean
+  itemCount: number
   subtotal: number
   tax: number
   total: number
-  itemCount: number
-  serviceOptions: {
-    offersPickup: boolean
-    offersTakeaway: boolean
-    offersDelivery: boolean
-    deliveryFee: number
-    freeDeliveryThreshold: number
-    deliveryRadius: number
-    estimatedDeliveryTime: number
-  }
-  paymentMethods: {
-    acceptsCash: boolean
-    acceptsCard: boolean
-    acceptsTransfer: boolean
-    acceptsOnlinePayment: boolean
-    onlinePaymentInstructions: string
-  }
+  isStoreOpen: boolean
+  serviceOptions: ServiceOptions
+  paymentMethods: PaymentMethods
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
 
-export function useCart() {
-  const context = useContext(CartContext)
-  if (context === undefined) {
-    throw new Error("useCart must be used within a CartProvider")
-  }
-  return context
+// Valores por defecto
+const defaultServiceOptions: ServiceOptions = {
+  offersPickup: true,
+  offersTakeaway: true,
+  offersDelivery: true,
+  deliveryFee: 5.0,
 }
 
-interface CartProviderProps {
-  children: ReactNode
-  tenantId: string
+const defaultPaymentMethods: PaymentMethods = {
+  acceptsCash: true,
+  acceptsCard: true,
+  acceptsTransfer: true,
+  onlinePaymentInstructions: "Transferir a la cuenta: 1234-5678-9012-3456",
 }
 
-export function CartProvider({ children, tenantId }: CartProviderProps) {
+export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
   const [isStoreOpen, setIsStoreOpen] = useState(false)
-  const [serviceOptions, setServiceOptions] = useState({
-    offersPickup: true,
-    offersTakeaway: true,
-    offersDelivery: false,
-    deliveryFee: 0,
-    freeDeliveryThreshold: 0,
-    deliveryRadius: 0,
-    estimatedDeliveryTime: 30,
-  })
-  const [paymentMethods, setPaymentMethods] = useState({
-    acceptsCash: true,
-    acceptsCard: true,
-    acceptsTransfer: false,
-    acceptsOnlinePayment: false,
-    onlinePaymentInstructions: "",
-  })
-  const { toast } = useToast()
-  const { user } = useAuth()
+  const [serviceOptions, setServiceOptions] = useState<ServiceOptions>(defaultServiceOptions)
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethods>(defaultPaymentMethods)
+  const params = useParams()
+  const tenantId = params?.tenant || ""
 
-  // Cargar el carrito desde localStorage al iniciar
+  // Cargar items del localStorage al iniciar
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedCart = localStorage.getItem(`cart-${tenantId}`)
-      if (savedCart) {
-        try {
-          setItems(JSON.parse(savedCart))
-        } catch (error) {
-          console.error("Error parsing cart from localStorage:", error)
-        }
+    const savedItems = localStorage.getItem("cartItems")
+    if (savedItems) {
+      try {
+        setItems(JSON.parse(savedItems))
+      } catch (error) {
+        console.error("Error parsing cart items from localStorage:", error)
+        localStorage.removeItem("cartItems")
       }
     }
-  }, [tenantId])
+  }, [])
 
-  // Guardar el carrito en localStorage cuando cambia
+  // Guardar items en localStorage cuando cambian
   useEffect(() => {
-    if (typeof window !== "undefined" && items.length > 0) {
-      localStorage.setItem(`cart-${tenantId}`, JSON.stringify(items))
-    }
-  }, [items, tenantId])
+    localStorage.setItem("cartItems", JSON.stringify(items))
+  }, [items])
 
-  // Verificar si la tienda está abierta (hay un turno activo)
+  // Verificar si la tienda está abierta
   useEffect(() => {
     if (!tenantId) return
 
     const shiftsRef = ref(rtdb, `tenants/${tenantId}/shifts`)
 
-    const handleShiftsUpdate = (snapshot: any) => {
-      const shiftsData = snapshot.val() || {}
-
-      // Buscar si hay algún turno activo
-      const hasActiveShift = Object.values(shiftsData).some((shift: any) => shift.status === "active")
-
-      setIsStoreOpen(hasActiveShift)
+    const handleShiftsChange = (snapshot: any) => {
+      if (snapshot.exists()) {
+        const shifts = snapshot.val()
+        // Verificar si hay algún turno activo (sin endTime)
+        const activeShift = Object.values(shifts).some((shift: any) => !shift.endTime)
+        setIsStoreOpen(activeShift)
+      } else {
+        setIsStoreOpen(false)
+      }
     }
 
-    // Establecer el listener
-    onValue(shiftsRef, handleShiftsUpdate)
+    onValue(shiftsRef, handleShiftsChange)
 
-    // Limpiar el listener cuando el componente se desmonte
     return () => {
-      off(shiftsRef)
+      off(shiftsRef, "value", handleShiftsChange)
     }
   }, [tenantId])
 
-  // Cargar opciones de servicio y métodos de pago
+  // Cargar configuración de servicios y pagos
   useEffect(() => {
     if (!tenantId) return
 
-    const tenantRef = ref(rtdb, `tenants/${tenantId}/settings`)
+    const configRef = ref(rtdb, `tenants/${tenantId}/config`)
 
-    const loadSettings = async () => {
-      try {
-        const snapshot = await get(tenantRef)
-        const settings = snapshot.val() || {}
+    const handleConfigChange = (snapshot: any) => {
+      if (snapshot.exists()) {
+        const config = snapshot.val()
 
-        if (settings.serviceOptions) {
+        if (config.serviceOptions) {
           setServiceOptions({
-            ...serviceOptions,
-            ...settings.serviceOptions,
+            offersPickup: config.serviceOptions.offersPickup ?? defaultServiceOptions.offersPickup,
+            offersTakeaway: config.serviceOptions.offersTakeaway ?? defaultServiceOptions.offersTakeaway,
+            offersDelivery: config.serviceOptions.offersDelivery ?? defaultServiceOptions.offersDelivery,
+            deliveryFee: config.serviceOptions.deliveryFee ?? defaultServiceOptions.deliveryFee,
           })
         }
 
-        if (settings.paymentMethods) {
+        if (config.paymentMethods) {
           setPaymentMethods({
-            ...paymentMethods,
-            ...settings.paymentMethods,
+            acceptsCash: config.paymentMethods.acceptsCash ?? defaultPaymentMethods.acceptsCash,
+            acceptsCard: config.paymentMethods.acceptsCard ?? defaultPaymentMethods.acceptsCard,
+            acceptsTransfer: config.paymentMethods.acceptsTransfer ?? defaultPaymentMethods.acceptsTransfer,
+            onlinePaymentInstructions:
+              config.paymentMethods.onlinePaymentInstructions ?? defaultPaymentMethods.onlinePaymentInstructions,
           })
         }
-      } catch (error) {
-        console.error("Error loading tenant settings:", error)
       }
     }
 
-    loadSettings()
+    onValue(configRef, handleConfigChange)
+
+    return () => {
+      off(configRef, "value", handleConfigChange)
+    }
   }, [tenantId])
 
-  const addItem = (item: CartItem) => {
+  // Añadir item al carrito
+  const addItem = (newItem: CartItem) => {
     setItems((prevItems) => {
       // Verificar si el producto ya está en el carrito
-      const existingItemIndex = prevItems.findIndex((i) => i.productId === item.productId)
+      const existingItemIndex = prevItems.findIndex(
+        (item) =>
+          item.productId === newItem.productId &&
+          JSON.stringify(item.extras.map((e) => e.extraId).sort()) ===
+            JSON.stringify(newItem.extras.map((e) => e.extraId).sort()),
+      )
 
       if (existingItemIndex >= 0) {
-        // Si el producto ya existe, incrementar la cantidad
+        // Si el producto ya existe con los mismos extras, actualizar cantidad
         const updatedItems = [...prevItems]
-        updatedItems[existingItemIndex].quantity += item.quantity
-
-        toast({
-          title: "Producto actualizado",
-          description: `Se actualizó la cantidad de ${item.name} en el carrito.`,
-        })
-
+        updatedItems[existingItemIndex].quantity += newItem.quantity
         return updatedItems
       } else {
-        // Si es un producto nuevo, añadirlo al carrito
-        toast({
-          title: "Producto añadido",
-          description: `${item.name} se añadió al carrito.`,
-        })
-
-        return [...prevItems, item]
+        // Si no existe, añadir nuevo item
+        return [...prevItems, newItem]
       }
     })
   }
 
+  // Eliminar item del carrito
   const removeItem = (itemId: string) => {
-    setItems((prevItems) => {
-      const itemToRemove = prevItems.find((item) => item.id === itemId)
+    setItems((prevItems) => prevItems.filter((item) => item.id !== itemId))
+  }
 
-      if (itemToRemove) {
-        toast({
-          title: "Producto eliminado",
-          description: `${itemToRemove.name} se eliminó del carrito.`,
-        })
+  // Actualizar cantidad de un item
+  const updateItemQuantity = (itemId: string, quantity: number) => {
+    setItems((prevItems) => {
+      if (quantity <= 0) {
+        return prevItems.filter((item) => item.id !== itemId)
       }
 
-      return prevItems.filter((item) => item.id !== itemId)
+      return prevItems.map((item) => (item.id === itemId ? { ...item, quantity } : item))
     })
   }
 
-  const updateItemQuantity = (itemId: string, quantity: number) => {
-    if (quantity < 1) {
-      removeItem(itemId)
-      return
-    }
-
-    setItems((prevItems) => prevItems.map((item) => (item.id === itemId ? { ...item, quantity } : item)))
-  }
-
+  // Actualizar notas de un item
   const updateItemNotes = (itemId: string, notes: string) => {
     setItems((prevItems) => prevItems.map((item) => (item.id === itemId ? { ...item, notes } : item)))
   }
 
-  const addItemExtra = (itemId: string, extra: CartItemExtra) => {
-    setItems((prevItems) =>
-      prevItems.map((item) => {
-        if (item.id === itemId) {
-          // Verificar si el extra ya existe
-          const existingExtraIndex = item.extras.findIndex((e) => e.extraId === extra.extraId)
-
-          if (existingExtraIndex >= 0) {
-            // Si el extra ya existe, incrementar la cantidad
-            const updatedExtras = [...item.extras]
-            updatedExtras[existingExtraIndex].quantity += extra.quantity
-            return { ...item, extras: updatedExtras }
-          } else {
-            // Si es un extra nuevo, añadirlo
-            return {
-              ...item,
-              extras: [...item.extras, extra],
-            }
-          }
-        }
-        return item
-      }),
-    )
-  }
-
-  const removeItemExtra = (itemId: string, extraId: string) => {
-    setItems((prevItems) =>
-      prevItems.map((item) => {
-        if (item.id === itemId) {
-          return {
-            ...item,
-            extras: item.extras.filter((extra) => extra.id !== extraId),
-          }
-        }
-        return item
-      }),
-    )
-  }
-
-  const updateItemExtraQuantity = (itemId: string, extraId: string, quantity: number) => {
-    if (quantity < 1) {
-      removeItemExtra(itemId, extraId)
-      return
-    }
-
-    setItems((prevItems) =>
-      prevItems.map((item) => {
-        if (item.id === itemId) {
-          return {
-            ...item,
-            extras: item.extras.map((extra) => (extra.id === extraId ? { ...extra, quantity } : extra)),
-          }
-        }
-        return item
-      }),
-    )
-  }
-
+  // Limpiar carrito
   const clearCart = () => {
     setItems([])
-    if (typeof window !== "undefined") {
-      localStorage.removeItem(`cart-${tenantId}`)
-    }
   }
+
+  // Calcular número total de items
+  const itemCount = items.reduce((count, item) => count + item.quantity, 0)
 
   // Calcular subtotal
   const subtotal = items.reduce((total, item) => {
-    const itemPrice = item.price * item.quantity
-    const extrasPrice = item.extras.reduce((sum, extra) => sum + extra.price * extra.quantity, 0)
-    return total + itemPrice + extrasPrice
+    const itemTotal = item.price * item.quantity
+    const extrasTotal = item.extras.reduce((sum, extra) => sum + extra.price * extra.quantity, 0)
+    return total + itemTotal + extrasTotal * item.quantity
   }, 0)
 
   // Calcular impuestos (10%)
@@ -306,27 +225,29 @@ export function CartProvider({ children, tenantId }: CartProviderProps) {
   // Calcular total
   const total = subtotal + tax
 
-  // Contar número de items
-  const itemCount = items.reduce((count, item) => count + item.quantity, 0)
-
   const value = {
     items,
     addItem,
     removeItem,
     updateItemQuantity,
     updateItemNotes,
-    addItemExtra,
-    removeItemExtra,
-    updateItemExtraQuantity,
     clearCart,
-    isStoreOpen,
+    itemCount,
     subtotal,
     tax,
     total,
-    itemCount,
+    isStoreOpen,
     serviceOptions,
     paymentMethods,
   }
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
+}
+
+export const useCart = () => {
+  const context = useContext(CartContext)
+  if (context === undefined) {
+    throw new Error("useCart must be used within a CartProvider")
+  }
+  return context
 }

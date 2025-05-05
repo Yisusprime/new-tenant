@@ -1,44 +1,20 @@
 "use client"
 
 import { useCart } from "@/components/cart/cart-context"
-import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Trash2, Plus, Minus, ArrowLeft, ShoppingBag } from "lucide-react"
-import { formatCurrency } from "@/lib/utils"
 import Image from "next/image"
 import { Textarea } from "@/components/ui/textarea"
 import { StoreStatusBadge } from "@/components/store-status-badge"
 import { useToast } from "@/components/ui/use-toast"
-import { useEffect } from "react"
 
 export default function CartPage() {
   const { items, removeItem, updateItemQuantity, updateItemNotes, subtotal, tax, total, isStoreOpen } = useCart()
-  const { user, loading } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
-
-  // Redireccionar si no hay usuario autenticado
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login")
-    }
-  }, [user, loading, router])
-
-  // Si está cargando o no hay usuario, mostrar un estado de carga
-  if (loading || !user) {
-    return (
-      <div className="container max-w-4xl py-8">
-        <Card>
-          <CardContent className="flex items-center justify-center py-12">
-            <p>Cargando...</p>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
 
   const handleCheckout = () => {
     if (!isStoreOpen) {
@@ -66,11 +42,15 @@ export default function CartPage() {
     router.push("/menu")
   }
 
+  const formatCurrency = (amount: number) => {
+    return `$${amount.toFixed(2)}`
+  }
+
   return (
     <div className="container max-w-4xl py-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Tu Carrito</h1>
-        <StoreStatusBadge tenantId={user.tenantId || ""} />
+        <StoreStatusBadge />
       </div>
 
       {items.length === 0 ? (

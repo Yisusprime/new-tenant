@@ -4,42 +4,37 @@ import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { ref, onValue, off } from "firebase/database"
 import { rtdb } from "@/lib/firebase-config"
+import { useParams } from "next/navigation"
 
-interface StoreStatusBadgeProps {
-  tenantId: string
-}
-
-export function StoreStatusBadge({ tenantId }: StoreStatusBadgeProps) {
+export function StoreStatusBadge() {
   const [isOpen, setIsOpen] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const params = useParams()
+  const tenantId = params?.tenant || ""
 
   useEffect(() => {
     if (!tenantId) return
 
     const shiftsRef = ref(rtdb, `tenants/${tenantId}/shifts`)
 
-    const handleShiftsUpdate = (snapshot: any) => {
-      const shiftsData = snapshot.val() || {}
-
-      // Buscar si hay algún turno activo
-      const hasActiveShift = Object.values(shiftsData).some((shift: any) => shift.status === "active")
-
-      setIsOpen(hasActiveShift)
-      setLoading(false)
+    const handleShiftsChange = (snapshot: any) => {
+      if (snapshot.exists()) {
+        const shifts = snapshot.val()
+        // Verificar si hay algún turno activo (sin endTime)
+        const activeShift = Object.values(shifts).some((shift: any) => !shift.endTime)
+        setIsOpen(activeShift)
+      } else {
+        setIsOpen(false)
+      }
     }
 
-    // Establecer el listener
-    onValue(shiftsRef, handleShiftsUpdate)
+    onValue(shiftsRef, handleShiftsChange)
 
-    // Limpiar el listener cuando el componente se desmonte
     return () => {
-      off(shiftsRef)
+      off(shiftsRef, "value", handleShiftsChange)
     }
   }, [tenantId])
 
-  if (loading) {
-    return <Badge variant="outline">Cargando...</Badge>
-  }
+  if (!tenantId) return null
 
   return <Badge variant={isOpen ? "success" : "destructive"}>{isOpen ? "Abierto" : "Cerrado"}</Badge>
 }

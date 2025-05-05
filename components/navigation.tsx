@@ -17,7 +17,7 @@ export function Navigation() {
         <Link href="/" className="font-bold text-xl">
           Gastroo
         </Link>
-        <StoreStatusBadge tenantId={user?.tenantId || ""} />
+        <StoreStatusBadge />
       </div>
 
       <div className="flex items-center space-x-2">

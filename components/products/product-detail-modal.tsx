@@ -19,6 +19,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import type { Product, Extra } from "@/components/products/product-context"
 import { toast } from "@/components/ui/use-toast"
+import { useCart } from "@/components/cart/cart-context"
+import { v4 as uuidv4 } from "uuid"
 
 interface ProductDetailModalProps {
   product: Product | null
@@ -44,6 +46,7 @@ export function ProductDetailModal({
   const [comment, setComment] = useState("")
   const [showReviewForm, setShowReviewForm] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
+  const { addItem, isStoreOpen } = useCart()
 
   if (!product) return null
 
@@ -67,19 +70,48 @@ export function ProductDetailModal({
   }
 
   const handleAddToCart = () => {
-    // Aquí iría la lógica para añadir al carrito
-    const selectedExtrasList = Object.entries(selectedExtras)
-      .filter(([_, isSelected]) => isSelected)
-      .map(([extraId]) => extraId)
+    if (!isStoreOpen) {
+      toast({
+        title: "Restaurante cerrado",
+        description: "Lo sentimos, no se pueden realizar pedidos en este momento.",
+        variant: "destructive",
+      })
+      return
+    }
 
-    toast({
-      title: "Producto añadido al carrito",
-      description: `${quantity} x ${product.name} con ${selectedExtrasList.length} extras`,
+    // Preparar los extras seleccionados
+    const cartExtras = Object.entries(selectedExtras)
+      .filter(([extraId, isSelected]) => isSelected)
+      .map(([extraId]) => {
+        const extraInfo = extras.find((e) => e.id === extraId)
+        const productExtra = product.productExtras[extraId]
+        const price = productExtra.price !== undefined ? productExtra.price : extraInfo?.price || 0
+
+        return {
+          id: uuidv4(),
+          extraId,
+          name: extraInfo?.name || "Extra",
+          price,
+          quantity: 1,
+        }
+      })
+
+    // Añadir el producto al carrito
+    addItem({
+      id: uuidv4(),
+      productId: product.id,
+      name: product.name,
+      price: product.price,
+      quantity,
+      image: product.imageUrl,
+      notes: comment,
+      extras: cartExtras,
     })
 
     onClose()
     setQuantity(1)
     setSelectedExtras({})
+    setComment("")
   }
 
   const handleSubmitReview = () => {
@@ -325,13 +357,14 @@ export function ProductDetailModal({
           <Button
             className="w-full"
             onClick={handleAddToCart}
+            disabled={!isStoreOpen}
             style={{
               backgroundColor: buttonColor,
               color: buttonTextColor,
             }}
           >
             <ShoppingCart className="mr-2 h-4 w-4" />
-            Añadir al carrito
+            {isStoreOpen ? "Añadir al carrito" : "Restaurante cerrado"}
           </Button>
         </DialogFooter>
       </DialogContent>

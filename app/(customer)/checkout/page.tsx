@@ -2,8 +2,7 @@
 
 import { useState } from "react"
 import { useCart } from "@/components/cart/cart-context"
-import { useAuth } from "@/lib/auth-context"
-import { useRouter } from "next/navigation"
+import { useRouter, useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -11,7 +10,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
-import { formatCurrency } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
 import { ref, push } from "firebase/database"
 import { rtdb } from "@/lib/firebase-config"
@@ -22,8 +20,9 @@ type PaymentMethod = "cash" | "card" | "transfer"
 
 export default function CheckoutPage() {
   const { items, subtotal, tax, total, clearCart, isStoreOpen, serviceOptions, paymentMethods } = useCart()
-  const { user } = useAuth()
   const router = useRouter()
+  const params = useParams()
+  const tenantId = params?.tenant || ""
   const { toast } = useToast()
 
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("pickup")
@@ -44,6 +43,10 @@ export default function CheckoutPage() {
 
   // Calcular total con envío
   const grandTotal = total + deliveryFee
+
+  const formatCurrency = (amount: number) => {
+    return `$${amount.toFixed(2)}`
+  }
 
   const handleSubmitOrder = async () => {
     if (!isStoreOpen) {
@@ -106,7 +109,7 @@ export default function CheckoutPage() {
       }))
 
       const orderData = {
-        tenantId: user?.tenantId || "",
+        tenantId,
         orderNumber: `ORD-${Date.now().toString().slice(-6)}`,
         type: deliveryMethod === "pickup" ? "dine-in" : deliveryMethod === "takeaway" ? "takeaway" : "delivery",
         status: "pending",
@@ -131,7 +134,6 @@ export default function CheckoutPage() {
       }
 
       // Guardar el pedido en Firebase
-      const tenantId = user?.tenantId || ""
       const ordersRef = ref(rtdb, `tenants/${tenantId}/orders`)
       const newOrderRef = await push(ordersRef, orderData)
 

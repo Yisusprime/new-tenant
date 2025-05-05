@@ -15,7 +15,7 @@ export function CartButton() {
       size="icon"
       className="relative"
       onClick={() => router.push("/cart")}
-      aria-label="Carrito de compras"
+      aria-label={`Carrito de compras, ${itemCount} productos`}
     >
       <ShoppingCart className="h-5 w-5" />
       {itemCount > 0 && (
