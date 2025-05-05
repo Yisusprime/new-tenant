@@ -19,8 +19,8 @@ export function StoreStatusBadge() {
     const handleShiftsChange = (snapshot: any) => {
       if (snapshot.exists()) {
         const shifts = snapshot.val()
-        // Verificar si hay algún turno activo
-        const activeShift = Object.values(shifts).some((shift: any) => shift.status === "active")
+        // Verificar si hay algún turno activo (sin endTime)
+        const activeShift = Object.values(shifts).some((shift: any) => !shift.endTime)
         setIsOpen(activeShift)
       } else {
         setIsOpen(false)
