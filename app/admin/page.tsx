@@ -163,7 +163,6 @@ function TenantLandingPage({
   const { products, loading: productsLoading } = useProducts()
   const [activeSlide, setActiveSlide] = useState(0)
   const [searchQuery, setSearchQuery] = useState("")
-  const [isOpen, setIsOpen] = useState(true) // Estado para el restaurante abierto/cerrado
   const [refreshing, setRefreshing] = useState(false)
 
   const featuredSliderRef = useRef<HTMLDivElement>(null)
@@ -176,6 +175,8 @@ function TenantLandingPage({
   const productButtonColor = tenantInfo.productButtonColor || "#f97316"
   const buttonTextColor = tenantInfo.buttonTextColor || "#ffffff"
   const backgroundColor = tenantInfo.backgroundColor || "#f9fafb"
+  const bannerOpacity = tenantInfo.bannerOpacity !== undefined ? tenantInfo.bannerOpacity : 0.2
+  const isOpen = tenantInfo.isOpen !== undefined ? tenantInfo.isOpen : true
 
   // Función para forzar la recarga de datos con indicador visual
   const handleRefresh = async () => {
@@ -264,7 +265,7 @@ function TenantLandingPage({
           }}
         >
           {/* Banner image */}
-          <div className="absolute inset-0 opacity-20">
+          <div className="absolute inset-0" style={{ opacity: bannerOpacity }}>
             <Image
               src={tenantInfo.bannerUrl || "/placeholder.svg?key=i6gc5"}
               alt="Banner de comida"
@@ -285,7 +286,6 @@ function TenantLandingPage({
                       : "bg-white/70 hover:bg-white/90 text-red-600"
                   } font-medium border-0`}
                   size="sm"
-                  onClick={() => setIsOpen(!isOpen)}
                 >
                   {isOpen ? "Abierto" : "Cerrado"}
                 </Button>
@@ -338,7 +338,7 @@ function TenantLandingPage({
                       Horarios
                     </h4>
                     <div className="space-y-2">
-                      {restaurantInfo.openingHours.map((schedule: any, index: number) => (
+                      {restaurantInfo.openingHours.map((schedule, index) => (
                         <div key={index} className="flex justify-between text-sm">
                           <span>{schedule.day}</span>
                           <span>{schedule.hours}</span>
@@ -353,7 +353,7 @@ function TenantLandingPage({
                   <div>
                     <h4 className="font-medium mb-2">Características</h4>
                     <div className="flex flex-wrap gap-2">
-                      {restaurantInfo.features.map((feature: string, index: number) => (
+                      {restaurantInfo.features.map((feature, index) => (
                         <Badge key={index} variant="outline" className="bg-gray-100">
                           {feature}
                         </Badge>
