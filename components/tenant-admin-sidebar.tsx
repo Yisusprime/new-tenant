@@ -94,7 +94,6 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
     {
       title: "Administración",
       links: [
-        { href: `/admin/users`, label: "Usuarios", icon: Users },
         { href: `/admin/settings`, label: "Configuración", icon: Settings },
       ],
     },
