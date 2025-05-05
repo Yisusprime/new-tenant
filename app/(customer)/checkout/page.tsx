@@ -1,121 +1,183 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter, useParams } from "next/navigation"
+import { useState } from "react"
 import { useCart } from "@/components/cart/cart-context"
+import { useRouter, useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Separator } from "@/components/ui/separator"
+import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
-import { ArrowLeft, CreditCard, Truck, Store, Home, Check } from "lucide-react"
-import Link from "next/link"
-import { ref, push, set } from "firebase/database"
+import { ref, push } from "firebase/database"
 import { rtdb } from "@/lib/firebase-config"
+import { ShoppingBag, Home, Truck, CreditCard, Wallet, Banknote } from "lucide-react"
+
+type DeliveryMethod = "pickup" | "takeaway" | "delivery"
+type PaymentMethod = "cash" | "card" | "transfer"
+
+// Valores predeterminados para evitar errores durante el pre-renderizado
+const defaultServiceOptions = {
+  offersPickup: true,
+  offersTakeaway: true,
+  offersDelivery: true,
+  deliveryFee: 5.0,
+}
+
+const defaultPaymentMethods = {
+  acceptsCash: true,
+  acceptsCard: true,
+  acceptsTransfer: true,
+  onlinePaymentInstructions: "",
+}
 
 export default function CheckoutPage() {
-  const { items, subtotal, tax, total, clearCart } = useCart()
+  const {
+    items = [],
+    subtotal = 0,
+    tax = 0,
+    total = 0,
+    clearCart = () => {},
+    isStoreOpen = true,
+    serviceOptions = defaultServiceOptions,
+    paymentMethods = defaultPaymentMethods,
+  } = useCart()
+
   const router = useRouter()
   const params = useParams()
+  const tenantId = params?.tenant || ""
   const { toast } = useToast()
+
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("pickup")
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash")
+  const [needsChange, setNeedsChange] = useState(false)
+  const [changeAmount, setChangeAmount] = useState("")
   const [loading, setLoading] = useState(false)
-  const [orderType, setOrderType] = useState("delivery")
-  const [paymentMethod, setPaymentMethod] = useState("cash")
-  const [customerName, setCustomerName] = useState("")
-  const [customerPhone, setCustomerPhone] = useState("")
-  const [customerEmail, setCustomerEmail] = useState("")
-  const [customerAddress, setCustomerAddress] = useState("")
-  const [deliveryNotes, setDeliveryNotes] = useState("")
-  const [orderNotes, setOrderNotes] = useState("")
 
-  const tenantId =
-    typeof params?.tenant === "string" ? params.tenant : Array.isArray(params?.tenant) ? params.tenant[0] : ""
+  // Información del cliente
+  const [name, setName] = useState("")
+  const [phone, setPhone] = useState("")
+  const [email, setEmail] = useState("")
+  const [address, setAddress] = useState("")
+  const [notes, setNotes] = useState("")
 
-  useEffect(() => {
+  // Calcular costo de envío
+  const deliveryFee = deliveryMethod === "delivery" ? serviceOptions.deliveryFee : 0
+
+  // Calcular total con envío
+  const grandTotal = total + deliveryFee
+
+  const formatCurrency = (amount: number) => {
+    return `$${amount.toFixed(2)}`
+  }
+
+  const handleSubmitOrder = async () => {
+    if (!isStoreOpen) {
+      toast({
+        title: "Restaurante cerrado",
+        description: "Lo sentimos, el restaurante está cerrado en este momento.",
+        variant: "destructive",
+      })
+      return
+    }
+
     if (items.length === 0) {
-      router.push("/")
-    }
-  }, [items, router])
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-
-    if (!customerName || !customerPhone) {
       toast({
-        title: "Información incompleta",
-        description: "Por favor completa tu nombre y teléfono",
+        title: "Carrito vacío",
+        description: "No hay productos en tu carrito.",
         variant: "destructive",
       })
       return
     }
 
-    if (orderType === "delivery" && !customerAddress) {
-      toast({
-        title: "Dirección requerida",
-        description: "Por favor ingresa tu dirección de entrega",
-        variant: "destructive",
-      })
-      return
+    // Validar información según el método de entrega
+    if (deliveryMethod === "delivery") {
+      if (!name || !phone || !address) {
+        toast({
+          title: "Información incompleta",
+          description: "Por favor completa todos los campos requeridos para la entrega a domicilio.",
+          variant: "destructive",
+        })
+        return
+      }
+    } else if (deliveryMethod === "pickup" || deliveryMethod === "takeaway") {
+      if (!name || !phone) {
+        toast({
+          title: "Información incompleta",
+          description: "Por favor proporciona tu nombre y teléfono para contactarte.",
+          variant: "destructive",
+        })
+        return
+      }
     }
 
     try {
       setLoading(true)
 
-      // Preparar los datos del pedido
+      // Crear el objeto de pedido
+      const orderItems = items.map((item) => ({
+        productId: item.productId,
+        productName: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        discount: 0,
+        notes: item.notes || "",
+        extras: item.extras.map((extra) => ({
+          extraId: extra.extraId,
+          name: extra.name,
+          price: extra.price,
+          quantity: extra.quantity,
+        })),
+        status: "pending",
+      }))
+
       const orderData = {
         tenantId,
-        type: orderType,
-        items: items.map((item) => ({
-          productId: item.productId,
-          productName: item.name,
-          quantity: item.quantity,
-          price: item.price,
-          extras: item.extras,
-          notes: item.notes || "",
-        })),
-        customerName,
-        customerPhone,
-        customerEmail,
+        orderNumber: `ORD-${Date.now().toString().slice(-6)}`,
+        type: deliveryMethod === "pickup" ? "dine-in" : deliveryMethod === "takeaway" ? "takeaway" : "delivery",
         status: "pending",
-        paymentMethod,
-        paymentStatus: "pending",
+        items: orderItems,
         subtotal,
         tax,
-        total,
+        discount: 0,
+        tip: 0,
+        deliveryFee: deliveryMethod === "delivery" ? deliveryFee : 0,
+        total: grandTotal,
+        paymentStatus: "pending",
+        paymentMethod,
+        customerName: name,
+        customerPhone: phone,
+        customerEmail: email || null,
+        customerAddress: deliveryMethod === "delivery" ? address : null,
+        notes: notes || null,
+        needsChange: paymentMethod === "cash" && needsChange ? true : false,
+        changeAmount: paymentMethod === "cash" && needsChange ? Number.parseFloat(changeAmount) || 0 : null,
         createdAt: Date.now(),
-        source: "menu", // Identificar que viene del menú
+        updatedAt: Date.now(),
       }
 
-      if (orderType === "delivery") {
-        orderData.customerAddress = customerAddress
-        orderData.deliveryNotes = deliveryNotes
-      }
-
-      if (orderNotes) {
-        orderData.notes = orderNotes
-      }
-
-      // CORREGIDO: Ruta correcta para las órdenes
-      const ordersRef = ref(rtdb, `${tenantId}/orders`)
-      console.log("Creating order at path:", ordersRef.toString())
-
-      const newOrderRef = push(ordersRef)
-      await set(newOrderRef, orderData)
-
-      const orderId = newOrderRef.key
+      // Guardar el pedido en Firebase
+      const ordersRef = ref(rtdb, `tenants/${tenantId}/orders`)
+      const newOrderRef = await push(ordersRef, orderData)
 
       // Limpiar el carrito
       clearCart()
 
+      // Mostrar mensaje de éxito
+      toast({
+        title: "¡Pedido realizado con éxito!",
+        description: `Tu número de pedido es: ${orderData.orderNumber}`,
+      })
+
       // Redirigir a la página de confirmación
-      router.push(`/order-confirmation/${orderId}`)
+      router.push(`/order-confirmation/${newOrderRef.key}`)
     } catch (error) {
       console.error("Error al crear el pedido:", error)
       toast({
-        title: "Error",
-        description: "No se pudo procesar tu pedido. Por favor intenta de nuevo.",
+        title: "Error al procesar el pedido",
+        description: "Ha ocurrido un error al procesar tu pedido. Por favor, intenta nuevamente.",
         variant: "destructive",
       })
     } finally {
@@ -123,247 +185,262 @@ export default function CheckoutPage() {
     }
   }
 
-  if (items.length === 0) {
-    return null // No renderizar nada si el carrito está vacío
+  if (!isStoreOpen) {
+    return (
+      <div className="container max-w-4xl py-8">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <div className="text-4xl mb-4">🕒</div>
+            <h2 className="text-xl font-semibold mb-2">Restaurante Cerrado</h2>
+            <p className="text-muted-foreground mb-6 text-center">
+              Lo sentimos, el restaurante está cerrado en este momento.
+              <br />
+              Por favor, vuelve más tarde.
+            </p>
+            <Button onClick={() => router.push("/")}>Volver al Inicio</Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-4xl">
-      <div className="flex items-center mb-6">
-        <Link
-          href="/cart"
-          className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Volver al carrito
-        </Link>
-      </div>
+    <div className="container max-w-4xl py-8">
+      <h1 className="text-2xl font-bold mb-6">Finalizar Pedido</h1>
 
-      <h1 className="text-2xl font-bold mb-6">Finalizar Compra</h1>
+      <div className="grid md:grid-cols-3 gap-6">
+        <div className="md:col-span-2 space-y-6">
+          {/* Método de entrega */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Método de Entrega</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <RadioGroup
+                value={deliveryMethod}
+                onValueChange={(value) => setDeliveryMethod(value as DeliveryMethod)}
+                className="space-y-4"
+              >
+                {serviceOptions.offersPickup && (
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="pickup" id="pickup" />
+                    <Label htmlFor="pickup" className="flex items-center cursor-pointer">
+                      <ShoppingBag className="mr-2 h-4 w-4" />
+                      Recoger en el Local
+                    </Label>
+                  </div>
+                )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="md:col-span-2">
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-lg font-medium mb-4">Información de contacto</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {serviceOptions.offersTakeaway && (
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="takeaway" id="takeaway" />
+                    <Label htmlFor="takeaway" className="flex items-center cursor-pointer">
+                      <Home className="mr-2 h-4 w-4" />
+                      Para Llevar
+                    </Label>
+                  </div>
+                )}
+
+                {serviceOptions.offersDelivery && (
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="delivery" id="delivery" />
+                    <Label htmlFor="delivery" className="flex items-center cursor-pointer">
+                      <Truck className="mr-2 h-4 w-4" />
+                      Entrega a Domicilio
+                      {deliveryMethod === "delivery" && (
+                        <span className="ml-2 text-sm text-muted-foreground">
+                          (+{formatCurrency(serviceOptions.deliveryFee)})
+                        </span>
+                      )}
+                    </Label>
+                  </div>
+                )}
+              </RadioGroup>
+            </CardContent>
+          </Card>
+
+          {/* Información del cliente */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Información de Contacto</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Nombre completo *</Label>
-                    <Input id="name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} required />
+                    <Label htmlFor="name">Nombre *</Label>
+                    <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone">Teléfono *</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
-                      required
-                    />
+                    <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} required />
                   </div>
                 </div>
-                <div className="mt-4 space-y-2">
-                  <Label htmlFor="email">Correo electrónico (opcional)</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={customerEmail}
-                    onChange={(e) => setCustomerEmail(e.target.value)}
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">Correo Electrónico (opcional)</Label>
+                  <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                </div>
+
+                {deliveryMethod === "delivery" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Dirección de Entrega *</Label>
+                    <Textarea id="address" value={address} onChange={(e) => setAddress(e.target.value)} required />
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Notas Adicionales (opcional)</Label>
+                  <Textarea
+                    id="notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Instrucciones especiales, alergias, etc."
                   />
                 </div>
               </div>
+            </CardContent>
+          </Card>
 
-              <Separator />
-
-              <div>
-                <h2 className="text-lg font-medium mb-4">Tipo de pedido</h2>
-                <RadioGroup
-                  value={orderType}
-                  onValueChange={setOrderType}
-                  className="grid grid-cols-1 sm:grid-cols-3 gap-4"
-                >
-                  <div
-                    className={`flex items-center space-x-2 border rounded-lg p-4 cursor-pointer ${
-                      orderType === "delivery" ? "border-primary bg-primary/5" : "border-input"
-                    }`}
-                  >
-                    <RadioGroupItem value="delivery" id="delivery" className="sr-only" />
-                    <Label htmlFor="delivery" className="flex items-center cursor-pointer flex-1">
-                      <Truck className="mr-2 h-5 w-5" />
-                      <div>
-                        <div className="font-medium">Delivery</div>
-                        <div className="text-xs text-muted-foreground">Entrega a domicilio</div>
-                      </div>
+          {/* Método de pago */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Método de Pago</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <RadioGroup
+                value={paymentMethod}
+                onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
+                className="space-y-4"
+              >
+                {paymentMethods.acceptsCash && (
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="cash" id="cash" />
+                    <Label htmlFor="cash" className="flex items-center cursor-pointer">
+                      <Banknote className="mr-2 h-4 w-4" />
+                      Efectivo
                     </Label>
-                    {orderType === "delivery" && <Check className="h-4 w-4 text-primary" />}
+                  </div>
+                )}
+
+                {paymentMethods.acceptsCard && (
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="card" id="card" />
+                    <Label htmlFor="card" className="flex items-center cursor-pointer">
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Tarjeta de Crédito/Débito
+                    </Label>
+                  </div>
+                )}
+
+                {paymentMethods.acceptsTransfer && (
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="transfer" id="transfer" />
+                    <Label htmlFor="transfer" className="flex items-center cursor-pointer">
+                      <Wallet className="mr-2 h-4 w-4" />
+                      Transferencia Bancaria
+                    </Label>
+                  </div>
+                )}
+              </RadioGroup>
+
+              {paymentMethod === "cash" && (
+                <div className="mt-4 pl-6 border-l-2 border-gray-200 space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="needsChange"
+                      checked={needsChange}
+                      onChange={(e) => setNeedsChange(e.target.checked)}
+                      className="rounded border-gray-300"
+                    />
+                    <Label htmlFor="needsChange">Necesito cambio</Label>
                   </div>
 
-                  <div
-                    className={`flex items-center space-x-2 border rounded-lg p-4 cursor-pointer ${
-                      orderType === "pickup" ? "border-primary bg-primary/5" : "border-input"
-                    }`}
-                  >
-                    <RadioGroupItem value="pickup" id="pickup" className="sr-only" />
-                    <Label htmlFor="pickup" className="flex items-center cursor-pointer flex-1">
-                      <Store className="mr-2 h-5 w-5" />
-                      <div>
-                        <div className="font-medium">Pickup</div>
-                        <div className="text-xs text-muted-foreground">Recoger en tienda</div>
-                      </div>
-                    </Label>
-                    {orderType === "pickup" && <Check className="h-4 w-4 text-primary" />}
-                  </div>
-
-                  <div
-                    className={`flex items-center space-x-2 border rounded-lg p-4 cursor-pointer ${
-                      orderType === "dine-in" ? "border-primary bg-primary/5" : "border-input"
-                    }`}
-                  >
-                    <RadioGroupItem value="dine-in" id="dine-in" className="sr-only" />
-                    <Label htmlFor="dine-in" className="flex items-center cursor-pointer flex-1">
-                      <Home className="mr-2 h-5 w-5" />
-                      <div>
-                        <div className="font-medium">Comer aquí</div>
-                        <div className="text-xs text-muted-foreground">En el restaurante</div>
-                      </div>
-                    </Label>
-                    {orderType === "dine-in" && <Check className="h-4 w-4 text-primary" />}
-                  </div>
-                </RadioGroup>
-              </div>
-
-              {orderType === "delivery" && (
-                <div>
-                  <h2 className="text-lg font-medium mb-4">Información de entrega</h2>
-                  <div className="space-y-4">
+                  {needsChange && (
                     <div className="space-y-2">
-                      <Label htmlFor="address">Dirección de entrega *</Label>
+                      <Label htmlFor="changeAmount">¿De cuánto pagarás?</Label>
                       <Input
-                        id="address"
-                        value={customerAddress}
-                        onChange={(e) => setCustomerAddress(e.target.value)}
-                        required
+                        id="changeAmount"
+                        type="number"
+                        min={grandTotal}
+                        step="0.01"
+                        value={changeAmount}
+                        onChange={(e) => setChangeAmount(e.target.value)}
+                        placeholder={`Mínimo ${formatCurrency(grandTotal)}`}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="delivery-notes">Instrucciones de entrega (opcional)</Label>
-                      <Textarea
-                        id="delivery-notes"
-                        value={deliveryNotes}
-                        onChange={(e) => setDeliveryNotes(e.target.value)}
-                        placeholder="Ej: Timbre no funciona, llamar por teléfono"
-                      />
-                    </div>
-                  </div>
+                  )}
                 </div>
               )}
 
-              <Separator />
-
-              <div>
-                <h2 className="text-lg font-medium mb-4">Método de pago</h2>
-                <RadioGroup
-                  value={paymentMethod}
-                  onValueChange={setPaymentMethod}
-                  className="grid grid-cols-1 sm:grid-cols-2 gap-4"
-                >
-                  <div
-                    className={`flex items-center space-x-2 border rounded-lg p-4 cursor-pointer ${
-                      paymentMethod === "cash" ? "border-primary bg-primary/5" : "border-input"
-                    }`}
-                  >
-                    <RadioGroupItem value="cash" id="cash" className="sr-only" />
-                    <Label htmlFor="cash" className="flex items-center cursor-pointer flex-1">
-                      <div>
-                        <div className="font-medium">Efectivo</div>
-                        <div className="text-xs text-muted-foreground">Pago al recibir</div>
-                      </div>
-                    </Label>
-                    {paymentMethod === "cash" && <Check className="h-4 w-4 text-primary" />}
-                  </div>
-
-                  <div
-                    className={`flex items-center space-x-2 border rounded-lg p-4 cursor-pointer ${
-                      paymentMethod === "card" ? "border-primary bg-primary/5" : "border-input"
-                    }`}
-                  >
-                    <RadioGroupItem value="card" id="card" className="sr-only" />
-                    <Label htmlFor="card" className="flex items-center cursor-pointer flex-1">
-                      <CreditCard className="mr-2 h-5 w-5" />
-                      <div>
-                        <div className="font-medium">Tarjeta</div>
-                        <div className="text-xs text-muted-foreground">Pago con tarjeta al recibir</div>
-                      </div>
-                    </Label>
-                    {paymentMethod === "card" && <Check className="h-4 w-4 text-primary" />}
-                  </div>
-                </RadioGroup>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="order-notes">Notas adicionales (opcional)</Label>
-                <Textarea
-                  id="order-notes"
-                  value={orderNotes}
-                  onChange={(e) => setOrderNotes(e.target.value)}
-                  placeholder="Ej: Sin cebolla, alergias, etc."
-                />
-              </div>
-            </div>
-
-            <div className="mt-8">
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Procesando..." : "Confirmar pedido"}
-              </Button>
-            </div>
-          </form>
-        </div>
-
-        <div>
-          <div className="bg-muted p-6 rounded-lg">
-            <h2 className="text-lg font-medium mb-4">Resumen del pedido</h2>
-            <div className="space-y-4">
-              {items.map((item) => (
-                <div key={item.id} className="flex justify-between">
-                  <div>
-                    <span className="font-medium">{item.quantity}x</span> {item.name}
-                    {item.extras.length > 0 && (
-                      <div className="text-xs text-muted-foreground ml-5">
-                        {item.extras.map((extra) => (
-                          <div key={extra.id}>
-                            {extra.quantity}x {extra.name} (+${extra.price.toFixed(2)})
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="font-medium">
-                    $
-                    {(
-                      item.price * item.quantity +
-                      item.extras.reduce((sum, extra) => sum + extra.price * extra.quantity, 0) * item.quantity
-                    ).toFixed(2)}
+              {paymentMethod === "transfer" && paymentMethods.onlinePaymentInstructions && (
+                <div className="mt-4 pl-6 border-l-2 border-gray-200">
+                  <div className="p-3 bg-muted rounded-md text-sm">
+                    <p className="font-medium mb-1">Instrucciones para transferencia:</p>
+                    <p>{paymentMethods.onlinePaymentInstructions}</p>
                   </div>
                 </div>
-              ))}
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
-              <Separator />
+        {/* Resumen del pedido */}
+        <div className="space-y-6">
+          <Card className="sticky top-4">
+            <CardHeader>
+              <CardTitle>Resumen del Pedido</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Lista de productos */}
+                <div className="space-y-2">
+                  {items.map((item) => (
+                    <div key={item.id} className="flex justify-between text-sm">
+                      <span>
+                        {item.quantity}x {item.name}
+                      </span>
+                      <span>{formatCurrency(item.price * item.quantity)}</span>
+                    </div>
+                  ))}
+                </div>
 
-              <div className="flex justify-between">
-                <span>Subtotal</span>
-                <span>${subtotal.toFixed(2)}</span>
+                <Separator />
+
+                {/* Totales */}
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Subtotal</span>
+                    <span>{formatCurrency(subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Impuestos (10%)</span>
+                    <span>{formatCurrency(tax)}</span>
+                  </div>
+
+                  {deliveryMethod === "delivery" && (
+                    <div className="flex justify-between">
+                      <span>Costo de envío</span>
+                      <span>{formatCurrency(deliveryFee)}</span>
+                    </div>
+                  )}
+
+                  <Separator className="my-2" />
+
+                  <div className="flex justify-between font-medium text-lg">
+                    <span>Total</span>
+                    <span>{formatCurrency(grandTotal)}</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span>Impuestos</span>
-                <span>${tax.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between font-bold text-lg">
-                <span>Total</span>
-                <span>${total.toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+            <CardFooter>
+              <Button className="w-full" onClick={handleSubmitOrder} disabled={loading}>
+                {loading ? "Procesando..." : "Confirmar Pedido"}
+              </Button>
+            </CardFooter>
+          </Card>
         </div>
       </div>
     </div>
