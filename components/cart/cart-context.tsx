@@ -78,7 +78,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [serviceOptions, setServiceOptions] = useState<ServiceOptions>(defaultServiceOptions)
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethods>(defaultPaymentMethods)
   const params = useParams()
-  const tenantId = params?.tenant || ""
+  const tenantId =
+    typeof params?.tenant === "string" ? params.tenant : Array.isArray(params?.tenant) ? params.tenant[0] : ""
 
   // Cargar items del localStorage al iniciar
   useEffect(() => {
@@ -163,7 +164,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // Añadir item al carrito
   const addItem = (newItem: CartItem) => {
     setItems((prevItems) => {
-      // Verificar si el producto ya está en el carrito
+      // Verificar si el producto ya está en el carrito con los mismos extras
       const existingItemIndex = prevItems.findIndex(
         (item) =>
           item.productId === newItem.productId &&

@@ -23,7 +23,6 @@ import {
   Phone,
   Globe,
   Mail,
-  RefreshCw,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -35,6 +34,8 @@ import { doc, onSnapshot } from "firebase/firestore"
 import { db, rtdb } from "@/lib/firebase-config"
 import { ProductDetailModal } from "@/components/products/product-detail-modal"
 import { ref, get } from "firebase/database"
+import { useCart } from "@/components/cart/use-cart"
+import { v4 as uuidv4 } from "uuid"
 
 // Main component wrapper with providers
 export default function TenantLandingPageWrapper() {
@@ -165,11 +166,11 @@ function TenantLandingPage({
   const { products, loading: productsLoading } = useProducts()
   const [activeSlide, setActiveSlide] = useState(0)
   const [searchQuery, setSearchQuery] = useState("")
-  const [refreshing, setRefreshing] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [extras, setExtras] = useState<Extra[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const { toast } = useToast()
+  const { itemCount, addItem } = useCart()
 
   const featuredSliderRef = useRef<HTMLDivElement>(null)
   const categoriesSliderRef = useRef<HTMLDivElement>(null)
@@ -219,11 +220,7 @@ function TenantLandingPage({
   }, [tenantId])
 
   // Función para forzar la recarga de datos con indicador visual
-  const handleRefresh = async () => {
-    setRefreshing(true)
-    await refreshData()
-    setRefreshing(false)
-  }
+  const handleRefresh = async () => {}
 
   // Función para abrir el modal de detalles del producto
   const openProductDetail = (product: Product) => {
@@ -441,15 +438,6 @@ function TenantLandingPage({
               >
                 <Search size={16} />
               </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 rounded-full bg-white/50 hover:bg-white/80 border-0"
-                onClick={handleRefresh}
-                disabled={refreshing}
-              >
-                <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-              </Button>
             </div>
           </div>
 
@@ -573,6 +561,15 @@ function TenantLandingPage({
                           }}
                           onClick={(e) => {
                             e.stopPropagation()
+                            addItem({
+                              id: uuidv4(),
+                              productId: product.id,
+                              name: product.name,
+                              price: product.price,
+                              quantity: 1,
+                              image: product.imageUrl,
+                              extras: [],
+                            })
                             toast({
                               title: "Producto añadido",
                               description: `${product.name} ha sido añadido al carrito`,
@@ -677,6 +674,15 @@ function TenantLandingPage({
                           }}
                           onClick={(e) => {
                             e.stopPropagation()
+                            addItem({
+                              id: uuidv4(),
+                              productId: product.id,
+                              name: product.name,
+                              price: product.price,
+                              quantity: 1,
+                              image: product.imageUrl,
+                              extras: [],
+                            })
                             toast({
                               title: "Producto añadido",
                               description: `${product.name} ha sido añadido al carrito`,
@@ -755,10 +761,17 @@ function TenantLandingPage({
             </SheetContent>
           </Sheet>
 
-          <Button variant="ghost" className="flex flex-col items-center gap-1 h-auto py-2">
-            <ShoppingBag size={20} />
-            <span className="text-xs">Pedidos</span>
-          </Button>
+          <Link href="/cart">
+            <Button variant="ghost" className="flex flex-col items-center gap-1 h-auto py-2 relative">
+              <ShoppingBag size={20} />
+              <span className="text-xs">Carrito</span>
+              {itemCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {itemCount}
+                </span>
+              )}
+            </Button>
+          </Link>
 
           <Button variant="ghost" className="flex flex-col items-center gap-1 h-auto py-2">
             <User size={20} />

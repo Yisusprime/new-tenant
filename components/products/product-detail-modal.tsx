@@ -84,7 +84,7 @@ export function ProductDetailModal({
       .filter(([extraId, isSelected]) => isSelected)
       .map(([extraId]) => {
         const extraInfo = extras.find((e) => e.id === extraId)
-        const productExtra = product.productExtras[extraId]
+        const productExtra = product.productExtras?.[extraId] || {}
         const price = productExtra.price !== undefined ? productExtra.price : extraInfo?.price || 0
 
         return {
