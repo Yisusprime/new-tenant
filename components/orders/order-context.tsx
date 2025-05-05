@@ -171,6 +171,7 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
 
       console.log(`Creating order for tenant: ${tenantId}`)
 
+      // Ensure we're using the correct path for orders
       const ordersRef = ref(rtdb, `tenants/${tenantId}/orders`)
       const newOrderRef = push(ordersRef)
 
@@ -182,6 +183,9 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
       // Asegurarnos de que el shiftId esté definido
       const shiftId = currentShift?.id || null
       console.log(`Assigning order to shift: ${shiftId}`)
+
+      // Check if the order is from the menu
+      const isFromMenu = orderData.source === "menu"
 
       const newOrder: Omit<Order, "id"> = {
         tenantId,
@@ -198,6 +202,7 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
         paymentStatus: "pending",
         paymentMethod: "cash",
         shiftId, // Asignar el turno actual
+        source: isFromMenu ? "menu" : "admin", // Add source identifier
         ...orderData,
       }
 

@@ -277,6 +277,7 @@ function TenantLandingPage({
       quantity: 1,
       image: product.imageUrl,
       extras: [],
+      source: "menu", // Add this line to identify orders from the menu
     })
   }
 

@@ -364,6 +364,7 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({ tenantId, onClose })
         paymentStatus: paymentStatus,
         paymentMethod: paymentMethod,
         createdAt: Date.now(),
+        source: "admin", // Add this line to identify orders from admin
       }
 
       // Añadir campos condicionales solo si tienen valor

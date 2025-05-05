@@ -73,6 +73,7 @@ export interface Order {
   couponCode?: string
   couponDiscount?: number
   notes?: string
+  source?: string // Add this line to track order source
   createdAt: number
   updatedAt: number
   completedAt?: number
