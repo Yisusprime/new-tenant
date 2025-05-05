@@ -55,8 +55,7 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
     setLoading(true)
     console.log("Setting up real-time listener for orders, tenant:", tenantId)
 
-    // CORREGIDO: Ruta correcta para las órdenes
-    const ordersRef = ref(rtdb, `${tenantId}/orders`)
+    const ordersRef = ref(rtdb, `tenants/${tenantId}/orders`)
 
     const handleOrdersUpdate = (snapshot) => {
       try {
@@ -111,8 +110,8 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
         return
       }
 
-      // CORREGIDO: Ruta correcta para las órdenes
-      const ordersRef = ref(rtdb, `${tenantId}/orders`)
+      // Obtener todas las órdenes del inquilino
+      const ordersRef = ref(rtdb, `tenants/${tenantId}/orders`)
       const ordersSnapshot = await get(ordersRef)
       const ordersData = ordersSnapshot.val() || {}
 
@@ -143,8 +142,8 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
   // Función para generar un número de pedido único
   const generateOrderNumber = async (): Promise<number> => {
     try {
-      // CORREGIDO: Ruta correcta para el contador
-      const counterRef = ref(rtdb, `${tenantId}/counters/orders`)
+      // Obtener el contador actual de pedidos
+      const counterRef = ref(rtdb, `tenants/${tenantId}/counters/orders`)
       const snapshot = await get(counterRef)
 
       let nextNumber = 1
@@ -172,8 +171,7 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
 
       console.log(`Creating order for tenant: ${tenantId}`)
 
-      // CORREGIDO: Ruta correcta para las órdenes
-      const ordersRef = ref(rtdb, `${tenantId}/orders`)
+      const ordersRef = ref(rtdb, `tenants/${tenantId}/orders`)
       const newOrderRef = push(ordersRef)
 
       const timestamp = Date.now()
@@ -184,9 +182,6 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
       // Asegurarnos de que el shiftId esté definido
       const shiftId = currentShift?.id || null
       console.log(`Assigning order to shift: ${shiftId}`)
-
-      // Check if the order is from the menu
-      const isFromMenu = orderData.source === "menu"
 
       const newOrder: Omit<Order, "id"> = {
         tenantId,
@@ -203,7 +198,6 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
         paymentStatus: "pending",
         paymentMethod: "cash",
         shiftId, // Asignar el turno actual
-        source: isFromMenu ? "menu" : "admin", // Add source identifier
         ...orderData,
       }
 
@@ -225,8 +219,7 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
 
       console.log(`Updating order ${orderId} for tenant: ${tenantId}`)
 
-      // CORREGIDO: Ruta correcta para las órdenes
-      const orderRef = ref(rtdb, `${tenantId}/orders/${orderId}`)
+      const orderRef = ref(rtdb, `tenants/${tenantId}/orders/${orderId}`)
       await update(orderRef, orderData)
     } catch (err) {
       console.error("Error updating order:", err)
@@ -245,8 +238,7 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
 
       console.log(`Updating order ${orderId} status to ${status} for tenant: ${tenantId}`)
 
-      // CORREGIDO: Ruta correcta para las órdenes
-      const orderRef = ref(rtdb, `${tenantId}/orders/${orderId}`)
+      const orderRef = ref(rtdb, `tenants/${tenantId}/orders/${orderId}`)
       const orderSnapshot = await get(orderRef)
 
       if (!orderSnapshot.exists()) {
@@ -296,8 +288,7 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
 
       console.log(`Completing order ${orderId} for tenant: ${tenantId}`)
 
-      // CORREGIDO: Ruta correcta para las órdenes
-      const orderRef = ref(rtdb, `${tenantId}/orders/${orderId}`)
+      const orderRef = ref(rtdb, `tenants/${tenantId}/orders/${orderId}`)
       const orderSnapshot = await get(orderRef)
 
       if (!orderSnapshot.exists()) {
@@ -338,8 +329,7 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
 
       console.log(`Cancelling order ${orderId} for tenant: ${tenantId}`)
 
-      // CORREGIDO: Ruta correcta para las órdenes
-      const orderRef = ref(rtdb, `${tenantId}/orders/${orderId}`)
+      const orderRef = ref(rtdb, `tenants/${tenantId}/orders/${orderId}`)
       const orderSnapshot = await get(orderRef)
 
       if (!orderSnapshot.exists()) {
@@ -375,8 +365,7 @@ export const OrderProvider: React.FC<OrderProviderProps> = ({ children, tenantId
         throw new Error("No tenantId provided")
       }
 
-      // CORREGIDO: Ruta correcta para las órdenes
-      const orderRef = ref(rtdb, `${tenantId}/orders/${orderId}`)
+      const orderRef = ref(rtdb, `tenants/${tenantId}/orders/${orderId}`)
       const orderSnapshot = await get(orderRef)
 
       if (orderSnapshot.exists()) {
