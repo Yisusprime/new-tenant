@@ -256,368 +256,372 @@ function TenantLandingPage({
 
   return (
     <div className="min-h-screen pb-20" style={{ backgroundColor: backgroundColor }}>
-      {/* Banner y Logo */}
-      <div className="relative">
-        <div
-          className="h-32 relative"
-          style={{
-            background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`,
-          }}
-        >
-          {/* Banner image */}
-          <div className="absolute inset-0" style={{ opacity: bannerOpacity }}>
-            <Image
-              src={tenantInfo.bannerUrl || "/placeholder.svg?key=i6gc5"}
-              alt="Banner de comida"
-              fill
-              className="object-cover"
-            />
-          </div>
-
-          {/* Botón de Abierto/Cerrado (izquierda) con Sheet */}
-          <div className="absolute top-4 left-4 z-10">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={`${
-                    isOpen
-                      ? "bg-white/70 hover:bg-white/90 text-green-600"
-                      : "bg-white/70 hover:bg-white/90 text-red-600"
-                  } font-medium border-0`}
-                  size="sm"
-                >
-                  {isOpen ? "Abierto" : "Cerrado"}
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-full sm:max-w-md overflow-y-auto">
-                <SheetHeader className="text-left">
-                  <SheetTitle className="text-xl">Información del Restaurante</SheetTitle>
-                </SheetHeader>
-
-                {/* Banner del restaurante */}
-                <div className="mt-4 relative h-40 rounded-lg overflow-hidden">
-                  <Image
-                    src={tenantInfo.bannerUrl || "/modern-restaurant-interior.png"}
-                    alt={restaurantInfo.name}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-
-                {/* Información del restaurante */}
-                <div className="mt-4">
-                  <h3 className="text-lg font-bold">{restaurantInfo.name}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">{restaurantInfo.description}</p>
-
-                  <div className="mt-4 space-y-3">
-                    <div className="flex items-start gap-2">
-                      <MapPin size={18} className="text-muted-foreground mt-0.5 flex-shrink-0" />
-                      <span className="text-sm">{restaurantInfo.address}</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <Phone size={18} className="text-muted-foreground mt-0.5 flex-shrink-0" />
-                      <span className="text-sm">{restaurantInfo.phone}</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <Mail size={18} className="text-muted-foreground mt-0.5 flex-shrink-0" />
-                      <span className="text-sm">{restaurantInfo.email}</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <Globe size={18} className="text-muted-foreground mt-0.5 flex-shrink-0" />
-                      <span className="text-sm">{restaurantInfo.website}</span>
-                    </div>
-                  </div>
-
-                  <Separator className="my-4" />
-
-                  {/* Horarios */}
-                  <div>
-                    <h4 className="font-medium flex items-center gap-2 mb-2">
-                      <Clock size={18} />
-                      Horarios
-                    </h4>
-                    <div className="space-y-2">
-                      {restaurantInfo.openingHours.map((schedule, index) => (
-                        <div key={index} className="flex justify-between text-sm">
-                          <span>{schedule.day}</span>
-                          <span>{schedule.hours}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <Separator className="my-4" />
-
-                  {/* Características */}
-                  <div>
-                    <h4 className="font-medium mb-2">Características</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {restaurantInfo.features.map((feature, index) => (
-                        <Badge key={index} variant="outline" className="bg-gray-100">
-                          {feature}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-
-                  <Separator className="my-4" />
-
-                  {/* Redes sociales */}
-                  <div>
-                    <h4 className="font-medium mb-2">Redes Sociales</h4>
-                    <div className="space-y-2 text-sm">
-                      <div>Facebook: {restaurantInfo.socialMedia.facebook}</div>
-                      <div>Instagram: {restaurantInfo.socialMedia.instagram}</div>
-                      <div>Twitter: {restaurantInfo.socialMedia.twitter}</div>
-                    </div>
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
-          </div>
-
-          {/* Botones de acción (derecha) */}
-          <div className="absolute top-4 right-4 z-10 flex gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 rounded-full bg-white/50 hover:bg-white/80 border-0"
-            >
-              <Heart size={16} />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 rounded-full bg-white/50 hover:bg-white/80 border-0"
-            >
-              <Search size={16} />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 rounded-full bg-white/50 hover:bg-white/80 border-0"
-              onClick={handleRefresh}
-              disabled={refreshing}
-            >
-              <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-            </Button>
-          </div>
-        </div>
-
-        {/* Logo flotante */}
-        <div className="absolute left-1/2 transform -translate-x-1/2 -bottom-16">
-          <div className="relative w-32 h-32 rounded-full border-4 border-white overflow-hidden bg-white shadow-lg">
-            <Image
-              src={tenantInfo.logoUrl || "/placeholder.svg?height=200&width=200&query=restaurante+logo"}
-              alt={tenantInfo.name}
-              fill
-              className="object-cover"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Título del restaurante */}
-      <div className="mt-20 text-center px-4">
-        <h1 className="text-2xl font-bold">{tenantInfo.name}</h1>
-        <div className="flex items-center justify-center gap-2 text-sm text-gray-500 mt-1">
-          <span className="flex items-center">
-            <Star size={16} className="fill-yellow-400 text-yellow-400 mr-1" />
-            {tenantInfo.rating || "4.8"}
-          </span>
-          <span>•</span>
-          <span>{tenantInfo.distance || "0.8 km"}</span>
-          <span>•</span>
-          <span>{tenantInfo.deliveryTime || "20-35 min"}</span>
-        </div>
-      </div>
-
-      {/* Barra de búsqueda */}
-      <div className="px-4 mt-6">
+      {/* Contenedor principal con ancho máximo para pantallas grandes */}
+      <div className="mx-auto max-w-6xl">
+        {/* Banner y Logo */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-          <Input
-            type="text"
-            placeholder="Buscar platos, categorías..."
-            className="pl-10 bg-white rounded-full border-gray-200"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-      </div>
-
-      {/* Artículos destacados - Slider */}
-      {featuredProducts.length > 0 && (
-        <div className="mt-6">
-          <div className="px-4 flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">Destacados</h2>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 rounded-full"
-                onClick={() => scrollFeatured("left")}
-              >
-                <ChevronLeft size={18} />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 rounded-full"
-                onClick={() => scrollFeatured("right")}
-              >
-                <ChevronRight size={18} />
-              </Button>
-            </div>
-          </div>
-
           <div
-            className="flex overflow-x-auto scrollbar-hide snap-x snap-mandatory gap-4 px-4 pb-4"
-            ref={featuredSliderRef}
+            className="h-32 md:h-40 lg:h-48 relative rounded-b-lg overflow-hidden"
+            style={{
+              background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`,
+            }}
           >
-            {featuredProducts.map((product) => (
-              <div key={product.id} className="flex-shrink-0 w-[220px] sm:w-[250px] md:w-[280px] snap-start">
-                <Card className="overflow-hidden h-full">
-                  <div className="relative h-32 sm:h-36 md:h-40">
+            {/* Banner image */}
+            <div className="absolute inset-0" style={{ opacity: bannerOpacity }}>
+              <Image
+                src={tenantInfo.bannerUrl || "/placeholder.svg?key=i6gc5"}
+                alt="Banner de comida"
+                fill
+                className="object-cover"
+              />
+            </div>
+
+            {/* Botón de Abierto/Cerrado (izquierda) con Sheet */}
+            <div className="absolute top-4 left-4 z-10">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={`${
+                      isOpen
+                        ? "bg-white/70 hover:bg-white/90 text-green-600"
+                        : "bg-white/70 hover:bg-white/90 text-red-600"
+                    } font-medium border-0`}
+                    size="sm"
+                  >
+                    {isOpen ? "Abierto" : "Cerrado"}
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-full sm:max-w-md overflow-y-auto">
+                  <SheetHeader className="text-left">
+                    <SheetTitle className="text-xl">Información del Restaurante</SheetTitle>
+                  </SheetHeader>
+
+                  {/* Banner del restaurante */}
+                  <div className="mt-4 relative h-40 rounded-lg overflow-hidden">
                     <Image
-                      src={product.imageUrl || "/placeholder.svg?height=200&width=300&query=plato+comida"}
-                      alt={product.name}
+                      src={tenantInfo.bannerUrl || "/modern-restaurant-interior.png"}
+                      alt={restaurantInfo.name}
                       fill
                       className="object-cover"
                     />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute top-2 right-2 h-8 w-8 rounded-full bg-white/80 hover:bg-white"
-                    >
-                      <Heart size={16} />
-                    </Button>
                   </div>
-                  <CardContent className="p-3">
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-bold text-sm sm:text-base">{product.name}</h3>
-                      <div className="flex items-center gap-1 bg-gray-100 px-1.5 py-0.5 rounded text-xs">
-                        <Star size={12} className="fill-yellow-400 text-yellow-400" />
-                        <span>4.8</span>
+
+                  {/* Información del restaurante */}
+                  <div className="mt-4">
+                    <h3 className="text-lg font-bold">{restaurantInfo.name}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">{restaurantInfo.description}</p>
+
+                    <div className="mt-4 space-y-3">
+                      <div className="flex items-start gap-2">
+                        <MapPin size={18} className="text-muted-foreground mt-0.5 flex-shrink-0" />
+                        <span className="text-sm">{restaurantInfo.address}</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Phone size={18} className="text-muted-foreground mt-0.5 flex-shrink-0" />
+                        <span className="text-sm">{restaurantInfo.phone}</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Mail size={18} className="text-muted-foreground mt-0.5 flex-shrink-0" />
+                        <span className="text-sm">{restaurantInfo.email}</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Globe size={18} className="text-muted-foreground mt-0.5 flex-shrink-0" />
+                        <span className="text-sm">{restaurantInfo.website}</span>
                       </div>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{product.description}</p>
-                    <div className="flex justify-between items-center mt-2">
-                      <span className="font-bold text-sm sm:text-base">${product.price.toFixed(2)}</span>
-                      <Button
-                        size="sm"
-                        className="h-7 sm:h-8 text-xs sm:text-sm rounded-full"
-                        style={{
-                          backgroundColor: productButtonColor,
-                          color: buttonTextColor,
-                        }}
-                      >
-                        Añadir
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {/* Categorías pequeñas - Slider */}
-      {categories.length > 0 && (
-        <div className="mt-6">
-          <div className="px-4 flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">Categorías</h2>
-            <div className="flex gap-2">
+                    <Separator className="my-4" />
+
+                    {/* Horarios */}
+                    <div>
+                      <h4 className="font-medium flex items-center gap-2 mb-2">
+                        <Clock size={18} />
+                        Horarios
+                      </h4>
+                      <div className="space-y-2">
+                        {restaurantInfo.openingHours.map((schedule, index) => (
+                          <div key={index} className="flex justify-between text-sm">
+                            <span>{schedule.day}</span>
+                            <span>{schedule.hours}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <Separator className="my-4" />
+
+                    {/* Características */}
+                    <div>
+                      <h4 className="font-medium mb-2">Características</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {restaurantInfo.features.map((feature, index) => (
+                          <Badge key={index} variant="outline" className="bg-gray-100">
+                            {feature}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+
+                    <Separator className="my-4" />
+
+                    {/* Redes sociales */}
+                    <div>
+                      <h4 className="font-medium mb-2">Redes Sociales</h4>
+                      <div className="space-y-2 text-sm">
+                        <div>Facebook: {restaurantInfo.socialMedia.facebook}</div>
+                        <div>Instagram: {restaurantInfo.socialMedia.instagram}</div>
+                        <div>Twitter: {restaurantInfo.socialMedia.twitter}</div>
+                      </div>
+                    </div>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
+
+            {/* Botones de acción (derecha) */}
+            <div className="absolute top-4 right-4 z-10 flex gap-2">
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8 rounded-full"
-                onClick={() => scrollCategories("left")}
+                className="h-8 w-8 rounded-full bg-white/50 hover:bg-white/80 border-0"
               >
-                <ChevronLeft size={18} />
+                <Heart size={16} />
               </Button>
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8 rounded-full"
-                onClick={() => scrollCategories("right")}
+                className="h-8 w-8 rounded-full bg-white/50 hover:bg-white/80 border-0"
               >
-                <ChevronRight size={18} />
+                <Search size={16} />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 rounded-full bg-white/50 hover:bg-white/80 border-0"
+                onClick={handleRefresh}
+                disabled={refreshing}
+              >
+                <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
               </Button>
             </div>
           </div>
 
-          <div className="flex overflow-x-auto scrollbar-hide gap-4 px-4 pb-4" ref={categoriesSliderRef}>
-            {categories.slice(0, 8).map((category) => (
-              <Link href={`/admin/menu?category=${category.id}`} key={category.id} className="flex-shrink-0">
-                <div className="flex flex-col items-center gap-2 w-14 sm:w-16">
-                  <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white shadow-sm overflow-hidden">
-                    <Image
-                      src={category.imageUrl || "/placeholder.svg?height=80&width=80&query=categoria+comida"}
-                      alt={category.name}
-                      fill
-                      className="object-cover p-2"
-                    />
-                  </div>
-                  <span className="text-xs text-center font-medium">{category.name}</span>
-                </div>
-              </Link>
-            ))}
+          {/* Logo flotante */}
+          <div className="absolute left-1/2 transform -translate-x-1/2 -bottom-16">
+            <div className="relative w-32 h-32 rounded-full border-4 border-white overflow-hidden bg-white shadow-lg">
+              <Image
+                src={tenantInfo.logoUrl || "/placeholder.svg?height=200&width=200&query=restaurante+logo"}
+                alt={tenantInfo.name}
+                fill
+                className="object-cover"
+              />
+            </div>
           </div>
         </div>
-      )}
 
-      {/* Productos populares */}
-      {popularProducts.length > 0 && (
-        <div className="mt-6 px-4">
-          <h2 className="text-xl font-bold mb-4">Más populares</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {popularProducts.map((product) => (
-              <Card key={product.id} className="overflow-hidden">
-                <div className="flex h-full md:flex-col">
-                  <div className="relative h-auto w-1/3 md:w-full md:h-40 flex-shrink-0">
-                    <Image
-                      src={product.imageUrl || "/placeholder.svg?height=200&width=300&query=plato+comida"}
-                      alt={product.name}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <CardContent className="p-3 flex flex-col justify-between flex-grow">
-                    <div>
+        {/* Título del restaurante */}
+        <div className="mt-20 text-center px-4">
+          <h1 className="text-2xl font-bold">{tenantInfo.name}</h1>
+          <div className="flex items-center justify-center gap-2 text-sm text-gray-500 mt-1">
+            <span className="flex items-center">
+              <Star size={16} className="fill-yellow-400 text-yellow-400 mr-1" />
+              {tenantInfo.rating || "4.8"}
+            </span>
+            <span>•</span>
+            <span>{tenantInfo.distance || "0.8 km"}</span>
+            <span>•</span>
+            <span>{tenantInfo.deliveryTime || "20-35 min"}</span>
+          </div>
+        </div>
+
+        {/* Barra de búsqueda */}
+        <div className="px-4 mt-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+            <Input
+              type="text"
+              placeholder="Buscar platos, categorías..."
+              className="pl-10 bg-white rounded-full border-gray-200"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Artículos destacados - Slider */}
+        {featuredProducts.length > 0 && (
+          <div className="mt-6">
+            <div className="px-4 flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Destacados</h2>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  onClick={() => scrollFeatured("left")}
+                >
+                  <ChevronLeft size={18} />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  onClick={() => scrollFeatured("right")}
+                >
+                  <ChevronRight size={18} />
+                </Button>
+              </div>
+            </div>
+
+            <div
+              className="flex overflow-x-auto scrollbar-hide snap-x snap-mandatory gap-4 px-4 pb-4"
+              ref={featuredSliderRef}
+            >
+              {featuredProducts.map((product) => (
+                <div key={product.id} className="flex-shrink-0 w-[220px] sm:w-[250px] md:w-[280px] snap-start">
+                  <Card className="overflow-hidden h-full">
+                    <div className="relative h-32 sm:h-36 md:h-40">
+                      <Image
+                        src={product.imageUrl || "/placeholder.svg?height=200&width=300&query=plato+comida"}
+                        alt={product.name}
+                        fill
+                        className="object-cover"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 h-8 w-8 rounded-full bg-white/80 hover:bg-white"
+                      >
+                        <Heart size={16} />
+                      </Button>
+                    </div>
+                    <CardContent className="p-3">
                       <div className="flex justify-between items-start">
                         <h3 className="font-bold text-sm sm:text-base">{product.name}</h3>
                         <div className="flex items-center gap-1 bg-gray-100 px-1.5 py-0.5 rounded text-xs">
                           <Star size={12} className="fill-yellow-400 text-yellow-400" />
-                          <span>4.7</span>
+                          <span>4.8</span>
                         </div>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{product.description}</p>
-                    </div>
-                    <div className="flex justify-between items-center mt-2">
-                      <span className="font-bold text-sm sm:text-base">${product.price.toFixed(2)}</span>
-                      <Button
-                        size="sm"
-                        className="h-7 sm:h-8 text-xs sm:text-sm rounded-full"
-                        style={{
-                          backgroundColor: productButtonColor,
-                          color: buttonTextColor,
-                        }}
-                      >
-                        Añadir
-                      </Button>
-                    </div>
-                  </CardContent>
+                      <div className="flex justify-between items-center mt-2">
+                        <span className="font-bold text-sm sm:text-base">${product.price.toFixed(2)}</span>
+                        <Button
+                          size="sm"
+                          className="h-7 sm:h-8 text-xs sm:text-sm rounded-full"
+                          style={{
+                            backgroundColor: productButtonColor,
+                            color: buttonTextColor,
+                          }}
+                        >
+                          Añadir
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
-              </Card>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Menú inferior fijo */}
+        {/* Categorías pequeñas - Slider */}
+        {categories.length > 0 && (
+          <div className="mt-6">
+            <div className="px-4 flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Categorías</h2>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  onClick={() => scrollCategories("left")}
+                >
+                  <ChevronLeft size={18} />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  onClick={() => scrollCategories("right")}
+                >
+                  <ChevronRight size={18} />
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex overflow-x-auto scrollbar-hide gap-4 px-4 pb-4" ref={categoriesSliderRef}>
+              {categories.slice(0, 8).map((category) => (
+                <Link href={`/admin/menu?category=${category.id}`} key={category.id} className="flex-shrink-0">
+                  <div className="flex flex-col items-center gap-2 w-14 sm:w-16">
+                    <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white shadow-sm overflow-hidden">
+                      <Image
+                        src={category.imageUrl || "/placeholder.svg?height=80&width=80&query=categoria+comida"}
+                        alt={category.name}
+                        fill
+                        className="object-cover p-2"
+                      />
+                    </div>
+                    <span className="text-xs text-center font-medium">{category.name}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Productos populares */}
+        {popularProducts.length > 0 && (
+          <div className="mt-6 px-4">
+            <h2 className="text-xl font-bold mb-4">Más populares</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {popularProducts.map((product) => (
+                <Card key={product.id} className="overflow-hidden">
+                  <div className="flex h-full md:flex-col">
+                    <div className="relative h-auto w-1/3 md:w-full md:h-40 flex-shrink-0">
+                      <Image
+                        src={product.imageUrl || "/placeholder.svg?height=200&width=300&query=plato+comida"}
+                        alt={product.name}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    <CardContent className="p-3 flex flex-col justify-between flex-grow">
+                      <div>
+                        <div className="flex justify-between items-start">
+                          <h3 className="font-bold text-sm sm:text-base">{product.name}</h3>
+                          <div className="flex items-center gap-1 bg-gray-100 px-1.5 py-0.5 rounded text-xs">
+                            <Star size={12} className="fill-yellow-400 text-yellow-400" />
+                            <span>4.7</span>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{product.description}</p>
+                      </div>
+                      <div className="flex justify-between items-center mt-2">
+                        <span className="font-bold text-sm sm:text-base">${product.price.toFixed(2)}</span>
+                        <Button
+                          size="sm"
+                          className="h-7 sm:h-8 text-xs sm:text-sm rounded-full"
+                          style={{
+                            backgroundColor: productButtonColor,
+                            color: buttonTextColor,
+                          }}
+                        >
+                          Añadir
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Menú inferior fijo */}
+      </div>{" "}
+      {/* Fin del contenedor con ancho máximo */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-50">
         <div className="flex justify-around items-center h-16 px-4">
           <Button variant="ghost" className="flex flex-col items-center gap-1 h-auto py-2">
@@ -679,7 +683,6 @@ function TenantLandingPage({
           </Button>
         </div>
       </div>
-
       {/* Estilos adicionales para ocultar la barra de desplazamiento pero mantener la funcionalidad */}
       <style jsx global>{`
         .scrollbar-hide::-webkit-scrollbar {
