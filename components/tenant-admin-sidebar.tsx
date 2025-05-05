@@ -41,6 +41,17 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
   const isLogoutRef = useRef(false)
   const [isMobile, setIsMobile] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
+  const [scrollbarHideStyles, setScrollbarHideStyles] = useState(`
+  /* Estilos para ocultar la barra de desplazamiento pero mantener la funcionalidad */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+`)
 
   // Detectar si estamos en un dispositivo móvil
   useEffect(() => {
@@ -125,7 +136,7 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
         <p className="text-sm text-muted-foreground">{tenantid}.gastroo.online</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto scrollbar-hide">
         {linkGroups.map((group, groupIndex) => (
           <div key={groupIndex} className="mb-6">
             <h3 className="text-xs uppercase font-semibold text-muted-foreground tracking-wider mb-2 px-3">
@@ -192,4 +203,18 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
       <SidebarContent />
     </div>
   )
+
+  // Agregar un estilo global para aplicar estos estilos
+  useEffect(() => {
+    // Crear elemento de estilo
+    const style = document.createElement("style")
+    style.textContent = scrollbarHideStyles
+    // Añadir al head
+    document.head.appendChild(style)
+
+    // Limpiar al desmontar
+    return () => {
+      document.head.removeChild(style)
+    }
+  }, [scrollbarHideStyles])
 }
