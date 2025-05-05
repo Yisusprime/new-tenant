@@ -3,7 +3,6 @@ import "./globals.css"
 import { Inter } from "next/font/google"
 import { Toaster } from "@/components/toaster"
 import { AuthProvider } from "@/lib/auth-context"
-import { Navigation } from "@/components/navigation"
 import { CartProvider } from "@/components/cart/cart-context"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -20,7 +19,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         <AuthProvider>
           <CartProvider>
-            <Navigation />
             {children}
             <Toaster />
           </CartProvider>

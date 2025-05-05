@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef, useCallback } from "react"
+import { useEffect, useState, useRef } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
@@ -34,7 +34,7 @@ import { doc, onSnapshot } from "firebase/firestore"
 import { db, rtdb } from "@/lib/firebase-config"
 import { ProductDetailModal } from "@/components/products/product-detail-modal"
 import { ref, get } from "firebase/database"
-import { useCart } from "@/components/cart/use-cart"
+import { useCart } from "@/components/cart/cart-context"
 import { v4 as uuidv4 } from "uuid"
 
 // Main component wrapper with providers
@@ -94,30 +94,6 @@ export default function TenantLandingPageWrapper() {
     return () => unsubscribe()
   }, [tenantId])
 
-  // Función para forzar la recarga de los datos del tenant
-  const refreshTenantData = useCallback(async () => {
-    if (!tenantId) return
-
-    setLoading(true)
-    try {
-      const info = await getTenantInfo(tenantId)
-      setTenantInfo(info)
-      toast({
-        title: "Datos actualizados",
-        description: "La información del restaurante se ha actualizado correctamente",
-      })
-    } catch (error) {
-      console.error("Error al actualizar información del tenant:", error)
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar la información del restaurante",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
-    }
-  }, [tenantId, toast])
-
   if (loading || !tenantId) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -146,7 +122,7 @@ export default function TenantLandingPageWrapper() {
   return (
     <CategoryProvider tenantId={tenantId}>
       <ProductProvider tenantId={tenantId}>
-        <TenantLandingPage tenantId={tenantId} tenantInfo={tenantInfo} refreshData={refreshTenantData} />
+        <TenantLandingPage tenantId={tenantId} tenantInfo={tenantInfo} />
       </ProductProvider>
     </CategoryProvider>
   )
@@ -156,21 +132,18 @@ export default function TenantLandingPageWrapper() {
 function TenantLandingPage({
   tenantId,
   tenantInfo,
-  refreshData,
 }: {
   tenantId: string
   tenantInfo: any
-  refreshData: () => Promise<void>
 }) {
   const { categories, loading: categoriesLoading } = useCategories()
   const { products, loading: productsLoading } = useProducts()
-  const [activeSlide, setActiveSlide] = useState(0)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [extras, setExtras] = useState<Extra[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const { toast } = useToast()
-  const { itemCount, addItem } = useCart()
+  const { addItem, itemCount } = useCart()
 
   const featuredSliderRef = useRef<HTMLDivElement>(null)
   const categoriesSliderRef = useRef<HTMLDivElement>(null)
@@ -218,9 +191,6 @@ function TenantLandingPage({
 
     fetchExtras()
   }, [tenantId])
-
-  // Función para forzar la recarga de datos con indicador visual
-  const handleRefresh = async () => {}
 
   // Función para abrir el modal de detalles del producto
   const openProductDetail = (product: Product) => {
@@ -295,6 +265,19 @@ function TenantLandingPage({
         </div>
       </div>
     )
+  }
+
+  // Función para añadir un producto al carrito
+  const handleAddToCart = (product: Product) => {
+    addItem({
+      id: uuidv4(),
+      productId: product.id,
+      name: product.name,
+      price: product.price,
+      quantity: 1,
+      image: product.imageUrl,
+      extras: [],
+    })
   }
 
   return (
@@ -561,19 +544,7 @@ function TenantLandingPage({
                           }}
                           onClick={(e) => {
                             e.stopPropagation()
-                            addItem({
-                              id: uuidv4(),
-                              productId: product.id,
-                              name: product.name,
-                              price: product.price,
-                              quantity: 1,
-                              image: product.imageUrl,
-                              extras: [],
-                            })
-                            toast({
-                              title: "Producto añadido",
-                              description: `${product.name} ha sido añadido al carrito`,
-                            })
+                            handleAddToCart(product)
                           }}
                         >
                           Añadir
@@ -674,19 +645,7 @@ function TenantLandingPage({
                           }}
                           onClick={(e) => {
                             e.stopPropagation()
-                            addItem({
-                              id: uuidv4(),
-                              productId: product.id,
-                              name: product.name,
-                              price: product.price,
-                              quantity: 1,
-                              image: product.imageUrl,
-                              extras: [],
-                            })
-                            toast({
-                              title: "Producto añadido",
-                              description: `${product.name} ha sido añadido al carrito`,
-                            })
+                            handleAddToCart(product)
                           }}
                         >
                           Añadir
@@ -699,8 +658,8 @@ function TenantLandingPage({
             </div>
           </div>
         )}
-      </div>{" "}
-      {/* Fin del contenedor con ancho máximo */}
+      </div>
+
       {/* Modal de detalles del producto */}
       <ProductDetailModal
         product={selectedProduct}
@@ -710,6 +669,7 @@ function TenantLandingPage({
         buttonColor={productButtonColor}
         buttonTextColor={buttonTextColor}
       />
+
       {/* Menú inferior fijo */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-50">
         <div className="flex justify-around items-center h-16 px-4">
@@ -779,6 +739,7 @@ function TenantLandingPage({
           </Button>
         </div>
       </div>
+
       {/* Estilos adicionales para ocultar la barra de desplazamiento pero mantener la funcionalidad */}
       <style jsx global>{`
         .scrollbar-hide::-webkit-scrollbar {

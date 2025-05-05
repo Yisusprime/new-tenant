@@ -1,9 +1,10 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { ref, onValue, off } from "firebase/database"
-import { rtdb } from "@/lib/firebase-config"
 import { useParams } from "next/navigation"
+
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { useToast } from "@/components/ui/use-toast"
+import { v4 as uuidv4 } from "uuid"
 
 // Tipos
 export interface CartItem {
@@ -51,8 +52,6 @@ interface CartContextType {
   tax: number
   total: number
   isStoreOpen: boolean
-  serviceOptions: ServiceOptions
-  paymentMethods: PaymentMethods
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
@@ -72,158 +71,130 @@ const defaultPaymentMethods: PaymentMethods = {
   onlinePaymentInstructions: "Transferir a la cuenta: 1234-5678-9012-3456",
 }
 
+export function useCart() {
+  const context = useContext(CartContext)
+  if (context === undefined) {
+    throw new Error("useCart must be used within a CartProvider")
+  }
+  return context
+}
+
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
-  const [isStoreOpen, setIsStoreOpen] = useState(false)
-  const [serviceOptions, setServiceOptions] = useState<ServiceOptions>(defaultServiceOptions)
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethods>(defaultPaymentMethods)
+  const [isStoreOpen, setIsStoreOpen] = useState(true) // Default to true for now
+  const { toast } = useToast()
   const params = useParams()
   const tenantId =
     typeof params?.tenant === "string" ? params.tenant : Array.isArray(params?.tenant) ? params.tenant[0] : ""
 
-  // Cargar items del localStorage al iniciar
+  // Load cart from localStorage on mount
   useEffect(() => {
-    const savedItems = localStorage.getItem("cartItems")
-    if (savedItems) {
+    const savedCart = localStorage.getItem("cart")
+    if (savedCart) {
       try {
-        setItems(JSON.parse(savedItems))
+        setItems(JSON.parse(savedCart))
       } catch (error) {
-        console.error("Error parsing cart items from localStorage:", error)
-        localStorage.removeItem("cartItems")
+        console.error("Error parsing cart from localStorage:", error)
       }
     }
   }, [])
 
-  // Guardar items en localStorage cuando cambian
+  // Save cart to localStorage when it changes
   useEffect(() => {
-    localStorage.setItem("cartItems", JSON.stringify(items))
+    localStorage.setItem("cart", JSON.stringify(items))
   }, [items])
 
-  // Verificar si la tienda está abierta
-  useEffect(() => {
-    if (!tenantId) return
-
-    const shiftsRef = ref(rtdb, `tenants/${tenantId}/shifts`)
-
-    const handleShiftsChange = (snapshot: any) => {
-      if (snapshot.exists()) {
-        const shifts = snapshot.val()
-        // Verificar si hay algún turno activo (sin endTime)
-        const activeShift = Object.values(shifts).some((shift: any) => !shift.endTime)
-        setIsStoreOpen(activeShift)
-      } else {
-        setIsStoreOpen(false)
-      }
-    }
-
-    onValue(shiftsRef, handleShiftsChange)
-
-    return () => {
-      off(shiftsRef, "value", handleShiftsChange)
-    }
-  }, [tenantId])
-
-  // Cargar configuración de servicios y pagos
-  useEffect(() => {
-    if (!tenantId) return
-
-    const configRef = ref(rtdb, `tenants/${tenantId}/config`)
-
-    const handleConfigChange = (snapshot: any) => {
-      if (snapshot.exists()) {
-        const config = snapshot.val()
-
-        if (config.serviceOptions) {
-          setServiceOptions({
-            offersPickup: config.serviceOptions.offersPickup ?? defaultServiceOptions.offersPickup,
-            offersTakeaway: config.serviceOptions.offersTakeaway ?? defaultServiceOptions.offersTakeaway,
-            offersDelivery: config.serviceOptions.offersDelivery ?? defaultServiceOptions.offersDelivery,
-            deliveryFee: config.serviceOptions.deliveryFee ?? defaultServiceOptions.deliveryFee,
-          })
-        }
-
-        if (config.paymentMethods) {
-          setPaymentMethods({
-            acceptsCash: config.paymentMethods.acceptsCash ?? defaultPaymentMethods.acceptsCash,
-            acceptsCard: config.paymentMethods.acceptsCard ?? defaultPaymentMethods.acceptsCard,
-            acceptsTransfer: config.paymentMethods.acceptsTransfer ?? defaultPaymentMethods.acceptsTransfer,
-            onlinePaymentInstructions:
-              config.paymentMethods.onlinePaymentInstructions ?? defaultPaymentMethods.onlinePaymentInstructions,
-          })
-        }
-      }
-    }
-
-    onValue(configRef, handleConfigChange)
-
-    return () => {
-      off(configRef, "value", handleConfigChange)
-    }
-  }, [tenantId])
-
-  // Añadir item al carrito
+  // Add item to cart
   const addItem = (newItem: CartItem) => {
+    // Ensure the item has an ID
+    const itemToAdd = {
+      ...newItem,
+      id: newItem.id || uuidv4(),
+    }
+
     setItems((prevItems) => {
-      // Verificar si el producto ya está en el carrito con los mismos extras
+      // Check if the product is already in the cart
       const existingItemIndex = prevItems.findIndex(
         (item) =>
-          item.productId === newItem.productId &&
+          item.productId === itemToAdd.productId &&
           JSON.stringify(item.extras.map((e) => e.extraId).sort()) ===
-            JSON.stringify(newItem.extras.map((e) => e.extraId).sort()),
+            JSON.stringify(itemToAdd.extras.map((e) => e.extraId).sort()),
       )
 
       if (existingItemIndex >= 0) {
-        // Si el producto ya existe con los mismos extras, actualizar cantidad
+        // If the product exists with the same extras, update quantity
         const updatedItems = [...prevItems]
-        updatedItems[existingItemIndex].quantity += newItem.quantity
+        updatedItems[existingItemIndex].quantity += itemToAdd.quantity
+
+        toast({
+          title: "Producto actualizado",
+          description: `Se actualizó la cantidad de ${itemToAdd.name} en el carrito.`,
+        })
+
         return updatedItems
       } else {
-        // Si no existe, añadir nuevo item
-        return [...prevItems, newItem]
+        // If it's a new product, add it to the cart
+        toast({
+          title: "Producto añadido",
+          description: `${itemToAdd.name} se añadió al carrito.`,
+        })
+
+        return [...prevItems, itemToAdd]
       }
     })
   }
 
-  // Eliminar item del carrito
+  // Remove item from cart
   const removeItem = (itemId: string) => {
-    setItems((prevItems) => prevItems.filter((item) => item.id !== itemId))
-  }
-
-  // Actualizar cantidad de un item
-  const updateItemQuantity = (itemId: string, quantity: number) => {
     setItems((prevItems) => {
-      if (quantity <= 0) {
-        return prevItems.filter((item) => item.id !== itemId)
+      const itemToRemove = prevItems.find((item) => item.id === itemId)
+
+      if (itemToRemove) {
+        toast({
+          title: "Producto eliminado",
+          description: `${itemToRemove.name} se eliminó del carrito.`,
+        })
       }
 
-      return prevItems.map((item) => (item.id === itemId ? { ...item, quantity } : item))
+      return prevItems.filter((item) => item.id !== itemId)
     })
   }
 
-  // Actualizar notas de un item
+  // Update item quantity
+  const updateItemQuantity = (itemId: string, quantity: number) => {
+    if (quantity < 1) {
+      removeItem(itemId)
+      return
+    }
+
+    setItems((prevItems) => prevItems.map((item) => (item.id === itemId ? { ...item, quantity } : item)))
+  }
+
+  // Update item notes
   const updateItemNotes = (itemId: string, notes: string) => {
     setItems((prevItems) => prevItems.map((item) => (item.id === itemId ? { ...item, notes } : item)))
   }
 
-  // Limpiar carrito
+  // Clear cart
   const clearCart = () => {
     setItems([])
+    localStorage.removeItem("cart")
   }
 
-  // Calcular número total de items
+  // Calculate total number of items
   const itemCount = items.reduce((count, item) => count + item.quantity, 0)
 
-  // Calcular subtotal
+  // Calculate subtotal
   const subtotal = items.reduce((total, item) => {
     const itemTotal = item.price * item.quantity
     const extrasTotal = item.extras.reduce((sum, extra) => sum + extra.price * extra.quantity, 0)
     return total + itemTotal + extrasTotal * item.quantity
   }, 0)
 
-  // Calcular impuestos (10%)
+  // Calculate tax (10%)
   const tax = subtotal * 0.1
 
-  // Calcular total
+  // Calculate total
   const total = subtotal + tax
 
   const value = {
@@ -238,17 +209,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     tax,
     total,
     isStoreOpen,
-    serviceOptions,
-    paymentMethods,
   }
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
-}
-
-export const useCart = () => {
-  const context = useContext(CartContext)
-  if (context === undefined) {
-    throw new Error("useCart must be used within a CartProvider")
-  }
-  return context
 }
