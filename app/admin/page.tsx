@@ -62,9 +62,10 @@ export default function TenantLandingPageWrapper() {
   useEffect(() => {
     if (!tenantId) return
 
-    // Primero cargamos los datos iniciales
+    // Función para cargar los datos iniciales
     const loadInitialData = async () => {
       try {
+        setLoading(true)
         const info = await getTenantInfo(tenantId)
         setTenantInfo(info)
       } catch (error) {
@@ -74,9 +75,10 @@ export default function TenantLandingPageWrapper() {
       }
     }
 
+    // Cargar datos iniciales
     loadInitialData()
 
-    // Luego configuramos un listener en tiempo real para detectar cambios
+    // Configurar listener en tiempo real para detectar cambios
     const tenantRef = doc(db, "tenants", tenantId)
     const unsubscribe = onSnapshot(
       tenantRef,
@@ -92,8 +94,24 @@ export default function TenantLandingPageWrapper() {
       },
     )
 
-    // Limpiamos el listener cuando el componente se desmonta
-    return () => unsubscribe()
+    // Forzar recarga de datos cuando la página se vuelve visible después de navegar
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        loadInitialData()
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    // Forzar recarga cuando se usa la navegación del historial
+    window.addEventListener("popstate", loadInitialData)
+
+    // Limpiar listeners cuando el componente se desmonta
+    return () => {
+      unsubscribe()
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+      window.addEventListener("popstate", loadInitialData)
+    }
   }, [tenantId])
 
   if (loading || !tenantId) {
