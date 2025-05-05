@@ -23,6 +23,7 @@ import {
   Phone,
   Globe,
   Mail,
+  AlertCircle,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -33,9 +34,10 @@ import { Badge } from "@/components/ui/badge"
 import { doc, onSnapshot } from "firebase/firestore"
 import { db, rtdb } from "@/lib/firebase-config"
 import { ProductDetailModal } from "@/components/products/product-detail-modal"
-import { ref, get } from "firebase/database"
+import { ref, get, onValue, off } from "firebase/database"
 import { useCart } from "@/components/cart/cart-context"
 import { v4 as uuidv4 } from "uuid"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 // Main component wrapper with providers
 export default function TenantLandingPageWrapper() {
@@ -142,6 +144,7 @@ function TenantLandingPage({
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [extras, setExtras] = useState<Extra[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isShiftActive, setIsShiftActive] = useState(false)
   const { toast } = useToast()
   const { addItem, itemCount } = useCart()
 
@@ -156,7 +159,32 @@ function TenantLandingPage({
   const buttonTextColor = tenantInfo.buttonTextColor || "#ffffff"
   const backgroundColor = tenantInfo.backgroundColor || "#f9fafb"
   const bannerOpacity = tenantInfo.bannerOpacity !== undefined ? tenantInfo.bannerOpacity : 0.2
-  const isOpen = tenantInfo.isOpen !== undefined ? tenantInfo.isOpen : true
+
+  // Verificar si hay un turno activo en tiempo real
+  useEffect(() => {
+    if (!tenantId) return
+
+    const shiftsRef = ref(rtdb, `tenants/${tenantId}/shifts`)
+
+    const handleShiftsChange = (snapshot: any) => {
+      if (snapshot.exists()) {
+        const shifts = snapshot.val()
+        // Verificar si hay algún turno activo
+        const hasActiveShift = Object.values(shifts).some((shift: any) => shift.status === "active")
+        console.log("Estado del turno:", hasActiveShift ? "Activo" : "Inactivo")
+        setIsShiftActive(hasActiveShift)
+      } else {
+        console.log("No hay turnos registrados")
+        setIsShiftActive(false)
+      }
+    }
+
+    onValue(shiftsRef, handleShiftsChange)
+
+    return () => {
+      off(shiftsRef)
+    }
+  }, [tenantId])
 
   // Cargar extras
   useEffect(() => {
@@ -194,6 +222,15 @@ function TenantLandingPage({
 
   // Función para abrir el modal de detalles del producto
   const openProductDetail = (product: Product) => {
+    if (!isShiftActive) {
+      toast({
+        title: "Restaurante cerrado",
+        description: "Lo sentimos, el restaurante no está atendiendo en este momento.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setSelectedProduct(product)
     setIsModalOpen(true)
   }
@@ -269,6 +306,15 @@ function TenantLandingPage({
 
   // Función para añadir un producto al carrito
   const handleAddToCart = (product: Product) => {
+    if (!isShiftActive) {
+      toast({
+        title: "Restaurante cerrado",
+        description: "Lo sentimos, el restaurante no está atendiendo en este momento.",
+        variant: "destructive",
+      })
+      return
+    }
+
     addItem({
       id: uuidv4(),
       productId: product.id,
@@ -284,6 +330,17 @@ function TenantLandingPage({
     <div className="min-h-screen pb-20" style={{ backgroundColor: backgroundColor }}>
       {/* Contenedor principal con ancho máximo para pantallas grandes */}
       <div className="mx-auto max-w-6xl">
+        {/* Alerta de restaurante cerrado */}
+        {!isShiftActive && (
+          <Alert variant="destructive" className="mb-4 mx-4 mt-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Restaurante cerrado</AlertTitle>
+            <AlertDescription>
+              Este restaurante no está atendiendo pedidos en este momento. Por favor, regresa más tarde.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Banner y Logo */}
         <div className="relative">
           <div
@@ -309,13 +366,13 @@ function TenantLandingPage({
                   <Button
                     variant="outline"
                     className={`${
-                      isOpen
+                      isShiftActive
                         ? "bg-white/70 hover:bg-white/90 text-green-600"
                         : "bg-white/70 hover:bg-white/90 text-red-600"
                     } font-medium border-0`}
                     size="sm"
                   >
-                    {isOpen ? "Abierto" : "Cerrado"}
+                    {isShiftActive ? "Abierto" : "Cerrado"}
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-full sm:max-w-md overflow-y-auto hide-scrollbar">
@@ -501,7 +558,9 @@ function TenantLandingPage({
                   className="flex-shrink-0 w-[220px] sm:w-[250px] md:w-[280px] snap-start cursor-pointer"
                   onClick={() => openProductDetail(product)}
                 >
-                  <Card className="overflow-hidden h-full hover:shadow-md transition-shadow">
+                  <Card
+                    className={`overflow-hidden h-full hover:shadow-md transition-shadow ${!isShiftActive ? "opacity-70" : ""}`}
+                  >
                     <div className="relative h-32 sm:h-36 md:h-40">
                       <Image
                         src={product.imageUrl || "/placeholder.svg?height=200&width=300&query=plato+comida"}
@@ -537,7 +596,7 @@ function TenantLandingPage({
                         <span className="font-bold text-sm sm:text-base">${product.price.toFixed(2)}</span>
                         <Button
                           size="sm"
-                          className="h-7 sm:h-8 text-xs sm:text-sm rounded-full"
+                          className={`h-7 sm:h-8 text-xs sm:text-sm rounded-full ${!isShiftActive ? "opacity-50 cursor-not-allowed" : ""}`}
                           style={{
                             backgroundColor: productButtonColor,
                             color: buttonTextColor,
@@ -546,6 +605,7 @@ function TenantLandingPage({
                             e.stopPropagation()
                             handleAddToCart(product)
                           }}
+                          disabled={!isShiftActive}
                         >
                           Añadir
                         </Button>
@@ -611,7 +671,7 @@ function TenantLandingPage({
               {popularProducts.map((product) => (
                 <Card
                   key={product.id}
-                  className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                  className={`overflow-hidden cursor-pointer hover:shadow-md transition-shadow ${!isShiftActive ? "opacity-70" : ""}`}
                   onClick={() => openProductDetail(product)}
                 >
                   <div className="flex h-full md:flex-col">
@@ -638,7 +698,7 @@ function TenantLandingPage({
                         <span className="font-bold text-sm sm:text-base">${product.price.toFixed(2)}</span>
                         <Button
                           size="sm"
-                          className="h-7 sm:h-8 text-xs sm:text-sm rounded-full"
+                          className={`h-7 sm:h-8 text-xs sm:text-sm rounded-full ${!isShiftActive ? "opacity-50 cursor-not-allowed" : ""}`}
                           style={{
                             backgroundColor: productButtonColor,
                             color: buttonTextColor,
@@ -647,6 +707,7 @@ function TenantLandingPage({
                             e.stopPropagation()
                             handleAddToCart(product)
                           }}
+                          disabled={!isShiftActive}
                         >
                           Añadir
                         </Button>
