@@ -19,22 +19,7 @@ import { Switch } from "@/components/ui/switch"
 import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase-config"
 import { useAuth } from "@/lib/auth-context"
-import {
-  Loader2,
-  Save,
-  Clock,
-  MapPin,
-  Phone,
-  Star,
-  Heart,
-  Search,
-  Plus,
-  Home,
-  ShoppingBag,
-  User,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react"
+import { Loader2, Save, Clock, MapPin, Phone, Star, Heart, Search, ChevronLeft, ChevronRight } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
 export default function ThemeManager() {
@@ -759,7 +744,7 @@ export default function ThemeManager() {
                       style={{ backgroundColor: tenantData.backgroundColor || "#f9fafb" }}
                     >
                       {previewTab === "main" && (
-                        <div className="min-h-screen">
+                        <div className="min-h-screen pb-16">
                           {/* Banner y Logo */}
                           <div className="relative">
                             <div
@@ -953,41 +938,6 @@ export default function ThemeManager() {
                                   </div>
                                 </div>
                               ))}
-                            </div>
-                          </div>
-
-                          {/* Menú inferior fijo */}
-                          <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-50">
-                            <div className="flex justify-around items-center h-16 px-4">
-                              <Button variant="ghost" className="flex flex-col items-center gap-1 h-auto py-2">
-                                <Home size={20} />
-                                <span className="text-xs">Inicio</span>
-                              </Button>
-
-                              <Button variant="ghost" className="flex flex-col items-center gap-1 h-auto py-2">
-                                <Search size={20} />
-                                <span className="text-xs">Buscar</span>
-                              </Button>
-
-                              <Button
-                                className="flex items-center justify-center rounded-full h-14 w-14 shadow-lg -mt-5"
-                                style={{
-                                  backgroundColor: tenantData.buttonColor,
-                                  color: tenantData.buttonTextColor || "#ffffff",
-                                }}
-                              >
-                                <Plus size={24} />
-                              </Button>
-
-                              <Button variant="ghost" className="flex flex-col items-center gap-1 h-auto py-2">
-                                <ShoppingBag size={20} />
-                                <span className="text-xs">Pedidos</span>
-                              </Button>
-
-                              <Button variant="ghost" className="flex flex-col items-center gap-1 h-auto py-2">
-                                <User size={20} />
-                                <span className="text-xs">Perfil</span>
-                              </Button>
                             </div>
                           </div>
                         </div>

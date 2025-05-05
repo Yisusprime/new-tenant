@@ -18,6 +18,14 @@ import {
   Package,
   ShoppingBag,
   DollarSign,
+  Palette,
+  CalendarDays,
+  MessageSquare,
+  Bell,
+  FileText,
+  Truck,
+  Utensils,
+  Clock,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
@@ -51,21 +59,53 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
     }
   }, [])
 
-  // Actualizar el array de enlaces para incluir la página de extras
-
-  const links = [
-    { href: `/admin/dashboard`, label: "Dashboard", icon: Home },
-    { href: `/admin/profile`, label: "Perfil Personal", icon: User },
-    { href: `/admin/restaurant`, label: "Datos del Local", icon: Store },
-    { href: `/admin/categories`, label: "Categorías", icon: List },
-    { href: `/admin/extras`, label: "Extras", icon: Plus },
-    { href: `/admin/products`, label: "Productos", icon: Coffee },
-    { href: `/admin/users`, label: "Usuarios", icon: Users },
-    { href: `/admin/stats`, label: "Estadísticas", icon: BarChart3 },
-    { href: `/admin/settings`, label: "Configuración", icon: Settings },
-    { href: `/admin/inventory`, label: "Inventario", icon: Package },
-    { href: `/admin/orders`, label: "Pedidos", icon: ShoppingBag },
-    { href: `/admin/cashier`, label: "Caja", icon: DollarSign },
+  // Enlaces organizados por categorías
+  const linkGroups = [
+    {
+      title: "Principal",
+      links: [
+        { href: `/admin/dashboard`, label: "Dashboard", icon: Home },
+        { href: `/admin/profile`, label: "Perfil Personal", icon: User },
+        { href: `/admin/restaurant`, label: "Datos del Local", icon: Store },
+      ],
+    },
+    {
+      title: "Menú",
+      links: [
+        { href: `/admin/categories`, label: "Categorías", icon: List },
+        { href: `/admin/products`, label: "Productos", icon: Coffee },
+        { href: `/admin/extras`, label: "Extras", icon: Plus },
+      ],
+    },
+    {
+      title: "Operaciones",
+      links: [
+        { href: `/admin/orders`, label: "Pedidos", icon: ShoppingBag },
+        { href: `/admin/inventory`, label: "Inventario", icon: Package },
+        { href: `/admin/cashier`, label: "Caja", icon: DollarSign },
+        { href: `/admin/reservations`, label: "Reservas", icon: CalendarDays },
+        { href: `/admin/delivery`, label: "Entregas", icon: Truck },
+        { href: `/admin/kitchen`, label: "Cocina", icon: Utensils },
+        { href: `/admin/shifts`, label: "Turnos", icon: Clock },
+      ],
+    },
+    {
+      title: "Marketing",
+      links: [
+        { href: `/admin/theme`, label: "Personalización", icon: Palette },
+        { href: `/admin/promotions`, label: "Promociones", icon: Bell },
+        { href: `/admin/reviews`, label: "Reseñas", icon: MessageSquare },
+      ],
+    },
+    {
+      title: "Administración",
+      links: [
+        { href: `/admin/users`, label: "Usuarios", icon: Users },
+        { href: `/admin/stats`, label: "Estadísticas", icon: BarChart3 },
+        { href: `/admin/reports`, label: "Informes", icon: FileText },
+        { href: `/admin/settings`, label: "Configuración", icon: Settings },
+      ],
+    },
   ]
 
   const handleLogout = async () => {
@@ -80,31 +120,40 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
-      <div className="mb-8">
+      <div className="mb-6">
         <h2 className="text-xl font-bold">Admin Panel</h2>
         <p className="text-sm text-muted-foreground">{tenantid}.gastroo.online</p>
       </div>
 
-      <nav className="space-y-1 flex-1">
-        {links.map((link) => {
-          const isActive = pathname === link.href
-          const Icon = link.icon
+      <div className="flex-1 overflow-y-auto">
+        {linkGroups.map((group, groupIndex) => (
+          <div key={groupIndex} className="mb-6">
+            <h3 className="text-xs uppercase font-semibold text-muted-foreground tracking-wider mb-2 px-3">
+              {group.title}
+            </h3>
+            <nav className="space-y-1">
+              {group.links.map((link) => {
+                const isActive = pathname === link.href
+                const Icon = link.icon
 
-          return (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm ${
-                isActive ? "bg-primary text-primary-foreground" : "hover:bg-muted-foreground/10"
-              }`}
-              onClick={() => isMobile && setIsOpen(false)}
-            >
-              <Icon className="h-4 w-4" />
-              <span>{link.label}</span>
-            </Link>
-          )
-        })}
-      </nav>
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm ${
+                      isActive ? "bg-primary text-primary-foreground" : "hover:bg-muted-foreground/10"
+                    }`}
+                    onClick={() => isMobile && setIsOpen(false)}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{link.label}</span>
+                  </Link>
+                )
+              })}
+            </nav>
+          </div>
+        ))}
+      </div>
 
       <div className="mt-auto pt-4 border-t">
         <Button variant="ghost" className="w-full justify-start text-sm" onClick={handleLogout}>
