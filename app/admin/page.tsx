@@ -28,11 +28,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { CategoryProvider, useCategories } from "@/components/categories/category-context"
-import { ProductProvider, useProducts } from "@/components/products/product-context"
+import { ProductProvider, useProducts, type Product, type Extra } from "@/components/products/product-context"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { doc, onSnapshot } from "firebase/firestore"
-import { db } from "@/lib/firebase-config"
+import { db, rtdb } from "@/lib/firebase-config"
+import { ProductDetailModal } from "@/components/products/product-detail-modal"
+import { ref, get } from "firebase/database"
 
 // Main component wrapper with providers
 export default function TenantLandingPageWrapper() {
@@ -164,6 +166,10 @@ function TenantLandingPage({
   const [activeSlide, setActiveSlide] = useState(0)
   const [searchQuery, setSearchQuery] = useState("")
   const [refreshing, setRefreshing] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [extras, setExtras] = useState<Extra[]>([])
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const { toast } = useToast()
 
   const featuredSliderRef = useRef<HTMLDivElement>(null)
   const categoriesSliderRef = useRef<HTMLDivElement>(null)
@@ -178,11 +184,51 @@ function TenantLandingPage({
   const bannerOpacity = tenantInfo.bannerOpacity !== undefined ? tenantInfo.bannerOpacity : 0.2
   const isOpen = tenantInfo.isOpen !== undefined ? tenantInfo.isOpen : true
 
+  // Cargar extras
+  useEffect(() => {
+    if (!tenantId) return
+
+    const fetchExtras = async () => {
+      try {
+        const extrasRef = ref(rtdb, `tenants/${tenantId}/extras`)
+        const snapshot = await get(extrasRef)
+
+        if (snapshot.exists()) {
+          const extrasData = snapshot.val()
+          const extrasArray: Extra[] = []
+
+          Object.keys(extrasData).forEach((key) => {
+            extrasArray.push({
+              id: key,
+              name: extrasData[key].name,
+              description: extrasData[key].description || "",
+              price: extrasData[key].price || 0,
+              imageUrl: extrasData[key].imageUrl || "",
+              available: extrasData[key].available !== false,
+            })
+          })
+
+          setExtras(extrasArray)
+        }
+      } catch (error) {
+        console.error("Error al cargar extras:", error)
+      }
+    }
+
+    fetchExtras()
+  }, [tenantId])
+
   // Función para forzar la recarga de datos con indicador visual
   const handleRefresh = async () => {
     setRefreshing(true)
     await refreshData()
     setRefreshing(false)
+  }
+
+  // Función para abrir el modal de detalles del producto
+  const openProductDetail = (product: Product) => {
+    setSelectedProduct(product)
+    setIsModalOpen(true)
   }
 
   // Filter featured products
@@ -292,7 +338,7 @@ function TenantLandingPage({
                     {isOpen ? "Abierto" : "Cerrado"}
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="left" className="w-full sm:max-w-md overflow-y-auto">
+                <SheetContent side="left" className="w-full sm:max-w-md overflow-y-auto hide-scrollbar">
                   <SheetHeader className="text-left">
                     <SheetTitle className="text-xl">Información del Restaurante</SheetTitle>
                   </SheetHeader>
@@ -479,8 +525,12 @@ function TenantLandingPage({
               ref={featuredSliderRef}
             >
               {featuredProducts.map((product) => (
-                <div key={product.id} className="flex-shrink-0 w-[220px] sm:w-[250px] md:w-[280px] snap-start">
-                  <Card className="overflow-hidden h-full">
+                <div
+                  key={product.id}
+                  className="flex-shrink-0 w-[220px] sm:w-[250px] md:w-[280px] snap-start cursor-pointer"
+                  onClick={() => openProductDetail(product)}
+                >
+                  <Card className="overflow-hidden h-full hover:shadow-md transition-shadow">
                     <div className="relative h-32 sm:h-36 md:h-40">
                       <Image
                         src={product.imageUrl || "/placeholder.svg?height=200&width=300&query=plato+comida"}
@@ -492,6 +542,13 @@ function TenantLandingPage({
                         variant="ghost"
                         size="icon"
                         className="absolute top-2 right-2 h-8 w-8 rounded-full bg-white/80 hover:bg-white"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toast({
+                            title: "Añadido a favoritos",
+                            description: `${product.name} ha sido añadido a tus favoritos`,
+                          })
+                        }}
                       >
                         <Heart size={16} />
                       </Button>
@@ -513,6 +570,13 @@ function TenantLandingPage({
                           style={{
                             backgroundColor: productButtonColor,
                             color: buttonTextColor,
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toast({
+                              title: "Producto añadido",
+                              description: `${product.name} ha sido añadido al carrito`,
+                            })
                           }}
                         >
                           Añadir
@@ -577,7 +641,11 @@ function TenantLandingPage({
             <h2 className="text-xl font-bold mb-4">Más populares</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {popularProducts.map((product) => (
-                <Card key={product.id} className="overflow-hidden">
+                <Card
+                  key={product.id}
+                  className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => openProductDetail(product)}
+                >
                   <div className="flex h-full md:flex-col">
                     <div className="relative h-auto w-1/3 md:w-full md:h-40 flex-shrink-0">
                       <Image
@@ -607,6 +675,13 @@ function TenantLandingPage({
                             backgroundColor: productButtonColor,
                             color: buttonTextColor,
                           }}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toast({
+                              title: "Producto añadido",
+                              description: `${product.name} ha sido añadido al carrito`,
+                            })
+                          }}
                         >
                           Añadir
                         </Button>
@@ -618,10 +693,18 @@ function TenantLandingPage({
             </div>
           </div>
         )}
-
-        {/* Menú inferior fijo */}
       </div>{" "}
       {/* Fin del contenedor con ancho máximo */}
+      {/* Modal de detalles del producto */}
+      <ProductDetailModal
+        product={selectedProduct}
+        extras={extras}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        buttonColor={productButtonColor}
+        buttonTextColor={buttonTextColor}
+      />
+      {/* Menú inferior fijo */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-50">
         <div className="flex justify-around items-center h-16 px-4">
           <Button variant="ghost" className="flex flex-col items-center gap-1 h-auto py-2">
@@ -689,6 +772,13 @@ function TenantLandingPage({
           display: none;
         }
         .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .hide-scrollbar {
           -ms-overflow-style: none;
           scrollbar-width: none;
         }
