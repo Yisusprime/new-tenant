@@ -205,6 +205,13 @@ export default function ThemeManager() {
         title: "Cambios guardados",
         description: "Los cambios se han guardado correctamente",
       })
+
+      // Notificar al usuario que debe refrescar la página principal para ver los cambios
+      toast({
+        title: "Actualización completa",
+        description:
+          "Para ver los cambios en la página principal, haz clic en el botón de actualizar en la esquina superior derecha.",
+      })
     } catch (error) {
       console.error("Error al guardar cambios:", error)
       toast({

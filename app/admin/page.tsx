@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
@@ -23,6 +23,7 @@ import {
   Phone,
   Globe,
   Mail,
+  RefreshCw,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -30,6 +31,8 @@ import { CategoryProvider, useCategories } from "@/components/categories/categor
 import { ProductProvider, useProducts } from "@/components/products/product-context"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
+import { doc, onSnapshot } from "firebase/firestore"
+import { db } from "@/lib/firebase-config"
 
 // Main component wrapper with providers
 export default function TenantLandingPageWrapper() {
@@ -50,25 +53,67 @@ export default function TenantLandingPageWrapper() {
     }
   }, [])
 
-  // Fetch tenant info
+  // Fetch tenant info and set up real-time listener
   useEffect(() => {
-    async function fetchTenantInfo() {
-      if (!tenantId) return
+    if (!tenantId) return
 
+    // Primero cargamos los datos iniciales
+    const loadInitialData = async () => {
       try {
         const info = await getTenantInfo(tenantId)
         setTenantInfo(info)
       } catch (error) {
-        console.error("Error al obtener información del tenant:", error)
+        console.error("Error al obtener información inicial del tenant:", error)
       } finally {
         setLoading(false)
       }
     }
 
-    if (tenantId) {
-      fetchTenantInfo()
-    }
+    loadInitialData()
+
+    // Luego configuramos un listener en tiempo real para detectar cambios
+    const tenantRef = doc(db, "tenants", tenantId)
+    const unsubscribe = onSnapshot(
+      tenantRef,
+      (doc) => {
+        if (doc.exists()) {
+          const data = doc.data()
+          console.log("Datos del tenant actualizados:", data)
+          setTenantInfo(data)
+        }
+      },
+      (error) => {
+        console.error("Error en el listener del tenant:", error)
+      },
+    )
+
+    // Limpiamos el listener cuando el componente se desmonta
+    return () => unsubscribe()
   }, [tenantId])
+
+  // Función para forzar la recarga de los datos del tenant
+  const refreshTenantData = useCallback(async () => {
+    if (!tenantId) return
+
+    setLoading(true)
+    try {
+      const info = await getTenantInfo(tenantId)
+      setTenantInfo(info)
+      toast({
+        title: "Datos actualizados",
+        description: "La información del restaurante se ha actualizado correctamente",
+      })
+    } catch (error) {
+      console.error("Error al actualizar información del tenant:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar la información del restaurante",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [tenantId, toast])
 
   if (loading || !tenantId) {
     return (
@@ -98,19 +143,28 @@ export default function TenantLandingPageWrapper() {
   return (
     <CategoryProvider tenantId={tenantId}>
       <ProductProvider tenantId={tenantId}>
-        <TenantLandingPage tenantId={tenantId} tenantInfo={tenantInfo} />
+        <TenantLandingPage tenantId={tenantId} tenantInfo={tenantInfo} refreshData={refreshTenantData} />
       </ProductProvider>
     </CategoryProvider>
   )
 }
 
 // Main component with data from context
-function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantInfo: any }) {
+function TenantLandingPage({
+  tenantId,
+  tenantInfo,
+  refreshData,
+}: {
+  tenantId: string
+  tenantInfo: any
+  refreshData: () => Promise<void>
+}) {
   const { categories, loading: categoriesLoading } = useCategories()
   const { products, loading: productsLoading } = useProducts()
   const [activeSlide, setActiveSlide] = useState(0)
   const [searchQuery, setSearchQuery] = useState("")
   const [isOpen, setIsOpen] = useState(true) // Estado para el restaurante abierto/cerrado
+  const [refreshing, setRefreshing] = useState(false)
 
   const featuredSliderRef = useRef<HTMLDivElement>(null)
   const categoriesSliderRef = useRef<HTMLDivElement>(null)
@@ -123,6 +177,13 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
   const buttonTextColor = tenantInfo.buttonTextColor || "#ffffff"
   const backgroundColor = tenantInfo.backgroundColor || "#f9fafb"
 
+  // Función para forzar la recarga de datos con indicador visual
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await refreshData()
+    setRefreshing(false)
+  }
+
   // Filter featured products
   const featuredProducts = products
     .filter((product) => product.featured && product.available)
@@ -134,22 +195,23 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
     .sort((a, b) => a.name.localeCompare(b.name))
     .slice(0, 4) // Limit to 4 items
 
-  // Datos de ejemplo para el restaurante
+  // Usar datos del tenant para la información del restaurante
   const restaurantInfo = {
     name: tenantInfo.name || "Restaurante Ejemplo",
     description:
-      "Disfruta de la mejor experiencia gastronómica con nuestros platos preparados con ingredientes frescos y de alta calidad. Nuestro chef se especializa en fusionar sabores tradicionales con toques modernos.",
-    address: "Calle Principal 123, Ciudad Ejemplo",
-    phone: "+1 234 567 890",
-    email: "info@restauranteejemplo.com",
-    website: "www.restauranteejemplo.com",
-    openingHours: [
+      tenantInfo.description ||
+      "Disfruta de la mejor experiencia gastronómica con nuestros platos preparados con ingredientes frescos y de alta calidad.",
+    address: tenantInfo.address || "Calle Principal 123, Ciudad Ejemplo",
+    phone: tenantInfo.phone || "+1 234 567 890",
+    email: tenantInfo.email || "info@restauranteejemplo.com",
+    website: tenantInfo.website || "www.restauranteejemplo.com",
+    openingHours: tenantInfo.openingHours || [
       { day: "Lunes - Viernes", hours: "11:00 - 22:00" },
       { day: "Sábados", hours: "12:00 - 23:00" },
       { day: "Domingos", hours: "12:00 - 20:00" },
     ],
-    features: ["Terraza", "Wi-Fi gratis", "Accesible", "Estacionamiento"],
-    socialMedia: {
+    features: tenantInfo.features || ["Terraza", "Wi-Fi gratis", "Accesible", "Estacionamiento"],
+    socialMedia: tenantInfo.socialMedia || {
       facebook: "restauranteejemplo",
       instagram: "@restauranteejemplo",
       twitter: "@rest_ejemplo",
@@ -203,7 +265,12 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
         >
           {/* Banner image */}
           <div className="absolute inset-0 opacity-20">
-            <Image src="/placeholder.svg?key=i6gc5" alt="Banner de comida" fill className="object-cover" />
+            <Image
+              src={tenantInfo.bannerUrl || "/placeholder.svg?key=i6gc5"}
+              alt="Banner de comida"
+              fill
+              className="object-cover"
+            />
           </div>
 
           {/* Botón de Abierto/Cerrado (izquierda) con Sheet */}
@@ -231,7 +298,7 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
                 {/* Banner del restaurante */}
                 <div className="mt-4 relative h-40 rounded-lg overflow-hidden">
                   <Image
-                    src="/modern-restaurant-interior.png"
+                    src={tenantInfo.bannerUrl || "/modern-restaurant-interior.png"}
                     alt={restaurantInfo.name}
                     fill
                     className="object-cover"
@@ -271,7 +338,7 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
                       Horarios
                     </h4>
                     <div className="space-y-2">
-                      {restaurantInfo.openingHours.map((schedule, index) => (
+                      {restaurantInfo.openingHours.map((schedule: any, index: number) => (
                         <div key={index} className="flex justify-between text-sm">
                           <span>{schedule.day}</span>
                           <span>{schedule.hours}</span>
@@ -286,7 +353,7 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
                   <div>
                     <h4 className="font-medium mb-2">Características</h4>
                     <div className="flex flex-wrap gap-2">
-                      {restaurantInfo.features.map((feature, index) => (
+                      {restaurantInfo.features.map((feature: string, index: number) => (
                         <Badge key={index} variant="outline" className="bg-gray-100">
                           {feature}
                         </Badge>
@@ -330,12 +397,10 @@ function TenantLandingPage({ tenantId, tenantInfo }: { tenantId: string; tenantI
               variant="outline"
               size="icon"
               className="h-8 w-8 rounded-full bg-white/50 hover:bg-white/80 border-0"
+              onClick={handleRefresh}
+              disabled={refreshing}
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="8" cy="3" r="1.5" fill="currentColor" />
-                <circle cx="8" cy="8" r="1.5" fill="currentColor" />
-                <circle cx="8" cy="13" r="1.5" fill="currentColor" />
-              </svg>
+              <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
             </Button>
           </div>
         </div>
