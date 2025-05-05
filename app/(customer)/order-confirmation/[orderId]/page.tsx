@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ref, onValue, off } from "firebase/database"
+import { ref, onValue, off, get } from "firebase/database"
 import { rtdb } from "@/lib/firebase-config"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { CheckCircle, Clock, ArrowLeft } from "lucide-react"
+import { CheckCircle, Clock, ArrowLeft, Share2 } from "lucide-react"
 
 interface OrderItem {
   productName: string
@@ -36,6 +36,7 @@ interface Order {
   paymentMethod: string
   paymentStatus: string
   createdAt: number
+  tenantId: string
 }
 
 export default function OrderConfirmationPage() {
@@ -44,33 +45,88 @@ export default function OrderConfirmationPage() {
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [tenantId, setTenantId] = useState<string>("")
+  const [restaurantInfo, setRestaurantInfo] = useState<any>(null)
   const orderId = params?.orderId as string
-  const tenantId = params?.tenant as string
 
   useEffect(() => {
-    if (!orderId || !tenantId) {
-      setError("Información de pedido no válida")
+    // Obtener el tenantId del hostname (subdominio)
+    const hostname = window.location.hostname
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+
+    // Verificar si estamos en un subdominio
+    if (hostname.includes(`.${rootDomain}`) && !hostname.startsWith("www.")) {
+      // Extraer el subdominio (tenant)
+      const subdomain = hostname.replace(`.${rootDomain}`, "")
+      console.log("OrderConfirmation - Subdomain detected:", subdomain)
+      setTenantId(subdomain)
+    } else {
+      // Si no estamos en un subdominio, intentar obtener el tenantId de los parámetros
+      const paramTenantId = params?.tenant as string
+      console.log("OrderConfirmation - Using param tenantId:", paramTenantId)
+      setTenantId(paramTenantId)
+    }
+  }, [params])
+
+  useEffect(() => {
+    if (!orderId) {
+      setError("ID de pedido no proporcionado")
       setLoading(false)
       return
     }
 
+    if (!tenantId) {
+      console.log("Esperando tenantId...")
+      return // Esperar a que se establezca el tenantId
+    }
+
+    console.log(`Fetching order ${orderId} for tenant ${tenantId}`)
+    setLoading(true)
+
     const orderRef = ref(rtdb, `tenants/${tenantId}/orders/${orderId}`)
 
-    const handleOrderChange = (snapshot: any) => {
+    const handleOrderChange = (snapshot) => {
       if (snapshot.exists()) {
-        setOrder(snapshot.val())
+        const orderData = snapshot.val()
+        console.log("Order data:", orderData)
+        setOrder(orderData)
+
+        // Una vez que tenemos la orden, obtenemos la información del restaurante
+        fetchRestaurantInfo(orderData.tenantId || tenantId)
       } else {
+        console.error("Order not found:", orderId)
         setError("Pedido no encontrado")
       }
       setLoading(false)
     }
 
-    onValue(orderRef, handleOrderChange)
+    onValue(orderRef, handleOrderChange, (error) => {
+      console.error("Error fetching order:", error)
+      setError("Error al cargar el pedido")
+      setLoading(false)
+    })
 
     return () => {
-      off(orderRef, "value", handleOrderChange)
+      off(orderRef)
     }
   }, [orderId, tenantId])
+
+  const fetchRestaurantInfo = async (tid: string) => {
+    try {
+      const restaurantRef = ref(rtdb, `tenants/${tid}/restaurant`)
+      const snapshot = await get(restaurantRef)
+
+      if (snapshot.exists()) {
+        const data = snapshot.val()
+        console.log("Restaurant info:", data)
+        setRestaurantInfo(data)
+      } else {
+        console.log("No restaurant info found")
+      }
+    } catch (error) {
+      console.error("Error fetching restaurant info:", error)
+    }
+  }
 
   const formatCurrency = (amount: number) => {
     return `$${amount.toFixed(2)}`
@@ -104,6 +160,58 @@ export default function OrderConfirmationPage() {
       default:
         return method
     }
+  }
+
+  const shareToWhatsApp = () => {
+    if (!order) return
+
+    const restaurantName = restaurantInfo?.name || "Nuestro Restaurante"
+    const restaurantPhone = restaurantInfo?.phone || ""
+
+    let message = `*Pedido #${order.orderNumber} en ${restaurantName}*\n\n`
+
+    // Información del cliente
+    message += `*Cliente:* ${order.customerName}\n`
+    message += `*Teléfono:* ${order.customerPhone}\n`
+
+    if (order.customerAddress) {
+      message += `*Dirección:* ${order.customerAddress}\n`
+    }
+
+    message += `*Método de entrega:* ${getDeliveryMethodText(order.type)}\n`
+    message += `*Método de pago:* ${getPaymentMethodText(order.paymentMethod)}\n\n`
+
+    // Productos
+    message += `*Productos:*\n`
+    order.items.forEach((item) => {
+      message += `${item.quantity}x ${item.productName} - ${formatCurrency(item.price * item.quantity)}\n`
+
+      if (item.extras && item.extras.length > 0) {
+        item.extras.forEach((extra) => {
+          message += `   ${extra.quantity}x ${extra.name} - ${formatCurrency(extra.price * extra.quantity)}\n`
+        })
+      }
+    })
+
+    message += `\n*Subtotal:* ${formatCurrency(order.subtotal)}\n`
+    message += `*Impuestos:* ${formatCurrency(order.tax)}\n`
+
+    if (order.deliveryFee > 0) {
+      message += `*Costo de envío:* ${formatCurrency(order.deliveryFee)}\n`
+    }
+
+    message += `*Total:* ${formatCurrency(order.total)}\n\n`
+
+    message += `Gracias por tu pedido!`
+
+    // Número de WhatsApp del restaurante o un número predeterminado
+    const whatsappNumber = restaurantPhone || "5215555555555" // Reemplazar con el número predeterminado
+
+    // Crear el enlace de WhatsApp
+    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`
+
+    // Abrir en una nueva ventana
+    window.open(whatsappUrl, "_blank")
   }
 
   if (loading) {
@@ -259,10 +367,14 @@ export default function OrderConfirmationPage() {
             </div>
           </div>
         </CardContent>
-        <CardFooter className="flex justify-center">
+        <CardFooter className="flex justify-between">
           <Button variant="outline" onClick={() => router.push("/")}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Volver al Inicio
+          </Button>
+          <Button onClick={shareToWhatsApp} className="bg-green-600 hover:bg-green-700">
+            <Share2 className="mr-2 h-4 w-4" />
+            Compartir por WhatsApp
           </Button>
         </CardFooter>
       </Card>
