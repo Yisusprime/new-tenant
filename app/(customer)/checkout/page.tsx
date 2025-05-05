@@ -18,8 +18,33 @@ import { ShoppingBag, Home, Truck, CreditCard, Wallet, Banknote } from "lucide-r
 type DeliveryMethod = "pickup" | "takeaway" | "delivery"
 type PaymentMethod = "cash" | "card" | "transfer"
 
+// Valores predeterminados para evitar errores durante el pre-renderizado
+const defaultServiceOptions = {
+  offersPickup: true,
+  offersTakeaway: true,
+  offersDelivery: true,
+  deliveryFee: 5.0,
+}
+
+const defaultPaymentMethods = {
+  acceptsCash: true,
+  acceptsCard: true,
+  acceptsTransfer: true,
+  onlinePaymentInstructions: "",
+}
+
 export default function CheckoutPage() {
-  const { items, subtotal, tax, total, clearCart, isStoreOpen, serviceOptions, paymentMethods } = useCart()
+  const {
+    items = [],
+    subtotal = 0,
+    tax = 0,
+    total = 0,
+    clearCart = () => {},
+    isStoreOpen = true,
+    serviceOptions = defaultServiceOptions,
+    paymentMethods = defaultPaymentMethods,
+  } = useCart()
+
   const router = useRouter()
   const params = useParams()
   const tenantId = params?.tenant || ""
