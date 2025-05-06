@@ -63,7 +63,8 @@
     "@vercel/blob": "latest",
     "nanoid": "latest",
     "react-chartjs-2": "latest",
-    "uuid": "latest"
+    "uuid": "latest",
+    "gsap": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",
