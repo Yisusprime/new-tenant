@@ -4,7 +4,6 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -65,63 +64,58 @@ export function SubcategoryForm({ categoryId, subcategoryId, onCancel }: Subcate
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{subcategoryId ? "Editar Subcategoría" : "Añadir Subcategoría"}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Nombre</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Nombre de la subcategoría"
-              required
-            />
-          </div>
+    <div className="max-w-3xl mx-auto">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="name">Nombre</Label>
+          <Input
+            id="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Nombre de la subcategoría"
+            required
+          />
+        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Descripción (opcional)</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Descripción breve de la subcategoría"
-              rows={3}
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="description">Descripción (opcional)</Label>
+          <Textarea
+            id="description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Descripción breve de la subcategoría"
+            rows={3}
+          />
+        </div>
 
-          <div className="space-y-2">
-            <Label>Imagen (opcional)</Label>
-            <ImageUpload
-              currentImageUrl={imageUrl}
-              onImageUploaded={handleImageUploaded}
-              folder="subcategories"
-              tenantId={tenantId} // Pasamos el tenantId
-            />
-          </div>
+        <div className="space-y-2">
+          <Label>Imagen (opcional)</Label>
+          <ImageUpload
+            currentImageUrl={imageUrl}
+            onImageUploaded={handleImageUploaded}
+            folder="subcategories"
+            tenantId={tenantId} // Pasamos el tenantId
+          />
+        </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={onCancel} disabled={submitting}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={submitting || !name}>
-              {submitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Guardando...
-                </>
-              ) : subcategoryId ? (
-                "Actualizar"
-              ) : (
-                "Guardar"
-              )}
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={submitting}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={submitting || !name}>
+            {submitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Guardando...
+              </>
+            ) : subcategoryId ? (
+              "Actualizar"
+            ) : (
+              "Guardar"
+            )}
+          </Button>
+        </div>
+      </form>
+    </div>
   )
 }
