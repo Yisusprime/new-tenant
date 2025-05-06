@@ -20,7 +20,7 @@ import { MediaUploads } from "@/components/restaurant/media-uploads"
 import { DisplayOptions } from "@/components/restaurant/display-options"
 import { ContactDetails } from "@/components/restaurant/contact-details"
 import { ServiceOptions } from "@/components/restaurant/service-options"
-import { RestaurantPreview } from "@/components/restaurant/preview"
+import { MobilePreview } from "@/components/restaurant/mobile-preview"
 
 export default function RestaurantManager() {
   const { user, loading } = useAuth()
@@ -28,7 +28,7 @@ export default function RestaurantManager() {
   const { toast } = useToast()
   const [tenantId, setTenantId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [previewTab, setPreviewTab] = useState("main") // Para cambiar entre vistas previas
+  const [previewTab, setPreviewTab] = useState("home") // Para cambiar entre vistas previas
   const [tenantData, setTenantData] = useState<any>({
     name: "Restaurante Ejemplo",
     description:
@@ -373,9 +373,9 @@ export default function RestaurantManager() {
             </Tabs>
           </div>
 
-          {/* Vista previa - ahora ocupa 1/3 del espacio y es sticky */}
+          {/* Vista previa móvil - ahora ocupa 1/3 del espacio y es sticky */}
           <div className="hidden lg:block">
-            <RestaurantPreview previewTab={previewTab} setPreviewTab={setPreviewTab} tenantData={tenantData} />
+            <MobilePreview tenantData={tenantData} activeTab={previewTab} setActiveTab={setPreviewTab} />
           </div>
         </div>
       </div>
