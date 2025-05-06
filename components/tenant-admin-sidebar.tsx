@@ -4,11 +4,9 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
-  BarChart3,
   Home,
   LogOut,
   Settings,
-  Users,
   User,
   Store,
   Menu,
@@ -18,14 +16,6 @@ import {
   Package,
   ShoppingBag,
   DollarSign,
-  Palette,
-  CalendarDays,
-  MessageSquare,
-  Bell,
-  FileText,
-  Truck,
-  Utensils,
-  Clock,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
@@ -87,15 +77,11 @@ export function TenantAdminSidebar({ tenantid }: { tenantid: string }) {
     },
     {
       title: "Marketing",
-      links: [
-        { href: `/admin/theme`, label: "Personalización", icon: Palette },
-      ],
+      links: [],
     },
     {
       title: "Administración",
-      links: [
-        { href: `/admin/settings`, label: "Configuración", icon: Settings },
-      ],
+      links: [{ href: `/admin/settings`, label: "Configuración", icon: Settings }],
     },
   ]
 

@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -10,14 +12,17 @@ import { TenantAdminSidebar } from "@/components/tenant-admin-sidebar"
 import { getTenantInfo } from "@/lib/tenant-utils"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, MapPin, Clock, Phone, Mail, Globe, Edit, Camera, Settings, AlertCircle } from "lucide-react"
+import { Loader2, Phone, Save, Palette, ImageIcon, Info, CreditCard, LayoutGrid, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Progress } from "@/components/ui/progress"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { BlobImageUploader } from "@/components/blob-image-uploader"
+import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore"
+import { db } from "@/lib/firebase-config"
+import { Slider } from "@/components/ui/slider"
 
 export default function RestaurantPage() {
   const { user, loading, logout, checkUserRole } = useAuth()
@@ -28,8 +33,9 @@ export default function RestaurantPage() {
   const [tenantId, setTenantId] = useState<string | null>(null)
   const [isLogoutRef, setIsLogoutRef] = useState(false)
   const [editMode, setEditMode] = useState(false)
+  const [saving, setSaving] = useState(false)
 
-  // Datos de ejemplo para el restaurante
+  // Datos del restaurante
   const [restaurantData, setRestaurantData] = useState({
     name: "Restaurante El Buen Sabor",
     description:
@@ -53,6 +59,40 @@ export default function RestaurantPage() {
       { name: "Parking", enabled: false },
       { name: "Admite mascotas", enabled: false },
     ],
+    // Datos de personalización
+    logoUrl: "/restaurant-logo.png",
+    bannerUrl: "/modern-restaurant-interior.png",
+    primaryColor: "#f97316", // orange-500
+    secondaryColor: "#dc2626", // red-600
+    buttonColor: "#f97316", // orange-500
+    productButtonColor: "#f97316", // color para botones de productos
+    buttonTextColor: "#ffffff", // color de texto en botones
+    backgroundColor: "#f9fafb", // color de fondo
+    bannerOpacity: 0.2, // Opacidad del banner
+    isOpen: true, // Estado del restaurante (abierto/cerrado)
+    socialMedia: {
+      facebook: "restauranteejemplo",
+      instagram: "@restauranteejemplo",
+      twitter: "@rest_ejemplo",
+    },
+    // Opciones para métodos de pago
+    paymentMethods: {
+      acceptsCash: true,
+      acceptsCard: true,
+      acceptsTransfer: false,
+      acceptsOnlinePayment: false,
+      onlinePaymentInstructions: "",
+    },
+    // Opciones para servicios
+    serviceOptions: {
+      offersPickup: true,
+      offersTakeaway: true,
+      offersDelivery: false,
+      deliveryRadius: "",
+      deliveryFee: "",
+      freeDeliveryThreshold: "",
+      estimatedDeliveryTime: "",
+    },
   })
 
   // Obtener el tenantId del hostname
@@ -74,11 +114,43 @@ export default function RestaurantPage() {
         const info = await getTenantInfo(tenantId)
         setTenantInfo(info)
 
-        // Actualizar los datos del restaurante con la información del tenant
-        if (info) {
+        // Cargar datos del tenant desde Firestore
+        const tenantRef = doc(db, "tenants", tenantId)
+        const tenantSnap = await getDoc(tenantRef)
+
+        if (tenantSnap.exists()) {
+          const data = tenantSnap.data()
+
+          // Combinar datos existentes con los predeterminados
           setRestaurantData((prev) => ({
             ...prev,
-            name: info.name || prev.name,
+            ...data,
+            name: data.name || prev.name,
+            description: data.description || prev.description,
+            address: data.address || prev.address,
+            phone: data.phone || prev.phone,
+            email: data.email || prev.email,
+            website: data.website || prev.website,
+            logoUrl: data.logoUrl || prev.logoUrl,
+            bannerUrl: data.bannerUrl || prev.bannerUrl,
+            primaryColor: data.primaryColor || prev.primaryColor,
+            secondaryColor: data.secondaryColor || prev.secondaryColor,
+            buttonColor: data.buttonColor || prev.buttonColor,
+            buttonTextColor: data.buttonTextColor || prev.buttonTextColor,
+            backgroundColor: data.backgroundColor || prev.backgroundColor,
+            bannerOpacity: data.bannerOpacity !== undefined ? data.bannerOpacity : prev.bannerOpacity,
+            isOpen: data.isOpen !== undefined ? data.isOpen : prev.isOpen,
+            openingHours: data.openingHours || prev.openingHours,
+            features: data.features || prev.features,
+            socialMedia: data.socialMedia || prev.socialMedia,
+            paymentMethods: {
+              ...prev.paymentMethods,
+              ...(data.paymentMethods || {}),
+            },
+            serviceOptions: {
+              ...prev.serviceOptions,
+              ...(data.serviceOptions || {}),
+            },
           }))
         }
       } catch (error) {
@@ -120,12 +192,109 @@ export default function RestaurantPage() {
     router.push(`/login`)
   }
 
-  const handleSaveRestaurant = () => {
-    toast({
-      title: "Información actualizada",
-      description: "Los datos del restaurante han sido actualizados correctamente.",
+  // Manejar cambios en los campos de texto
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+
+    // Manejar campos anidados (como socialMedia.facebook)
+    if (name.includes(".")) {
+      const [parent, child] = name.split(".")
+      setRestaurantData((prev) => ({
+        ...prev,
+        [parent]: {
+          ...prev[parent],
+          [child]: value,
+        },
+      }))
+    } else {
+      setRestaurantData((prev) => ({ ...prev, [name]: value }))
+    }
+  }
+
+  // Manejar cambios en los switches
+  const handleSwitchChange = (name: string, checked: boolean) => {
+    setRestaurantData((prev) => ({ ...prev, [name]: checked }))
+  }
+
+  // Manejar cambios en los switches anidados
+  const handleNestedSwitchChange = (parent: string, name: string, checked: boolean) => {
+    setRestaurantData((prev) => ({
+      ...prev,
+      [parent]: {
+        ...prev[parent],
+        [name]: checked,
+      },
+    }))
+  }
+
+  // Manejar cambios en los horarios
+  const handleScheduleChange = (index: number, field: "day" | "hours", value: string) => {
+    setRestaurantData((prev) => {
+      const newHours = [...prev.openingHours]
+      newHours[index] = { ...newHours[index], [field]: value }
+      return { ...prev, openingHours: newHours }
     })
-    setEditMode(false)
+  }
+
+  // Añadir nuevo horario
+  const addSchedule = () => {
+    setRestaurantData((prev) => ({
+      ...prev,
+      openingHours: [...prev.openingHours, { day: "Nuevo día", hours: "00:00 - 00:00" }],
+    }))
+  }
+
+  // Eliminar horario
+  const removeSchedule = (index: number) => {
+    setRestaurantData((prev) => {
+      const newHours = [...prev.openingHours]
+      newHours.splice(index, 1)
+      return { ...prev, openingHours: newHours }
+    })
+  }
+
+  // Manejar subida de logo
+  const handleLogoUpload = (url: string) => {
+    setRestaurantData((prev) => ({ ...prev, logoUrl: url }))
+  }
+
+  // Manejar subida de banner
+  const handleBannerUpload = (url: string) => {
+    setRestaurantData((prev) => ({ ...prev, bannerUrl: url }))
+  }
+
+  // Manejar cambio en el slider de opacidad
+  const handleOpacityChange = (value: number[]) => {
+    setRestaurantData((prev) => ({ ...prev, bannerOpacity: value[0] }))
+  }
+
+  const handleSaveRestaurant = async () => {
+    if (!tenantId) return
+
+    setSaving(true)
+    try {
+      const tenantRef = doc(db, "tenants", tenantId)
+
+      await updateDoc(tenantRef, {
+        ...restaurantData,
+        updatedAt: serverTimestamp(),
+      })
+
+      toast({
+        title: "Información actualizada",
+        description: "Los datos del restaurante han sido actualizados correctamente.",
+      })
+      setEditMode(false)
+    } catch (error) {
+      console.error("Error al guardar cambios:", error)
+      toast({
+        title: "Error",
+        description: "No se pudieron guardar los cambios",
+        variant: "destructive",
+      })
+    } finally {
+      setSaving(false)
+    }
   }
 
   if (loading || loadingTenant || !tenantId) {
@@ -160,275 +329,653 @@ export default function RestaurantPage() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">Datos del Local</h1>
-            <p className="text-muted-foreground">Gestiona la información de tu restaurante</p>
+            <p className="text-muted-foreground">Gestiona la información y apariencia de tu restaurante</p>
           </div>
           <div className="flex items-center gap-4">
+            <Button onClick={handleSaveRestaurant} disabled={saving}>
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Guardar cambios
+                </>
+              )}
+            </Button>
             <Button variant="outline" onClick={handleLogout}>
               Cerrar sesión
             </Button>
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card className="md:col-span-2">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Información del Restaurante</CardTitle>
-                <CardDescription>Gestiona los datos principales de tu establecimiento</CardDescription>
-              </div>
-              <Button variant={editMode ? "default" : "outline"} size="sm" onClick={() => setEditMode(!editMode)}>
-                {editMode ? (
-                  "Cancelar"
-                ) : (
-                  <>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Editar
-                  </>
-                )}
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col gap-6">
-                <div className="relative w-full h-48 rounded-lg overflow-hidden">
-                  <Image
-                    src={restaurantData.coverImage || "/placeholder.svg"}
-                    alt={restaurantData.name}
-                    fill
-                    className="object-cover"
-                  />
-                  {editMode && (
-                    <Button size="sm" variant="secondary" className="absolute bottom-4 right-4">
-                      <Camera className="h-4 w-4 mr-2" />
-                      Cambiar imagen
-                    </Button>
-                  )}
-                </div>
+        <Tabs defaultValue="general" className="space-y-6">
+          <TabsList className="mb-4">
+            <TabsTrigger value="general">
+              <Info className="h-4 w-4 mr-2" />
+              General
+            </TabsTrigger>
+            <TabsTrigger value="images">
+              <ImageIcon className="h-4 w-4 mr-2" />
+              Imágenes
+            </TabsTrigger>
+            <TabsTrigger value="colors">
+              <Palette className="h-4 w-4 mr-2" />
+              Colores
+            </TabsTrigger>
+            <TabsTrigger value="contact">
+              <Phone className="h-4 w-4 mr-2" />
+              Contacto
+            </TabsTrigger>
+            <TabsTrigger value="payment">
+              <CreditCard className="h-4 w-4 mr-2" />
+              Pagos y Servicios
+            </TabsTrigger>
+            <TabsTrigger value="display">
+              <LayoutGrid className="h-4 w-4 mr-2" />
+              Visualización
+            </TabsTrigger>
+          </TabsList>
 
-                <div className="flex flex-col md:flex-row gap-6">
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="relative">
-                      <div className="h-32 w-32 rounded-full overflow-hidden border-4 border-white shadow-md">
-                        <Image
-                          src={restaurantData.logo || "/placeholder.svg"}
-                          alt={restaurantData.name}
-                          width={128}
-                          height={128}
-                          className="object-cover"
+          {/* Pestaña General */}
+          <TabsContent value="general">
+            <Card>
+              <CardHeader>
+                <CardTitle>Información General</CardTitle>
+                <CardDescription>Datos básicos de tu restaurante</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Nombre del restaurante</Label>
+                    <Input id="name" name="name" value={restaurantData.name} onChange={handleInputChange} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="isOpen">Estado del restaurante</Label>
+                    <div className="flex items-center justify-between rounded-md border p-3">
+                      <div className="space-y-0.5">
+                        <p className="text-sm font-medium">{restaurantData.isOpen ? "Abierto" : "Cerrado"}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {restaurantData.isOpen
+                            ? "Los clientes pueden realizar pedidos"
+                            : "Los clientes no pueden realizar pedidos"}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={restaurantData.isOpen}
+                        onCheckedChange={(checked) => handleSwitchChange("isOpen", checked)}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="description">Descripción</Label>
+                    <Textarea
+                      id="description"
+                      name="description"
+                      value={restaurantData.description}
+                      onChange={handleInputChange}
+                      rows={3}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Describe brevemente tu restaurante, especialidades y propuesta de valor.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Pestaña Imágenes */}
+          <TabsContent value="images">
+            <Card>
+              <CardHeader>
+                <CardTitle>Imágenes</CardTitle>
+                <CardDescription>Logo y banner de tu restaurante</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid gap-6">
+                  <div className="space-y-4">
+                    <Label>Logo del Restaurante</Label>
+                    <div className="grid md:grid-cols-2 gap-4 items-start">
+                      <div className="flex flex-col gap-2">
+                        <div className="bg-gray-50 border rounded-md p-4 flex items-center justify-center h-40">
+                          {restaurantData.logoUrl ? (
+                            <div className="relative w-32 h-32">
+                              <Image
+                                src={restaurantData.logoUrl || "/placeholder.svg"}
+                                alt="Logo del restaurante"
+                                fill
+                                className="object-contain"
+                              />
+                            </div>
+                          ) : (
+                            <div className="text-center text-muted-foreground">
+                              <ImageIcon className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                              <p>Sin logo</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-col justify-between h-full">
+                        <div>
+                          <p className="text-sm mb-2">Sube el logo de tu restaurante</p>
+                          <p className="text-xs text-muted-foreground mb-4">
+                            Recomendado: Imagen cuadrada de al menos 200x200px
+                          </p>
+                        </div>
+                        <BlobImageUploader
+                          currentImageUrl={restaurantData.logoUrl}
+                          onImageUploaded={handleLogoUpload}
+                          folder="logos"
+                          aspectRatio="square"
+                          tenantId={tenantId || undefined}
+                          className="w-full"
                         />
                       </div>
-                      {editMode && (
-                        <Button
-                          size="icon"
-                          variant="secondary"
-                          className="absolute bottom-0 right-0 rounded-full h-8 w-8"
-                        >
-                          <Camera className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-2 justify-center">
-                      {restaurantData.categories.map((category, index) => (
-                        <Badge key={index} variant="secondary">
-                          {category}
-                        </Badge>
-                      ))}
                     </div>
                   </div>
 
-                  <div className="flex-1 space-y-4">
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="restaurant-name">Nombre del restaurante</Label>
-                        {editMode ? (
-                          <Input
-                            id="restaurant-name"
-                            value={restaurantData.name}
-                            onChange={(e) => setRestaurantData((prev) => ({ ...prev, name: e.target.value }))}
-                          />
-                        ) : (
-                          <p className="text-sm font-medium">{restaurantData.name}</p>
-                        )}
+                  <Separator />
+
+                  <div className="space-y-4">
+                    <Label>Banner del Restaurante</Label>
+                    <div className="grid md:grid-cols-2 gap-4 items-start">
+                      <div className="flex flex-col gap-2">
+                        <div className="bg-gray-50 border rounded-md p-4 flex items-center justify-center h-40">
+                          {restaurantData.bannerUrl ? (
+                            <div className="relative w-full h-32">
+                              <Image
+                                src={restaurantData.bannerUrl || "/placeholder.svg"}
+                                alt="Banner del restaurante"
+                                fill
+                                className="object-cover rounded-md"
+                              />
+                            </div>
+                          ) : (
+                            <div className="text-center text-muted-foreground">
+                              <ImageIcon className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                              <p>Sin banner</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="description">Descripción</Label>
-                        {editMode ? (
-                          <Textarea
-                            id="description"
-                            value={restaurantData.description}
-                            onChange={(e) => setRestaurantData((prev) => ({ ...prev, description: e.target.value }))}
-                            rows={3}
-                          />
-                        ) : (
-                          <p className="text-sm">{restaurantData.description}</p>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="address">Dirección</Label>
-                        {editMode ? (
-                          <Input
-                            id="address"
-                            value={restaurantData.address}
-                            onChange={(e) => setRestaurantData((prev) => ({ ...prev, address: e.target.value }))}
-                          />
-                        ) : (
-                          <div className="flex items-center gap-2 text-sm">
-                            <MapPin className="h-4 w-4 text-muted-foreground" />
-                            <span>{restaurantData.address}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="phone">Teléfono</Label>
-                        {editMode ? (
-                          <Input
-                            id="phone"
-                            value={restaurantData.phone}
-                            onChange={(e) => setRestaurantData((prev) => ({ ...prev, phone: e.target.value }))}
-                          />
-                        ) : (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Phone className="h-4 w-4 text-muted-foreground" />
-                            <span>{restaurantData.phone}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
-                        {editMode ? (
-                          <Input
-                            id="email"
-                            type="email"
-                            value={restaurantData.email}
-                            onChange={(e) => setRestaurantData((prev) => ({ ...prev, email: e.target.value }))}
-                          />
-                        ) : (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Mail className="h-4 w-4 text-muted-foreground" />
-                            <span>{restaurantData.email}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="website">Sitio web</Label>
-                        {editMode ? (
-                          <Input
-                            id="website"
-                            value={restaurantData.website}
-                            onChange={(e) => setRestaurantData((prev) => ({ ...prev, website: e.target.value }))}
-                          />
-                        ) : (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Globe className="h-4 w-4 text-muted-foreground" />
-                            <span>{restaurantData.website}</span>
-                          </div>
-                        )}
+                      <div className="flex flex-col justify-between h-full">
+                        <div>
+                          <p className="text-sm mb-2">Sube el banner de tu restaurante</p>
+                          <p className="text-xs text-muted-foreground mb-4">
+                            Recomendado: Imagen panorámica de al menos 1200x400px
+                          </p>
+                        </div>
+                        <BlobImageUploader
+                          currentImageUrl={restaurantData.bannerUrl}
+                          onImageUploaded={handleBannerUpload}
+                          folder="banners"
+                          aspectRatio="wide"
+                          tenantId={tenantId || undefined}
+                          className="w-full"
+                        />
                       </div>
                     </div>
-
-                    {editMode && (
-                      <div className="flex justify-end gap-2 pt-4">
-                        <Button variant="outline" onClick={() => setEditMode(false)}>
-                          Cancelar
-                        </Button>
-                        <Button onClick={handleSaveRestaurant}>Guardar cambios</Button>
-                      </div>
-                    )}
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Horario de Apertura</CardTitle>
-              <CardDescription>Configura los horarios de tu restaurante</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {restaurantData.openingHours.map((schedule, index) => (
-                <div key={index} className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{schedule.day}</span>
-                  </div>
-                  <span>{schedule.hours}</span>
-                </div>
-              ))}
-              <Separator />
-              <Button className="w-full">
-                <Edit className="h-4 w-4 mr-2" />
-                Editar horarios
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Características del Local</CardTitle>
-              <CardDescription>Servicios y comodidades disponibles</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {restaurantData.features.map((feature, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <span>{feature.name}</span>
-                  <Switch checked={feature.enabled} />
-                </div>
-              ))}
-              <Separator />
-              <Button variant="outline" className="w-full">
-                Añadir característica
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Estado de la cuenta</CardTitle>
-              <CardDescription>Información sobre tu suscripción y uso</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-4">
+          {/* Pestaña Colores */}
+          <TabsContent value="colors">
+            <Card>
+              <CardHeader>
+                <CardTitle>Colores</CardTitle>
+                <CardDescription>Personaliza los colores de tu tienda</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium">Plan actual</span>
-                      <Badge>Premium</Badge>
+                    <Label htmlFor="primaryColor">Color primario</Label>
+                    <div className="flex gap-2">
+                      <div
+                        className="w-10 h-10 rounded-md border"
+                        style={{ backgroundColor: restaurantData.primaryColor }}
+                      />
+                      <Input
+                        id="primaryColor"
+                        name="primaryColor"
+                        type="color"
+                        value={restaurantData.primaryColor}
+                        onChange={handleInputChange}
+                        className="w-full"
+                      />
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Próxima facturación</span>
-                      <span>15/06/2023</span>
+                    <p className="text-xs text-muted-foreground">Color principal de tu marca</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="secondaryColor">Color secundario</Label>
+                    <div className="flex gap-2">
+                      <div
+                        className="w-10 h-10 rounded-md border"
+                        style={{ backgroundColor: restaurantData.secondaryColor }}
+                      />
+                      <Input
+                        id="secondaryColor"
+                        name="secondaryColor"
+                        type="color"
+                        value={restaurantData.secondaryColor}
+                        onChange={handleInputChange}
+                        className="w-full"
+                      />
                     </div>
+                    <p className="text-xs text-muted-foreground">Color complementario de tu marca</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="buttonColor">Color de botones</Label>
+                    <div className="flex gap-2">
+                      <div
+                        className="w-10 h-10 rounded-md border"
+                        style={{ backgroundColor: restaurantData.buttonColor }}
+                      />
+                      <Input
+                        id="buttonColor"
+                        name="buttonColor"
+                        type="color"
+                        value={restaurantData.buttonColor}
+                        onChange={handleInputChange}
+                        className="w-full"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">Color para botones principales</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="buttonTextColor">Color de texto en botones</Label>
+                    <div className="flex gap-2">
+                      <div
+                        className="w-10 h-10 rounded-md border"
+                        style={{ backgroundColor: restaurantData.buttonTextColor }}
+                      />
+                      <Input
+                        id="buttonTextColor"
+                        name="buttonTextColor"
+                        type="color"
+                        value={restaurantData.buttonTextColor}
+                        onChange={handleInputChange}
+                        className="w-full"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">Color del texto dentro de los botones</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="backgroundColor">Color de fondo</Label>
+                    <div className="flex gap-2">
+                      <div
+                        className="w-10 h-10 rounded-md border"
+                        style={{ backgroundColor: restaurantData.backgroundColor }}
+                      />
+                      <Input
+                        id="backgroundColor"
+                        name="backgroundColor"
+                        type="color"
+                        value={restaurantData.backgroundColor}
+                        onChange={handleInputChange}
+                        className="w-full"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">Color de fondo para la tienda</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="productButtonColor">Color de botones de productos</Label>
+                    <div className="flex gap-2">
+                      <div
+                        className="w-10 h-10 rounded-md border"
+                        style={{ backgroundColor: restaurantData.productButtonColor }}
+                      />
+                      <Input
+                        id="productButtonColor"
+                        name="productButtonColor"
+                        type="color"
+                        value={restaurantData.productButtonColor}
+                        onChange={handleInputChange}
+                        className="w-full"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">Color para botones de productos</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Pestaña Contacto */}
+          <TabsContent value="contact">
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Información de Contacto</CardTitle>
+                  <CardDescription>Datos de contacto de tu restaurante</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Dirección</Label>
+                    <Input id="address" name="address" value={restaurantData.address} onChange={handleInputChange} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Teléfono</Label>
+                    <Input id="phone" name="phone" value={restaurantData.phone} onChange={handleInputChange} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={restaurantData.email}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="website">Sitio web</Label>
+                    <Input id="website" name="website" value={restaurantData.website} onChange={handleInputChange} />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Redes Sociales</CardTitle>
+                  <CardDescription>Enlaces a tus perfiles sociales</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="socialMedia.facebook">Facebook</Label>
+                    <Input
+                      id="socialMedia.facebook"
+                      name="socialMedia.facebook"
+                      value={restaurantData.socialMedia.facebook}
+                      onChange={handleInputChange}
+                      placeholder="restauranteejemplo"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="socialMedia.instagram">Instagram</Label>
+                    <Input
+                      id="socialMedia.instagram"
+                      name="socialMedia.instagram"
+                      value={restaurantData.socialMedia.instagram}
+                      onChange={handleInputChange}
+                      placeholder="@restauranteejemplo"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="socialMedia.twitter">Twitter</Label>
+                    <Input
+                      id="socialMedia.twitter"
+                      name="socialMedia.twitter"
+                      value={restaurantData.socialMedia.twitter}
+                      onChange={handleInputChange}
+                      placeholder="@rest_ejemplo"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="md:col-span-2">
+                <CardHeader>
+                  <CardTitle>Horario de Apertura</CardTitle>
+                  <CardDescription>Configura los horarios de tu restaurante</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {restaurantData.openingHours.map((schedule, index) => (
+                      <div key={index} className="flex items-center gap-4">
+                        <div className="flex-1">
+                          <Input
+                            value={schedule.day}
+                            onChange={(e) => handleScheduleChange(index, "day", e.target.value)}
+                            placeholder="Día"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <Input
+                            value={schedule.hours}
+                            onChange={(e) => handleScheduleChange(index, "hours", e.target.value)}
+                            placeholder="Horario"
+                          />
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeSchedule(index)}
+                          className="text-destructive"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button variant="outline" onClick={addSchedule} className="w-full">
+                      Añadir horario
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Pestaña Pagos y Servicios */}
+          <TabsContent value="payment">
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Métodos de Pago</CardTitle>
+                  <CardDescription>Configura las formas de pago aceptadas</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-medium">Efectivo</p>
+                      <p className="text-xs text-muted-foreground">Aceptar pagos en efectivo</p>
+                    </div>
+                    <Switch
+                      checked={restaurantData.paymentMethods.acceptsCash}
+                      onCheckedChange={(checked) => handleNestedSwitchChange("paymentMethods", "acceptsCash", checked)}
+                    />
                   </div>
                   <Separator />
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium">Almacenamiento</span>
-                      <span className="text-sm">65% usado</span>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-medium">Tarjeta</p>
+                      <p className="text-xs text-muted-foreground">Aceptar pagos con tarjeta</p>
                     </div>
-                    <Progress value={65} className="h-2" />
-                    <p className="text-xs text-muted-foreground">650MB de 1GB</p>
+                    <Switch
+                      checked={restaurantData.paymentMethods.acceptsCard}
+                      onCheckedChange={(checked) => handleNestedSwitchChange("paymentMethods", "acceptsCard", checked)}
+                    />
                   </div>
-                </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-medium">Transferencia</p>
+                      <p className="text-xs text-muted-foreground">Aceptar pagos por transferencia bancaria</p>
+                    </div>
+                    <Switch
+                      checked={restaurantData.paymentMethods.acceptsTransfer}
+                      onCheckedChange={(checked) =>
+                        handleNestedSwitchChange("paymentMethods", "acceptsTransfer", checked)
+                      }
+                    />
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-medium">Pago online</p>
+                      <p className="text-xs text-muted-foreground">Aceptar pagos online</p>
+                    </div>
+                    <Switch
+                      checked={restaurantData.paymentMethods.acceptsOnlinePayment}
+                      onCheckedChange={(checked) =>
+                        handleNestedSwitchChange("paymentMethods", "acceptsOnlinePayment", checked)
+                      }
+                    />
+                  </div>
+                  {restaurantData.paymentMethods.acceptsOnlinePayment && (
+                    <div className="space-y-2 pt-2">
+                      <Label htmlFor="onlinePaymentInstructions">Instrucciones de pago online</Label>
+                      <Textarea
+                        id="onlinePaymentInstructions"
+                        name="paymentMethods.onlinePaymentInstructions"
+                        value={restaurantData.paymentMethods.onlinePaymentInstructions}
+                        onChange={handleInputChange}
+                        placeholder="Instrucciones para el pago online"
+                        rows={3}
+                      />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Opciones de Servicio</CardTitle>
+                  <CardDescription>Configura los servicios que ofreces</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-medium">Recogida en local</p>
+                      <p className="text-xs text-muted-foreground">Los clientes pueden recoger su pedido</p>
+                    </div>
+                    <Switch
+                      checked={restaurantData.serviceOptions.offersPickup}
+                      onCheckedChange={(checked) => handleNestedSwitchChange("serviceOptions", "offersPickup", checked)}
+                    />
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-medium">Para llevar</p>
+                      <p className="text-xs text-muted-foreground">Ofrecer servicio para llevar</p>
+                    </div>
+                    <Switch
+                      checked={restaurantData.serviceOptions.offersTakeaway}
+                      onCheckedChange={(checked) =>
+                        handleNestedSwitchChange("serviceOptions", "offersTakeaway", checked)
+                      }
+                    />
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-medium">Entrega a domicilio</p>
+                      <p className="text-xs text-muted-foreground">Ofrecer servicio de entrega a domicilio</p>
+                    </div>
+                    <Switch
+                      checked={restaurantData.serviceOptions.offersDelivery}
+                      onCheckedChange={(checked) =>
+                        handleNestedSwitchChange("serviceOptions", "offersDelivery", checked)
+                      }
+                    />
+                  </div>
+                  {restaurantData.serviceOptions.offersDelivery && (
+                    <div className="space-y-4 pt-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="deliveryRadius">Radio de entrega (km)</Label>
+                        <Input
+                          id="deliveryRadius"
+                          name="serviceOptions.deliveryRadius"
+                          value={restaurantData.serviceOptions.deliveryRadius}
+                          onChange={handleInputChange}
+                          placeholder="Ej: 5"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="deliveryFee">Coste de entrega (€)</Label>
+                        <Input
+                          id="deliveryFee"
+                          name="serviceOptions.deliveryFee"
+                          value={restaurantData.serviceOptions.deliveryFee}
+                          onChange={handleInputChange}
+                          placeholder="Ej: 2.50"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="freeDeliveryThreshold">Pedido mínimo para entrega gratuita (€)</Label>
+                        <Input
+                          id="freeDeliveryThreshold"
+                          name="serviceOptions.freeDeliveryThreshold"
+                          value={restaurantData.serviceOptions.freeDeliveryThreshold}
+                          onChange={handleInputChange}
+                          placeholder="Ej: 20"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="estimatedDeliveryTime">Tiempo estimado de entrega (min)</Label>
+                        <Input
+                          id="estimatedDeliveryTime"
+                          name="serviceOptions.estimatedDeliveryTime"
+                          value={restaurantData.serviceOptions.estimatedDeliveryTime}
+                          onChange={handleInputChange}
+                          placeholder="Ej: 30-45"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Pestaña Visualización */}
+          <TabsContent value="display">
+            <Card>
+              <CardHeader>
+                <CardTitle>Opciones de Visualización</CardTitle>
+                <CardDescription>Personaliza cómo se muestra tu tienda</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
                 <div className="space-y-4">
-                  <div className="flex items-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <AlertCircle className="h-5 w-5 text-yellow-600 mr-3 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium text-yellow-800">Actualización disponible</p>
-                      <p className="text-xs text-yellow-700">Hay una nueva versión de la plataforma disponible.</p>
+                  <Label>Opacidad del banner</Label>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Transparente</span>
+                      <span className="text-sm">Opaco</span>
+                    </div>
+                    <Slider
+                      value={[restaurantData.bannerOpacity]}
+                      min={0}
+                      max={1}
+                      step={0.1}
+                      onValueChange={handleOpacityChange}
+                    />
+                    <div className="text-center text-sm text-muted-foreground">
+                      {Math.round(restaurantData.bannerOpacity * 100)}%
                     </div>
                   </div>
-                  <div className="flex justify-between gap-4">
-                    <Button variant="outline" className="flex-1">
-                      <Settings className="h-4 w-4 mr-2" />
-                      Configuración
-                    </Button>
-                    <Button className="flex-1">Actualizar plan</Button>
+                  <div className="bg-gray-50 border rounded-md p-4 relative overflow-hidden h-40">
+                    {restaurantData.bannerUrl && (
+                      <div className="absolute inset-0">
+                        <Image
+                          src={restaurantData.bannerUrl || "/placeholder.svg"}
+                          alt="Banner preview"
+                          fill
+                          className="object-cover"
+                          style={{ opacity: restaurantData.bannerOpacity }}
+                        />
+                      </div>
+                    )}
+                    <div className="relative z-10 flex items-center justify-center h-full">
+                      <div className="bg-white/80 p-4 rounded-md shadow-sm">
+                        <p className="font-medium text-center">{restaurantData.name}</p>
+                      </div>
+                    </div>
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Vista previa de cómo se verá el banner con la opacidad seleccionada
+                  </p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )
