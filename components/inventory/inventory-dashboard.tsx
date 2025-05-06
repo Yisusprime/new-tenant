@@ -8,19 +8,21 @@ import { useIngredients } from "./ingredient-context"
 import { usePurchases } from "./purchase-context"
 import { useInventoryMovements } from "./inventory-movement-context"
 import { AlertCircle, TrendingUp, Package } from "lucide-react"
-import { format } from "date-fns"
-import { es } from "date-fns/locale"
 
 export function InventoryDashboard() {
-  const { ingredients, getLowStockIngredients } = useIngredients()
-  const { purchases } = usePurchases()
-  const { movements } = useInventoryMovements()
+  const { ingredients, getLowStockIngredients, loading: loadingIngredients } = useIngredients()
+  const { purchases, loading: loadingPurchases } = usePurchases()
+  const { movements, loading: loadingMovements } = useInventoryMovements()
   const [lowStockItems, setLowStockItems] = useState<any[]>([])
   const [topConsumed, setTopConsumed] = useState<any[]>([])
   const [recentPurchases, setRecentPurchases] = useState<any[]>([])
   const [inventoryValue, setInventoryValue] = useState(0)
 
+  const isLoading = loadingIngredients || loadingPurchases || loadingMovements
+
   useEffect(() => {
+    if (isLoading) return
+
     // Calcular ingredientes con stock bajo
     const lowStock = getLowStockIngredients().slice(0, 5)
     setLowStockItems(lowStock)
@@ -30,7 +32,15 @@ export function InventoryDashboard() {
     setInventoryValue(totalValue)
 
     // Obtener compras recientes
-    const recent = [...purchases].sort((a, b) => b.orderDate.getTime() - a.orderDate.getTime()).slice(0, 3)
+    const recent = [...purchases]
+      .filter((p) => p.orderDate) // Asegurarse de que orderDate existe
+      .sort((a, b) => {
+        // Manejar posibles valores nulos o indefinidos
+        const dateA = a.orderDate instanceof Date ? a.orderDate.getTime() : 0
+        const dateB = b.orderDate instanceof Date ? b.orderDate.getTime() : 0
+        return dateB - dateA
+      })
+      .slice(0, 3)
     setRecentPurchases(recent)
 
     // Calcular ingredientes más consumidos
@@ -58,7 +68,18 @@ export function InventoryDashboard() {
       .slice(0, 5)
 
     setTopConsumed(topItems)
-  }, [ingredients, purchases, movements, getLowStockIngredients])
+  }, [ingredients, purchases, movements, getLowStockIngredients, isLoading])
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p>Cargando datos del inventario...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -144,7 +165,8 @@ export function InventoryDashboard() {
                 <li key={purchase.id} className="text-sm">
                   <div className="font-medium">{purchase.supplierName}</div>
                   <div className="text-xs text-muted-foreground">
-                    {format(purchase.orderDate, "dd MMM yyyy", { locale: es })} - ${purchase.totalAmount.toFixed(2)}
+                    {purchase.orderDate ? purchase.orderDate.toLocaleDateString() : "Fecha no disponible"} - $
+                    {purchase.totalAmount ? purchase.totalAmount.toFixed(2) : "0.00"}
                   </div>
                 </li>
               ))}

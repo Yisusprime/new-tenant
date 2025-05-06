@@ -1,8 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { useTenant } from "@/lib/tenant-utils"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { IngredientProvider } from "@/components/inventory/ingredient-context"
 import { SupplierProvider } from "@/components/inventory/supplier-context"
@@ -15,25 +14,67 @@ import { PurchaseList } from "@/components/inventory/purchase-list"
 import { RecipeList } from "@/components/inventory/recipe-list"
 import { InventoryMovementList } from "@/components/inventory/inventory-movement-list"
 import { InventoryDashboard } from "@/components/inventory/inventory-dashboard"
+import { doc, getDoc } from "firebase/firestore"
+import { db } from "@/lib/firebase-config"
 
 export default function InventoryPage() {
   const { user } = useAuth()
-  const { tenant } = useTenant()
   const [activeTab, setActiveTab] = useState("dashboard")
+  const [tenantId, setTenantId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  if (!user || !tenant) {
-    return <div>Cargando...</div>
+  useEffect(() => {
+    async function fetchTenantId() {
+      if (!user) return
+
+      try {
+        // Obtener el tenantId del usuario actual
+        const userRef = doc(db, "users", user.uid)
+        const userSnap = await getDoc(userRef)
+
+        if (userSnap.exists() && userSnap.data().tenantId) {
+          setTenantId(userSnap.data().tenantId)
+        }
+
+        setLoading(false)
+      } catch (error) {
+        console.error("Error al obtener el tenantId:", error)
+        setLoading(false)
+      }
+    }
+
+    fetchTenantId()
+  }, [user])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p>Cargando...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!tenantId) {
+    return (
+      <div className="p-6 text-center">
+        <h2 className="text-xl font-semibold mb-2">No se pudo cargar la información del restaurante</h2>
+        <p className="text-muted-foreground">Por favor, intenta recargar la página o contacta a soporte.</p>
+      </div>
+    )
   }
 
   return (
     <div className="container mx-auto py-6">
       <h1 className="text-3xl font-bold mb-6">Gestión de Inventario</h1>
 
-      <IngredientProvider tenantId={tenant.id}>
-        <SupplierProvider tenantId={tenant.id}>
-          <PurchaseProvider tenantId={tenant.id}>
-            <RecipeProvider tenantId={tenant.id}>
-              <InventoryMovementProvider tenantId={tenant.id}>
+      <IngredientProvider tenantId={tenantId}>
+        <SupplierProvider tenantId={tenantId}>
+          <PurchaseProvider tenantId={tenantId}>
+            <RecipeProvider tenantId={tenantId}>
+              <InventoryMovementProvider tenantId={tenantId}>
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
                   <TabsList className="grid grid-cols-3 md:grid-cols-6 gap-2">
                     <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
