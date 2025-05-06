@@ -12,6 +12,7 @@ import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { useCategories } from "../categories/category-context"
+import { Input } from "@/components/ui/input"
 
 export function ProductList() {
   const { products, loading, deleteProduct, setSelectedProduct, updateProduct } = useProducts()
@@ -22,6 +23,7 @@ export function ProductList() {
   const [productToDelete, setProductToDelete] = useState<string | null>(null)
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null)
   const [imageError, setImageError] = useState<Record<string, boolean>>({})
+  const [searchTerm, setSearchTerm] = useState("")
 
   const handleAddProduct = () => {
     setIsAddingProduct(true)
@@ -76,6 +78,13 @@ export function ProductList() {
     return category ? category.name : "Categoría desconocida"
   }
 
+  const filteredProducts = products.filter(
+    (product) =>
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      getCategoryName(product.categoryId).toLowerCase().includes(searchTerm.toLowerCase()),
+  )
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -88,15 +97,25 @@ export function ProductList() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       <div className="md:col-span-2">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Lista de Productos</h2>
-          <Button onClick={handleAddProduct}>
-            <Plus className="h-4 w-4 mr-2" />
-            Añadir Producto
-          </Button>
+        <div className="flex flex-col gap-4 mb-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-bold">Lista de Productos</h2>
+            <Button onClick={handleAddProduct}>
+              <Plus className="h-4 w-4 mr-2" />
+              Añadir Producto
+            </Button>
+          </div>
+          <div className="relative">
+            <Input
+              placeholder="Buscar productos por nombre, descripción o categoría..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-full"
+            />
+          </div>
         </div>
 
-        {products.length === 0 ? (
+        {filteredProducts.length === 0 ? (
           <Card>
             <CardContent className="p-6 text-center">
               <ImageIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -110,7 +129,7 @@ export function ProductList() {
           </Card>
         ) : (
           <div className="space-y-4">
-            {products.map((product) => (
+            {filteredProducts.map((product) => (
               <Card key={product.id} className={`overflow-hidden ${!product.available ? "opacity-70" : ""}`}>
                 <CardContent className="p-0">
                   <div className="flex items-center p-4">

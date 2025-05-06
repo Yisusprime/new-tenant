@@ -9,6 +9,7 @@ import { ExtraForm } from "./extra-form"
 import { DeleteConfirmDialog } from "../categories/delete-confirm-dialog"
 import Image from "next/image"
 import { Switch } from "@/components/ui/switch"
+import { Input } from "@/components/ui/input"
 
 export function ExtraList() {
   const { extras, loading, deleteExtra, updateExtra } = useExtras()
@@ -17,6 +18,7 @@ export function ExtraList() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [extraToDelete, setExtraToDelete] = useState<string | null>(null)
   const [imageError, setImageError] = useState<Record<string, boolean>>({})
+  const [searchTerm, setSearchTerm] = useState("")
 
   const handleAddExtra = () => {
     setIsAddingExtra(true)
@@ -49,6 +51,12 @@ export function ExtraList() {
     await updateExtra(extraId, { available: !currentValue })
   }
 
+  const filteredExtras = extras.filter(
+    (extra) =>
+      extra.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (extra.description && extra.description.toLowerCase().includes(searchTerm.toLowerCase())),
+  )
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -61,12 +69,22 @@ export function ExtraList() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       <div className="md:col-span-2">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Lista de Extras</h2>
-          <Button onClick={handleAddExtra}>
-            <Plus className="h-4 w-4 mr-2" />
-            Añadir Extra
-          </Button>
+        <div className="flex flex-col gap-4 mb-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-bold">Lista de Extras</h2>
+            <Button onClick={handleAddExtra}>
+              <Plus className="h-4 w-4 mr-2" />
+              Añadir Extra
+            </Button>
+          </div>
+          <div className="relative">
+            <Input
+              placeholder="Buscar extras..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-full"
+            />
+          </div>
         </div>
 
         {extras.length === 0 ? (
@@ -83,7 +101,7 @@ export function ExtraList() {
           </Card>
         ) : (
           <div className="space-y-4">
-            {extras.map((extra) => (
+            {filteredExtras.map((extra) => (
               <Card key={extra.id} className={`overflow-hidden ${!extra.available ? "opacity-70" : ""}`}>
                 <CardContent className="p-4 flex items-center">
                   <div className="h-12 w-12 rounded-md overflow-hidden bg-muted mr-4 flex-shrink-0">

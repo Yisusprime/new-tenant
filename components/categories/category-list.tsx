@@ -9,6 +9,7 @@ import { CategoryForm } from "./category-form"
 import { DeleteConfirmDialog } from "./delete-confirm-dialog"
 import { SubcategoryList } from "./subcategory-list"
 import Image from "next/image"
+import { Input } from "@/components/ui/input"
 
 export function CategoryList() {
   const { categories, loading, deleteCategory, setSelectedCategory } = useCategories()
@@ -18,6 +19,7 @@ export function CategoryList() {
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null)
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null)
   const [imageError, setImageError] = useState<Record<string, boolean>>({})
+  const [searchTerm, setSearchTerm] = useState("")
 
   const handleAddCategory = () => {
     setIsAddingCategory(true)
@@ -58,6 +60,12 @@ export function CategoryList() {
     setImageError((prev) => ({ ...prev, [categoryId]: true }))
   }
 
+  const filteredCategories = categories.filter(
+    (category) =>
+      category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (category.description && category.description.toLowerCase().includes(searchTerm.toLowerCase())),
+  )
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -70,12 +78,22 @@ export function CategoryList() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       <div className="md:col-span-2">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Lista de Categorías</h2>
-          <Button onClick={handleAddCategory}>
-            <Plus className="h-4 w-4 mr-2" />
-            Añadir Categoría
-          </Button>
+        <div className="flex flex-col gap-4 mb-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-bold">Lista de Categorías</h2>
+            <Button onClick={handleAddCategory}>
+              <Plus className="h-4 w-4 mr-2" />
+              Añadir Categoría
+            </Button>
+          </div>
+          <div className="relative">
+            <Input
+              placeholder="Buscar categorías..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-full"
+            />
+          </div>
         </div>
 
         {categories.length === 0 ? (
@@ -92,7 +110,7 @@ export function CategoryList() {
           </Card>
         ) : (
           <div className="space-y-4">
-            {categories.map((category) => (
+            {filteredCategories.map((category) => (
               <Card key={category.id} className="overflow-hidden">
                 <CardContent className="p-0">
                   <div className="flex items-center p-4">
