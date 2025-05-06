@@ -14,10 +14,11 @@ import { StartShiftDialog } from "@/components/orders/start-shift-dialog"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { Plus, Clock, History, AlertTriangle, ArrowLeft } from "lucide-react"
+import { Plus, Clock, History, AlertTriangle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/lib/auth-context"
 import { ShiftProvider, useShift } from "@/components/orders/shift-provider"
+import { TenantAdminSidebar } from "@/components/tenant-admin-sidebar"
 
 export default function OrdersPage() {
   const { user } = useAuth()
@@ -29,6 +30,7 @@ export default function OrdersPage() {
 
   return (
     <div className="flex h-screen overflow-hidden">
+      <TenantAdminSidebar tenantid={tenantId} />
       <ShiftProvider tenantId={tenantId}>
         <OrdersContent tenantId={tenantId} router={router} />
       </ShiftProvider>
@@ -70,9 +72,6 @@ function OrdersContent({ tenantId, router }) {
         {/* Header */}
         <header className="bg-background border-b h-16 flex items-center justify-between px-4">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => router.push("/admin/dashboard")}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
             <h1 className="text-xl font-bold">Gestión de Pedidos</h1>
 
             {currentShift && (
