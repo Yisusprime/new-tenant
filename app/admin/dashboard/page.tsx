@@ -1,17 +1,16 @@
 "use client"
 
-import type React from "react"
-
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { TenantAdminSidebar } from "@/components/tenant-admin-sidebar"
 import { getTenantInfo } from "@/lib/tenant-utils"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, ShoppingBag, Users, TrendingUp, ArrowRight } from "lucide-react"
+import { Loader2, ShoppingBag, Users, TrendingUp, Star, ArrowRight, BarChart3, Calendar } from "lucide-react"
 
 export default function TenantAdminDashboardPage() {
   const { user, loading, logout, checkUserRole } = useAuth()
@@ -22,12 +21,13 @@ export default function TenantAdminDashboardPage() {
   const [tenantId, setTenantId] = useState<string | null>(null)
   const [isLogoutRef, setIsLogoutRef] = useState(false)
 
+  // Actualizar la sección de estadísticas con un diseño más moderno
   // Estadísticas de ejemplo
   const stats = [
-    { name: "Pedidos hoy", value: 24, icon: ShoppingBag, change: "+12%" },
-    { name: "Clientes nuevos", value: 8, icon: Users, change: "+5%" },
-    { name: "Ingresos", value: "€1,240", icon: TrendingUp, change: "+18%" },
-    { name: "Valoración media", value: "4.8", icon: Star, change: "+0.2" },
+    { name: "Pedidos hoy", value: 24, icon: ShoppingBag, change: "+12%", color: "bg-green-100 text-green-700" },
+    { name: "Clientes nuevos", value: 8, icon: Users, change: "+5%", color: "bg-blue-100 text-blue-700" },
+    { name: "Ingresos", value: "€1,240", icon: TrendingUp, change: "+18%", color: "bg-purple-100 text-purple-700" },
+    { name: "Valoración media", value: "4.8", icon: Star, change: "+0.2", color: "bg-amber-100 text-amber-700" },
   ]
 
   // Obtener el tenantId del hostname
@@ -112,6 +112,7 @@ export default function TenantAdminDashboardPage() {
     )
   }
 
+  // Actualizar la sección de renderizado del dashboard con un diseño más moderno
   return (
     <div className="flex min-h-screen">
       <TenantAdminSidebar tenantid={tenantId} />
@@ -131,7 +132,7 @@ export default function TenantAdminDashboardPage() {
         {/* Resumen de estadísticas */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {stats.map((stat, index) => (
-            <Card key={index}>
+            <Card key={index} className="border-none shadow-sm">
               <CardContent className="p-4 flex items-center justify-between">
                 <div className="flex flex-col">
                   <span className="text-muted-foreground text-sm">{stat.name}</span>
@@ -140,8 +141,8 @@ export default function TenantAdminDashboardPage() {
                     {stat.change} vs. ayer
                   </span>
                 </div>
-                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <stat.icon className="h-6 w-6 text-primary" />
+                <div className={`h-12 w-12 rounded-full ${stat.color} flex items-center justify-center`}>
+                  <stat.icon className="h-6 w-6" />
                 </div>
               </CardContent>
             </Card>
@@ -151,52 +152,66 @@ export default function TenantAdminDashboardPage() {
         {/* Accesos rápidos */}
         <h2 className="text-xl font-bold mb-4">Accesos rápidos</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Link href="/admin/profile">
-            <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+          <Link href="/admin/orders">
+            <Card className="hover:bg-muted/50 transition-colors cursor-pointer border-none shadow-sm">
               <CardContent className="p-6 flex justify-between items-center">
                 <div>
-                  <h3 className="font-medium text-lg">Perfil Personal</h3>
-                  <p className="text-muted-foreground text-sm">Gestiona tu información personal</p>
+                  <h3 className="font-medium text-lg">Gestión de Pedidos</h3>
+                  <p className="text-muted-foreground text-sm">Administra pedidos y mesas</p>
                 </div>
-                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+                <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
+                  <ShoppingBag className="h-5 w-5 text-orange-600" />
+                </div>
               </CardContent>
             </Card>
           </Link>
 
-          <Link href="/admin/restaurant">
-            <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+          <Link href="/admin/cashier">
+            <Card className="hover:bg-muted/50 transition-colors cursor-pointer border-none shadow-sm">
               <CardContent className="p-6 flex justify-between items-center">
                 <div>
-                  <h3 className="font-medium text-lg">Datos del Local</h3>
-                  <p className="text-muted-foreground text-sm">Configura la información de tu restaurante</p>
+                  <h3 className="font-medium text-lg">Gestión de Caja</h3>
+                  <p className="text-muted-foreground text-sm">Control de ventas y cierres</p>
                 </div>
-                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+                <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                  <BarChart3 className="h-5 w-5 text-green-600" />
+                </div>
               </CardContent>
             </Card>
           </Link>
 
           <Link href="/admin/menu">
-            <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+            <Card className="hover:bg-muted/50 transition-colors cursor-pointer border-none shadow-sm">
               <CardContent className="p-6 flex justify-between items-center">
                 <div>
                   <h3 className="font-medium text-lg">Menú</h3>
                   <p className="text-muted-foreground text-sm">Gestiona tus productos y categorías</p>
                 </div>
-                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                  <Calendar className="h-5 w-5 text-blue-600" />
+                </div>
               </CardContent>
             </Card>
           </Link>
         </div>
 
         {/* Actividad reciente */}
-        <h2 className="text-xl font-bold mb-4">Actividad reciente</h2>
-        <Card>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold">Actividad reciente</h2>
+          <Button variant="ghost" size="sm" className="text-sm">
+            Ver todo
+            <ArrowRight className="ml-1 h-4 w-4" />
+          </Button>
+        </div>
+        <Card className="border-none shadow-sm">
           <CardContent className="p-6">
             <div className="space-y-4">
               {[1, 2, 3].map((_, index) => (
                 <div key={index} className="flex items-start gap-4 pb-4 border-b last:border-0 last:pb-0">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <ShoppingBag className="h-5 w-5 text-primary" />
+                  <div
+                    className={`h-10 w-10 rounded-full ${index % 2 === 0 ? "bg-green-100" : "bg-blue-100"} flex items-center justify-center flex-shrink-0`}
+                  >
+                    <ShoppingBag className={`h-5 w-5 ${index % 2 === 0 ? "text-green-600" : "text-blue-600"}`} />
                   </div>
                   <div>
                     <p className="font-medium">Nuevo pedido #{1000 + index}</p>
@@ -217,44 +232,4 @@ export default function TenantAdminDashboardPage() {
       </div>
     </div>
   )
-}
-
-function Star(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-    </svg>
-  )
-}
-
-function Badge({
-  children,
-  className,
-  variant = "default",
-}: {
-  children: React.ReactNode
-  className?: string
-  variant?: "default" | "outline" | "secondary" | "destructive"
-}) {
-  const baseClasses = "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
-
-  const variantClasses = {
-    default: "bg-primary text-primary-foreground",
-    secondary: "bg-secondary text-secondary-foreground",
-    outline: "border border-input",
-    destructive: "bg-destructive text-destructive-foreground",
-  }
-
-  return <span className={`${baseClasses} ${variantClasses[variant]} ${className || ""}`}>{children}</span>
 }
