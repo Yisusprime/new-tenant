@@ -94,6 +94,11 @@ export default function CashierPage() {
 
   return (
     <div className="flex h-screen overflow-hidden">
+      {/* Sidebar para pantallas grandes (visible por defecto) */}
+      <div className="hidden md:block w-64 h-full">
+        <TenantAdminSidebar tenantid={tenantId} />
+      </div>
+
       {/* Sidebar móvil/desplegable */}
       <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
         <SheetContent side="left" className="p-0 w-64">
@@ -106,7 +111,7 @@ export default function CashierPage() {
         {/* Header */}
         <header className="bg-background border-b h-16 flex items-center justify-between px-4">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)}>
+            <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsSidebarOpen(true)}>
               <Menu className="h-5 w-5" />
             </Button>
             <h1 className="text-xl font-bold">Gestión de Caja</h1>
