@@ -1,3 +1,6 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import { db } from "./firebase-config"
 import { collection, doc, getDoc, getDocs } from "firebase/firestore"
 
@@ -70,4 +73,21 @@ export async function isSubdomainAvailable(subdomain: string): Promise<boolean> 
     console.error("Error checking subdomain availability:", error)
     return false
   }
+}
+
+// Hook para obtener el ID del tenant actual basado en el subdominio
+export const useTenant = () => {
+  const [tenantId, setTenantId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const hostname = window.location.hostname
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+
+    if (hostname.includes(`.${rootDomain}`) && !hostname.startsWith("www.")) {
+      const subdomain = hostname.replace(`.${rootDomain}`, "")
+      setTenantId(subdomain)
+    }
+  }, [])
+
+  return { tenantId }
 }

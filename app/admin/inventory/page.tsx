@@ -1,32 +1,41 @@
 "use client"
 
 import { useState } from "react"
+import { useAuth } from "@/lib/auth-context"
+import { useTenant } from "@/lib/tenant-utils"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { InventoryDashboard } from "@/components/inventory/inventory-dashboard"
-import { IngredientList } from "@/components/inventory/ingredient-list"
-import { SupplierList } from "@/components/inventory/supplier-list"
-import { PurchaseList } from "@/components/inventory/purchase-list"
-import { RecipeList } from "@/components/inventory/recipe-list"
-import { InventoryMovementList } from "@/components/inventory/inventory-movement-list"
 import { IngredientProvider } from "@/components/inventory/ingredient-context"
 import { SupplierProvider } from "@/components/inventory/supplier-context"
 import { PurchaseProvider } from "@/components/inventory/purchase-context"
 import { RecipeProvider } from "@/components/inventory/recipe-context"
 import { InventoryMovementProvider } from "@/components/inventory/inventory-movement-context"
+import { IngredientList } from "@/components/inventory/ingredient-list"
+import { SupplierList } from "@/components/inventory/supplier-list"
+import { PurchaseList } from "@/components/inventory/purchase-list"
+import { RecipeList } from "@/components/inventory/recipe-list"
+import { InventoryMovementList } from "@/components/inventory/inventory-movement-list"
+import { InventoryDashboard } from "@/components/inventory/inventory-dashboard"
 
 export default function InventoryPage() {
+  const { user } = useAuth()
+  const { tenant } = useTenant()
   const [activeTab, setActiveTab] = useState("dashboard")
 
+  if (!user || !tenant) {
+    return <div>Cargando...</div>
+  }
+
   return (
-    <IngredientProvider>
-      <SupplierProvider>
-        <PurchaseProvider>
-          <RecipeProvider>
-            <InventoryMovementProvider>
-              <div className="w-full">
-                <Tabs defaultValue="dashboard" value={activeTab} onValueChange={setActiveTab}>
-                  <TabsList className="grid grid-cols-6 mb-8">
+    <div className="container mx-auto py-6">
+      <h1 className="text-3xl font-bold mb-6">Gestión de Inventario</h1>
+
+      <IngredientProvider tenantId={tenant.id}>
+        <SupplierProvider tenantId={tenant.id}>
+          <PurchaseProvider tenantId={tenant.id}>
+            <RecipeProvider tenantId={tenant.id}>
+              <InventoryMovementProvider tenantId={tenant.id}>
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+                  <TabsList className="grid grid-cols-3 md:grid-cols-6 gap-2">
                     <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
                     <TabsTrigger value="ingredients">Ingredientes</TabsTrigger>
                     <TabsTrigger value="suppliers">Proveedores</TabsTrigger>
@@ -35,83 +44,35 @@ export default function InventoryPage() {
                     <TabsTrigger value="movements">Movimientos</TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="dashboard">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Dashboard de Inventario</CardTitle>
-                        <CardDescription>Resumen y estadísticas de tu inventario</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <InventoryDashboard />
-                      </CardContent>
-                    </Card>
+                  <TabsContent value="dashboard" className="space-y-4">
+                    <InventoryDashboard />
                   </TabsContent>
 
-                  <TabsContent value="ingredients">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Ingredientes</CardTitle>
-                        <CardDescription>Gestiona los ingredientes de tu inventario</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <IngredientList />
-                      </CardContent>
-                    </Card>
+                  <TabsContent value="ingredients" className="space-y-4">
+                    <IngredientList />
                   </TabsContent>
 
-                  <TabsContent value="suppliers">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Proveedores</CardTitle>
-                        <CardDescription>Gestiona los proveedores de tu restaurante</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <SupplierList />
-                      </CardContent>
-                    </Card>
+                  <TabsContent value="suppliers" className="space-y-4">
+                    <SupplierList />
                   </TabsContent>
 
-                  <TabsContent value="purchases">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Compras</CardTitle>
-                        <CardDescription>Gestiona las órdenes de compra y recepciones</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <PurchaseList />
-                      </CardContent>
-                    </Card>
+                  <TabsContent value="purchases" className="space-y-4">
+                    <PurchaseList />
                   </TabsContent>
 
-                  <TabsContent value="recipes">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Recetas</CardTitle>
-                        <CardDescription>Gestiona las recetas y su relación con los ingredientes</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <RecipeList />
-                      </CardContent>
-                    </Card>
+                  <TabsContent value="recipes" className="space-y-4">
+                    <RecipeList />
                   </TabsContent>
 
-                  <TabsContent value="movements">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Movimientos de Inventario</CardTitle>
-                        <CardDescription>Registra consumos, desperdicios y ajustes de stock</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <InventoryMovementList />
-                      </CardContent>
-                    </Card>
+                  <TabsContent value="movements" className="space-y-4">
+                    <InventoryMovementList />
                   </TabsContent>
                 </Tabs>
-              </div>
-            </InventoryMovementProvider>
-          </RecipeProvider>
-        </PurchaseProvider>
-      </SupplierProvider>
-    </IngredientProvider>
+              </InventoryMovementProvider>
+            </RecipeProvider>
+          </PurchaseProvider>
+        </SupplierProvider>
+      </IngredientProvider>
+    </div>
   )
 }
