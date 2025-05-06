@@ -10,37 +10,30 @@ import { useInventoryMovements } from "./inventory-movement-context"
 import { AlertCircle, TrendingUp, Package } from "lucide-react"
 
 export function InventoryDashboard() {
-  const { ingredients, getLowStockIngredients, loading: loadingIngredients } = useIngredients()
-  const { purchases, loading: loadingPurchases } = usePurchases()
-  const { movements, loading: loadingMovements } = useInventoryMovements()
+  const { ingredients } = useIngredients()
+  const { purchases } = usePurchases()
+  const { movements } = useInventoryMovements()
   const [lowStockItems, setLowStockItems] = useState<any[]>([])
   const [topConsumed, setTopConsumed] = useState<any[]>([])
   const [recentPurchases, setRecentPurchases] = useState<any[]>([])
   const [inventoryValue, setInventoryValue] = useState(0)
 
-  const isLoading = loadingIngredients || loadingPurchases || loadingMovements
-
   useEffect(() => {
-    if (isLoading) return
-
     // Calcular ingredientes con stock bajo
-    const lowStock = getLowStockIngredients().slice(0, 5)
+    const lowStock = ingredients
+      .filter((ing) => ing.stock <= ing.minStock)
+      .sort((a, b) => a.stock / a.minStock - b.stock / b.minStock)
+      .slice(0, 5)
+
     setLowStockItems(lowStock)
 
     // Calcular valor total del inventario
-    const totalValue = ingredients.reduce((sum, ing) => sum + ing.stock * ing.cost, 0)
+    const totalValue = ingredients.reduce((sum, ing) => sum + ing.stock * ing.costPerUnit, 0)
     setInventoryValue(totalValue)
 
     // Obtener compras recientes
-    const recent = [...purchases]
-      .filter((p) => p.orderDate) // Asegurarse de que orderDate existe
-      .sort((a, b) => {
-        // Manejar posibles valores nulos o indefinidos
-        const dateA = a.orderDate instanceof Date ? a.orderDate.getTime() : 0
-        const dateB = b.orderDate instanceof Date ? b.orderDate.getTime() : 0
-        return dateB - dateA
-      })
-      .slice(0, 3)
+    const recent = [...purchases].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 3)
+
     setRecentPurchases(recent)
 
     // Calcular ingredientes más consumidos
@@ -48,7 +41,7 @@ export function InventoryDashboard() {
       .filter((m) => m.type === "consumption")
       .reduce(
         (acc, m) => {
-          acc[m.ingredientId] = (acc[m.ingredientId] || 0) + Math.abs(m.quantity)
+          acc[m.ingredientId] = (acc[m.ingredientId] || 0) + m.quantity
           return acc
         },
         {} as Record<string, number>,
@@ -68,18 +61,7 @@ export function InventoryDashboard() {
       .slice(0, 5)
 
     setTopConsumed(topItems)
-  }, [ingredients, purchases, movements, getLowStockIngredients, isLoading])
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p>Cargando datos del inventario...</p>
-        </div>
-      </div>
-    )
-  }
+  }, [ingredients, purchases, movements])
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -134,19 +116,15 @@ export function InventoryDashboard() {
         </CardHeader>
         <CardContent>
           <ul className="space-y-2">
-            {topConsumed.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No hay datos de consumo</p>
-            ) : (
-              topConsumed.map((item) => (
-                <li key={item.id} className="flex justify-between items-center">
-                  <span className="text-sm">{item.name}</span>
-                  <span className="text-sm font-medium">
-                    {item.quantity} {item.unit}
-                    <TrendingUp className="h-4 w-4 text-green-500 inline ml-1" />
-                  </span>
-                </li>
-              ))
-            )}
+            {topConsumed.map((item) => (
+              <li key={item.id} className="flex justify-between items-center">
+                <span className="text-sm">{item.name}</span>
+                <span className="text-sm font-medium">
+                  {item.quantity} {item.unit}
+                  <TrendingUp className="h-4 w-4 text-green-500 inline ml-1" />
+                </span>
+              </li>
+            ))}
           </ul>
         </CardContent>
       </Card>
@@ -157,21 +135,16 @@ export function InventoryDashboard() {
           <CardTitle>Compras Recientes</CardTitle>
         </CardHeader>
         <CardContent>
-          {recentPurchases.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No hay compras recientes</p>
-          ) : (
-            <ul className="space-y-2">
-              {recentPurchases.map((purchase) => (
-                <li key={purchase.id} className="text-sm">
-                  <div className="font-medium">{purchase.supplierName}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {purchase.orderDate ? purchase.orderDate.toLocaleDateString() : "Fecha no disponible"} - $
-                    {purchase.totalAmount ? purchase.totalAmount.toFixed(2) : "0.00"}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+          <ul className="space-y-2">
+            {recentPurchases.map((purchase) => (
+              <li key={purchase.id} className="text-sm">
+                <div className="font-medium">{purchase.supplierName}</div>
+                <div className="text-xs text-muted-foreground">
+                  {new Date(purchase.date).toLocaleDateString()} - ${purchase.totalAmount.toFixed(2)}
+                </div>
+              </li>
+            ))}
+          </ul>
         </CardContent>
       </Card>
     </div>

@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -74,62 +75,74 @@ export function CategoryForm({ categoryId, onCancel }: CategoryFormProps) {
   }
 
   const handleImageUploaded = (url: string) => {
+    console.log("Imagen subida:", url) // Añadimos log para depuración
     setImageUrl(url)
   }
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="name">Nombre</Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Nombre de la categoría"
-            required
-          />
-        </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>{categoryId ? "Editar Categoría" : "Añadir Categoría"}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Nombre</Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Nombre de la categoría"
+              required
+            />
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="description">Descripción (opcional)</Label>
-          <Textarea
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Descripción breve de la categoría"
-            rows={3}
-          />
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="description">Descripción (opcional)</Label>
+            <Textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Descripción breve de la categoría"
+              rows={3}
+            />
+          </div>
 
-        <div className="space-y-2">
-          <Label>Imagen (opcional)</Label>
-          <ImageUpload
-            currentImageUrl={imageUrl}
-            onImageUploaded={handleImageUploaded}
-            folder="categories"
-            tenantId={tenantId}
-          />
-        </div>
+          <div className="space-y-2">
+            <Label>Imagen (opcional)</Label>
+            <ImageUpload
+              currentImageUrl={imageUrl}
+              onImageUploaded={handleImageUploaded}
+              folder="categories"
+              tenantId={tenantId}
+            />
+            {/* {imageUrl && (
+              <div className="mt-2">
+                <p className="text-xs text-muted-foreground">URL de la imagen:</p>
+                <code className="text-xs block bg-muted p-2 rounded mt-1 break-all">{imageUrl}</code>
+              </div>
+            )} */}
+          </div>
 
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="outline" onClick={onCancel} disabled={submitting}>
-            Cancelar
-          </Button>
-          <Button type="submit" disabled={submitting || !name}>
-            {submitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Guardando...
-              </>
-            ) : categoryId ? (
-              "Actualizar"
-            ) : (
-              "Guardar"
-            )}
-          </Button>
-        </div>
-      </form>
-    </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={onCancel} disabled={submitting}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={submitting || !name}>
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : categoryId ? (
+                "Actualizar"
+              ) : (
+                "Guardar"
+              )}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   )
 }
