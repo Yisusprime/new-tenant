@@ -1,108 +1,117 @@
+"use client"
+
+import { useState } from "react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { InventoryNavigation } from "@/components/inventory/inventory-navigation"
+import { InventoryDashboard } from "@/components/inventory/inventory-dashboard"
+import { IngredientList } from "@/components/inventory/ingredient-list"
+import { SupplierList } from "@/components/inventory/supplier-list"
+import { PurchaseList } from "@/components/inventory/purchase-list"
+import { RecipeList } from "@/components/inventory/recipe-list"
+import { InventoryMovementList } from "@/components/inventory/inventory-movement-list"
+import { IngredientProvider } from "@/components/inventory/ingredient-context"
+import { SupplierProvider } from "@/components/inventory/supplier-context"
+import { PurchaseProvider } from "@/components/inventory/purchase-context"
+import { RecipeProvider } from "@/components/inventory/recipe-context"
+import { InventoryMovementProvider } from "@/components/inventory/inventory-movement-context"
 
 export default function InventoryPage() {
+  const [activeTab, setActiveTab] = useState("dashboard")
+
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-4">Inventario</h1>
-      <InventoryNavigation />
+    <IngredientProvider>
+      <SupplierProvider>
+        <PurchaseProvider>
+          <RecipeProvider>
+            <InventoryMovementProvider>
+              <div className="w-full">
+                <Tabs defaultValue="dashboard" value={activeTab} onValueChange={setActiveTab}>
+                  <TabsList className="grid grid-cols-6 mb-8">
+                    <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+                    <TabsTrigger value="ingredients">Ingredientes</TabsTrigger>
+                    <TabsTrigger value="suppliers">Proveedores</TabsTrigger>
+                    <TabsTrigger value="purchases">Compras</TabsTrigger>
+                    <TabsTrigger value="recipes">Recetas</TabsTrigger>
+                    <TabsTrigger value="movements">Movimientos</TabsTrigger>
+                  </TabsList>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Dashboard de Inventario</CardTitle>
-          <CardDescription>Resumen y estadísticas de tu inventario</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Total de Ingredientes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">24</p>
-              </CardContent>
-            </Card>
+                  <TabsContent value="dashboard">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Dashboard de Inventario</CardTitle>
+                        <CardDescription>Resumen y estadísticas de tu inventario</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <InventoryDashboard />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Valor del Inventario</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">$1,245.00</p>
-              </CardContent>
-            </Card>
+                  <TabsContent value="ingredients">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Ingredientes</CardTitle>
+                        <CardDescription>Gestiona los ingredientes de tu inventario</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <IngredientList />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Ingredientes Bajos</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">3</p>
-              </CardContent>
-            </Card>
-          </div>
+                  <TabsContent value="suppliers">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Proveedores</CardTitle>
+                        <CardDescription>Gestiona los proveedores de tu restaurante</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <SupplierList />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
 
-          <div className="mt-8">
-            <h3 className="text-lg font-medium mb-4">Ingredientes con Stock Bajo</h3>
-            <div className="border rounded-md">
-              <div className="grid grid-cols-4 gap-4 p-4 border-b font-medium">
-                <div>Ingrediente</div>
-                <div>Stock Actual</div>
-                <div>Stock Mínimo</div>
-                <div>Unidad</div>
-              </div>
-              <div className="grid grid-cols-4 gap-4 p-4 border-b">
-                <div>Tomate</div>
-                <div>2.5</div>
-                <div>5</div>
-                <div>kg</div>
-              </div>
-              <div className="grid grid-cols-4 gap-4 p-4 border-b">
-                <div>Cebolla</div>
-                <div>1.2</div>
-                <div>3</div>
-                <div>kg</div>
-              </div>
-              <div className="grid grid-cols-4 gap-4 p-4">
-                <div>Queso Mozzarella</div>
-                <div>0.8</div>
-                <div>2</div>
-                <div>kg</div>
-              </div>
-            </div>
-          </div>
+                  <TabsContent value="purchases">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Compras</CardTitle>
+                        <CardDescription>Gestiona las órdenes de compra y recepciones</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <PurchaseList />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
 
-          <div className="mt-8">
-            <h3 className="text-lg font-medium mb-4">Últimos Movimientos</h3>
-            <div className="border rounded-md">
-              <div className="grid grid-cols-4 gap-4 p-4 border-b font-medium">
-                <div>Fecha</div>
-                <div>Tipo</div>
-                <div>Ingrediente</div>
-                <div>Cantidad</div>
+                  <TabsContent value="recipes">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Recetas</CardTitle>
+                        <CardDescription>Gestiona las recetas y su relación con los ingredientes</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <RecipeList />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="movements">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Movimientos de Inventario</CardTitle>
+                        <CardDescription>Registra consumos, desperdicios y ajustes de stock</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <InventoryMovementList />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                </Tabs>
               </div>
-              <div className="grid grid-cols-4 gap-4 p-4 border-b">
-                <div>2023-05-15</div>
-                <div>Entrada</div>
-                <div>Harina</div>
-                <div>10 kg</div>
-              </div>
-              <div className="grid grid-cols-4 gap-4 p-4 border-b">
-                <div>2023-05-14</div>
-                <div>Consumo</div>
-                <div>Tomate</div>
-                <div>1.5 kg</div>
-              </div>
-              <div className="grid grid-cols-4 gap-4 p-4">
-                <div>2023-05-13</div>
-                <div>Ajuste</div>
-                <div>Cebolla</div>
-                <div>-0.5 kg</div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+            </InventoryMovementProvider>
+          </RecipeProvider>
+        </PurchaseProvider>
+      </SupplierProvider>
+    </IngredientProvider>
   )
 }
