@@ -9,7 +9,7 @@ import { onAuthStateChanged, signOut } from "firebase/auth"
 import { auth, db } from "@/lib/firebase/client"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { LogOut, Menu, X, Home, MapPin, AlertCircle, CreditCard, Settings, User, ChevronDown } from "lucide-react"
+import { LogOut, Menu, X, Home, MapPin, AlertCircle, CreditCard } from "lucide-react"
 import Link from "next/link"
 import { BranchProvider, useBranch } from "@/lib/context/branch-context"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -147,11 +147,41 @@ function AdminLayoutContent({
 
   // Verificar si la ruta actual está activa
   const isActive = (path: string) => {
-    if (path.startsWith("/settings/")) {
-      // Para subpaths de settings, verificar si la ruta actual contiene el path específico
-      return pathname === `/tenant/${tenantId}/admin${path}`
-    }
     return pathname === `/tenant/${tenantId}/admin${path}`
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-screen">
+        <Skeleton className="h-full w-64" />
+        <div className="flex-1 p-8">
+          <Skeleton className="h-12 w-48 mb-6" />
+          <Skeleton className="h-64 w-full rounded-lg" />
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    // Redirigir a la página de login
+    if (typeof window !== "undefined") {
+      window.location.href = "/login"
+    }
+    return null
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Acceso Denegado</h1>
+          <p className="mb-6">No tienes permisos para acceder al panel de administración.</p>
+          <Button asChild>
+            <a href="/">Volver al Inicio</a>
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   // Añadir el ítem de planes al menú
@@ -161,16 +191,6 @@ function AdminLayoutContent({
     { path: "/plans", label: "Planes", icon: CreditCard },
     { path: "/debug", label: "Depuración", icon: AlertCircle },
   ]
-
-  // Nuevo menú de configuración con submenús
-  const settingsMenu = {
-    label: "Configuración",
-    icon: Settings,
-    subItems: [
-      { path: "/settings/profile", label: "Perfil", icon: User },
-      // Aquí puedes añadir más opciones de configuración
-    ],
-  }
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -206,38 +226,6 @@ function AdminLayoutContent({
                 </Link>
               </li>
             ))}
-
-            {/* Dropdown de configuración */}
-            <li>
-              <details className="group">
-                <summary
-                  className={`flex cursor-pointer items-center justify-between px-4 py-2 rounded-md transition-colors hover:bg-gray-100 ${
-                    pathname.includes("/admin/settings") ? "bg-primary text-primary-foreground" : ""
-                  }`}
-                >
-                  <div className="flex items-center">
-                    <settingsMenu.icon className="mr-3 h-5 w-5" />
-                    {settingsMenu.label}
-                  </div>
-                  <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-                </summary>
-                <ul className="mt-1 space-y-1 pl-8">
-                  {settingsMenu.subItems.map((subItem) => (
-                    <li key={subItem.path}>
-                      <Link
-                        href={`/admin${subItem.path}`}
-                        className={`flex items-center px-4 py-2 rounded-md text-sm transition-colors ${
-                          isActive(subItem.path) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
-                        }`}
-                      >
-                        <subItem.icon className="mr-3 h-4 w-4" />
-                        {subItem.label}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            </li>
           </ul>
         </nav>
 
