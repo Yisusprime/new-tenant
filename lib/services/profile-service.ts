@@ -1,6 +1,7 @@
 import { db, storage } from "@/lib/firebase/client"
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage"
+import { auth } from "@/lib/firebase/client"
 
 export interface UserProfile {
   id: string
@@ -18,10 +19,30 @@ export interface UserProfile {
 // Get user profile
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
   try {
-    const userDoc = await getDoc(doc(db, "users", userId))
+    const userRef = doc(db, "users", userId)
+    const userDoc = await getDoc(userRef)
 
     if (!userDoc.exists()) {
-      return null
+      console.log("User profile doesn't exist, creating default profile")
+
+      // Get user data from Firebase Auth if possible
+      const authUser = auth.currentUser
+
+      // Create a default profile
+      const defaultProfile: UserProfile = {
+        id: userId,
+        displayName: authUser?.displayName || "",
+        email: authUser?.email || "",
+        phoneNumber: authUser?.phoneNumber || "",
+        photoURL: authUser?.photoURL || "",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+
+      // Save the default profile
+      await setDoc(userRef, defaultProfile)
+
+      return defaultProfile
     }
 
     return userDoc.data() as UserProfile

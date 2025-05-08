@@ -2,9 +2,23 @@
 
 import { ProfileForm } from "@/components/profile/profile-form"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { InfoIcon } from "lucide-react"
+import { InfoIcon, Loader2 } from "lucide-react"
+import { useAuth } from "@/lib/context/auth-context"
 
 export default function ProfilePage() {
+  const { user, loading } = useAuth()
+
+  // Add debug information
+  console.log("Profile page auth state:", { user: user?.uid, loading })
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div>

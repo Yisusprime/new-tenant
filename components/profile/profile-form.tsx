@@ -31,7 +31,12 @@ export function ProfileForm() {
 
   useEffect(() => {
     async function loadProfile() {
-      if (!user) return
+      if (!user) {
+        console.log("No user found in auth context")
+        return
+      }
+
+      console.log("Loading profile for user:", user.uid)
 
       try {
         setLoading(true)
@@ -96,6 +101,16 @@ export function ProfileForm() {
     setProfile((prev) => ({ ...prev, photoURL: url }))
   }
 
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="flex justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </CardContent>
+      </Card>
+    )
+  }
+
   if (!user) {
     return (
       <Card>
@@ -115,104 +130,98 @@ export function ProfileForm() {
         <CardDescription>Actualiza tu información personal y foto de perfil</CardDescription>
       </CardHeader>
 
-      {loading ? (
-        <CardContent className="flex justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <form onSubmit={handleSubmit}>
+        <CardContent className="space-y-6">
+          <div className="flex justify-center mb-6">
+            <ProfilePhotoUpload userId={user.uid} photoURL={profile.photoURL} onPhotoUpdated={handlePhotoUpdated} />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="displayName">Nombre completo</Label>
+              <Input
+                id="displayName"
+                name="displayName"
+                value={profile.displayName || ""}
+                onChange={handleChange}
+                placeholder="Tu nombre completo"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Correo electrónico</Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                value={profile.email || ""}
+                onChange={handleChange}
+                placeholder="tu@email.com"
+                disabled
+              />
+              <p className="text-xs text-muted-foreground">El correo electrónico no se puede cambiar</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phoneNumber">Teléfono</Label>
+              <Input
+                id="phoneNumber"
+                name="phoneNumber"
+                value={profile.phoneNumber || ""}
+                onChange={handleChange}
+                placeholder="Tu número de teléfono"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="position">Cargo / Posición</Label>
+              <Input
+                id="position"
+                name="position"
+                value={profile.position || ""}
+                onChange={handleChange}
+                placeholder="Tu cargo o posición"
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="address">Dirección</Label>
+              <Input
+                id="address"
+                name="address"
+                value={profile.address || ""}
+                onChange={handleChange}
+                placeholder="Tu dirección"
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="bio">Biografía</Label>
+              <Textarea
+                id="bio"
+                name="bio"
+                value={profile.bio || ""}
+                onChange={handleChange}
+                placeholder="Cuéntanos un poco sobre ti"
+                rows={4}
+              />
+            </div>
+          </div>
         </CardContent>
-      ) : (
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-6">
-            <div className="flex justify-center mb-6">
-              <ProfilePhotoUpload userId={user.uid} photoURL={profile.photoURL} onPhotoUpdated={handlePhotoUpdated} />
-            </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="displayName">Nombre completo</Label>
-                <Input
-                  id="displayName"
-                  name="displayName"
-                  value={profile.displayName || ""}
-                  onChange={handleChange}
-                  placeholder="Tu nombre completo"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Correo electrónico</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={profile.email || ""}
-                  onChange={handleChange}
-                  placeholder="tu@email.com"
-                  disabled
-                />
-                <p className="text-xs text-muted-foreground">El correo electrónico no se puede cambiar</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phoneNumber">Teléfono</Label>
-                <Input
-                  id="phoneNumber"
-                  name="phoneNumber"
-                  value={profile.phoneNumber || ""}
-                  onChange={handleChange}
-                  placeholder="Tu número de teléfono"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="position">Cargo / Posición</Label>
-                <Input
-                  id="position"
-                  name="position"
-                  value={profile.position || ""}
-                  onChange={handleChange}
-                  placeholder="Tu cargo o posición"
-                />
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="address">Dirección</Label>
-                <Input
-                  id="address"
-                  name="address"
-                  value={profile.address || ""}
-                  onChange={handleChange}
-                  placeholder="Tu dirección"
-                />
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="bio">Biografía</Label>
-                <Textarea
-                  id="bio"
-                  name="bio"
-                  value={profile.bio || ""}
-                  onChange={handleChange}
-                  placeholder="Cuéntanos un poco sobre ti"
-                  rows={4}
-                />
-              </div>
-            </div>
-          </CardContent>
-
-          <CardFooter className="flex justify-end">
-            <Button type="submit" disabled={isSaving}>
-              {isSaving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Guardando...
-                </>
-              ) : (
-                "Guardar cambios"
-              )}
-            </Button>
-          </CardFooter>
-        </form>
-      )}
+        <CardFooter className="flex justify-end">
+          <Button type="submit" disabled={isSaving}>
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Guardando...
+              </>
+            ) : (
+              "Guardar cambios"
+            )}
+          </Button>
+        </CardFooter>
+      </form>
     </Card>
   )
 }
