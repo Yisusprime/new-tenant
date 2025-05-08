@@ -1,34 +1,43 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
 
+export function middleware(request: NextRequest) {
+  const url = request.nextUrl
+  const hostname = request.headers.get("host") || ""
+
+  // Extraer el subdominio
+  const subdomain = hostname.split(".")[0]
+  const mainDomain = process.env.NEXT_PUBLIC_DOMAIN || "gastroo.online"
+
+  // Verificar si estamos en un subdominio o en el dominio principal
+  const isMainDomain = hostname === mainDomain || hostname === `www.${mainDomain}`
+
+  // Si estamos en el dominio principal, permitir el acceso normal
+  if (isMainDomain) {
+    return NextResponse.next()
+  }
+
+  // Si estamos en un subdominio, verificar que no estamos intentando acceder a rutas del dominio principal
+  const restrictedPaths = ["/register", "/"]
+  if (restrictedPaths.some((path) => url.pathname === path)) {
+    // Redirigir a la página principal del subdominio
+    return NextResponse.rewrite(new URL(`/tenant/${subdomain}${url.pathname}`, request.url))
+  }
+
+  // Para todas las demás rutas en el subdominio
+  return NextResponse.rewrite(new URL(`/tenant/${subdomain}${url.pathname}`, request.url))
+}
+
+// Ejecutar el middleware en todas las rutas excepto assets estáticos
 export const config = {
   matcher: [
     /*
      * Coincide con todas las rutas excepto:
      * 1. /api (rutas API)
-     * 2. /_next (archivos internos de Next.js)
-     * 3. /_static (si usas Vercel para servir archivos estáticos)
-     * 4. Todos los archivos estáticos (imágenes, fuentes, favicon, etc.)
+     * 2. /_next (rutas internas de Next.js)
+     * 3. /static (archivos estáticos)
+     * 4. Archivos con extensiones como imágenes, fuentes, etc.
      */
-    "/((?!api|_next|_static|_vercel|[\\w-]+\\.\\w+).*)",
+    "/((?!api|_next|static|.*\\..*).*)",
   ],
-}
-
-export default function middleware(req: NextRequest) {
-  const url = req.nextUrl
-  const hostname = req.headers.get("host") || ""
-
-  // Definir el dominio principal (en producción sería tu dominio real)
-  const currentHost =
-    process.env.NODE_ENV === "production"
-      ? hostname.replace(`.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`, "")
-      : hostname.replace(`.localhost:3000`, "")
-
-  // Si es el dominio principal, no hacer nada
-  if (hostname === process.env.NEXT_PUBLIC_ROOT_DOMAIN || hostname === "localhost:3000") {
-    return NextResponse.next()
-  }
-
-  // Si es un subdominio, reescribir la URL para usar la ruta [domain]
-  url.pathname = `/${currentHost}${url.pathname}`
-  return NextResponse.rewrite(url)
 }
