@@ -3,9 +3,9 @@
 import type React from "react"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { createUserWithEmailAndPassword } from "firebase/auth"
-import { auth } from "@/lib/firebase/client"
+import { doc, setDoc } from "firebase/firestore"
+import { auth, db } from "@/lib/firebase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,9 +13,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function RegisterPage() {
-  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -43,6 +43,7 @@ export default function RegisterPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setSuccess(null)
 
     try {
       // Validar tenant ID
@@ -56,33 +57,46 @@ export default function RegisterPage() {
 
       console.log("Usuario creado:", userId)
 
-      // Crear tenant en Firestore
-      const response = await fetch("/api/tenants/create", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: formData.restaurantName,
-          tenantId: formData.tenantId,
-          userId: userId,
-        }),
+      // Guardar información del tenant en Firestore directamente
+      await setDoc(doc(db, "tenants", formData.tenantId), {
+        id: formData.tenantId,
+        name: formData.restaurantName,
+        createdAt: new Date().toISOString(),
+        ownerId: userId,
+        plan: "free",
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Error al crear el tenant")
-      }
+      // Guardar rol de administrador
+      await setDoc(doc(db, `tenants/${formData.tenantId}/roles`, userId), {
+        role: "admin",
+        email: formData.email,
+        createdAt: new Date().toISOString(),
+      })
 
-      const data = await response.json()
-      console.log("Tenant creado:", data)
+      console.log("Tenant creado en Firestore")
 
-      // Redirigir al subdominio del tenant
-      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-      window.location.href = `https://${formData.tenantId}.${rootDomain}/login`
+      // Mostrar mensaje de éxito
+      setSuccess(`Restaurante "${formData.restaurantName}" registrado correctamente. Redirigiendo...`)
+
+      // Redirigir al subdominio del tenant después de 2 segundos
+      setTimeout(() => {
+        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+        window.location.href = `https://${formData.tenantId}.${rootDomain}/login`
+      }, 2000)
     } catch (err: any) {
       console.error("Error al registrar:", err)
-      setError(err.message || "Error al crear la cuenta")
+
+      // Manejar errores específicos de Firebase
+      if (err.code === "auth/email-already-in-use") {
+        setError("Este correo electrónico ya está en uso")
+      } else if (err.code === "auth/invalid-email") {
+        setError("Correo electrónico inválido")
+      } else if (err.code === "auth/weak-password") {
+        setError("La contraseña es demasiado débil")
+      } else {
+        setError(err.message || "Error al crear la cuenta")
+      }
+
       setLoading(false)
     }
   }
@@ -99,6 +113,12 @@ export default function RegisterPage() {
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {success && (
+              <Alert className="bg-green-50 border-green-500 text-green-700">
+                <AlertDescription>{success}</AlertDescription>
               </Alert>
             )}
 

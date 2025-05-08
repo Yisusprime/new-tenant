@@ -1,5 +1,4 @@
 import * as admin from "firebase-admin"
-import { getFirebaseAdminConfig } from "./admin-config"
 
 // Verificar si ya hay una app inicializada
 const apps = admin.apps
@@ -8,36 +7,26 @@ let firebaseAdmin: admin.app.App
 
 if (!apps.length) {
   try {
-    // Obtener la configuración
-    const config = getFirebaseAdminConfig()
+    // Inicializar con credenciales
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n") || ""
 
-    // Inicializar la app
     firebaseAdmin = admin.initializeApp({
       credential: admin.credential.cert({
-        projectId: config.projectId,
-        clientEmail: config.clientEmail,
-        privateKey: config.privateKey,
+        projectId: process.env.FIREBASE_PROJECT_ID || "",
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL || "",
+        privateKey,
       } as admin.ServiceAccount),
-      storageBucket: config.storageBucket,
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
     })
 
     console.log("Firebase Admin initialized successfully")
   } catch (error) {
     console.error("Firebase Admin initialization error:", error)
 
-    // Si hay un error, intentar inicializar con un enfoque alternativo
-    const projectId = process.env.FIREBASE_PROJECT_ID || ""
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL || ""
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY || ""
-
+    // Si hay un error, crear una app con un nombre único
     firebaseAdmin = admin.initializeApp(
       {
-        credential: admin.credential.cert({
-          projectId,
-          clientEmail,
-          privateKey,
-        } as admin.ServiceAccount),
-        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+        projectId: process.env.FIREBASE_PROJECT_ID,
       },
       "admin-app-" + Date.now(),
     )
