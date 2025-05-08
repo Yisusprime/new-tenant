@@ -1,10 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/lib/context/auth-context"
 import { doc, getDoc } from "firebase/firestore"
-import { db } from "@/lib/firebase/client"
+import { onAuthStateChanged } from "firebase/auth"
+import { auth, db } from "@/lib/firebase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -16,45 +15,41 @@ export default function AdminDashboardPage({
   params: { tenantId: string }
 }) {
   const { tenantId } = params
-  const router = useRouter()
-  const { user, loading: authLoading } = useAuth()
-  const [userRole, setUserRole] = useState<string | null>(null)
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [tenantData, setTenantData] = useState<any>(null)
 
   useEffect(() => {
-    const checkUserRole = async () => {
-      if (!authLoading && !user) {
-        // Si no hay usuario autenticado, redirigir al login
-        router.push(`/tenant/${tenantId}/login`)
-        return
-      }
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser)
 
-      if (user) {
+      if (currentUser) {
         try {
-          // Verificar el rol del usuario en este tenant
-          const userDoc = await getDoc(doc(db, `tenants/${tenantId}/roles`, user.uid))
+          // Verificar si el usuario es administrador
+          const roleDoc = await getDoc(doc(db, `tenants/${tenantId}/roles`, currentUser.uid))
 
-          if (userDoc.exists()) {
-            const role = userDoc.data().role
-            setUserRole(role)
-            setIsAdmin(role === "admin")
-          } else {
-            // Si el usuario no tiene un rol en este tenant, redirigir
-            router.push(`/tenant/${tenantId}/login`)
+          if (roleDoc.exists() && roleDoc.data().role === "admin") {
+            setIsAdmin(true)
+          }
+
+          // Obtener datos del tenant
+          const tenantDoc = await getDoc(doc(db, "tenants", tenantId))
+          if (tenantDoc.exists()) {
+            setTenantData(tenantDoc.data())
           }
         } catch (error) {
-          console.error("Error al verificar rol:", error)
-        } finally {
-          setLoading(false)
+          console.error("Error verificando permisos:", error)
         }
       }
-    }
 
-    checkUserRole()
-  }, [user, authLoading, router, tenantId])
+      setLoading(false)
+    })
 
-  if (authLoading || loading) {
+    return () => unsubscribe()
+  }, [tenantId])
+
+  if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <Skeleton className="h-12 w-48 mb-6" />
@@ -68,13 +63,19 @@ export default function AdminDashboardPage({
     )
   }
 
+  if (!user) {
+    // Redirigir a la página de login
+    window.location.href = "/login"
+    return null
+  }
+
   if (!isAdmin) {
     return (
       <div className="container mx-auto px-4 py-12 text-center">
         <h1 className="text-2xl font-bold mb-4">Acceso Denegado</h1>
         <p className="mb-6">No tienes permisos para acceder al panel de administración.</p>
         <Button asChild>
-          <a href={`/tenant/${tenantId}`}>Volver al Inicio</a>
+          <a href="/">Volver al Inicio</a>
         </Button>
       </div>
     )
@@ -141,16 +142,16 @@ export default function AdminDashboardPage({
               <p>Bienvenido al panel de administración. Aquí podrás gestionar todos los aspectos de tu restaurante.</p>
               <div className="mt-4 grid gap-4 md:grid-cols-2">
                 <Button asChild variant="outline">
-                  <a href={`/tenant/${tenantId}/admin/products`}>Gestionar Productos</a>
+                  <a href="/admin/products">Gestionar Productos</a>
                 </Button>
                 <Button asChild variant="outline">
-                  <a href={`/tenant/${tenantId}/admin/orders`}>Ver Pedidos</a>
+                  <a href="/admin/orders">Ver Pedidos</a>
                 </Button>
                 <Button asChild variant="outline">
-                  <a href={`/tenant/${tenantId}/admin/settings`}>Configuración</a>
+                  <a href="/admin/settings">Configuración</a>
                 </Button>
                 <Button asChild variant="outline">
-                  <a href={`/tenant/${tenantId}`} target="_blank" rel="noreferrer">
+                  <a href="/" target="_blank" rel="noreferrer">
                     Ver Sitio Web
                   </a>
                 </Button>
@@ -180,7 +181,7 @@ export default function AdminDashboardPage({
             <CardContent>
               <div className="flex justify-end mb-4">
                 <Button asChild>
-                  <a href={`/tenant/${tenantId}/admin/products/new`}>Añadir Producto</a>
+                  <a href="/admin/products/new">Añadir Producto</a>
                 </Button>
               </div>
               <p className="text-center py-8 text-gray-500">No hay productos disponibles</p>

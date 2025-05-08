@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { createUserWithEmailAndPassword } from "firebase/auth"
 import { doc, setDoc } from "firebase/firestore"
 import { auth, db } from "@/lib/firebase/client"
@@ -12,7 +11,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import Link from "next/link"
 
 export default function TenantRegisterPage({
   params,
@@ -20,7 +18,6 @@ export default function TenantRegisterPage({
   params: { tenantId: string }
 }) {
   const { tenantId } = params
-  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
@@ -51,8 +48,8 @@ export default function TenantRegisterPage({
         createdAt: new Date().toISOString(),
       })
 
-      // Redirigir a la página de login
-      router.push(`/tenant/${tenantId}/login`)
+      // Redirigir a la página de login usando una ruta absoluta
+      window.location.href = "/login"
     } catch (err: any) {
       console.error("Error al registrar:", err)
 
@@ -112,9 +109,9 @@ export default function TenantRegisterPage({
         <CardFooter className="flex justify-center">
           <p className="text-sm text-gray-500">
             ¿Ya tienes una cuenta?{" "}
-            <Link href={`/tenant/${tenantId}/login`} className="text-blue-600 hover:underline">
+            <a href="/login" className="text-blue-600 hover:underline">
               Iniciar Sesión
-            </Link>
+            </a>
           </p>
         </CardFooter>
       </Card>

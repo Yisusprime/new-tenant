@@ -1,7 +1,6 @@
 import type React from "react"
 import { doc, getDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase/client"
-import Link from "next/link"
 
 // Función para obtener datos del tenant
 async function getTenantData(tenantId: string) {
@@ -46,15 +45,15 @@ export default async function TenantLayout({
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="text-2xl font-bold">{tenantName}</div>
           <nav className="flex gap-4">
-            <Link href={`/tenant/${tenantId}`} className="hover:underline">
+            <a href="/" className="hover:underline">
               Inicio
-            </Link>
-            <Link href={`/tenant/${tenantId}/login`} className="hover:underline">
+            </a>
+            <a href="/login" className="hover:underline">
               Iniciar Sesión
-            </Link>
-            <Link href={`/tenant/${tenantId}/register`} className="hover:underline">
+            </a>
+            <a href="/register" className="hover:underline">
               Registrarse
-            </Link>
+            </a>
           </nav>
         </div>
       </header>

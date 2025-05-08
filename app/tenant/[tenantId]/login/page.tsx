@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { signInWithEmailAndPassword } from "firebase/auth"
 import { auth } from "@/lib/firebase/client"
 import { Button } from "@/components/ui/button"
@@ -11,7 +10,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import Link from "next/link"
 
 export default function TenantLoginPage({
   params,
@@ -19,7 +17,6 @@ export default function TenantLoginPage({
   params: { tenantId: string }
 }) {
   const { tenantId } = params
-  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
@@ -40,8 +37,8 @@ export default function TenantLoginPage({
     try {
       await signInWithEmailAndPassword(auth, formData.email, formData.password)
 
-      // Redirigir al dashboard
-      router.push(`/tenant/${tenantId}/admin/dashboard`)
+      // Redirigir al dashboard usando una ruta absoluta
+      window.location.href = "/admin/dashboard"
     } catch (err: any) {
       console.error("Error al iniciar sesión:", err)
 
@@ -100,12 +97,12 @@ export default function TenantLoginPage({
           </form>
         </CardContent>
         <CardFooter className="flex justify-between">
-          <Link href={`/tenant/${tenantId}/forgot-password`} className="text-sm text-blue-600 hover:underline">
+          <a href="/forgot-password" className="text-sm text-blue-600 hover:underline">
             ¿Olvidaste tu contraseña?
-          </Link>
-          <Link href={`/tenant/${tenantId}/register`} className="text-sm text-blue-600 hover:underline">
+          </a>
+          <a href="/register" className="text-sm text-blue-600 hover:underline">
             Crear cuenta
-          </Link>
+          </a>
         </CardFooter>
       </Card>
     </div>

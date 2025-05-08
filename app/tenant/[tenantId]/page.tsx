@@ -1,7 +1,6 @@
 import { doc, getDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase/client"
 import { Button } from "@/components/ui/button"
-import Link from "next/link"
 
 // Función para obtener datos del tenant
 async function getTenantData(tenantId: string) {
@@ -45,10 +44,10 @@ export default async function TenantHomePage({
         <p className="text-xl text-gray-600 mb-8">Bienvenido a nuestra plataforma de pedidos en línea</p>
         <div className="flex gap-4 justify-center">
           <Button asChild size="lg">
-            <Link href={`/tenant/${tenantId}/menu`}>Ver Menú</Link>
+            <a href="/menu">Ver Menú</a>
           </Button>
           <Button asChild variant="outline" size="lg">
-            <Link href={`/tenant/${tenantId}/login`}>Iniciar Sesión</Link>
+            <a href="/login">Iniciar Sesión</a>
           </Button>
         </div>
       </section>
@@ -58,14 +57,14 @@ export default async function TenantHomePage({
           <h2 className="text-2xl font-bold mb-4">Nuestro Menú</h2>
           <p className="mb-4">Explora nuestra variedad de platos preparados con los mejores ingredientes.</p>
           <Button asChild variant="outline">
-            <Link href={`/tenant/${tenantId}/menu`}>Ver Menú Completo</Link>
+            <a href="/menu">Ver Menú Completo</a>
           </Button>
         </div>
         <div className="bg-gray-100 p-8 rounded-lg">
           <h2 className="text-2xl font-bold mb-4">Realiza tu Pedido</h2>
           <p className="mb-4">Ordena en línea y recibe tu comida en la comodidad de tu hogar.</p>
           <Button asChild variant="outline">
-            <Link href={`/tenant/${tenantId}/order`}>Ordenar Ahora</Link>
+            <a href="/order">Ordenar Ahora</a>
           </Button>
         </div>
       </section>
