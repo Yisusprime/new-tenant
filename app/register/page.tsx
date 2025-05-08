@@ -1,172 +1,62 @@
-"use client"
-
-import type React from "react"
-
-import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { createUserWithEmailAndPassword } from "firebase/auth"
-import { doc, setDoc, serverTimestamp } from "firebase/firestore"
-import { auth, db } from "@/lib/firebase-config"
-import { isSubdomainAvailable } from "@/lib/tenant-utils"
-import { useToast } from "@/components/ui/use-toast"
 
 export default function RegisterPage() {
-  const router = useRouter()
-  const { toast } = useToast()
-  const [isLoading, setIsLoading] = useState(false)
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-    tenant: "",
-  })
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { id, value } = e.target
-    setFormData((prev) => ({
-      ...prev,
-      [id]: id === "tenant" ? value.toLowerCase().replace(/[^a-z0-9]/g, "") : value,
-    }))
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-
-    try {
-      // Verificar si el subdominio está disponible
-      const isAvailable = await isSubdomainAvailable(formData.tenant)
-      if (!isAvailable) {
-        toast({
-          title: "Error",
-          description: "El subdominio ya está en uso. Por favor, elige otro.",
-          variant: "destructive",
-        })
-        setIsLoading(false)
-        return
-      }
-
-      // Crear usuario en Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password)
-      const user = userCredential.user
-
-      // Crear documento de tenant en Firestore
-      await setDoc(doc(db, "tenants", formData.tenant), {
-        name: formData.name,
-        domain: `${formData.tenant}.gastroo.online`,
-        ownerId: user.uid,
-        status: "active",
-        createdAt: serverTimestamp(),
-      })
-
-      // Crear documento de usuario en Firestore
-      await setDoc(doc(db, "users", user.uid), {
-        name: formData.name,
-        email: formData.email,
-        tenantId: formData.tenant,
-        role: "admin",
-        createdAt: serverTimestamp(),
-      })
-
-      toast({
-        title: "Registro exitoso",
-        description: "Tu cuenta ha sido creada correctamente.",
-      })
-
-      // Redireccionar al subdominio del tenant
-      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-      window.location.href = `https://${formData.tenant}.${rootDomain}/admin/dashboard`
-    } catch (error: any) {
-      console.error("Error al registrar:", error)
-
-      // Mensajes de error más específicos
-      let errorMessage = "Ocurrió un error durante el registro."
-      if (error.code === "auth/email-already-in-use") {
-        errorMessage = "Este correo electrónico ya está registrado."
-      } else if (error.code === "auth/invalid-email") {
-        errorMessage = "El formato del correo electrónico es inválido."
-      } else if (error.code === "auth/weak-password") {
-        errorMessage = "La contraseña es demasiado débil."
-      }
-
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
+    <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl">Crear una cuenta</CardTitle>
           <CardDescription>Ingresa tus datos para registrarte en la plataforma</CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            <div className="space-y-2">
-              <Label htmlFor="name">Nombre</Label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="Tu nombre"
-                required
-                value={formData.name}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Correo electrónico</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="correo@ejemplo.com"
-                required
-                value={formData.email}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input id="password" type="password" required value={formData.password} onChange={handleChange} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="tenant">Subdominio deseado</Label>
-              <div className="flex items-center">
-                <Input
-                  id="tenant"
-                  type="text"
-                  placeholder="miempresa"
-                  required
-                  value={formData.tenant}
-                  onChange={handleChange}
-                  className="rounded-r-none"
-                />
-                <span className="bg-muted px-3 py-2 border border-l-0 rounded-r-md">.gastroo.online</span>
+          <form>
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="name">Nombre completo</Label>
+                <Input id="name" type="text" placeholder="Juan Pérez" required />
               </div>
-              <p className="text-xs text-muted-foreground">Este será el subdominio para acceder a tu plataforma</p>
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" placeholder="ejemplo@correo.com" required />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="password">Contraseña</Label>
+                <Input id="password" type="password" required />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="confirm-password">Confirmar contraseña</Label>
+                <Input id="confirm-password" type="password" required />
+              </div>
+              <Button type="submit" className="w-full">
+                Registrarse
+              </Button>
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Registrando..." : "Registrarse"}
-            </Button>
           </form>
+          <div className="mt-4 flex items-center">
+            <div className="flex-1 border-t"></div>
+            <div className="px-3 text-sm text-gray-500">O continúa con</div>
+            <div className="flex-1 border-t"></div>
+          </div>
+          <div className="mt-4 grid gap-2">
+            <Button variant="outline" className="w-full">
+              <svg className="mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.164 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.342-3.369-1.342-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.16 22 16.418 22 12c0-5.523-4.477-10-10-10z"></path>
+              </svg>
+              Continuar con GitHub
+            </Button>
+          </div>
         </CardContent>
-        <CardFooter className="flex justify-center">
-          <p className="text-sm text-muted-foreground">
+        <CardFooter>
+          <div className="text-center text-sm w-full">
             ¿Ya tienes una cuenta?{" "}
-            <Link href="/login" className="text-primary underline-offset-4 hover:underline">
-              Inicia sesión
+            <Link href="/login" className="text-primary hover:underline">
+              Iniciar sesión
             </Link>
-          </p>
+          </div>
         </CardFooter>
       </Card>
     </div>

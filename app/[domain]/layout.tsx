@@ -6,16 +6,16 @@ import { ThemeProvider } from "@/components/theme-provider"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
-  title: "FoodManager - Plataforma de Administración para Locales de Comida",
-  description:
-    "Administra tus locales de comida con facilidad usando nuestra plataforma multi-tenant con subdominios personalizados.",
-    generator: 'v0.dev'
+  title: "Portal de Restaurante",
+  description: "Portal personalizado para la administración de tu local de comida.",
 }
 
-export default function RootLayout({
+export default function DomainLayout({
   children,
+  params,
 }: {
   children: React.ReactNode
+  params: { domain: string }
 }) {
   return (
     <html lang="es">
