@@ -7,6 +7,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button"
 import { Loader2, ArrowRight, CheckCircle2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { useBranch } from "@/lib/context/branch-context"
+import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
 
 export default function RestaurantConfigPage({
   params,
@@ -18,6 +20,7 @@ export default function RestaurantConfigPage({
   const [loading, setLoading] = useState(true)
   const [completedSteps, setCompletedSteps] = useState<string[]>([])
   const { toast } = useToast()
+  const { currentBranch } = useBranch()
 
   // Definir los pasos de configuración
   const configSteps = [
@@ -36,17 +39,26 @@ export default function RestaurantConfigPage({
       try {
         setLoading(true)
 
+        if (!currentBranch) {
+          setCompletedSteps([])
+          setLoading(false)
+          return
+        }
+
         // Cargar los pasos completados desde localStorage
-        const savedCompletedSteps = localStorage.getItem(`${tenantId}_completedConfigSteps`)
+        const branchKey = `${tenantId}_${currentBranch.id}_completedConfigSteps`
+        const savedCompletedSteps = localStorage.getItem(branchKey)
         if (savedCompletedSteps) {
           setCompletedSteps(JSON.parse(savedCompletedSteps))
+        } else {
+          setCompletedSteps([])
         }
 
         // Verificar si existe configuración
-        const config = await getRestaurantConfig(tenantId)
+        const config = await getRestaurantConfig(tenantId, currentBranch.id)
         if (!config) {
-          // Si no hay configuración, redirigir al primer paso
-          router.push(configSteps[0].path)
+          // Si no hay configuración, podemos inicializarla o simplemente mostrar la página actual
+          console.log("No hay configuración para esta sucursal")
         }
       } catch (error) {
         console.error("Error al cargar configuración:", error)
@@ -61,7 +73,7 @@ export default function RestaurantConfigPage({
     }
 
     loadConfig()
-  }, [tenantId, router, toast])
+  }, [tenantId, currentBranch, toast])
 
   const getNextIncompleteStep = () => {
     const nextStep = configSteps.find((step) => !completedSteps.includes(step.id))
@@ -86,67 +98,78 @@ export default function RestaurantConfigPage({
         <h1 className="text-2xl font-bold">Configuración del Restaurante</h1>
       </div>
 
-      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100">
-        <CardHeader>
-          <CardTitle>Personaliza tu Restaurante</CardTitle>
-          <CardDescription>
-            Configura todos los aspectos de tu restaurante para ofrecer la mejor experiencia a tus clientes
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-6">
-            <div className="flex justify-between mb-2">
-              <span className="text-sm font-medium">Progreso de configuración</span>
-              <span className="text-sm font-medium">{getCompletionPercentage()}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div className="bg-primary h-2.5 rounded-full" style={{ width: `${getCompletionPercentage()}%` }}></div>
-            </div>
-          </div>
+      {/* Mostrar alerta si no hay sucursal seleccionada */}
+      <NoBranchSelectedAlert />
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {configSteps.map((step) => {
-              const isCompleted = completedSteps.includes(step.id)
+      {currentBranch ? (
+        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100">
+          <CardHeader>
+            <CardTitle>Personaliza tu Restaurante - Sucursal: {currentBranch.name}</CardTitle>
+            <CardDescription>
+              Configura todos los aspectos de tu restaurante para ofrecer la mejor experiencia a tus clientes
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-6">
+              <div className="flex justify-between mb-2">
+                <span className="text-sm font-medium">Progreso de configuración</span>
+                <span className="text-sm font-medium">{getCompletionPercentage()}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2.5">
+                <div className="bg-primary h-2.5 rounded-full" style={{ width: `${getCompletionPercentage()}%` }}></div>
+              </div>
+            </div>
 
-              return (
-                <Card
-                  key={step.id}
-                  className={`relative overflow-hidden ${
-                    isCompleted ? "border-green-200 bg-green-50" : "border-gray-200"
-                  }`}
-                >
-                  {isCompleted && (
-                    <div className="absolute top-2 right-2">
-                      <CheckCircle2 className="h-5 w-5 text-green-500" />
-                    </div>
-                  )}
-                  <CardHeader className="p-4">
-                    <CardTitle className="text-base">{step.label}</CardTitle>
-                  </CardHeader>
-                  <CardFooter className="p-4 pt-0">
-                    <Button
-                      variant={isCompleted ? "outline" : "default"}
-                      size="sm"
-                      className="w-full"
-                      onClick={() => router.push(step.path)}
-                    >
-                      {isCompleted ? "Editar" : "Configurar"}
-                    </Button>
-                  </CardFooter>
-                </Card>
-              )
-            })}
-          </div>
-        </CardContent>
-        <CardFooter>
-          <Button onClick={() => router.push(getNextIncompleteStep().path)} className="w-full">
-            {completedSteps.length === configSteps.length
-              ? "Revisar Configuración"
-              : `Continuar con ${getNextIncompleteStep().label}`}
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        </CardFooter>
-      </Card>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {configSteps.map((step) => {
+                const isCompleted = completedSteps.includes(step.id)
+
+                return (
+                  <Card
+                    key={step.id}
+                    className={`relative overflow-hidden ${
+                      isCompleted ? "border-green-200 bg-green-50" : "border-gray-200"
+                    }`}
+                  >
+                    {isCompleted && (
+                      <div className="absolute top-2 right-2">
+                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      </div>
+                    )}
+                    <CardHeader className="p-4">
+                      <CardTitle className="text-base">{step.label}</CardTitle>
+                    </CardHeader>
+                    <CardFooter className="p-4 pt-0">
+                      <Button
+                        variant={isCompleted ? "outline" : "default"}
+                        size="sm"
+                        className="w-full"
+                        onClick={() => router.push(step.path)}
+                      >
+                        {isCompleted ? "Editar" : "Configurar"}
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                )
+              })}
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button onClick={() => router.push(getNextIncompleteStep().path)} className="w-full">
+              {completedSteps.length === configSteps.length
+                ? "Revisar Configuración"
+                : `Continuar con ${getNextIncompleteStep().label}`}
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </CardFooter>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <p className="text-gray-500">Selecciona una sucursal para configurar la información del restaurante.</p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

@@ -9,6 +9,8 @@ import { Card } from "@/components/ui/card"
 import { Store, User, Truck, MapPin, Clock, CreditCard, Globe, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
+import { useBranch } from "@/lib/context/branch-context"
+import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
 
 interface Step {
   id: string
@@ -21,6 +23,7 @@ export function RestaurantConfigSteps({ tenantId, currentStep }: { tenantId: str
   const router = useRouter()
   const pathname = usePathname()
   const [completedSteps, setCompletedSteps] = useState<string[]>([])
+  const { currentBranch } = useBranch()
 
   // Definir los pasos de configuración
   const steps: Step[] = [
@@ -36,18 +39,28 @@ export function RestaurantConfigSteps({ tenantId, currentStep }: { tenantId: str
 
   // Cargar los pasos completados desde localStorage
   useEffect(() => {
-    const savedCompletedSteps = localStorage.getItem(`${tenantId}_completedConfigSteps`)
+    if (!currentBranch) return
+
+    const branchKey = `${tenantId}_${currentBranch.id}_completedConfigSteps`
+    const savedCompletedSteps = localStorage.getItem(branchKey)
     if (savedCompletedSteps) {
       setCompletedSteps(JSON.parse(savedCompletedSteps))
+    } else {
+      // Si no hay pasos guardados para esta sucursal, reiniciar
+      setCompletedSteps([])
     }
-  }, [tenantId])
+  }, [tenantId, currentBranch])
 
   // Función para marcar un paso como completado
   const markStepAsCompleted = (stepId: string) => {
+    if (!currentBranch) return
+
     if (!completedSteps.includes(stepId)) {
       const newCompletedSteps = [...completedSteps, stepId]
       setCompletedSteps(newCompletedSteps)
-      localStorage.setItem(`${tenantId}_completedConfigSteps`, JSON.stringify(newCompletedSteps))
+
+      const branchKey = `${tenantId}_${currentBranch.id}_completedConfigSteps`
+      localStorage.setItem(branchKey, JSON.stringify(newCompletedSteps))
     }
   }
 
@@ -71,6 +84,9 @@ export function RestaurantConfigSteps({ tenantId, currentStep }: { tenantId: str
 
   return (
     <div className="space-y-6">
+      {/* Mostrar alerta si no hay sucursal seleccionada */}
+      <NoBranchSelectedAlert />
+
       <Card className="p-4">
         <div className="flex flex-wrap gap-2 justify-center">
           {steps.map((step, index) => {
@@ -104,7 +120,7 @@ export function RestaurantConfigSteps({ tenantId, currentStep }: { tenantId: str
 
       {/* Botones de navegación */}
       <div className="flex justify-between mt-6">
-        <Button variant="outline" onClick={goToPreviousStep} disabled={currentStep === steps[0].id}>
+        <Button variant="outline" onClick={goToPreviousStep} disabled={currentStep === steps[0].id || !currentBranch}>
           Anterior
         </Button>
         <Button
@@ -112,7 +128,7 @@ export function RestaurantConfigSteps({ tenantId, currentStep }: { tenantId: str
             markStepAsCompleted(currentStep)
             goToNextStep()
           }}
-          disabled={currentStep === steps[steps.length - 1].id}
+          disabled={currentStep === steps[steps.length - 1].id || !currentBranch}
         >
           Siguiente
         </Button>

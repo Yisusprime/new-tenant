@@ -80,12 +80,18 @@ export interface RestaurantConfig {
   deliverySettings: RestaurantDeliverySettings
   socialMedia: RestaurantSocialMedia
   updatedAt: string
+  branchId: string // Añadido para identificar a qué sucursal pertenece
 }
 
-// Función para obtener la configuración completa del restaurante
-export async function getRestaurantConfig(tenantId: string): Promise<RestaurantConfig | null> {
+// Función para obtener la configuración completa del restaurante para una sucursal específica
+export async function getRestaurantConfig(tenantId: string, branchId: string): Promise<RestaurantConfig | null> {
   try {
-    const configDoc = await getDoc(doc(db, `tenants/${tenantId}/config`, "restaurant"))
+    if (!branchId) {
+      console.error("No se proporcionó ID de sucursal")
+      return null
+    }
+
+    const configDoc = await getDoc(doc(db, `tenants/${tenantId}/branches/${branchId}/config`, "restaurant"))
 
     if (!configDoc.exists()) {
       return null
@@ -101,11 +107,16 @@ export async function getRestaurantConfig(tenantId: string): Promise<RestaurantC
 // Función para actualizar una sección específica de la configuración
 export async function updateRestaurantConfigSection<T>(
   tenantId: string,
+  branchId: string,
   section: keyof RestaurantConfig,
   data: T,
 ): Promise<void> {
   try {
-    const configRef = doc(db, `tenants/${tenantId}/config`, "restaurant")
+    if (!branchId) {
+      throw new Error("No se proporcionó ID de sucursal")
+    }
+
+    const configRef = doc(db, `tenants/${tenantId}/branches/${branchId}/config`, "restaurant")
     const configDoc = await getDoc(configRef)
 
     if (configDoc.exists()) {
@@ -113,12 +124,14 @@ export async function updateRestaurantConfigSection<T>(
       await updateDoc(configRef, {
         [section]: data,
         updatedAt: new Date().toISOString(),
+        branchId: branchId,
       })
     } else {
       // Crear un documento inicial con la sección proporcionada
       const initialConfig: Partial<RestaurantConfig> = {
         [section]: data,
         updatedAt: new Date().toISOString(),
+        branchId: branchId,
       }
       await setDoc(configRef, initialConfig)
     }
@@ -129,10 +142,14 @@ export async function updateRestaurantConfigSection<T>(
 }
 
 // Función para subir el logo del restaurante
-export async function uploadRestaurantLogo(tenantId: string, file: File): Promise<string> {
+export async function uploadRestaurantLogo(tenantId: string, branchId: string, file: File): Promise<string> {
   try {
+    if (!branchId) {
+      throw new Error("No se proporcionó ID de sucursal")
+    }
+
     // Crear una referencia al archivo en Storage
-    const storageRef = ref(storage, `tenants/${tenantId}/restaurant/logo`)
+    const storageRef = ref(storage, `tenants/${tenantId}/branches/${branchId}/restaurant/logo`)
 
     // Subir el archivo
     await uploadBytes(storageRef, file)
@@ -141,7 +158,7 @@ export async function uploadRestaurantLogo(tenantId: string, file: File): Promis
     const downloadURL = await getDownloadURL(storageRef)
 
     // Actualizar la configuración con la nueva URL
-    const configRef = doc(db, `tenants/${tenantId}/config`, "restaurant")
+    const configRef = doc(db, `tenants/${tenantId}/branches/${branchId}/config`, "restaurant")
     const configDoc = await getDoc(configRef)
 
     if (configDoc.exists()) {
@@ -165,16 +182,20 @@ export async function uploadRestaurantLogo(tenantId: string, file: File): Promis
 }
 
 // Función para eliminar el logo del restaurante
-export async function deleteRestaurantLogo(tenantId: string): Promise<void> {
+export async function deleteRestaurantLogo(tenantId: string, branchId: string): Promise<void> {
   try {
+    if (!branchId) {
+      throw new Error("No se proporcionó ID de sucursal")
+    }
+
     // Crear una referencia al archivo en Storage
-    const storageRef = ref(storage, `tenants/${tenantId}/restaurant/logo`)
+    const storageRef = ref(storage, `tenants/${tenantId}/branches/${branchId}/restaurant/logo`)
 
     // Eliminar el archivo
     await deleteObject(storageRef)
 
     // Actualizar la configuración para quitar la URL
-    const configRef = doc(db, `tenants/${tenantId}/config`, "restaurant")
+    const configRef = doc(db, `tenants/${tenantId}/branches/${branchId}/config`, "restaurant")
     const configDoc = await getDoc(configRef)
 
     if (configDoc.exists()) {
@@ -196,8 +217,16 @@ export async function deleteRestaurantLogo(tenantId: string): Promise<void> {
 }
 
 // Función para inicializar la configuración con valores predeterminados
-export async function initializeRestaurantConfig(tenantId: string, restaurantName: string): Promise<RestaurantConfig> {
+export async function initializeRestaurantConfig(
+  tenantId: string,
+  branchId: string,
+  restaurantName: string,
+): Promise<RestaurantConfig> {
   try {
+    if (!branchId) {
+      throw new Error("No se proporcionó ID de sucursal")
+    }
+
     const defaultConfig: RestaurantConfig = {
       basicInfo: {
         name: restaurantName,
@@ -253,9 +282,10 @@ export async function initializeRestaurantConfig(tenantId: string, restaurantNam
         tiktok: "",
       },
       updatedAt: new Date().toISOString(),
+      branchId: branchId,
     }
 
-    const configRef = doc(db, `tenants/${tenantId}/config`, "restaurant")
+    const configRef = doc(db, `tenants/${tenantId}/branches/${branchId}/config`, "restaurant")
     await setDoc(configRef, defaultConfig)
 
     return defaultConfig
