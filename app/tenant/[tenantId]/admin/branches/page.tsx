@@ -23,6 +23,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Pencil, Plus, MapPin, AlertCircle } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { PlanLimit } from "@/components/plan-feature"
 
 export default function BranchesPage({
   params,
@@ -115,9 +116,21 @@ export default function BranchesPage({
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Sucursales</h1>
-        <Button onClick={() => handleOpenDialog()}>
-          <Plus className="mr-2 h-4 w-4" /> Nueva Sucursal
-        </Button>
+
+        {/* Envolver el botón de nueva sucursal con el componente PlanLimit */}
+        <PlanLimit
+          limitType="maxBranches"
+          currentCount={branches.length}
+          fallback={
+            <Button disabled>
+              <Plus className="mr-2 h-4 w-4" /> Límite de sucursales alcanzado
+            </Button>
+          }
+        >
+          <Button onClick={() => handleOpenDialog()}>
+            <Plus className="mr-2 h-4 w-4" /> Nueva Sucursal
+          </Button>
+        </PlanLimit>
       </div>
 
       {/* Mostrar alerta si hay sucursales pero ninguna activa */}

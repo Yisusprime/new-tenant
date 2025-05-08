@@ -14,6 +14,7 @@ import Link from "next/link"
 import { BranchProvider, useBranch } from "@/lib/context/branch-context"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { BranchAlertModal } from "@/components/branch-alert-modal"
+import { PlanProvider } from "@/lib/context/plan-context"
 
 // Componente para el selector de sucursales
 function BranchSelector() {
@@ -250,7 +251,7 @@ function AdminLayoutContent({
   )
 }
 
-// Wrapper que proporciona el contexto de sucursales
+// Wrapper que proporciona el contexto de sucursales y plan
 export default function AdminLayout({
   children,
   params,
@@ -259,8 +260,10 @@ export default function AdminLayout({
   params: { tenantId: string }
 }) {
   return (
-    <BranchProvider tenantId={params.tenantId}>
-      <AdminLayoutContent params={params}>{children}</AdminLayoutContent>
-    </BranchProvider>
+    <PlanProvider tenantId={params.tenantId}>
+      <BranchProvider tenantId={params.tenantId}>
+        <AdminLayoutContent params={params}>{children}</AdminLayoutContent>
+      </BranchProvider>
+    </PlanProvider>
   )
 }
