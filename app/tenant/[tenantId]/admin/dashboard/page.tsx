@@ -1,13 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { doc, getDoc } from "firebase/firestore"
-import { onAuthStateChanged } from "firebase/auth"
-import { auth, db } from "@/lib/firebase/client"
-import { Button } from "@/components/ui/button"
+import { collection, getDocs, query, limit } from "firebase/firestore"
+import { db } from "@/lib/firebase/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
 
 export default function AdminDashboardPage({
   params,
@@ -15,83 +13,71 @@ export default function AdminDashboardPage({
   params: { tenantId: string }
 }) {
   const { tenantId } = params
-  const [user, setUser] = useState<any>(null)
+  const [stats, setStats] = useState({
+    orders: 0,
+    revenue: 0,
+    products: 0,
+    customers: 0,
+  })
   const [loading, setLoading] = useState(true)
-  const [isAdmin, setIsAdmin] = useState(false)
-  const [tenantData, setTenantData] = useState<any>(null)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser)
+    async function fetchStats() {
+      try {
+        // Contar productos
+        const productsQuery = query(collection(db, `tenants/${tenantId}/products`), limit(100))
+        const productsSnapshot = await getDocs(productsQuery)
+        const productsCount = productsSnapshot.size
 
-      if (currentUser) {
+        // Contar clientes
+        const customersQuery = query(collection(db, `tenants/${tenantId}/users`), limit(100))
+        const customersSnapshot = await getDocs(customersQuery)
+        const customersCount = customersSnapshot.size
+
+        // Contar pedidos (si existe la colección)
+        let ordersCount = 0
+        let totalRevenue = 0
         try {
-          // Verificar si el usuario es administrador
-          const roleDoc = await getDoc(doc(db, `tenants/${tenantId}/roles`, currentUser.uid))
+          const ordersQuery = query(collection(db, `tenants/${tenantId}/orders`), limit(100))
+          const ordersSnapshot = await getDocs(ordersQuery)
+          ordersCount = ordersSnapshot.size
 
-          if (roleDoc.exists() && roleDoc.data().role === "admin") {
-            setIsAdmin(true)
-          }
-
-          // Obtener datos del tenant
-          const tenantDoc = await getDoc(doc(db, "tenants", tenantId))
-          if (tenantDoc.exists()) {
-            setTenantData(tenantDoc.data())
-          }
+          // Calcular ingresos totales
+          ordersSnapshot.forEach((doc) => {
+            const orderData = doc.data()
+            if (orderData.total) {
+              totalRevenue += orderData.total
+            }
+          })
         } catch (error) {
-          console.error("Error verificando permisos:", error)
+          console.log("No hay pedidos aún")
         }
+
+        setStats({
+          orders: ordersCount,
+          revenue: totalRevenue,
+          products: productsCount,
+          customers: customersCount,
+        })
+      } catch (error) {
+        console.error("Error al cargar estadísticas:", error)
+      } finally {
+        setLoading(false)
       }
+    }
 
-      setLoading(false)
-    })
-
-    return () => unsubscribe()
+    fetchStats()
   }, [tenantId])
 
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <Skeleton className="h-12 w-48 mb-6" />
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <Skeleton className="h-32 rounded-lg" />
-          <Skeleton className="h-32 rounded-lg" />
-          <Skeleton className="h-32 rounded-lg" />
-          <Skeleton className="h-32 rounded-lg" />
-        </div>
-      </div>
-    )
-  }
-
-  if (!user) {
-    // Redirigir a la página de login
-    window.location.href = "/login"
-    return null
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="container mx-auto px-4 py-12 text-center">
-        <h1 className="text-2xl font-bold mb-4">Acceso Denegado</h1>
-        <p className="mb-6">No tienes permisos para acceder al panel de administración.</p>
-        <Button asChild>
-          <a href="/">Volver al Inicio</a>
-        </Button>
-      </div>
-    )
-  }
-
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Panel de Administración</h1>
-
+    <div>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Pedidos Totales</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">{stats.orders}</div>
             <p className="text-xs text-muted-foreground">+0% desde el último mes</p>
           </CardContent>
         </Card>
@@ -100,7 +86,7 @@ export default function AdminDashboardPage({
             <CardTitle className="text-sm font-medium">Ingresos</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$0.00</div>
+            <div className="text-2xl font-bold">${stats.revenue.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">+0% desde el último mes</p>
           </CardContent>
         </Card>
@@ -109,7 +95,7 @@ export default function AdminDashboardPage({
             <CardTitle className="text-sm font-medium">Productos</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">{stats.products}</div>
             <p className="text-xs text-muted-foreground">+0 nuevos productos</p>
           </CardContent>
         </Card>
@@ -118,7 +104,7 @@ export default function AdminDashboardPage({
             <CardTitle className="text-sm font-medium">Clientes</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">{stats.customers}</div>
             <p className="text-xs text-muted-foreground">+0 nuevos clientes</p>
           </CardContent>
         </Card>
