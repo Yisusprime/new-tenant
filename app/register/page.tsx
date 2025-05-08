@@ -52,9 +52,12 @@ export default function RegisterPage() {
 
       // Crear usuario
       const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password)
+      const userId = userCredential.user.uid
+
+      console.log("Usuario creado:", userId)
 
       // Crear tenant en Firestore
-      await fetch("/api/tenants/create", {
+      const response = await fetch("/api/tenants/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -62,9 +65,17 @@ export default function RegisterPage() {
         body: JSON.stringify({
           name: formData.restaurantName,
           tenantId: formData.tenantId,
-          userId: userCredential.user.uid,
+          userId: userId,
         }),
       })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Error al crear el tenant")
+      }
+
+      const data = await response.json()
+      console.log("Tenant creado:", data)
 
       // Redirigir al subdominio del tenant
       const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
