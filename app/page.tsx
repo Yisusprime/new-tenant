@@ -8,11 +8,11 @@ export default function LandingPage() {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="text-2xl font-bold">Gastroo</div>
           <nav className="flex gap-4">
-            <Link href="/login" className="hover:underline">
-              Iniciar Sesión
+            <Link href="/" className="hover:underline">
+              Acerca de
             </Link>
-            <Link href="/register" className="hover:underline">
-              Registrarse
+            <Link href="/" className="hover:underline">
+              Contacto
             </Link>
           </nav>
         </div>

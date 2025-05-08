@@ -51,9 +51,6 @@ export default async function TenantMainLayout({
             <a href="/login" className="hover:underline">
               Iniciar Sesión
             </a>
-            <a href="/register" className="hover:underline">
-              Registrarse
-            </a>
           </nav>
         </div>
       </header>
