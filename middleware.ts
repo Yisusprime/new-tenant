@@ -35,7 +35,7 @@ export default function middleware(req: NextRequest) {
   }
 
   // Rewrite for subdomain - IMPORTANTE: Asegurarse de que la ruta sea correcta
-  const newUrl = new URL(`/tenant/${currentHost}/(main)${url.pathname}`, req.url)
+  const newUrl = new URL(`/tenant/${currentHost}${url.pathname}`, req.url)
   console.log(`Rewriting ${req.url} to ${newUrl.toString()}`)
 
   return NextResponse.rewrite(newUrl)
