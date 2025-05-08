@@ -32,7 +32,10 @@ export function ProfileForm() {
 
   useEffect(() => {
     const loadProfile = async () => {
-      if (!user) return
+      if (!user) {
+        setLoading(false)
+        return
+      }
 
       try {
         setLoading(true)
@@ -93,6 +96,14 @@ export function ProfileForm() {
 
   const handlePhotoUpdated = (url: string | null) => {
     setProfile((prev) => ({ ...prev, photoURL: url }))
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   if (!user) {

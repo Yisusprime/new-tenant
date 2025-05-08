@@ -1,9 +1,32 @@
+"use client"
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, Lock } from "lucide-react"
+import { AlertCircle, Lock, Loader2 } from "lucide-react"
+import { useAuth } from "@/lib/context/auth-context"
 
 export default function AccountSettingsPage() {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>No autorizado</AlertTitle>
+        <AlertDescription>Debes iniciar sesión para ver esta página</AlertDescription>
+      </Alert>
+    )
+  }
+
   return (
     <div>
       <div className="mb-6">
