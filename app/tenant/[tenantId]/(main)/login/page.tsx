@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import Link from "next/link"
 
 export default function TenantLoginPage({
   params,
@@ -97,12 +98,12 @@ export default function TenantLoginPage({
           </form>
         </CardContent>
         <CardFooter className="flex justify-between">
-          <a href="/forgot-password" className="text-sm text-blue-600 hover:underline">
+          <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">
             ¿Olvidaste tu contraseña?
-          </a>
-          <a href="/register" className="text-sm text-blue-600 hover:underline">
+          </Link>
+          <Link href="../register" className="text-sm text-blue-600 hover:underline">
             Crear cuenta
-          </a>
+          </Link>
         </CardFooter>
       </Card>
     </div>

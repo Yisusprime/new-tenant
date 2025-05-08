@@ -109,7 +109,7 @@ export default function TenantRegisterPage({
         <CardFooter className="flex justify-center">
           <p className="text-sm text-gray-500">
             ¿Ya tienes una cuenta?{" "}
-            <a href="/login" className="text-blue-600 hover:underline">
+            <a href="../login" className="text-blue-600 hover:underline">
               Iniciar Sesión
             </a>
           </p>

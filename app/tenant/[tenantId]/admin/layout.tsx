@@ -58,7 +58,7 @@ export default function AdminLayout({
   const handleLogout = async () => {
     try {
       await signOut(auth)
-      window.location.href = "/login"
+      window.location.href = "/(main)/login"
     } catch (error) {
       console.error("Error al cerrar sesión:", error)
     }
@@ -84,7 +84,7 @@ export default function AdminLayout({
   if (!user) {
     // Redirigir a la página de login
     if (typeof window !== "undefined") {
-      window.location.href = "/login"
+      window.location.href = "/(main)/login"
     }
     return null
   }
@@ -96,7 +96,7 @@ export default function AdminLayout({
           <h1 className="text-2xl font-bold mb-4">Acceso Denegado</h1>
           <p className="mb-6">No tienes permisos para acceder al panel de administración.</p>
           <Button asChild>
-            <a href="/">Volver al Inicio</a>
+            <a href="/(main)/">Volver al Inicio</a>
           </Button>
         </div>
       </div>
