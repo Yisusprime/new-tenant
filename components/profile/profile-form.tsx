@@ -14,7 +14,11 @@ import { ProfilePhotoUpload } from "./profile-photo-upload"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2 } from "lucide-react"
 
-export function ProfileForm() {
+interface ProfileFormProps {
+  tenantId?: string
+}
+
+export function ProfileForm({ tenantId }: ProfileFormProps) {
   const { user } = useAuth()
   const [profile, setProfile] = useState<Partial<UserProfile>>({
     displayName: "",
@@ -33,18 +37,21 @@ export function ProfileForm() {
     async function loadProfile() {
       if (!user) {
         console.log("No user found in auth context")
+        setLoading(false)
         return
       }
 
-      console.log("Loading profile for user:", user.uid)
+      console.log("Loading profile for user:", user.uid, "tenantId:", tenantId)
 
       try {
         setLoading(true)
-        const userProfile = await getUserProfile(user.uid)
+        const userProfile = await getUserProfile(user.uid, tenantId)
 
         if (userProfile) {
+          console.log("Loaded user profile:", userProfile)
           setProfile(userProfile)
         } else {
+          console.log("No profile found, using auth data")
           // Initialize with data from Firebase Auth if available
           setProfile({
             displayName: user.displayName || "",
@@ -66,7 +73,7 @@ export function ProfileForm() {
     }
 
     loadProfile()
-  }, [user, toast])
+  }, [user, toast, tenantId])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -80,7 +87,7 @@ export function ProfileForm() {
 
     try {
       setIsSaving(true)
-      await updateUserProfile(user.uid, profile)
+      await updateUserProfile(user.uid, profile, tenantId)
       toast({
         title: "Perfil actualizado",
         description: "Tu información de perfil ha sido actualizada correctamente",
@@ -133,7 +140,12 @@ export function ProfileForm() {
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-6">
           <div className="flex justify-center mb-6">
-            <ProfilePhotoUpload userId={user.uid} photoURL={profile.photoURL} onPhotoUpdated={handlePhotoUpdated} />
+            <ProfilePhotoUpload
+              userId={user.uid}
+              photoURL={profile.photoURL}
+              onPhotoUpdated={handlePhotoUpdated}
+              tenantId={tenantId}
+            />
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">

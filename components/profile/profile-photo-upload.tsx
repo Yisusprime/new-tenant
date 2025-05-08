@@ -12,9 +12,10 @@ interface ProfilePhotoUploadProps {
   userId: string
   photoURL?: string
   onPhotoUpdated: (url: string) => void
+  tenantId?: string
 }
 
-export function ProfilePhotoUpload({ userId, photoURL, onPhotoUpdated }: ProfilePhotoUploadProps) {
+export function ProfilePhotoUpload({ userId, photoURL, onPhotoUpdated, tenantId }: ProfilePhotoUploadProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -46,7 +47,7 @@ export function ProfilePhotoUpload({ userId, photoURL, onPhotoUpdated }: Profile
 
     try {
       setIsUploading(true)
-      const downloadURL = await uploadProfilePhoto(userId, file)
+      const downloadURL = await uploadProfilePhoto(userId, file, tenantId)
       onPhotoUpdated(downloadURL)
       toast({
         title: "Foto actualizada",
@@ -73,7 +74,7 @@ export function ProfilePhotoUpload({ userId, photoURL, onPhotoUpdated }: Profile
 
     try {
       setIsDeleting(true)
-      await deleteProfilePhoto(userId)
+      await deleteProfilePhoto(userId, tenantId)
       onPhotoUpdated("")
       toast({
         title: "Foto eliminada",

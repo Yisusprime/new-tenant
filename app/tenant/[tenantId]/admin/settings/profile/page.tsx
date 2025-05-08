@@ -5,11 +5,16 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { InfoIcon, Loader2 } from "lucide-react"
 import { useAuth } from "@/lib/context/auth-context"
 
-export default function ProfilePage() {
+export default function ProfilePage({
+  params,
+}: {
+  params: { tenantId: string }
+}) {
+  const { tenantId } = params
   const { user, loading } = useAuth()
 
   // Add debug information
-  console.log("Profile page auth state:", { user: user?.uid, loading })
+  console.log("Profile page auth state:", { user: user?.uid, loading, tenantId })
 
   if (loading) {
     return (
@@ -34,7 +39,7 @@ export default function ProfilePage() {
         </AlertDescription>
       </Alert>
 
-      <ProfileForm />
+      <ProfileForm tenantId={tenantId} />
     </div>
   )
 }
