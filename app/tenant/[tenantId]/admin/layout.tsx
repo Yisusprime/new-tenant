@@ -21,6 +21,10 @@ import {
   User,
   ChevronDown,
   Store,
+  Clock,
+  Truck,
+  CreditCardIcon as PaymentIcon,
+  Globe,
 } from "lucide-react"
 import Link from "next/link"
 import { BranchProvider, useBranch } from "@/lib/context/branch-context"
@@ -121,6 +125,7 @@ function AdminLayoutContent({
   const [tenantData, setTenantData] = useState<any>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [configOpen, setConfigOpen] = useState(false)
+  const [restaurantConfigOpen, setRestaurantConfigOpen] = useState(false)
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -213,10 +218,19 @@ function AdminLayoutContent({
     { path: "/debug", label: "Depuración", icon: AlertCircle },
   ]
 
-  // Submenú de configuración
-  const configItems = [
-    { path: "/settings/profile", label: "Perfil", icon: User },
-    { path: "/settings/tenant", label: "Restaurante", icon: Store },
+  // Submenú de configuración de usuario
+  const configItems = [{ path: "/settings/profile", label: "Perfil", icon: User }]
+
+  // Submenú de configuración del restaurante
+  const restaurantConfigItems = [
+    { path: "/restaurant/basic", label: "Información Básica", icon: Store },
+    { path: "/restaurant/contact", label: "Contacto", icon: User },
+    { path: "/restaurant/service", label: "Métodos de Servicio", icon: Truck },
+    { path: "/restaurant/location", label: "Ubicación", icon: MapPin },
+    { path: "/restaurant/hours", label: "Horarios", icon: Clock },
+    { path: "/restaurant/payment", label: "Pagos", icon: PaymentIcon },
+    { path: "/restaurant/delivery", label: "Delivery", icon: Truck },
+    { path: "/restaurant/social", label: "Redes Sociales", icon: Globe },
   ]
 
   return (
@@ -254,7 +268,7 @@ function AdminLayoutContent({
               </li>
             ))}
 
-            {/* Menú desplegable de configuración */}
+            {/* Menú desplegable de configuración de usuario */}
             <li>
               <Collapsible
                 open={configOpen || isGroupActive(["/settings"])}
@@ -277,6 +291,48 @@ function AdminLayoutContent({
                 <CollapsibleContent>
                   <ul className="mt-1 ml-7 space-y-1 border-l pl-2">
                     {configItems.map((item) => (
+                      <li key={item.path}>
+                        <Link
+                          href={`/admin${item.path}`}
+                          className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+                            pathname.includes(item.path) ? "bg-primary/10 text-primary" : "hover:bg-gray-100"
+                          }`}
+                        >
+                          <item.icon className="mr-3 h-4 w-4" />
+                          {item.label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </CollapsibleContent>
+              </Collapsible>
+            </li>
+
+            {/* Menú desplegable de configuración del restaurante */}
+            <li>
+              <Collapsible
+                open={restaurantConfigOpen || isGroupActive(["/restaurant"])}
+                onOpenChange={setRestaurantConfigOpen}
+                className="w-full"
+              >
+                <CollapsibleTrigger
+                  className={`flex items-center justify-between w-full px-4 py-2 rounded-md transition-colors ${
+                    isGroupActive(["/restaurant"]) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <Store className="mr-3 h-5 w-5" />
+                    <span>Personalizar Restaurante</span>
+                  </div>
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${
+                      restaurantConfigOpen || isGroupActive(["/restaurant"]) ? "transform rotate-180" : ""
+                    }`}
+                  />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <ul className="mt-1 ml-7 space-y-1 border-l pl-2">
+                    {restaurantConfigItems.map((item) => (
                       <li key={item.path}>
                         <Link
                           href={`/admin${item.path}`}
