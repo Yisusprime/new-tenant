@@ -9,7 +9,7 @@ import { onAuthStateChanged, signOut } from "firebase/auth"
 import { auth, db } from "@/lib/firebase/client"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { LogOut, Menu, X, Home, MapPin, AlertCircle, CreditCard } from "lucide-react"
+import { LogOut, Menu, X, Home, MapPin, AlertCircle, CreditCard, Settings } from "lucide-react"
 import Link from "next/link"
 import { BranchProvider, useBranch } from "@/lib/context/branch-context"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -188,7 +188,17 @@ function AdminLayoutContent({
   const menuItems = [
     { path: "/dashboard", label: "Dashboard", icon: Home },
     { path: "/branches", label: "Sucursales", icon: MapPin },
+    { path: "/products", label: "Productos", icon: CreditCard },
     { path: "/plans", label: "Planes", icon: CreditCard },
+    {
+      path: "/settings",
+      label: "Configuración",
+      icon: Settings,
+      submenu: [
+        { path: "/profile", label: "Perfil" },
+        { path: "/account", label: "Cuenta" },
+      ],
+    },
     { path: "/debug", label: "Depuración", icon: AlertCircle },
   ]
 
@@ -215,15 +225,40 @@ function AdminLayoutContent({
           <ul className="space-y-1">
             {menuItems.map((item) => (
               <li key={item.path}>
-                <Link
-                  href={`/admin${item.path}`}
-                  className={`flex items-center px-4 py-2 rounded-md transition-colors ${
-                    isActive(item.path) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
-                  }`}
-                >
-                  <item.icon className="mr-3 h-5 w-5" />
-                  {item.label}
-                </Link>
+                {item.submenu ? (
+                  <div className="space-y-1">
+                    <div className="flex items-center px-4 py-2 text-sm font-medium text-gray-500">
+                      <item.icon className="mr-3 h-5 w-5" />
+                      {item.label}
+                    </div>
+                    <ul className="ml-6 space-y-1">
+                      {item.submenu.map((subItem) => (
+                        <li key={subItem.path}>
+                          <Link
+                            href={`/admin${item.path}${subItem.path}`}
+                            className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+                              pathname === `/tenant/${tenantId}/admin${item.path}${subItem.path}`
+                                ? "bg-primary text-primary-foreground"
+                                : "hover:bg-gray-100"
+                            }`}
+                          >
+                            {subItem.label}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <Link
+                    href={`/admin${item.path}`}
+                    className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+                      isActive(item.path) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
+                    }`}
+                  >
+                    <item.icon className="mr-3 h-5 w-5" />
+                    {item.label}
+                  </Link>
+                )}
               </li>
             ))}
           </ul>
