@@ -9,15 +9,12 @@ import { onAuthStateChanged, signOut } from "firebase/auth"
 import { auth, db } from "@/lib/firebase/client"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { LogOut, Menu, X, Home, ShoppingBag, MapPin, AlertCircleIcon } from "lucide-react"
+import { LogOut, Menu, X, Home, MapPin, AlertCircle } from "lucide-react"
 import Link from "next/link"
-// Asegurarnos de que el import de BranchProvider es correcto
-
 import { BranchProvider, useBranch } from "@/lib/context/branch-context"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-// Mejorar el componente BranchSelector para manejar mejor los estados
-
+// Componente para el selector de sucursales
 function BranchSelector() {
   const { branches, currentBranch, setCurrentBranch, loading, error } = useBranch()
 
@@ -30,7 +27,7 @@ function BranchSelector() {
   if (!branches || branches.length === 0) {
     return (
       <div className="text-sm text-yellow-600 bg-yellow-100 px-3 py-2 rounded-md flex items-center">
-        <AlertCircleIcon className="h-4 w-4 mr-2" />
+        <AlertCircle className="h-4 w-4 mr-2" />
         No hay sucursales
       </div>
     )
@@ -154,12 +151,11 @@ function AdminLayoutContent({
     )
   }
 
+  // Eliminamos el ítem de productos del menú
   const menuItems = [
     { path: "/dashboard", label: "Dashboard", icon: Home },
-    { path: "/products", label: "Productos", icon: ShoppingBag },
     { path: "/branches", label: "Sucursales", icon: MapPin },
-    // Añadir este nuevo ítem
-    { path: "/debug", label: "Depuración", icon: AlertCircleIcon },
+    { path: "/debug", label: "Depuración", icon: AlertCircle },
   ]
 
   return (

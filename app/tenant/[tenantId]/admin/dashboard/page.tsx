@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { useBranch } from "@/lib/context/branch-context"
 
 export default function AdminDashboardPage({
   params,
@@ -14,10 +15,9 @@ export default function AdminDashboardPage({
   params: { tenantId: string }
 }) {
   const { tenantId } = params
+  const { currentBranch } = useBranch()
   const [stats, setStats] = useState({
-    orders: 0,
-    revenue: 0,
-    products: 0,
+    branches: 0,
     customers: 0,
   })
   const [loading, setLoading] = useState(true)
@@ -25,39 +25,18 @@ export default function AdminDashboardPage({
   useEffect(() => {
     async function fetchStats() {
       try {
-        // Contar productos
-        const productsQuery = query(collection(db, `tenants/${tenantId}/products`), limit(100))
-        const productsSnapshot = await getDocs(productsQuery)
-        const productsCount = productsSnapshot.size
+        // Contar sucursales
+        const branchesQuery = query(collection(db, `tenants/${tenantId}/branches`), limit(100))
+        const branchesSnapshot = await getDocs(branchesQuery)
+        const branchesCount = branchesSnapshot.size
 
         // Contar clientes
         const customersQuery = query(collection(db, `tenants/${tenantId}/users`), limit(100))
         const customersSnapshot = await getDocs(customersQuery)
         const customersCount = customersSnapshot.size
 
-        // Contar pedidos (si existe la colección)
-        let ordersCount = 0
-        let totalRevenue = 0
-        try {
-          const ordersQuery = query(collection(db, `tenants/${tenantId}/orders`), limit(100))
-          const ordersSnapshot = await getDocs(ordersQuery)
-          ordersCount = ordersSnapshot.size
-
-          // Calcular ingresos totales
-          ordersSnapshot.forEach((doc) => {
-            const orderData = doc.data()
-            if (orderData.total) {
-              totalRevenue += orderData.total
-            }
-          })
-        } catch (error) {
-          console.log("No hay pedidos aún")
-        }
-
         setStats({
-          orders: ordersCount,
-          revenue: totalRevenue,
-          products: productsCount,
+          branches: branchesCount,
           customers: customersCount,
         })
       } catch (error) {
@@ -72,32 +51,16 @@ export default function AdminDashboardPage({
 
   return (
     <div>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2 mb-8">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Pedidos Totales</CardTitle>
+            <CardTitle className="text-sm font-medium">Sucursales</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.orders}</div>
-            <p className="text-xs text-muted-foreground">+0% desde el último mes</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Ingresos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${stats.revenue.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">+0% desde el último mes</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Productos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.products}</div>
-            <p className="text-xs text-muted-foreground">+0 nuevos productos</p>
+            <div className="text-2xl font-bold">{stats.branches}</div>
+            <p className="text-xs text-muted-foreground">
+              {currentBranch ? `Sucursal actual: ${currentBranch.name}` : "Ninguna sucursal seleccionada"}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -114,8 +77,7 @@ export default function AdminDashboardPage({
       <Tabs defaultValue="overview">
         <TabsList className="mb-4">
           <TabsTrigger value="overview">Resumen</TabsTrigger>
-          <TabsTrigger value="orders">Pedidos</TabsTrigger>
-          <TabsTrigger value="products">Productos</TabsTrigger>
+          <TabsTrigger value="branches">Sucursales</TabsTrigger>
           <TabsTrigger value="customers">Clientes</TabsTrigger>
         </TabsList>
 
@@ -129,10 +91,7 @@ export default function AdminDashboardPage({
               <p>Bienvenido al panel de administración. Aquí podrás gestionar todos los aspectos de tu restaurante.</p>
               <div className="mt-4 grid gap-4 md:grid-cols-2">
                 <Button asChild variant="outline">
-                  <Link href="/admin/products">Gestionar Productos</Link>
-                </Button>
-                <Button asChild variant="outline">
-                  <Link href="/admin/orders">Ver Pedidos</Link>
+                  <Link href="/admin/branches">Gestionar Sucursales</Link>
                 </Button>
                 <Button asChild variant="outline">
                   <Link href="/admin/settings">Configuración</Link>
@@ -147,31 +106,26 @@ export default function AdminDashboardPage({
           </Card>
         </TabsContent>
 
-        <TabsContent value="orders">
+        <TabsContent value="branches">
           <Card>
             <CardHeader>
-              <CardTitle>Pedidos Recientes</CardTitle>
-              <CardDescription>Gestiona los pedidos de tus clientes</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-center py-8 text-gray-500">No hay pedidos recientes</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="products">
-          <Card>
-            <CardHeader>
-              <CardTitle>Productos</CardTitle>
-              <CardDescription>Gestiona tu menú y productos</CardDescription>
+              <CardTitle>Sucursales</CardTitle>
+              <CardDescription>Gestiona las sucursales de tu restaurante</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex justify-end mb-4">
                 <Button asChild>
-                  <Link href="/admin/products/new">Añadir Producto</Link>
+                  <Link href="/admin/branches">Gestionar Sucursales</Link>
                 </Button>
               </div>
-              <p className="text-center py-8 text-gray-500">No hay productos disponibles</p>
+              {stats.branches === 0 ? (
+                <p className="text-center py-8 text-gray-500">No hay sucursales configuradas</p>
+              ) : (
+                <p className="text-center py-8 text-gray-500">
+                  Tienes {stats.branches} sucursal{stats.branches !== 1 ? "es" : ""} configurada
+                  {stats.branches !== 1 ? "s" : ""}
+                </p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
