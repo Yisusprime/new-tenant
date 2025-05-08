@@ -1,43 +1,41 @@
-import { NextResponse } from "next/server"
-import type { NextRequest } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 
-export function middleware(request: NextRequest) {
-  const url = request.nextUrl
-  const hostname = request.headers.get("host") || ""
-
-  // Extraer el subdominio
-  const subdomain = hostname.split(".")[0]
-  const mainDomain = process.env.NEXT_PUBLIC_DOMAIN || "gastroo.online"
-
-  // Verificar si estamos en un subdominio o en el dominio principal
-  const isMainDomain = hostname === mainDomain || hostname === `www.${mainDomain}`
-
-  // Si estamos en el dominio principal, permitir el acceso normal
-  if (isMainDomain) {
-    return NextResponse.next()
-  }
-
-  // Si estamos en un subdominio, verificar que no estamos intentando acceder a rutas del dominio principal
-  const restrictedPaths = ["/register", "/"]
-  if (restrictedPaths.some((path) => url.pathname === path)) {
-    // Redirigir a la página principal del subdominio
-    return NextResponse.rewrite(new URL(`/tenant/${subdomain}${url.pathname}`, request.url))
-  }
-
-  // Para todas las demás rutas en el subdominio
-  return NextResponse.rewrite(new URL(`/tenant/${subdomain}${url.pathname}`, request.url))
-}
-
-// Ejecutar el middleware en todas las rutas excepto assets estáticos
 export const config = {
   matcher: [
     /*
-     * Coincide con todas las rutas excepto:
-     * 1. /api (rutas API)
-     * 2. /_next (rutas internas de Next.js)
-     * 3. /static (archivos estáticos)
-     * 4. Archivos con extensiones como imágenes, fuentes, etc.
+     * Match all paths except:
+     * 1. /api routes
+     * 2. /_next (Next.js internals)
+     * 3. /_static (inside /public)
+     * 4. all root files inside /public (e.g. /favicon.ico)
      */
-    "/((?!api|_next|static|.*\\..*).*)",
+    "/((?!api/|_next/|_static/|_vercel|[\\w-]+\\.\\w+).*)",
   ],
+}
+
+export default function middleware(req: NextRequest) {
+  const url = req.nextUrl
+  const hostname = req.headers.get("host") || ""
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
+
+  // Verificar si estamos en localhost para desarrollo
+  const isLocalhost = hostname.includes("localhost") || hostname.includes("127.0.0.1")
+
+  // Si estamos en localhost, no aplicamos la lógica de subdominios
+  if (isLocalhost) {
+    return NextResponse.next()
+  }
+
+  // Check if hostname is a subdomain
+  const currentHost = hostname.replace(`.${rootDomain}`, "")
+
+  // If it's the root domain, don't rewrite
+  if (hostname === rootDomain || hostname === `www.${rootDomain}`) {
+    return NextResponse.next()
+  }
+
+  // Rewrite for subdomain
+  url.pathname = `/tenant/${currentHost}${url.pathname}`
+
+  return NextResponse.rewrite(url)
 }

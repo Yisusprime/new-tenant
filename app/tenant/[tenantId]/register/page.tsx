@@ -4,8 +4,9 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { signInWithEmailAndPassword } from "firebase/auth"
-import { auth } from "@/lib/firebase/client"
+import { createUserWithEmailAndPassword } from "firebase/auth"
+import { doc, setDoc } from "firebase/firestore"
+import { auth, db } from "@/lib/firebase/client"
 import { useAuth } from "@/lib/context/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,7 +15,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
 
-export default function TenantLoginPage({
+export default function TenantRegisterPage({
   params,
 }: {
   params: { tenantId: string }
@@ -25,13 +26,14 @@ export default function TenantLoginPage({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
+    name: "",
     email: "",
     password: "",
   })
 
   // Si el usuario ya está autenticado, redirigir al dashboard
   if (user) {
-    router.push(`/tenant/${tenantId}/admin/dashboard`)
+    router.push(`/tenant/${tenantId}/dashboard`)
     return null
   }
 
@@ -46,13 +48,28 @@ export default function TenantLoginPage({
     setError(null)
 
     try {
-      await signInWithEmailAndPassword(auth, formData.email, formData.password)
+      // Crear usuario en Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password)
 
-      // Redirigir al dashboard
-      router.push(`/tenant/${tenantId}/admin/dashboard`)
+      // Guardar datos adicionales en Firestore
+      await setDoc(doc(db, `tenants/${tenantId}/users`, userCredential.user.uid), {
+        name: formData.name,
+        email: formData.email,
+        role: "customer", // Por defecto, los usuarios registrados son clientes
+        createdAt: new Date(),
+      })
+
+      // Redirigir a la página de login
+      router.push(`/tenant/${tenantId}/login`)
     } catch (err: any) {
-      console.error("Error al iniciar sesión:", err)
-      setError("Credenciales inválidas")
+      console.error("Error al registrar:", err)
+
+      if (err.code === "auth/email-already-in-use") {
+        setError("Este correo electrónico ya está en uso")
+      } else {
+        setError("Error al crear la cuenta")
+      }
+
       setLoading(false)
     }
   }
@@ -61,8 +78,8 @@ export default function TenantLoginPage({
     <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Iniciar Sesión</CardTitle>
-          <CardDescription>Accede a tu cuenta para gestionar tu restaurante</CardDescription>
+          <CardTitle>Crear Cuenta</CardTitle>
+          <CardDescription>Regístrate para realizar pedidos y más</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -71,6 +88,11 @@ export default function TenantLoginPage({
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
+
+            <div className="space-y-2">
+              <Label htmlFor="name">Nombre Completo</Label>
+              <Input id="name" name="name" value={formData.name} onChange={handleChange} required />
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="email">Correo Electrónico</Label>
@@ -86,21 +108,22 @@ export default function TenantLoginPage({
                 value={formData.password}
                 onChange={handleChange}
                 required
+                minLength={6}
               />
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
+              {loading ? "Registrando..." : "Crear Cuenta"}
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex justify-between">
-          <Link href={`/tenant/${tenantId}/forgot-password`} className="text-sm text-blue-600 hover:underline">
-            ¿Olvidaste tu contraseña?
-          </Link>
-          <Link href={`/tenant/${tenantId}/register`} className="text-sm text-blue-600 hover:underline">
-            Crear cuenta
-          </Link>
+        <CardFooter className="flex justify-center">
+          <p className="text-sm text-gray-500">
+            ¿Ya tienes una cuenta?{" "}
+            <Link href={`/tenant/${tenantId}/login`} className="text-blue-600 hover:underline">
+              Iniciar Sesión
+            </Link>
+          </p>
         </CardFooter>
       </Card>
     </div>
