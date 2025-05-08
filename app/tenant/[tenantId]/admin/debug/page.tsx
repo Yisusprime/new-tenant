@@ -12,7 +12,7 @@ export default function DebugPage({
 }) {
   const { tenantId } = params
   const { branches, currentBranch, loading, error } = useBranch()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
 
   const handleCreateTestBranch = async () => {
     try {
@@ -67,7 +67,17 @@ export default function DebugPage({
 
             <div>
               <h3 className="font-semibold">Usuario:</h3>
-              <p>{user ? user.email : "No autenticado"}</p>
+              <p>{authLoading ? "Cargando usuario..." : user ? user.email : "No autenticado"}</p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold">ID de Usuario:</h3>
+              <p>{authLoading ? "Cargando..." : user ? user.uid : "No disponible"}</p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold">Estado de autenticación:</h3>
+              <p>{authLoading ? "Verificando..." : user ? "Autenticado" : "No autenticado"}</p>
             </div>
 
             <div>

@@ -34,6 +34,7 @@ export const AuthProvider = ({
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log("Auth state changed:", user ? "User authenticated" : "No user")
       setUser(user)
       setLoading(false)
     })
