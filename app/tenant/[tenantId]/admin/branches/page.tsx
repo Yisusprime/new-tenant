@@ -120,7 +120,7 @@ export default function BranchesPage({
         </Button>
       </div>
 
-      {/* Mostrar alerta si no hay sucursales activas */}
+      {/* Mostrar alerta si hay sucursales pero ninguna activa */}
       {hasBranches && !hasActiveBranches && (
         <Alert variant="warning" className="mb-6 border-yellow-500 bg-yellow-50">
           <AlertCircle className="h-4 w-4 text-yellow-600" />

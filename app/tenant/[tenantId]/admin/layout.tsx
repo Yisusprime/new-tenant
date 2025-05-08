@@ -13,7 +13,7 @@ import { LogOut, Menu, X, Home, MapPin, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { BranchProvider, useBranch } from "@/lib/context/branch-context"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { BranchAlert } from "@/components/branch-alert"
+import { BranchAlertModal } from "@/components/branch-alert-modal"
 
 // Componente para el selector de sucursales
 function BranchSelector() {
@@ -241,8 +241,8 @@ function AdminLayoutContent({
         </header>
 
         <main className="flex-1 overflow-auto p-4">
-          {/* Añadir la alerta de sucursal en todas las páginas */}
-          <BranchAlert />
+          {/* Añadir el modal de alerta en lugar de la alerta normal */}
+          <BranchAlertModal />
           {children}
         </main>
       </div>
