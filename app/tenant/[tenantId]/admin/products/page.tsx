@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Pencil, Trash2, Plus } from "lucide-react"
+import Link from "next/link"
 
 export default function ProductsPage({
   params,
@@ -55,9 +56,9 @@ export default function ProductsPage({
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Productos</h1>
         <Button asChild>
-          <a href="/admin/products/new">
+          <Link href="/admin/products/new">
             <Plus className="mr-2 h-4 w-4" /> Nuevo Producto
-          </a>
+          </Link>
         </Button>
       </div>
 
@@ -73,7 +74,7 @@ export default function ProductsPage({
             <div className="text-center py-8">
               <p className="text-gray-500 mb-4">No hay productos disponibles</p>
               <Button asChild>
-                <a href="/admin/products/new">Añadir Primer Producto</a>
+                <Link href="/admin/products/new">Añadir Primer Producto</Link>
               </Button>
             </div>
           ) : (
@@ -97,9 +98,9 @@ export default function ProductsPage({
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="outline" size="icon" asChild>
-                          <a href={`/admin/products/${product.id}`}>
+                          <Link href={`/admin/products/${product.id}`}>
                             <Pencil className="h-4 w-4" />
-                          </a>
+                          </Link>
                         </Button>
                         <Button
                           variant="outline"

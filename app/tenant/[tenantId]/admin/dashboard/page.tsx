@@ -6,6 +6,7 @@ import { db } from "@/lib/firebase/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
+import Link from "next/link"
 
 export default function AdminDashboardPage({
   params,
@@ -128,18 +129,18 @@ export default function AdminDashboardPage({
               <p>Bienvenido al panel de administración. Aquí podrás gestionar todos los aspectos de tu restaurante.</p>
               <div className="mt-4 grid gap-4 md:grid-cols-2">
                 <Button asChild variant="outline">
-                  <a href="/admin/products">Gestionar Productos</a>
+                  <Link href="/admin/products">Gestionar Productos</Link>
                 </Button>
                 <Button asChild variant="outline">
-                  <a href="/admin/orders">Ver Pedidos</a>
+                  <Link href="/admin/orders">Ver Pedidos</Link>
                 </Button>
                 <Button asChild variant="outline">
-                  <a href="/admin/settings">Configuración</a>
+                  <Link href="/admin/settings">Configuración</Link>
                 </Button>
                 <Button asChild variant="outline">
-                  <a href="/" target="_blank" rel="noreferrer">
+                  <Link href="/" target="_blank" rel="noreferrer">
                     Ver Sitio Web
-                  </a>
+                  </Link>
                 </Button>
               </div>
             </CardContent>
@@ -167,7 +168,7 @@ export default function AdminDashboardPage({
             <CardContent>
               <div className="flex justify-end mb-4">
                 <Button asChild>
-                  <a href="/admin/products/new">Añadir Producto</a>
+                  <Link href="/admin/products/new">Añadir Producto</Link>
                 </Button>
               </div>
               <p className="text-center py-8 text-gray-500">No hay productos disponibles</p>

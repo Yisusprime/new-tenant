@@ -10,6 +10,7 @@ import { auth, db } from "@/lib/firebase/client"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { LogOut, Menu, X, Home, ShoppingBag, Users, Settings, BarChart2 } from "lucide-react"
+import Link from "next/link"
 
 export default function AdminLayout({
   children,
@@ -134,7 +135,7 @@ export default function AdminLayout({
           <ul className="space-y-1">
             {menuItems.map((item) => (
               <li key={item.path}>
-                <a
+                <Link
                   href={`/admin${item.path}`}
                   className={`flex items-center px-4 py-2 rounded-md transition-colors ${
                     isActive(item.path) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
@@ -142,7 +143,7 @@ export default function AdminLayout({
                 >
                   <item.icon className="mr-3 h-5 w-5" />
                   {item.label}
-                </a>
+                </Link>
               </li>
             ))}
           </ul>
