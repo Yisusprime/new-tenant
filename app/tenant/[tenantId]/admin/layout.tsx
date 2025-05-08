@@ -9,7 +9,19 @@ import { onAuthStateChanged, signOut } from "firebase/auth"
 import { auth, db } from "@/lib/firebase/client"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { LogOut, Menu, X, Home, MapPin, AlertCircle, CreditCard, Settings } from "lucide-react"
+import {
+  LogOut,
+  Menu,
+  X,
+  Home,
+  MapPin,
+  AlertCircle,
+  CreditCard,
+  Settings,
+  User,
+  Shield,
+  ChevronDown,
+} from "lucide-react"
 import Link from "next/link"
 import { BranchProvider, useBranch } from "@/lib/context/branch-context"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -107,6 +119,15 @@ function AdminLayoutContent({
   const [tenantData, setTenantData] = useState<any>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
+  const menuItems = [
+    { path: "/dashboard", label: "Dashboard", icon: Home },
+    { path: "/branches", label: "Sucursales", icon: MapPin },
+    { path: "/products", label: "Productos", icon: AlertCircle },
+    { path: "/plans", label: "Planes", icon: CreditCard },
+  ]
+
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser)
@@ -185,22 +206,6 @@ function AdminLayoutContent({
   }
 
   // Añadir el ítem de planes al menú
-  const menuItems = [
-    { path: "/dashboard", label: "Dashboard", icon: Home },
-    { path: "/branches", label: "Sucursales", icon: MapPin },
-    { path: "/products", label: "Productos", icon: CreditCard },
-    { path: "/plans", label: "Planes", icon: CreditCard },
-    {
-      path: "/settings",
-      label: "Configuración",
-      icon: Settings,
-      submenu: [
-        { path: "/profile", label: "Perfil" },
-        { path: "/account", label: "Cuenta" },
-      ],
-    },
-    { path: "/debug", label: "Depuración", icon: AlertCircle },
-  ]
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -225,42 +230,70 @@ function AdminLayoutContent({
           <ul className="space-y-1">
             {menuItems.map((item) => (
               <li key={item.path}>
-                {item.submenu ? (
-                  <div className="space-y-1">
-                    <div className="flex items-center px-4 py-2 text-sm font-medium text-gray-500">
-                      <item.icon className="mr-3 h-5 w-5" />
-                      {item.label}
-                    </div>
-                    <ul className="ml-6 space-y-1">
-                      {item.submenu.map((subItem) => (
-                        <li key={subItem.path}>
-                          <Link
-                            href={`/admin${item.path}${subItem.path}`}
-                            className={`flex items-center px-4 py-2 rounded-md transition-colors ${
-                              pathname === `/tenant/${tenantId}/admin${item.path}${subItem.path}`
-                                ? "bg-primary text-primary-foreground"
-                                : "hover:bg-gray-100"
-                            }`}
-                          >
-                            {subItem.label}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : (
-                  <Link
-                    href={`/admin${item.path}`}
-                    className={`flex items-center px-4 py-2 rounded-md transition-colors ${
-                      isActive(item.path) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
-                    }`}
-                  >
-                    <item.icon className="mr-3 h-5 w-5" />
-                    {item.label}
-                  </Link>
-                )}
+                <Link
+                  href={`/admin${item.path}`}
+                  className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+                    isActive(item.path) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
+                  }`}
+                >
+                  <item.icon className="mr-3 h-5 w-5" />
+                  {item.label}
+                </Link>
               </li>
             ))}
+
+            {/* Settings Collapsible Section */}
+            <li>
+              <button
+                onClick={() => setSettingsOpen(!settingsOpen)}
+                className={`w-full flex items-center justify-between px-4 py-2 rounded-md transition-colors hover:bg-gray-100`}
+              >
+                <div className="flex items-center">
+                  <Settings className="mr-3 h-5 w-5" />
+                  Configuración
+                </div>
+                <ChevronDown className={`h-4 w-4 transition-transform ${settingsOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {settingsOpen && (
+                <ul className="mt-1 ml-4 space-y-1 border-l pl-4">
+                  <li>
+                    <Link
+                      href="/admin/settings/profile"
+                      className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+                        isActive("/settings/profile") ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
+                      }`}
+                    >
+                      <User className="mr-3 h-4 w-4" />
+                      Perfil
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/admin/settings/account"
+                      className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+                        isActive("/settings/account") ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
+                      }`}
+                    >
+                      <Shield className="mr-3 h-4 w-4" />
+                      Cuenta
+                    </Link>
+                  </li>
+                </ul>
+              )}
+            </li>
+
+            <li>
+              <Link
+                href="/admin/debug"
+                className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+                  isActive("/debug") ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
+                }`}
+              >
+                <AlertCircle className="mr-3 h-5 w-5" />
+                Depuración
+              </Link>
+            </li>
           </ul>
         </nav>
 
