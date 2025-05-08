@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { useBranch } from "@/lib/context/branch-context"
+import { usePlan } from "@/lib/context/plan-context"
 import { createBranch, updateBranch } from "@/lib/services/branch-service"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,10 +21,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Pencil, Plus, MapPin, AlertCircle } from "lucide-react"
+import { Pencil, Plus, MapPin, AlertCircle, CreditCard } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { PlanLimit } from "@/components/plan-feature"
+import { PLAN_CONFIGS } from "@/lib/types/plans"
+import Link from "next/link"
 
 export default function BranchesPage({
   params,
@@ -32,6 +34,7 @@ export default function BranchesPage({
 }) {
   const { tenantId } = params
   const { branches, currentBranch, setCurrentBranch, loading, hasActiveBranches, hasBranches } = useBranch()
+  const { plan } = usePlan()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingBranch, setEditingBranch] = useState<any>(null)
   const [formData, setFormData] = useState({
@@ -43,6 +46,10 @@ export default function BranchesPage({
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
+
+  // Obtener el límite de sucursales según el plan
+  const branchLimit = PLAN_CONFIGS[plan].maxBranches
+  const hasReachedBranchLimit = branchLimit !== -1 && branches.length >= branchLimit
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -89,6 +96,13 @@ export default function BranchesPage({
           description: "La sucursal se ha actualizado correctamente",
         })
       } else {
+        // Verificar límite de sucursales
+        if (hasReachedBranchLimit) {
+          throw new Error(
+            `Tu plan actual (${plan}) solo permite ${branchLimit} sucursal${branchLimit !== 1 ? "es" : ""}`,
+          )
+        }
+
         // Crear nueva sucursal
         await createBranch(tenantId, formData)
         toast({
@@ -100,11 +114,11 @@ export default function BranchesPage({
       // Cerrar diálogo y recargar la página para ver los cambios
       setIsDialogOpen(false)
       window.location.reload()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error al guardar sucursal:", error)
       toast({
         title: "Error",
-        description: "No se pudo guardar la sucursal",
+        description: error.message || "No se pudo guardar la sucursal",
         variant: "destructive",
       })
     } finally {
@@ -117,21 +131,46 @@ export default function BranchesPage({
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Sucursales</h1>
 
-        {/* Envolver el botón de nueva sucursal con el componente PlanLimit */}
-        <PlanLimit
-          limitType="maxBranches"
-          currentCount={branches.length}
-          fallback={
-            <Button disabled>
-              <Plus className="mr-2 h-4 w-4" /> Límite de sucursales alcanzado
+        {hasReachedBranchLimit ? (
+          <div className="flex items-center gap-2">
+            <Button disabled className="opacity-70">
+              <AlertCircle className="mr-2 h-4 w-4" /> Límite alcanzado
             </Button>
-          }
-        >
+            <Button asChild variant="outline">
+              <Link href="/admin/plans">
+                <CreditCard className="mr-2 h-4 w-4" /> Actualizar Plan
+              </Link>
+            </Button>
+          </div>
+        ) : (
           <Button onClick={() => handleOpenDialog()}>
             <Plus className="mr-2 h-4 w-4" /> Nueva Sucursal
           </Button>
-        </PlanLimit>
+        )}
       </div>
+
+      {/* Mostrar información del límite de sucursales */}
+      <Alert className="mb-6 bg-blue-50 border-blue-200">
+        <CreditCard className="h-4 w-4 text-blue-600" />
+        <AlertTitle className="text-blue-800">Plan {plan.charAt(0).toUpperCase() + plan.slice(1)}</AlertTitle>
+        <AlertDescription className="text-blue-700">
+          {branchLimit === -1 ? (
+            "Tu plan actual permite crear sucursales ilimitadas."
+          ) : (
+            <>
+              Tu plan actual permite crear hasta {branchLimit} sucursal{branchLimit !== 1 ? "es" : ""}. Actualmente
+              tienes {branches.length} de {branchLimit}.
+              {hasReachedBranchLimit && (
+                <div className="mt-2">
+                  <Button asChild size="sm" variant="outline">
+                    <Link href="/admin/plans">Actualizar Plan</Link>
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </AlertDescription>
+      </Alert>
 
       {/* Mostrar alerta si hay sucursales pero ninguna activa */}
       {hasBranches && !hasActiveBranches && (
@@ -165,7 +204,9 @@ export default function BranchesPage({
           ) : branches.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-gray-500 mb-4">No hay sucursales configuradas</p>
-              <Button onClick={() => handleOpenDialog()}>Añadir Primera Sucursal</Button>
+              <Button onClick={() => handleOpenDialog()} disabled={hasReachedBranchLimit}>
+                Añadir Primera Sucursal
+              </Button>
             </div>
           ) : (
             <Table>

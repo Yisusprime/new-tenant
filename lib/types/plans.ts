@@ -20,7 +20,7 @@ export interface PlanPermissions {
 // Configuración de permisos para cada plan
 export const PLAN_CONFIGS: Record<PlanType, PlanPermissions> = {
   free: {
-    maxBranches: 1,
+    maxBranches: 1, // Plan free limitado a 1 sucursal
     maxProducts: 20,
     maxUsers: 2,
     features: {

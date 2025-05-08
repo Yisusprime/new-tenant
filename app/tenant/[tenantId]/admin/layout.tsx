@@ -9,12 +9,12 @@ import { onAuthStateChanged, signOut } from "firebase/auth"
 import { auth, db } from "@/lib/firebase/client"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { LogOut, Menu, X, Home, MapPin, AlertCircle } from "lucide-react"
+import { LogOut, Menu, X, Home, MapPin, AlertCircle, CreditCard } from "lucide-react"
 import Link from "next/link"
 import { BranchProvider, useBranch } from "@/lib/context/branch-context"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { BranchAlertModal } from "@/components/branch-alert-modal"
-import { PlanProvider } from "@/lib/context/plan-context"
+import { PlanProvider, usePlan } from "@/lib/context/plan-context"
 
 // Componente para el selector de sucursales
 function BranchSelector() {
@@ -67,6 +67,26 @@ function BranchSelector() {
             ))}
         </SelectContent>
       </Select>
+    </div>
+  )
+}
+
+// Componente para mostrar el plan actual
+function PlanBadge() {
+  const { plan, isLoading } = usePlan()
+
+  if (isLoading) return <Skeleton className="h-6 w-16" />
+
+  const planColors = {
+    free: "bg-gray-100 text-gray-800",
+    basic: "bg-blue-100 text-blue-800",
+    premium: "bg-purple-100 text-purple-800",
+    enterprise: "bg-amber-100 text-amber-800",
+  }
+
+  return (
+    <div className={`text-xs px-2 py-1 rounded-full ${planColors[plan]}`}>
+      Plan {plan.charAt(0).toUpperCase() + plan.slice(1)}
     </div>
   )
 }
@@ -164,10 +184,11 @@ function AdminLayoutContent({
     )
   }
 
-  // Eliminamos el ítem de productos del menú
+  // Añadir el ítem de planes al menú
   const menuItems = [
     { path: "/dashboard", label: "Dashboard", icon: Home },
     { path: "/branches", label: "Sucursales", icon: MapPin },
+    { path: "/plans", label: "Planes", icon: CreditCard },
     { path: "/debug", label: "Depuración", icon: AlertCircle },
   ]
 
@@ -215,7 +236,10 @@ function AdminLayoutContent({
             </div>
             <div className="truncate">
               <div className="font-medium truncate">{user?.email}</div>
-              <div className="text-xs text-gray-500">Administrador</div>
+              <div className="text-xs text-gray-500 flex items-center gap-2">
+                <span>Administrador</span>
+                <PlanBadge />
+              </div>
             </div>
           </div>
           <Button variant="outline" className="w-full flex items-center justify-center" onClick={handleLogout}>
