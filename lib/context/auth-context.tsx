@@ -33,15 +33,21 @@ export const AuthProvider = ({
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    console.log("Setting up auth state listener")
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log("Auth state changed:", user ? `User: ${user.uid}` : "No user")
       setUser(user)
       setLoading(false)
     })
 
-    return () => unsubscribe()
+    return () => {
+      console.log("Cleaning up auth state listener")
+      unsubscribe()
+    }
   }, [])
 
   const signOut = async () => {
+    console.log("Signing out user")
     await firebaseSignOut(auth)
   }
 
