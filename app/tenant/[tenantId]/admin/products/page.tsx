@@ -1,13 +1,15 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { collection, getDocs, query, orderBy, doc, deleteDoc } from "firebase/firestore"
-import { db } from "@/lib/firebase/client"
+import { useBranch } from "@/lib/context/branch-context"
+import { getProducts, deleteProduct } from "@/lib/services/product-service"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Pencil, Trash2, Plus } from "lucide-react"
+import { Pencil, Trash2, Plus, AlertCircle } from "lucide-react"
 import Link from "next/link"
+import { useToast } from "@/components/ui/use-toast"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function ProductsPage({
   params,
@@ -15,38 +17,50 @@ export default function ProductsPage({
   params: { tenantId: string }
 }) {
   const { tenantId } = params
+  const { currentBranch } = useBranch()
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
 
   useEffect(() => {
     async function fetchProducts() {
       try {
-        const productsQuery = query(collection(db, `tenants/${tenantId}/products`), orderBy("name"))
-        const snapshot = await getDocs(productsQuery)
-
-        const productsList = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }))
-
+        setLoading(true)
+        const productsList = await getProducts(tenantId, currentBranch?.id)
         setProducts(productsList)
       } catch (error) {
         console.error("Error al cargar productos:", error)
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los productos",
+          variant: "destructive",
+        })
       } finally {
         setLoading(false)
       }
     }
 
-    fetchProducts()
-  }, [tenantId])
+    if (currentBranch) {
+      fetchProducts()
+    }
+  }, [tenantId, currentBranch, toast])
 
   const handleDeleteProduct = async (productId: string) => {
     if (window.confirm("¿Estás seguro de que quieres eliminar este producto?")) {
       try {
-        await deleteDoc(doc(db, `tenants/${tenantId}/products`, productId))
+        await deleteProduct(tenantId, productId)
         setProducts(products.filter((product) => product.id !== productId))
+        toast({
+          title: "Producto eliminado",
+          description: "El producto se ha eliminado correctamente",
+        })
       } catch (error) {
         console.error("Error al eliminar producto:", error)
+        toast({
+          title: "Error",
+          description: "No se pudo eliminar el producto",
+          variant: "destructive",
+        })
       }
     }
   }
@@ -62,17 +76,32 @@ export default function ProductsPage({
         </Button>
       </div>
 
+      {!currentBranch && (
+        <Alert className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Debes seleccionar una sucursal para gestionar los productos</AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Lista de Productos</CardTitle>
-          <CardDescription>Gestiona los productos de tu menú</CardDescription>
+          <CardDescription>
+            {currentBranch
+              ? `Productos de la sucursal: ${currentBranch.name}`
+              : "Selecciona una sucursal para ver sus productos"}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {!currentBranch ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500 mb-4">Selecciona una sucursal para ver sus productos</p>
+            </div>
+          ) : loading ? (
             <p className="text-center py-4">Cargando productos...</p>
           ) : products.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500 mb-4">No hay productos disponibles</p>
+              <p className="text-gray-500 mb-4">No hay productos disponibles en esta sucursal</p>
               <Button asChild>
                 <Link href="/admin/products/new">Añadir Primer Producto</Link>
               </Button>

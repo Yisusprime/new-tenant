@@ -3,9 +3,8 @@
 import type React from "react"
 
 import { useState } from "react"
-import { collection, addDoc } from "firebase/firestore"
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
-import { db, storage } from "@/lib/firebase/client"
+import { useBranch } from "@/lib/context/branch-context"
+import { createProduct } from "@/lib/services/product-service"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -14,6 +13,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useToast } from "@/components/ui/use-toast"
+import { AlertCircle } from "lucide-react"
 
 export default function NewProductPage({
   params,
@@ -21,9 +22,8 @@ export default function NewProductPage({
   params: { tenantId: string }
 }) {
   const { tenantId } = params
+  const { currentBranch } = useBranch()
   const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -32,6 +32,7 @@ export default function NewProductPage({
     available: true,
     image: null as File | null,
   })
+  const { toast } = useToast()
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -54,9 +55,17 @@ export default function NewProductPage({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!currentBranch) {
+      toast({
+        title: "Error",
+        description: "Debes seleccionar una sucursal para crear un producto",
+        variant: "destructive",
+      })
+      return
+    }
+
     setLoading(true)
-    setError(null)
-    setSuccess(null)
 
     try {
       // Validar datos
@@ -70,28 +79,24 @@ export default function NewProductPage({
       }
 
       // Crear objeto del producto
-      const productData: any = {
-        name: formData.name,
-        description: formData.description,
-        price: price,
-        category: formData.category,
-        available: formData.available,
-        createdAt: new Date().toISOString(),
-      }
-
-      // Subir imagen si existe
-      if (formData.image) {
-        const storageRef = ref(storage, `tenants/${tenantId}/products/${Date.now()}_${formData.image.name}`)
-        const snapshot = await uploadBytes(storageRef, formData.image)
-        const imageUrl = await getDownloadURL(snapshot.ref)
-        productData.imageUrl = imageUrl
-      }
-
-      // Guardar producto en Firestore
-      await addDoc(collection(db, `tenants/${tenantId}/products`), productData)
+      await createProduct(
+        tenantId,
+        {
+          name: formData.name,
+          description: formData.description,
+          price: price,
+          category: formData.category,
+          available: formData.available,
+          branchId: currentBranch.id,
+        },
+        formData.image || undefined,
+      )
 
       // Mostrar mensaje de éxito
-      setSuccess("Producto creado correctamente")
+      toast({
+        title: "Producto creado",
+        description: "El producto se ha creado correctamente",
+      })
 
       // Limpiar formulario
       setFormData({
@@ -103,13 +108,17 @@ export default function NewProductPage({
         image: null,
       })
 
-      // Redirigir después de 2 segundos
+      // Redirigir después de 1 segundo
       setTimeout(() => {
         window.location.href = "/admin/products"
-      }, 2000)
+      }, 1000)
     } catch (err: any) {
       console.error("Error al crear producto:", err)
-      setError(err.message || "Error al crear el producto")
+      toast({
+        title: "Error",
+        description: err.message || "Error al crear el producto",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -121,28 +130,34 @@ export default function NewProductPage({
         <h1 className="text-2xl font-bold">Nuevo Producto</h1>
       </div>
 
+      {!currentBranch && (
+        <Alert className="mb-6" variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Debes seleccionar una sucursal para crear un producto</AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <form onSubmit={handleSubmit}>
           <CardHeader>
             <CardTitle>Información del Producto</CardTitle>
-            <CardDescription>Añade un nuevo producto a tu menú</CardDescription>
+            <CardDescription>
+              {currentBranch
+                ? `Añadir producto a la sucursal: ${currentBranch.name}`
+                : "Selecciona una sucursal para añadir un producto"}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {success && (
-              <Alert className="bg-green-50 border-green-500 text-green-700">
-                <AlertDescription>{success}</AlertDescription>
-              </Alert>
-            )}
-
             <div className="space-y-2">
               <Label htmlFor="name">Nombre del Producto *</Label>
-              <Input id="name" name="name" value={formData.name} onChange={handleChange} required />
+              <Input
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                required
+                disabled={!currentBranch}
+              />
             </div>
 
             <div className="space-y-2">
@@ -153,6 +168,7 @@ export default function NewProductPage({
                 value={formData.description}
                 onChange={handleChange}
                 rows={3}
+                disabled={!currentBranch}
               />
             </div>
 
@@ -168,12 +184,13 @@ export default function NewProductPage({
                   value={formData.price}
                   onChange={handleChange}
                   required
+                  disabled={!currentBranch}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="category">Categoría</Label>
-                <Select value={formData.category} onValueChange={handleSelectChange}>
+                <Select value={formData.category} onValueChange={handleSelectChange} disabled={!currentBranch}>
                   <SelectTrigger id="category">
                     <SelectValue placeholder="Selecciona una categoría" />
                   </SelectTrigger>
@@ -189,11 +206,23 @@ export default function NewProductPage({
 
             <div className="space-y-2">
               <Label htmlFor="image">Imagen del Producto</Label>
-              <Input id="image" name="image" type="file" accept="image/*" onChange={handleFileChange} />
+              <Input
+                id="image"
+                name="image"
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                disabled={!currentBranch}
+              />
             </div>
 
             <div className="flex items-center space-x-2">
-              <Switch id="available" checked={formData.available} onCheckedChange={handleSwitchChange} />
+              <Switch
+                id="available"
+                checked={formData.available}
+                onCheckedChange={handleSwitchChange}
+                disabled={!currentBranch}
+              />
               <Label htmlFor="available">Disponible</Label>
             </div>
           </CardContent>
@@ -201,7 +230,7 @@ export default function NewProductPage({
             <Button variant="outline" type="button" onClick={() => window.history.back()}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || !currentBranch}>
               {loading ? "Guardando..." : "Guardar Producto"}
             </Button>
           </CardFooter>

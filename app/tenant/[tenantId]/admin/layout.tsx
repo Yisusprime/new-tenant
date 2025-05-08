@@ -9,10 +9,50 @@ import { onAuthStateChanged, signOut } from "firebase/auth"
 import { auth, db } from "@/lib/firebase/client"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { LogOut, Menu, X, Home, ShoppingBag, Users, Settings, BarChart2 } from "lucide-react"
+import { LogOut, Menu, X, Home, ShoppingBag, MapPin } from "lucide-react"
 import Link from "next/link"
+import { BranchProvider, useBranch } from "@/lib/context/branch-context"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-export default function AdminLayout({
+// Componente para el selector de sucursales
+function BranchSelector() {
+  const { branches, currentBranch, setCurrentBranch, loading } = useBranch()
+
+  if (loading) return <Skeleton className="h-9 w-[180px]" />
+
+  if (branches.length === 0) {
+    return (
+      <div className="text-sm text-yellow-600 bg-yellow-100 px-3 py-2 rounded-md">No hay sucursales configuradas</div>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <MapPin className="h-4 w-4 text-gray-500" />
+      <Select
+        value={currentBranch?.id}
+        onValueChange={(value) => {
+          const branch = branches.find((b) => b.id === value)
+          if (branch) setCurrentBranch(branch)
+        }}
+      >
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Seleccionar sucursal" />
+        </SelectTrigger>
+        <SelectContent>
+          {branches.map((branch) => (
+            <SelectItem key={branch.id} value={branch.id}>
+              {branch.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
+// Componente principal del layout
+function AdminLayoutContent({
   children,
   params,
 }: {
@@ -107,7 +147,7 @@ export default function AdminLayout({
   const menuItems = [
     { path: "/dashboard", label: "Dashboard", icon: Home },
     { path: "/products", label: "Productos", icon: ShoppingBag },
-
+    { path: "/branches", label: "Sucursales", icon: MapPin },
   ]
 
   return (
@@ -175,10 +215,28 @@ export default function AdminLayout({
             <Menu size={24} />
           </button>
           <h1 className="text-xl font-semibold">Panel de Administración</h1>
+          <div className="ml-auto">
+            <BranchSelector />
+          </div>
         </header>
 
         <main className="flex-1 overflow-auto p-4">{children}</main>
       </div>
     </div>
+  )
+}
+
+// Wrapper que proporciona el contexto de sucursales
+export default function AdminLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode
+  params: { tenantId: string }
+}) {
+  return (
+    <BranchProvider tenantId={params.tenantId}>
+      <AdminLayoutContent params={params}>{children}</AdminLayoutContent>
+    </BranchProvider>
   )
 }
