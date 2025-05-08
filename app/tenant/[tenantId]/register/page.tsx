@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation"
 import { createUserWithEmailAndPassword } from "firebase/auth"
 import { doc, setDoc } from "firebase/firestore"
 import { auth, db } from "@/lib/firebase/client"
-import { useAuth } from "@/lib/context/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,7 +21,6 @@ export default function TenantRegisterPage({
 }) {
   const { tenantId } = params
   const router = useRouter()
-  const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
@@ -30,12 +28,6 @@ export default function TenantRegisterPage({
     email: "",
     password: "",
   })
-
-  // Si el usuario ya está autenticado, redirigir al dashboard
-  if (user) {
-    router.push(`/tenant/${tenantId}/dashboard`)
-    return null
-  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -56,7 +48,7 @@ export default function TenantRegisterPage({
         name: formData.name,
         email: formData.email,
         role: "customer", // Por defecto, los usuarios registrados son clientes
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
       })
 
       // Redirigir a la página de login

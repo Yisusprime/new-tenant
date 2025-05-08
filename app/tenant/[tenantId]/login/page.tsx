@@ -6,7 +6,6 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { signInWithEmailAndPassword } from "firebase/auth"
 import { auth } from "@/lib/firebase/client"
-import { useAuth } from "@/lib/context/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -21,19 +20,12 @@ export default function TenantLoginPage({
 }) {
   const { tenantId } = params
   const router = useRouter()
-  const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   })
-
-  // Si el usuario ya está autenticado, redirigir al dashboard
-  if (user) {
-    router.push(`/tenant/${tenantId}/admin/dashboard`)
-    return null
-  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -52,7 +44,20 @@ export default function TenantLoginPage({
       router.push(`/tenant/${tenantId}/admin/dashboard`)
     } catch (err: any) {
       console.error("Error al iniciar sesión:", err)
-      setError("Credenciales inválidas")
+
+      // Manejar errores específicos de Firebase
+      if (
+        err.code === "auth/invalid-credential" ||
+        err.code === "auth/user-not-found" ||
+        err.code === "auth/wrong-password"
+      ) {
+        setError("Credenciales inválidas")
+      } else if (err.code === "auth/too-many-requests") {
+        setError("Demasiados intentos fallidos. Intenta más tarde")
+      } else {
+        setError("Error al iniciar sesión")
+      }
+
       setLoading(false)
     }
   }
@@ -61,7 +66,7 @@ export default function TenantLoginPage({
     <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Iniciar Sesión</CardTitle>
+          <CardTitle>Iniciar Sesión - {tenantId}</CardTitle>
           <CardDescription>Accede a tu cuenta para gestionar tu restaurante</CardDescription>
         </CardHeader>
         <CardContent>

@@ -1,6 +1,25 @@
-import { getTenant } from "@/lib/services/tenant-service"
+import { doc, getDoc } from "firebase/firestore"
+import { db } from "@/lib/firebase/client"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+
+// Función para obtener datos del tenant
+async function getTenantData(tenantId: string) {
+  try {
+    const docRef = doc(db, "tenants", tenantId)
+    const docSnap = await getDoc(docRef)
+
+    if (docSnap.exists()) {
+      return docSnap.data()
+    } else {
+      console.log("No such tenant!")
+      return null
+    }
+  } catch (error) {
+    console.error("Error getting tenant data:", error)
+    return null
+  }
+}
 
 export default async function TenantHomePage({
   params,
@@ -8,16 +27,21 @@ export default async function TenantHomePage({
   params: { tenantId: string }
 }) {
   const { tenantId } = params
-  const tenant = await getTenant(tenantId)
 
-  if (!tenant) {
-    return null // El layout ya maneja el caso de tenant no encontrado
+  // Intentar obtener datos del tenant
+  let tenantData
+  try {
+    tenantData = await getTenantData(tenantId)
+  } catch (error) {
+    console.error("Error loading tenant data:", error)
   }
+
+  const tenantName = tenantData?.name || tenantId
 
   return (
     <div className="container mx-auto px-4 py-12">
       <section className="text-center mb-12">
-        <h1 className="text-4xl font-bold mb-4">{tenant.name}</h1>
+        <h1 className="text-4xl font-bold mb-4">{tenantName}</h1>
         <p className="text-xl text-gray-600 mb-8">Bienvenido a nuestra plataforma de pedidos en línea</p>
         <div className="flex gap-4 justify-center">
           <Button asChild size="lg">

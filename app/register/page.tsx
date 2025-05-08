@@ -81,7 +81,9 @@ export default function RegisterPage() {
       // Redirigir al subdominio del tenant después de 2 segundos
       setTimeout(() => {
         const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "gastroo.online"
-        window.location.href = `https://${formData.tenantId}.${rootDomain}/login`
+
+        // Usar la URL completa para asegurarnos de que la redirección funcione correctamente
+        window.location.href = `https://${formData.tenantId}.${rootDomain}/`
       }, 2000)
     } catch (err: any) {
       console.error("Error al registrar:", err)
