@@ -230,20 +230,18 @@ function AdminLayoutContent({
         </nav>
 
         <div className="absolute bottom-0 w-full p-4 border-t">
-          <Link href="/admin/profile">
-            <div className="flex items-center mb-4 p-2 rounded-md hover:bg-gray-100 cursor-pointer">
-              <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center mr-2">
-                {user?.email?.charAt(0).toUpperCase() || "U"}
-              </div>
-              <div className="truncate">
-                <div className="font-medium truncate">{user?.email}</div>
-                <div className="text-xs text-gray-500 flex items-center gap-2">
-                  <span>Administrador</span>
-                  <PlanBadge />
-                </div>
+          <div className="flex items-center mb-4">
+            <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center mr-2">
+              {user?.email?.charAt(0).toUpperCase() || "U"}
+            </div>
+            <div className="truncate">
+              <div className="font-medium truncate">{user?.email}</div>
+              <div className="text-xs text-gray-500 flex items-center gap-2">
+                <span>Administrador</span>
+                <PlanBadge />
               </div>
             </div>
-          </Link>
+          </div>
           <Button variant="outline" className="w-full flex items-center justify-center" onClick={handleLogout}>
             <LogOut className="mr-2 h-4 w-4" />
             Cerrar Sesión
