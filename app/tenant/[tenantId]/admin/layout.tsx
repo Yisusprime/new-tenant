@@ -9,13 +9,26 @@ import { onAuthStateChanged, signOut } from "firebase/auth"
 import { auth, db } from "@/lib/firebase/client"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { LogOut, Menu, X, Home, MapPin, AlertCircle, CreditCard } from "lucide-react"
+import {
+  LogOut,
+  Menu,
+  X,
+  Home,
+  MapPin,
+  AlertCircle,
+  CreditCard,
+  Settings,
+  User,
+  ChevronDown,
+  Store,
+} from "lucide-react"
 import Link from "next/link"
 import { BranchProvider, useBranch } from "@/lib/context/branch-context"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { BranchAlertModal } from "@/components/branch-alert-modal"
 import { PlanProvider, usePlan } from "@/lib/context/plan-context"
 import { AuthProvider } from "@/lib/context/auth-context"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
 // Componente para el selector de sucursales
 function BranchSelector() {
@@ -107,6 +120,7 @@ function AdminLayoutContent({
   const [isAdmin, setIsAdmin] = useState(false)
   const [tenantData, setTenantData] = useState<any>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [configOpen, setConfigOpen] = useState(false)
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -151,6 +165,11 @@ function AdminLayoutContent({
     return pathname === `/tenant/${tenantId}/admin${path}`
   }
 
+  // Verificar si alguna ruta dentro de un grupo está activa
+  const isGroupActive = (paths: string[]) => {
+    return paths.some((path) => pathname.startsWith(`/tenant/${tenantId}/admin${path}`))
+  }
+
   if (loading) {
     return (
       <div className="flex h-screen">
@@ -185,12 +204,19 @@ function AdminLayoutContent({
     )
   }
 
-  // Añadir el ítem de planes al menú
+  // Menú principal
   const menuItems = [
     { path: "/dashboard", label: "Dashboard", icon: Home },
     { path: "/branches", label: "Sucursales", icon: MapPin },
+    { path: "/products", label: "Productos", icon: Store },
     { path: "/plans", label: "Planes", icon: CreditCard },
     { path: "/debug", label: "Depuración", icon: AlertCircle },
+  ]
+
+  // Submenú de configuración
+  const configItems = [
+    { path: "/settings/profile", label: "Perfil", icon: User },
+    { path: "/settings/tenant", label: "Restaurante", icon: Store },
   ]
 
   return (
@@ -227,6 +253,46 @@ function AdminLayoutContent({
                 </Link>
               </li>
             ))}
+
+            {/* Menú desplegable de configuración */}
+            <li>
+              <Collapsible
+                open={configOpen || isGroupActive(["/settings"])}
+                onOpenChange={setConfigOpen}
+                className="w-full"
+              >
+                <CollapsibleTrigger
+                  className={`flex items-center justify-between w-full px-4 py-2 rounded-md transition-colors ${
+                    isGroupActive(["/settings"]) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <Settings className="mr-3 h-5 w-5" />
+                    <span>Configuración</span>
+                  </div>
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${configOpen || isGroupActive(["/settings"]) ? "transform rotate-180" : ""}`}
+                  />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <ul className="mt-1 ml-7 space-y-1 border-l pl-2">
+                    {configItems.map((item) => (
+                      <li key={item.path}>
+                        <Link
+                          href={`/admin${item.path}`}
+                          className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+                            pathname.includes(item.path) ? "bg-primary/10 text-primary" : "hover:bg-gray-100"
+                          }`}
+                        >
+                          <item.icon className="mr-3 h-4 w-4" />
+                          {item.label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </CollapsibleContent>
+              </Collapsible>
+            </li>
           </ul>
         </nav>
 
