@@ -4,6 +4,11 @@ import { useBranch } from "@/lib/context/branch-context"
 import { useAuth } from "@/lib/context/auth-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+// Añadir las importaciones necesarias
+import { useEffect } from "react"
+import { getAuth } from "firebase/auth"
+
+// Modificar la función DebugPage para manejar mejor el estado de autenticación
 
 export default function DebugPage({
   params,
@@ -13,6 +18,16 @@ export default function DebugPage({
   const { tenantId } = params
   const { branches, currentBranch, loading, error } = useBranch()
   const { user, loading: authLoading } = useAuth()
+
+  // Añadir un efecto para depuración
+  useEffect(() => {
+    console.log("Debug page auth state:", { user, authLoading })
+
+    // Verificar el estado de autenticación directamente desde Firebase
+    const auth = getAuth()
+    const currentUser = auth.currentUser
+    console.log("Direct Firebase auth check:", currentUser)
+  }, [user, authLoading])
 
   const handleCreateTestBranch = async () => {
     try {
@@ -37,6 +52,17 @@ export default function DebugPage({
       console.error("Error al crear sucursal de prueba:", error)
       alert(`Error: ${error}`)
     }
+  }
+
+  // Verificar autenticación directamente
+  const checkAuthDirectly = () => {
+    const auth = getAuth()
+    const currentUser = auth.currentUser
+    alert(
+      currentUser
+        ? `Usuario autenticado directamente: ${currentUser.email} (${currentUser.uid})`
+        : "No hay usuario autenticado directamente en Firebase",
+    )
   }
 
   return (
@@ -99,8 +125,11 @@ export default function DebugPage({
               </pre>
             </div>
 
-            <div className="pt-4">
+            <div className="pt-4 flex gap-2">
               <Button onClick={handleCreateTestBranch}>Crear Sucursal de Prueba</Button>
+              <Button onClick={checkAuthDirectly} variant="outline">
+                Verificar Auth Directamente
+              </Button>
             </div>
           </div>
         </CardContent>

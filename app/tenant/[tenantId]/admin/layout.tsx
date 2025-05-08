@@ -15,6 +15,7 @@ import { BranchProvider, useBranch } from "@/lib/context/branch-context"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { BranchAlertModal } from "@/components/branch-alert-modal"
 import { PlanProvider, usePlan } from "@/lib/context/plan-context"
+import { AuthProvider } from "@/lib/context/auth-context"
 
 // Componente para el selector de sucursales
 function BranchSelector() {
@@ -284,10 +285,12 @@ export default function AdminLayout({
   params: { tenantId: string }
 }) {
   return (
-    <PlanProvider tenantId={params.tenantId}>
-      <BranchProvider tenantId={params.tenantId}>
-        <AdminLayoutContent params={params}>{children}</AdminLayoutContent>
-      </BranchProvider>
-    </PlanProvider>
+    <AuthProvider tenantId={params.tenantId}>
+      <PlanProvider tenantId={params.tenantId}>
+        <BranchProvider tenantId={params.tenantId}>
+          <AdminLayoutContent params={params}>{children}</AdminLayoutContent>
+        </BranchProvider>
+      </PlanProvider>
+    </AuthProvider>
   )
 }

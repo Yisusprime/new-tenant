@@ -33,18 +33,49 @@ export const AuthProvider = ({
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    console.log("AuthProvider initialized with tenantId:", tenantId)
+
+    // Verificar si ya hay un usuario autenticado
+    const currentUser = auth.currentUser
+    if (currentUser) {
+      console.log("User already authenticated:", currentUser.email)
+      setUser(currentUser)
+      setLoading(false)
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      console.log("Auth state changed:", user ? "User authenticated" : "No user")
+      console.log("Auth state changed:", user ? `User authenticated: ${user.email}` : "No user")
       setUser(user)
       setLoading(false)
     })
 
-    return () => unsubscribe()
-  }, [])
+    return () => {
+      console.log("AuthProvider cleanup")
+      unsubscribe()
+    }
+  }, [tenantId])
 
   const signOut = async () => {
-    await firebaseSignOut(auth)
+    try {
+      await firebaseSignOut(auth)
+      console.log("User signed out successfully")
+    } catch (error) {
+      console.error("Error signing out:", error)
+    }
   }
 
-  return <AuthContext.Provider value={{ user, loading, signOut, tenantId }}>{children}</AuthContext.Provider>
+  const contextValue = {
+    user,
+    loading,
+    signOut,
+    tenantId,
+  }
+
+  console.log("AuthProvider rendering with:", {
+    user: user ? `${user.email} (${user.uid})` : "null",
+    loading,
+    tenantId,
+  })
+
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
 }
