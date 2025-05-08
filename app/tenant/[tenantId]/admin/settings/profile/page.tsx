@@ -35,21 +35,35 @@ export default function ProfilePage({
 
   useEffect(() => {
     async function fetchData() {
-      if (!user) return
+      if (!user) {
+        console.log("No user found, skipping data fetch")
+        setLoading(false)
+        return
+      }
 
       try {
         setLoading(true)
+        console.log("Fetching data for user:", user.uid, "in tenant:", tenantId)
 
         // Fetch tenant data
+        console.log("Fetching tenant data from path:", `tenants/${tenantId}`)
         const tenantDoc = await getDoc(doc(db, "tenants", tenantId))
+
         if (tenantDoc.exists()) {
-          setTenantData(tenantDoc.data())
+          const data = tenantDoc.data()
+          console.log("Tenant data retrieved:", data)
+          setTenantData(data)
+        } else {
+          console.log("No tenant document found")
         }
 
         // Fetch user role data
+        console.log("Fetching user role data from path:", `tenants/${tenantId}/roles/${user.uid}`)
         const roleDoc = await getDoc(doc(db, `tenants/${tenantId}/roles`, user.uid))
+
         if (roleDoc.exists()) {
           const roleData = roleDoc.data()
+          console.log("User role data retrieved:", roleData)
           setUserData(roleData)
 
           // Initialize form with existing data if available
@@ -59,16 +73,25 @@ export default function ProfilePage({
             position: roleData.position || "",
             bio: roleData.bio || "",
           })
+        } else {
+          console.log("No user role document found")
+          // Even if we don't find role data, we should still show the page
+          // with empty form fields
         }
       } catch (error) {
         console.error("Error fetching user data:", error)
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los datos del perfil",
+          variant: "destructive",
+        })
       } finally {
         setLoading(false)
       }
     }
 
     fetchData()
-  }, [user, tenantId])
+  }, [user, tenantId, toast])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -232,14 +255,18 @@ export default function ProfilePage({
                   {loading ? (
                     <Skeleton className="h-4 w-24" />
                   ) : (
-                    (userData?.role === "admin" ? "Administrador" : userData?.role) || "Usuario"
+                    (() => {
+                      if (!userData) return "Usuario"
+                      if (userData.role === "admin") return "Administrador"
+                      return userData.role || "Usuario"
+                    })()
                   )}
                 </p>
               </div>
 
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Tenant:</h3>
-                <p>{loading ? <Skeleton className="h-4 w-32" /> : tenantData?.name || tenantId}</p>
+                <p>{loading ? <Skeleton className="h-4 w-32" /> : tenantData?.name || tenantId || "No disponible"}</p>
               </div>
 
               <div>
@@ -247,10 +274,16 @@ export default function ProfilePage({
                 <p>
                   {loading ? (
                     <Skeleton className="h-4 w-40" />
-                  ) : userData?.createdAt ? (
-                    new Date(userData.createdAt).toLocaleDateString()
                   ) : (
-                    "No disponible"
+                    (() => {
+                      if (!userData?.createdAt) return "No disponible"
+                      try {
+                        return new Date(userData.createdAt).toLocaleDateString()
+                      } catch (e) {
+                        console.error("Error formatting date:", e)
+                        return userData.createdAt || "No disponible"
+                      }
+                    })()
                   )}
                 </p>
               </div>

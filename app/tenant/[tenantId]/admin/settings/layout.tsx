@@ -16,6 +16,7 @@ export default function SettingsLayout({
 
   // Get the current tab from the pathname
   const getCurrentTab = () => {
+    if (pathname.includes("/profile-simple")) return "profile-simple"
     if (pathname.includes("/profile")) return "profile"
     // Add more tabs as needed
     return "profile"
@@ -33,6 +34,11 @@ export default function SettingsLayout({
           <Link href={`/admin/settings/profile`} passHref>
             <TabsTrigger value="profile" className="cursor-pointer">
               Perfil
+            </TabsTrigger>
+          </Link>
+          <Link href={`/admin/settings/profile-simple`} passHref>
+            <TabsTrigger value="profile-simple" className="cursor-pointer">
+              Perfil Simple (Debug)
             </TabsTrigger>
           </Link>
           {/* Add more tabs as needed */}
