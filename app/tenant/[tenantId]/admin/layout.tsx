@@ -3,9 +3,9 @@
 import type React from "react"
 
 import { useEffect, useState } from "react"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { doc, getDoc } from "firebase/firestore"
-import { onAuthStateChanged, signOut } from "firebase/auth"
+import { signOut } from "firebase/auth"
 import { auth, db } from "@/lib/firebase/client"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -21,12 +21,15 @@ import {
   User,
   Shield,
   ChevronDown,
+  AlertTriangle,
 } from "lucide-react"
 import Link from "next/link"
 import { BranchProvider, useBranch } from "@/lib/context/branch-context"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { BranchAlertModal } from "@/components/branch-alert-modal"
 import { PlanProvider, usePlan } from "@/lib/context/plan-context"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { useAuth } from "@/lib/context/auth-context"
 
 // Componente para el selector de sucursales
 function BranchSelector() {
@@ -113,11 +116,14 @@ function AdminLayoutContent({
 }) {
   const { tenantId } = params
   const pathname = usePathname()
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const router = useRouter()
+  const { user, loading: authLoading, error: authError } = useAuth()
   const [isAdmin, setIsAdmin] = useState(false)
   const [tenantData, setTenantData] = useState<any>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [redirectToLogin, setRedirectToLogin] = useState(false)
 
   const menuItems = [
     { path: "/dashboard", label: "Dashboard", icon: Home },
@@ -129,38 +135,56 @@ function AdminLayoutContent({
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser)
+    console.log("AdminLayout auth state:", { user: user?.uid, loading: authLoading, error: authError })
 
-      if (currentUser) {
-        try {
-          // Verificar si el usuario es administrador
-          const roleDoc = await getDoc(doc(db, `tenants/${tenantId}/roles`, currentUser.uid))
+    async function checkPermissions() {
+      if (!user) return
 
-          if (roleDoc.exists() && roleDoc.data().role === "admin") {
-            setIsAdmin(true)
-          }
+      try {
+        // Verificar si el usuario es administrador
+        const roleDoc = await getDoc(doc(db, `tenants/${tenantId}/roles`, user.uid))
 
-          // Obtener datos del tenant
-          const tenantDoc = await getDoc(doc(db, "tenants", tenantId))
-          if (tenantDoc.exists()) {
-            setTenantData(tenantDoc.data())
-          }
-        } catch (error) {
-          console.error("Error verificando permisos:", error)
+        if (roleDoc.exists() && roleDoc.data().role === "admin") {
+          setIsAdmin(true)
+        } else {
+          setError("No tienes permisos de administrador para este tenant")
         }
+
+        // Obtener datos del tenant
+        const tenantDoc = await getDoc(doc(db, "tenants", tenantId))
+        if (tenantDoc.exists()) {
+          setTenantData(tenantDoc.data())
+        } else {
+          setError("El tenant no existe")
+        }
+      } catch (err) {
+        console.error("Error verificando permisos:", err)
+        setError("Error al verificar permisos")
+      } finally {
+        setLoading(false)
       }
+    }
 
-      setLoading(false)
-    })
+    if (!authLoading) {
+      if (user) {
+        checkPermissions()
+      } else {
+        setLoading(false)
+        setRedirectToLogin(true)
+      }
+    }
+  }, [user, authLoading, tenantId, authError])
 
-    return () => unsubscribe()
-  }, [tenantId])
+  useEffect(() => {
+    if (redirectToLogin) {
+      router.push(`/tenant/${tenantId}/login`)
+    }
+  }, [redirectToLogin, router, tenantId])
 
   const handleLogout = async () => {
     try {
       await signOut(auth)
-      window.location.href = "/login"
+      router.push(`/tenant/${tenantId}/login`)
     } catch (error) {
       console.error("Error al cerrar sesión:", error)
     }
@@ -171,6 +195,61 @@ function AdminLayoutContent({
     return pathname === `/tenant/${tenantId}/admin${path}`
   }
 
+  // If auth is still loading, show a loading skeleton
+  if (authLoading) {
+    return (
+      <div className="flex h-screen">
+        <Skeleton className="h-full w-64" />
+        <div className="flex-1 p-8">
+          <Skeleton className="h-12 w-48 mb-6" />
+          <Skeleton className="h-64 w-full rounded-lg" />
+        </div>
+      </div>
+    )
+  }
+
+  // If there's an auth error, show it
+  if (authError) {
+    return (
+      <div className="flex items-center justify-center h-screen p-4">
+        <div className="max-w-md w-full">
+          <Alert variant="destructive" className="mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Error de autenticación</AlertTitle>
+            <AlertDescription>
+              <p className="mb-2">{authError}</p>
+              <p>Intenta recargar la página o iniciar sesión nuevamente.</p>
+            </AlertDescription>
+          </Alert>
+          <div className="flex gap-2">
+            <Button onClick={() => window.location.reload()} className="flex-1">
+              Recargar página
+            </Button>
+            <Button variant="outline" onClick={() => router.push(`/tenant/${tenantId}/login`)} className="flex-1">
+              Iniciar sesión
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // If no user after auth loading is complete, redirect to login
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Acceso Denegado</h1>
+          <p className="mb-6">Debes iniciar sesión para acceder al panel de administración.</p>
+          <Button asChild>
+            <Link href={`/tenant/${tenantId}/login`}>Iniciar Sesión</Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // If still checking permissions, show loading
   if (loading) {
     return (
       <div className="flex h-screen">
@@ -183,29 +262,20 @@ function AdminLayoutContent({
     )
   }
 
-  if (!user) {
-    // Redirigir a la página de login
-    if (typeof window !== "undefined") {
-      window.location.href = "/login"
-    }
-    return null
-  }
-
-  if (!isAdmin) {
+  // If there's an error or user is not admin, show access denied
+  if (error || !isAdmin) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Acceso Denegado</h1>
-          <p className="mb-6">No tienes permisos para acceder al panel de administración.</p>
+          <p className="mb-6">{error || "No tienes permisos para acceder al panel de administración."}</p>
           <Button asChild>
-            <a href="/">Volver al Inicio</a>
+            <Link href={`/tenant/${tenantId}`}>Volver al Inicio</Link>
           </Button>
         </div>
       </div>
     )
   }
-
-  // Añadir el ítem de planes al menú
 
   return (
     <div className="flex h-screen bg-gray-100">
