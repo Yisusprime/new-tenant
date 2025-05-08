@@ -11,6 +11,8 @@ interface BranchContextType {
   setCurrentBranch: (branch: Branch) => void
   loading: boolean
   error: string | null
+  hasActiveBranches: boolean // Nueva propiedad para verificar si hay sucursales activas
+  hasBranches: boolean // Nueva propiedad para verificar si hay sucursales creadas
 }
 
 const BranchContext = createContext<BranchContextType>({
@@ -19,6 +21,8 @@ const BranchContext = createContext<BranchContextType>({
   setCurrentBranch: () => {},
   loading: true,
   error: null,
+  hasActiveBranches: false,
+  hasBranches: false,
 })
 
 export const useBranch = () => useContext(BranchContext)
@@ -28,9 +32,9 @@ export const BranchProvider = ({ children, tenantId }: { children: React.ReactNo
   const [currentBranch, setCurrentBranch] = useState<Branch | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [hasActiveBranches, setHasActiveBranches] = useState(false)
+  const [hasBranches, setHasBranches] = useState(false)
   const { user } = useAuth()
-
-  // Modificar el useEffect para manejar mejor los estados y errores
 
   useEffect(() => {
     if (!tenantId) {
@@ -43,18 +47,27 @@ export const BranchProvider = ({ children, tenantId }: { children: React.ReactNo
         setLoading(true)
         const branchesData = await getBranches(tenantId)
 
-        // Siempre establecer el array de sucursales, incluso si está vacío
+        // Establecer el array de sucursales
         setBranches(branchesData || [])
 
-        // Si hay sucursales, seleccionar una por defecto
-        if (branchesData && branchesData.length > 0) {
+        // Verificar si hay sucursales creadas
+        setHasBranches(branchesData.length > 0)
+
+        // Verificar si hay sucursales activas
+        const activeBranches = branchesData.filter((branch) => branch.isActive)
+        setHasActiveBranches(activeBranches.length > 0)
+
+        // Si hay sucursales activas, seleccionar una por defecto
+        if (activeBranches.length > 0) {
           // Intentar recuperar la última sucursal seleccionada del localStorage
           const savedBranchId = localStorage.getItem(`${tenantId}_currentBranch`)
-          const savedBranch = savedBranchId ? branchesData.find((b) => b.id === savedBranchId) : null
 
-          setCurrentBranch(savedBranch || branchesData[0])
+          // Verificar que la sucursal guardada esté activa
+          const savedBranch = savedBranchId ? activeBranches.find((b) => b.id === savedBranchId) : null
+
+          setCurrentBranch(savedBranch || activeBranches[0])
         } else {
-          // Si no hay sucursales, establecer currentBranch como null
+          // Si no hay sucursales activas, establecer currentBranch como null
           setCurrentBranch(null)
         }
 
@@ -62,11 +75,11 @@ export const BranchProvider = ({ children, tenantId }: { children: React.ReactNo
       } catch (err) {
         console.error("Error al cargar sucursales:", err)
         setError("No se pudieron cargar las sucursales")
-        // Establecer arrays vacíos para evitar undefined
         setBranches([])
         setCurrentBranch(null)
+        setHasActiveBranches(false)
+        setHasBranches(false)
       } finally {
-        // Siempre establecer loading a false al finalizar
         setLoading(false)
       }
     }
@@ -76,7 +89,6 @@ export const BranchProvider = ({ children, tenantId }: { children: React.ReactNo
 
   const handleSetCurrentBranch = (branch: Branch) => {
     setCurrentBranch(branch)
-    // Guardar la selección en localStorage para persistencia
     localStorage.setItem(`${tenantId}_currentBranch`, branch.id)
   }
 
@@ -88,6 +100,8 @@ export const BranchProvider = ({ children, tenantId }: { children: React.ReactNo
         setCurrentBranch: handleSetCurrentBranch,
         loading,
         error,
+        hasActiveBranches,
+        hasBranches,
       }}
     >
       {children}

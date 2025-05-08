@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useBranch } from "@/lib/context/branch-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
+import { BranchAlert } from "@/components/branch-alert"
 
 export default function ProductsPage({
   params,
@@ -17,6 +18,9 @@ export default function ProductsPage({
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Productos</h1>
       </div>
+
+      {/* Añadir el componente de alerta */}
+      <BranchAlert />
 
       {!currentBranch && (
         <Alert className="mb-6">

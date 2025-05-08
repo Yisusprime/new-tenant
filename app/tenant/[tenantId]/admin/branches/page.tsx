@@ -20,8 +20,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Pencil, Plus, MapPin } from "lucide-react"
+import { Pencil, Plus, MapPin, AlertCircle } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function BranchesPage({
   params,
@@ -29,7 +30,7 @@ export default function BranchesPage({
   params: { tenantId: string }
 }) {
   const { tenantId } = params
-  const { branches, currentBranch, setCurrentBranch, loading } = useBranch()
+  const { branches, currentBranch, setCurrentBranch, loading, hasActiveBranches, hasBranches } = useBranch()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingBranch, setEditingBranch] = useState<any>(null)
   const [formData, setFormData] = useState({
@@ -119,6 +120,17 @@ export default function BranchesPage({
         </Button>
       </div>
 
+      {/* Mostrar alerta si no hay sucursales activas */}
+      {hasBranches && !hasActiveBranches && (
+        <Alert variant="warning" className="mb-6 border-yellow-500 bg-yellow-50">
+          <AlertCircle className="h-4 w-4 text-yellow-600" />
+          <AlertTitle className="text-yellow-600">Atención</AlertTitle>
+          <AlertDescription className="text-yellow-600">
+            No tienes ninguna sucursal activa. Activa al menos una sucursal para poder utilizarla.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Lista de Sucursales</CardTitle>
@@ -128,7 +140,6 @@ export default function BranchesPage({
           {loading ? (
             <div className="text-center py-8">
               <p className="text-gray-500 mb-4">Cargando sucursales...</p>
-              {/* Añadir un timeout para mostrar un mensaje si la carga tarda demasiado */}
               {setTimeout(() => {
                 const loadingElement = document.getElementById("loading-timeout-message")
                 if (loadingElement) loadingElement.style.display = "block"
@@ -167,21 +178,34 @@ export default function BranchesPage({
                     <TableCell>{branch.phone || "—"}</TableCell>
                     <TableCell>
                       <span
-                        className={`px-2 py-1 rounded-full text-xs ${branch.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
+                        className={`px-2 py-1 rounded-full text-xs ${
+                          branch.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                        }`}
                       >
                         {branch.isActive ? "Activa" : "Inactiva"}
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCurrentBranch(branch)}
-                          disabled={currentBranch?.id === branch.id}
-                        >
-                          Seleccionar
-                        </Button>
+                        {branch.isActive ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentBranch(branch)}
+                            disabled={currentBranch?.id === branch.id}
+                          >
+                            Seleccionar
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenDialog(branch)}
+                            className="text-yellow-600 border-yellow-600 hover:bg-yellow-50"
+                          >
+                            Activar
+                          </Button>
+                        )}
                         <Button variant="outline" size="icon" onClick={() => handleOpenDialog(branch)}>
                           <Pencil className="h-4 w-4" />
                         </Button>

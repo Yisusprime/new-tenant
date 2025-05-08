@@ -13,10 +13,11 @@ import { LogOut, Menu, X, Home, MapPin, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { BranchProvider, useBranch } from "@/lib/context/branch-context"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { BranchAlert } from "@/components/branch-alert"
 
 // Componente para el selector de sucursales
 function BranchSelector() {
-  const { branches, currentBranch, setCurrentBranch, loading, error } = useBranch()
+  const { branches, currentBranch, setCurrentBranch, loading, error, hasActiveBranches } = useBranch()
 
   if (loading) return <Skeleton className="h-9 w-[180px]" />
 
@@ -29,6 +30,15 @@ function BranchSelector() {
       <div className="text-sm text-yellow-600 bg-yellow-100 px-3 py-2 rounded-md flex items-center">
         <AlertCircle className="h-4 w-4 mr-2" />
         No hay sucursales
+      </div>
+    )
+  }
+
+  if (!hasActiveBranches) {
+    return (
+      <div className="text-sm text-yellow-600 bg-yellow-100 px-3 py-2 rounded-md flex items-center">
+        <AlertCircle className="h-4 w-4 mr-2" />
+        No hay sucursales activas
       </div>
     )
   }
@@ -47,11 +57,13 @@ function BranchSelector() {
           <SelectValue placeholder="Seleccionar sucursal" />
         </SelectTrigger>
         <SelectContent>
-          {branches.map((branch) => (
-            <SelectItem key={branch.id} value={branch.id}>
-              {branch.name}
-            </SelectItem>
-          ))}
+          {branches
+            .filter((branch) => branch.isActive) // Solo mostrar sucursales activas
+            .map((branch) => (
+              <SelectItem key={branch.id} value={branch.id}>
+                {branch.name}
+              </SelectItem>
+            ))}
         </SelectContent>
       </Select>
     </div>
@@ -228,7 +240,11 @@ function AdminLayoutContent({
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto p-4">{children}</main>
+        <main className="flex-1 overflow-auto p-4">
+          {/* Añadir la alerta de sucursal en todas las páginas */}
+          <BranchAlert />
+          {children}
+        </main>
       </div>
     </div>
   )

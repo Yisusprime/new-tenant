@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { useBranch } from "@/lib/context/branch-context"
+import { BranchAlert } from "@/components/branch-alert"
 
 export default function AdminDashboardPage({
   params,
@@ -51,6 +52,9 @@ export default function AdminDashboardPage({
 
   return (
     <div>
+      {/* Añadir el componente de alerta */}
+      <BranchAlert />
+
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2 mb-8">
         <Card>
           <CardHeader className="pb-2">
