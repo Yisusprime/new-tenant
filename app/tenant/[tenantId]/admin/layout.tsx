@@ -3,33 +3,20 @@
 import type React from "react"
 
 import { useEffect, useState } from "react"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { doc, getDoc } from "firebase/firestore"
-import { signOut } from "firebase/auth"
+import { onAuthStateChanged, signOut } from "firebase/auth"
 import { auth, db } from "@/lib/firebase/client"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  LogOut,
-  Menu,
-  X,
-  Home,
-  MapPin,
-  AlertCircle,
-  CreditCard,
-  Settings,
-  User,
-  Shield,
-  ChevronDown,
-  AlertTriangle,
-} from "lucide-react"
+import { Menu, X, Home, MapPin, AlertCircle, CreditCard, User } from "lucide-react"
 import Link from "next/link"
 import { BranchProvider, useBranch } from "@/lib/context/branch-context"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { BranchAlertModal } from "@/components/branch-alert-modal"
 import { PlanProvider, usePlan } from "@/lib/context/plan-context"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { useAuth } from "@/lib/context/auth-context"
+import { ProfileProvider } from "@/lib/context/profile-context"
+import { ProfileDropdown } from "@/components/profile-dropdown"
 
 // Componente para el selector de sucursales
 function BranchSelector() {
@@ -116,75 +103,45 @@ function AdminLayoutContent({
 }) {
   const { tenantId } = params
   const pathname = usePathname()
-  const router = useRouter()
-  const { user, loading: authLoading, error: authError } = useAuth()
+  const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
   const [tenantData, setTenantData] = useState<any>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [redirectToLogin, setRedirectToLogin] = useState(false)
-
-  const menuItems = [
-    { path: "/dashboard", label: "Dashboard", icon: Home },
-    { path: "/branches", label: "Sucursales", icon: MapPin },
-    { path: "/products", label: "Productos", icon: AlertCircle },
-    { path: "/plans", label: "Planes", icon: CreditCard },
-  ]
-
-  const [settingsOpen, setSettingsOpen] = useState(false)
 
   useEffect(() => {
-    console.log("AdminLayout auth state:", { user: user?.uid, loading: authLoading, error: authError })
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser)
 
-    async function checkPermissions() {
-      if (!user) return
+      if (currentUser) {
+        try {
+          // Verificar si el usuario es administrador
+          const roleDoc = await getDoc(doc(db, `tenants/${tenantId}/roles`, currentUser.uid))
 
-      try {
-        // Verificar si el usuario es administrador
-        const roleDoc = await getDoc(doc(db, `tenants/${tenantId}/roles`, user.uid))
+          if (roleDoc.exists() && roleDoc.data().role === "admin") {
+            setIsAdmin(true)
+          }
 
-        if (roleDoc.exists() && roleDoc.data().role === "admin") {
-          setIsAdmin(true)
-        } else {
-          setError("No tienes permisos de administrador para este tenant")
+          // Obtener datos del tenant
+          const tenantDoc = await getDoc(doc(db, "tenants", tenantId))
+          if (tenantDoc.exists()) {
+            setTenantData(tenantDoc.data())
+          }
+        } catch (error) {
+          console.error("Error verificando permisos:", error)
         }
-
-        // Obtener datos del tenant
-        const tenantDoc = await getDoc(doc(db, "tenants", tenantId))
-        if (tenantDoc.exists()) {
-          setTenantData(tenantDoc.data())
-        } else {
-          setError("El tenant no existe")
-        }
-      } catch (err) {
-        console.error("Error verificando permisos:", err)
-        setError("Error al verificar permisos")
-      } finally {
-        setLoading(false)
       }
-    }
 
-    if (!authLoading) {
-      if (user) {
-        checkPermissions()
-      } else {
-        setLoading(false)
-        setRedirectToLogin(true)
-      }
-    }
-  }, [user, authLoading, tenantId, authError])
+      setLoading(false)
+    })
 
-  useEffect(() => {
-    if (redirectToLogin) {
-      router.push(`/tenant/${tenantId}/login`)
-    }
-  }, [redirectToLogin, router, tenantId])
+    return () => unsubscribe()
+  }, [tenantId])
 
   const handleLogout = async () => {
     try {
       await signOut(auth)
-      router.push(`/tenant/${tenantId}/login`)
+      window.location.href = "/login"
     } catch (error) {
       console.error("Error al cerrar sesión:", error)
     }
@@ -195,61 +152,6 @@ function AdminLayoutContent({
     return pathname === `/tenant/${tenantId}/admin${path}`
   }
 
-  // If auth is still loading, show a loading skeleton
-  if (authLoading) {
-    return (
-      <div className="flex h-screen">
-        <Skeleton className="h-full w-64" />
-        <div className="flex-1 p-8">
-          <Skeleton className="h-12 w-48 mb-6" />
-          <Skeleton className="h-64 w-full rounded-lg" />
-        </div>
-      </div>
-    )
-  }
-
-  // If there's an auth error, show it
-  if (authError) {
-    return (
-      <div className="flex items-center justify-center h-screen p-4">
-        <div className="max-w-md w-full">
-          <Alert variant="destructive" className="mb-4">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Error de autenticación</AlertTitle>
-            <AlertDescription>
-              <p className="mb-2">{authError}</p>
-              <p>Intenta recargar la página o iniciar sesión nuevamente.</p>
-            </AlertDescription>
-          </Alert>
-          <div className="flex gap-2">
-            <Button onClick={() => window.location.reload()} className="flex-1">
-              Recargar página
-            </Button>
-            <Button variant="outline" onClick={() => router.push(`/tenant/${tenantId}/login`)} className="flex-1">
-              Iniciar sesión
-            </Button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // If no user after auth loading is complete, redirect to login
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Acceso Denegado</h1>
-          <p className="mb-6">Debes iniciar sesión para acceder al panel de administración.</p>
-          <Button asChild>
-            <Link href={`/tenant/${tenantId}/login`}>Iniciar Sesión</Link>
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
-  // If still checking permissions, show loading
   if (loading) {
     return (
       <div className="flex h-screen">
@@ -262,20 +164,36 @@ function AdminLayoutContent({
     )
   }
 
-  // If there's an error or user is not admin, show access denied
-  if (error || !isAdmin) {
+  if (!user) {
+    // Redirigir a la página de login
+    if (typeof window !== "undefined") {
+      window.location.href = "/login"
+    }
+    return null
+  }
+
+  if (!isAdmin) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Acceso Denegado</h1>
-          <p className="mb-6">{error || "No tienes permisos para acceder al panel de administración."}</p>
+          <p className="mb-6">No tienes permisos para acceder al panel de administración.</p>
           <Button asChild>
-            <Link href={`/tenant/${tenantId}`}>Volver al Inicio</Link>
+            <a href="/">Volver al Inicio</a>
           </Button>
         </div>
       </div>
     )
   }
+
+  // Añadir el ítem de planes al menú
+  const menuItems = [
+    { path: "/dashboard", label: "Dashboard", icon: Home },
+    { path: "/branches", label: "Sucursales", icon: MapPin },
+    { path: "/plans", label: "Planes", icon: CreditCard },
+    { path: "/profile", label: "Perfil", icon: User },
+    { path: "/debug", label: "Depuración", icon: AlertCircle },
+  ]
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -311,79 +229,17 @@ function AdminLayoutContent({
                 </Link>
               </li>
             ))}
-
-            {/* Settings Collapsible Section */}
-            <li>
-              <button
-                onClick={() => setSettingsOpen(!settingsOpen)}
-                className={`w-full flex items-center justify-between px-4 py-2 rounded-md transition-colors hover:bg-gray-100`}
-              >
-                <div className="flex items-center">
-                  <Settings className="mr-3 h-5 w-5" />
-                  Configuración
-                </div>
-                <ChevronDown className={`h-4 w-4 transition-transform ${settingsOpen ? "rotate-180" : ""}`} />
-              </button>
-
-              {settingsOpen && (
-                <ul className="mt-1 ml-4 space-y-1 border-l pl-4">
-                  <li>
-                    <Link
-                      href="/admin/settings/profile"
-                      className={`flex items-center px-4 py-2 rounded-md transition-colors ${
-                        isActive("/settings/profile") ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
-                      }`}
-                    >
-                      <User className="mr-3 h-4 w-4" />
-                      Perfil
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/admin/settings/account"
-                      className={`flex items-center px-4 py-2 rounded-md transition-colors ${
-                        isActive("/settings/account") ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
-                      }`}
-                    >
-                      <Shield className="mr-3 h-4 w-4" />
-                      Cuenta
-                    </Link>
-                  </li>
-                </ul>
-              )}
-            </li>
-
-            <li>
-              <Link
-                href="/admin/debug"
-                className={`flex items-center px-4 py-2 rounded-md transition-colors ${
-                  isActive("/debug") ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
-                }`}
-              >
-                <AlertCircle className="mr-3 h-5 w-5" />
-                Depuración
-              </Link>
-            </li>
           </ul>
         </nav>
 
         <div className="absolute bottom-0 w-full p-4 border-t">
-          <div className="flex items-center mb-4">
-            <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center mr-2">
-              {user?.email?.charAt(0).toUpperCase() || "U"}
-            </div>
-            <div className="truncate">
-              <div className="font-medium truncate">{user?.email}</div>
-              <div className="text-xs text-gray-500 flex items-center gap-2">
-                <span>Administrador</span>
-                <PlanBadge />
-              </div>
+          <ProfileDropdown />
+          <div className="mt-2 flex items-center justify-between">
+            <div className="text-xs text-gray-500 flex items-center gap-2">
+              <span>Administrador</span>
+              <PlanBadge />
             </div>
           </div>
-          <Button variant="outline" className="w-full flex items-center justify-center" onClick={handleLogout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Cerrar Sesión
-          </Button>
         </div>
       </div>
 
@@ -424,7 +280,9 @@ export default function AdminLayout({
   return (
     <PlanProvider tenantId={params.tenantId}>
       <BranchProvider tenantId={params.tenantId}>
-        <AdminLayoutContent params={params}>{children}</AdminLayoutContent>
+        <ProfileProvider tenantId={params.tenantId}>
+          <AdminLayoutContent params={params}>{children}</AdminLayoutContent>
+        </ProfileProvider>
       </BranchProvider>
     </PlanProvider>
   )
