@@ -107,9 +107,7 @@ export default function AdminLayout({
   const menuItems = [
     { path: "/dashboard", label: "Dashboard", icon: Home },
     { path: "/products", label: "Productos", icon: ShoppingBag },
-    { path: "/orders", label: "Pedidos", icon: BarChart2 },
-    { path: "/customers", label: "Clientes", icon: Users },
-    { path: "/settings", label: "Configuración", icon: Settings },
+
   ]
 
   return (
