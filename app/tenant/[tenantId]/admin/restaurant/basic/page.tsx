@@ -2,9 +2,8 @@
 
 import type React from "react"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useRef } from "react"
 import {
-  getRestaurantConfig,
   updateRestaurantConfigSection,
   uploadRestaurantLogo,
   deleteRestaurantLogo,
@@ -21,6 +20,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { Loader2, Camera, Trash, Store } from "lucide-react"
 import Image from "next/image"
 import { useBranch } from "@/lib/context/branch-context"
+import { useRestaurantConfig } from "@/hooks/use-restaurant-config"
 
 export default function RestaurantBasicInfoPage({
   params,
@@ -28,51 +28,24 @@ export default function RestaurantBasicInfoPage({
   params: { tenantId: string }
 }) {
   const { tenantId } = params
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
-  const [basicInfo, setBasicInfo] = useState<RestaurantBasicInfo>({
-    name: "",
-    shortDescription: "",
-    localId: "",
-    taxIncluded: true,
-  })
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const { currentBranch } = useBranch()
 
-  useEffect(() => {
-    async function loadConfig() {
-      try {
-        setLoading(true)
-
-        if (!currentBranch) {
-          setLoading(false)
-          return
-        }
-
-        const config = await getRestaurantConfig(tenantId, currentBranch.id)
-
-        if (config && config.basicInfo) {
-          setBasicInfo(config.basicInfo)
-        } else {
-          // Establecer el ID del local igual al tenantId por defecto
-          setBasicInfo((prev) => ({ ...prev, localId: tenantId, name: currentBranch.name }))
-        }
-      } catch (error) {
-        console.error("Error al cargar configuración:", error)
-        toast({
-          title: "Error",
-          description: "No se pudo cargar la información del restaurante",
-          variant: "destructive",
-        })
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadConfig()
-  }, [tenantId, currentBranch, toast])
+  // Usar nuestro hook personalizado para cargar los datos
+  const {
+    data: basicInfo,
+    setData: setBasicInfo,
+    loading,
+    saveCompleted,
+  } = useRestaurantConfig<RestaurantBasicInfo>(tenantId, "basicInfo", {
+    name: currentBranch?.name || "",
+    shortDescription: "",
+    localId: tenantId,
+    taxIncluded: true,
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -97,12 +70,7 @@ export default function RestaurantBasicInfoPage({
       })
 
       // Marcar este paso como completado
-      const branchKey = `${tenantId}_${currentBranch.id}_completedConfigSteps`
-      const completedSteps = JSON.parse(localStorage.getItem(branchKey) || "[]")
-      if (!completedSteps.includes("basic")) {
-        completedSteps.push("basic")
-        localStorage.setItem(branchKey, JSON.stringify(completedSteps))
-      }
+      saveCompleted("basic")
     } catch (error) {
       console.error("Error al guardar información básica:", error)
       toast({
@@ -209,7 +177,7 @@ export default function RestaurantBasicInfoPage({
 
       <RestaurantConfigSteps tenantId={tenantId} currentStep="basic" />
 
-      {currentBranch ? (
+      {currentBranch && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -343,7 +311,7 @@ export default function RestaurantBasicInfoPage({
             </Button>
           </CardFooter>
         </Card>
-      ) : null}
+      )}
     </div>
   )
 }
