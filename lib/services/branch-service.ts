@@ -37,16 +37,30 @@ export async function createBranch(tenantId: string, branchData: Omit<Branch, "i
   }
 }
 
-// Función para obtener todas las sucursales de un tenant
+// Modificar la función getBranches para manejar mejor los errores y casos vacíos
+
 export async function getBranches(tenantId: string) {
   try {
     const branchesRef = collection(db, `tenants/${tenantId}/branches`)
     const branchesSnapshot = await getDocs(branchesRef)
 
-    return branchesSnapshot.docs.map((doc) => doc.data() as Branch)
+    // Si no hay documentos, devolver un array vacío en lugar de lanzar un error
+    if (branchesSnapshot.empty) {
+      console.log("No hay sucursales configuradas para este tenant")
+      return []
+    }
+
+    return branchesSnapshot.docs.map(
+      (doc) =>
+        ({
+          id: doc.id,
+          ...doc.data(),
+        }) as Branch,
+    )
   } catch (error) {
     console.error("Error al obtener sucursales:", error)
-    throw error
+    // Devolver array vacío en caso de error para evitar bloqueos
+    return []
   }
 }
 

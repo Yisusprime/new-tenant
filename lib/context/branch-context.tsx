@@ -30,35 +30,49 @@ export const BranchProvider = ({ children, tenantId }: { children: React.ReactNo
   const [error, setError] = useState<string | null>(null)
   const { user } = useAuth()
 
+  // Modificar el useEffect para manejar mejor los estados y errores
+
   useEffect(() => {
-    if (!tenantId || !user) return
+    if (!tenantId) {
+      setLoading(false)
+      return
+    }
 
     const fetchBranches = async () => {
       try {
         setLoading(true)
         const branchesData = await getBranches(tenantId)
-        setBranches(branchesData)
 
-        // Si hay sucursales, seleccionar la primera por defecto
-        if (branchesData.length > 0) {
+        // Siempre establecer el array de sucursales, incluso si está vacío
+        setBranches(branchesData || [])
+
+        // Si hay sucursales, seleccionar una por defecto
+        if (branchesData && branchesData.length > 0) {
           // Intentar recuperar la última sucursal seleccionada del localStorage
           const savedBranchId = localStorage.getItem(`${tenantId}_currentBranch`)
           const savedBranch = savedBranchId ? branchesData.find((b) => b.id === savedBranchId) : null
 
           setCurrentBranch(savedBranch || branchesData[0])
+        } else {
+          // Si no hay sucursales, establecer currentBranch como null
+          setCurrentBranch(null)
         }
 
         setError(null)
       } catch (err) {
         console.error("Error al cargar sucursales:", err)
         setError("No se pudieron cargar las sucursales")
+        // Establecer arrays vacíos para evitar undefined
+        setBranches([])
+        setCurrentBranch(null)
       } finally {
+        // Siempre establecer loading a false al finalizar
         setLoading(false)
       }
     }
 
     fetchBranches()
-  }, [tenantId, user])
+  }, [tenantId])
 
   const handleSetCurrentBranch = (branch: Branch) => {
     setCurrentBranch(branch)

@@ -9,20 +9,30 @@ import { onAuthStateChanged, signOut } from "firebase/auth"
 import { auth, db } from "@/lib/firebase/client"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { LogOut, Menu, X, Home, ShoppingBag, MapPin } from "lucide-react"
+import { LogOut, Menu, X, Home, ShoppingBag, MapPin, AlertCircleIcon } from "lucide-react"
 import Link from "next/link"
+// Asegurarnos de que el import de BranchProvider es correcto
+
 import { BranchProvider, useBranch } from "@/lib/context/branch-context"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-// Componente para el selector de sucursales
+// Mejorar el componente BranchSelector para manejar mejor los estados
+
 function BranchSelector() {
-  const { branches, currentBranch, setCurrentBranch, loading } = useBranch()
+  const { branches, currentBranch, setCurrentBranch, loading, error } = useBranch()
 
   if (loading) return <Skeleton className="h-9 w-[180px]" />
 
-  if (branches.length === 0) {
+  if (error) {
+    return <div className="text-sm text-red-600 bg-red-100 px-3 py-2 rounded-md">Error: {error}</div>
+  }
+
+  if (!branches || branches.length === 0) {
     return (
-      <div className="text-sm text-yellow-600 bg-yellow-100 px-3 py-2 rounded-md">No hay sucursales configuradas</div>
+      <div className="text-sm text-yellow-600 bg-yellow-100 px-3 py-2 rounded-md flex items-center">
+        <AlertCircleIcon className="h-4 w-4 mr-2" />
+        No hay sucursales
+      </div>
     )
   }
 
@@ -148,6 +158,8 @@ function AdminLayoutContent({
     { path: "/dashboard", label: "Dashboard", icon: Home },
     { path: "/products", label: "Productos", icon: ShoppingBag },
     { path: "/branches", label: "Sucursales", icon: MapPin },
+    // Añadir este nuevo ítem
+    { path: "/debug", label: "Depuración", icon: AlertCircleIcon },
   ]
 
   return (

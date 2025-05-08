@@ -126,7 +126,18 @@ export default function BranchesPage({
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p className="text-center py-4">Cargando sucursales...</p>
+            <div className="text-center py-8">
+              <p className="text-gray-500 mb-4">Cargando sucursales...</p>
+              {/* Añadir un timeout para mostrar un mensaje si la carga tarda demasiado */}
+              {setTimeout(() => {
+                const loadingElement = document.getElementById("loading-timeout-message")
+                if (loadingElement) loadingElement.style.display = "block"
+              }, 5000) && (
+                <p id="loading-timeout-message" className="text-yellow-600 mt-4" style={{ display: "none" }}>
+                  La carga está tardando más de lo esperado. Si continúa, intenta refrescar la página.
+                </p>
+              )}
+            </div>
           ) : branches.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-gray-500 mb-4">No hay sucursales configuradas</p>
