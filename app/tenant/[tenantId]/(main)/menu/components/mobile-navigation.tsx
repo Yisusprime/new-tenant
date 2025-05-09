@@ -3,9 +3,12 @@
 import { useState } from "react"
 import Link from "next/link"
 import { Home, Search, ShoppingBag, User, Plus } from "lucide-react"
+import { useRouter } from "next/navigation"
 
-export function MobileNavigation() {
+export function MobileNavigation({ params }: { params?: { tenantId: string } }) {
   const [cartCount, setCartCount] = useState(3) // Simulación de productos en el carrito
+  const router = useRouter()
+  const tenantId = params?.tenantId || ""
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 shadow-lg">
@@ -21,12 +24,15 @@ export function MobileNavigation() {
         </Link>
 
         {/* Botón central con signo + */}
-        <Link href="#" className="flex flex-col items-center justify-center">
+        <div
+          className="flex flex-col items-center justify-center"
+          onClick={() => router.push(`/tenant/${params.tenantId}/menu/login`)}
+        >
           <div className="bg-primary rounded-full w-12 h-12 flex items-center justify-center -mt-5">
             <Plus className="h-6 w-6 text-white" />
           </div>
           <span className="text-xs mt-1 text-gray-500">Ordenar</span>
-        </Link>
+        </div>
 
         <Link href="#" className="flex flex-col items-center justify-center">
           <div className="relative">
@@ -40,7 +46,7 @@ export function MobileNavigation() {
           <span className="text-xs mt-1 text-gray-500">Carrito</span>
         </Link>
 
-        <Link href="#" className="flex flex-col items-center justify-center">
+        <Link href={`/tenant/${params.tenantId}/menu/login`} className="flex flex-col items-center justify-center">
           <User className="h-5 w-5 text-gray-500" />
           <span className="text-xs mt-1 text-gray-500">Perfil</span>
         </Link>

@@ -6,14 +6,19 @@ import { MapPin, Info, Star, Search, User, ShoppingBag } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { isRestaurantOpen } from "../utils/restaurant-hours"
+import { DesktopNavigation } from "./desktop-navigation"
 
-interface RestaurantHeaderProps {
+export function RestaurantHeader({
+  restaurantData,
+  restaurantConfig,
+  onInfoClick,
+  params,
+}: {
   restaurantData: any
   restaurantConfig: any
   onInfoClick: () => void
-}
-
-export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick }: RestaurantHeaderProps) {
+  params?: { tenantId: string }
+}) {
   const [isOpen, setIsOpen] = useState(false)
 
   useEffect(() => {
@@ -34,6 +39,10 @@ export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick
     <div className="bg-white relative">
       {/* Botones de PC en la esquina superior derecha */}
       <div className="absolute top-4 right-4 z-10 hidden md:flex gap-2">
+        {/* Navegación de escritorio */}
+        <div className="hidden md:block">
+          <DesktopNavigation params={params} />
+        </div>
         <Button variant="outline" size="sm" className="bg-white/80 backdrop-blur-sm rounded-full">
           <Search className="h-4 w-4 mr-2" />
           Buscar

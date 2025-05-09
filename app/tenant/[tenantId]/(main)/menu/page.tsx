@@ -212,6 +212,7 @@ export default function MenuPage({
               restaurantData={restaurantData}
               restaurantConfig={restaurantConfig}
               onInfoClick={() => setInfoModalOpen(true)}
+              params={params}
             />
           </div>
 
@@ -241,7 +242,7 @@ export default function MenuPage({
 
           {/* Navegación móvil */}
           <div className="md:hidden">
-            <MobileNavigation />
+            <MobileNavigation params={params} />
           </div>
 
           {/* Carrito */}

@@ -7,9 +7,12 @@ import { Search, ShoppingBag, User, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { useRouter } from "next/navigation"
 
-export function DesktopNavigation() {
+export function DesktopNavigation({ params }: { params?: { tenantId: string } }) {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const router = useRouter()
+  const tenantId = params?.tenantId || ""
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
@@ -96,12 +99,14 @@ export function DesktopNavigation() {
             </Button>
 
             {/* Usuario */}
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" onClick={() => router.push(`/tenant/${params.tenantId}/menu/login`)}>
               <User className="h-5 w-5" />
             </Button>
 
             {/* Botón de pedido */}
-            <Button className="hidden md:flex">Ordenar ahora</Button>
+            <Button className="hidden md:flex" onClick={() => router.push(`/tenant/${params.tenantId}/menu/login`)}>
+              Ordenar ahora
+            </Button>
           </div>
         </div>
       </div>
