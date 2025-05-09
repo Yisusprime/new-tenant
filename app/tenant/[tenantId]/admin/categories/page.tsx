@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation"
 import { useBranch } from "@/lib/context/branch-context"
 import { getCategories, deleteCategory, type Category } from "@/lib/services/category-service"
 import { Button } from "@/components/ui/button"
-import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, Plus, Edit, Trash, FolderOpen, ImageIcon, Search } from "lucide-react"
+import { Loader2, Plus, Edit, Trash, FolderOpen, ImageIcon, Search, Layers } from "lucide-react"
 import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
 import {
   AlertDialog,
@@ -91,6 +91,12 @@ export default function CategoriesPage({ params }: { params: { tenantId: string 
     category.name.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
+  // Función para contar subcategorías
+  const countSubcategories = (category: Category): number => {
+    if (!category.subcategories) return 0
+    return Object.keys(category.subcategories).length
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -134,85 +140,104 @@ export default function CategoriesPage({ params }: { params: { tenantId: string 
       ) : currentBranch ? (
         filteredCategories.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {filteredCategories.map((category) => (
-              <Card key={category.id} className="overflow-hidden">
-                <div className="h-40 bg-muted relative">
-                  {category.imageUrl ? (
-                    <img
-                      src={category.imageUrl || "/placeholder.svg"}
-                      alt={category.name}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full">
-                      <ImageIcon className="h-12 w-12 text-muted-foreground" />
-                    </div>
-                  )}
-                </div>
-                <CardHeader className="p-4 pb-2">
-                  <div className="flex justify-between items-start">
-                    <CardTitle className="text-lg">{category.name}</CardTitle>
-                    <Badge variant={category.isActive ? "default" : "outline"}>
-                      {category.isActive ? "Activo" : "Inactivo"}
-                    </Badge>
+            {filteredCategories.map((category) => {
+              const subcategoriesCount = countSubcategories(category)
+              return (
+                <Card key={category.id} className="overflow-hidden">
+                  <div className="h-40 bg-muted relative">
+                    {category.imageUrl ? (
+                      <img
+                        src={category.imageUrl || "/placeholder.svg"}
+                        alt={category.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <ImageIcon className="h-12 w-12 text-muted-foreground" />
+                      </div>
+                    )}
+                    {subcategoriesCount > 0 && (
+                      <div className="absolute top-2 right-2 bg-primary text-white rounded-full px-2 py-1 text-xs font-medium flex items-center">
+                        <Layers className="h-3 w-3 mr-1" />
+                        {subcategoriesCount}
+                      </div>
+                    )}
                   </div>
-                  <CardDescription className="line-clamp-2">
-                    {category.description || "Sin descripción"}
-                  </CardDescription>
-                </CardHeader>
-                <CardFooter className="p-4 pt-2 flex justify-between">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => router.push(`/admin/categories/${category.id}/subcategories`)}
-                  >
-                    <FolderOpen className="mr-2 h-4 w-4" />
-                    Subcategorías
-                  </Button>
-                  <div className="flex space-x-2">
+                  <CardHeader className="p-4 pb-2">
+                    <div className="flex justify-between items-start">
+                      <CardTitle className="text-lg">{category.name}</CardTitle>
+                      <Badge variant={category.isActive ? "default" : "outline"}>
+                        {category.isActive ? "Activo" : "Inactivo"}
+                      </Badge>
+                    </div>
+                    <CardDescription className="line-clamp-2">
+                      {category.description || "Sin descripción"}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="px-4 pt-0 pb-2">
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Layers className="h-4 w-4 mr-1" />
+                      {subcategoriesCount === 0
+                        ? "Sin subcategorías"
+                        : subcategoriesCount === 1
+                          ? "1 subcategoría"
+                          : `${subcategoriesCount} subcategorías`}
+                    </div>
+                  </CardContent>
+                  <CardFooter className="p-4 pt-2 flex justify-between">
                     <Button
                       variant="outline"
-                      size="icon"
-                      onClick={() => router.push(`/admin/categories/${category.id}`)}
+                      size="sm"
+                      onClick={() => router.push(`/admin/categories/${category.id}/subcategories`)}
                     >
-                      <Edit className="h-4 w-4" />
+                      <FolderOpen className="mr-2 h-4 w-4" />
+                      Subcategorías
                     </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="outline" size="icon" className="text-red-500 hover:text-red-600">
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>¿Eliminar categoría?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Se eliminarán la categoría, todas sus subcategorías y la
-                            imagen asociada.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDeleteCategory(category.id)}
-                            className="bg-red-500 hover:bg-red-600"
-                            disabled={deleting === category.id}
-                          >
-                            {deleting === category.id ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Eliminando...
-                              </>
-                            ) : (
-                              "Eliminar"
-                            )}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </CardFooter>
-              </Card>
-            ))}
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => router.push(`/admin/categories/${category.id}`)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" size="icon" className="text-red-500 hover:text-red-600">
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>¿Eliminar categoría?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Esta acción no se puede deshacer. Se eliminarán la categoría, todas sus subcategorías y la
+                              imagen asociada.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteCategory(category.id)}
+                              className="bg-red-500 hover:bg-red-600"
+                              disabled={deleting === category.id}
+                            >
+                              {deleting === category.id ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Eliminando...
+                                </>
+                              ) : (
+                                "Eliminar"
+                              )}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </CardFooter>
+                </Card>
+              )
+            })}
           </div>
         ) : (
           <div className="text-center py-10 bg-gray-50 rounded-lg">
