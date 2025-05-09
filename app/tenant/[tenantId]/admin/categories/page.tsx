@@ -74,12 +74,12 @@ export default function CategoriesPage({
       return
     }
 
-    router.push(`/admin/categories/new`)
+    router.push(`/tenant/${tenantId}/admin/categories/new`)
   }
 
   const handleEditCategory = (categoryId: string) => {
     if (!currentBranch) return
-    router.push(`/admin/categories/${categoryId}`)
+    router.push(`/tenant/${tenantId}/admin/categories/${categoryId}`)
   }
 
   const handleDeleteCategory = async () => {
@@ -114,7 +114,7 @@ export default function CategoriesPage({
 
   const handleManageSubcategories = (categoryId: string) => {
     if (!currentBranch) return
-    router.push(`/admin/categories/${categoryId}/subcategories`)
+    router.push(`/tenant/${tenantId}/admin/categories/${categoryId}/subcategories`)
   }
 
   return (
@@ -162,17 +162,25 @@ export default function CategoriesPage({
                   <TableRow key={category.id}>
                     <TableCell>
                       <div className="relative h-12 w-12 rounded-md overflow-hidden">
-                        <Image
-                          src={category.imageUrl || "/placeholder.svg?height=48&width=48&query=food"}
-                          alt={category.name}
-                          fill
-                          className="object-cover"
-                        />
+                        {category.imageUrl ? (
+                          <Image
+                            src={category.imageUrl || "/placeholder.svg"}
+                            alt={category.name}
+                            fill
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="h-12 w-12 bg-gray-200 flex items-center justify-center rounded-md">
+                            <span className="text-xs text-gray-500">Sin imagen</span>
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="font-medium">{category.name}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{category.subcategories?.length || 0} subcategorías</Badge>
+                      <Badge variant="outline">
+                        {category.subcategories ? Object.keys(category.subcategories).length : 0} subcategorías
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       {category.isActive ? (

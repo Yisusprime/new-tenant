@@ -41,6 +41,7 @@ export default function CategoryFormPage({
     order: 0,
     isActive: true,
   })
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const router = useRouter()
@@ -117,28 +118,39 @@ export default function CategoryFormPage({
       setSaving(true)
 
       if (isNewCategory) {
-        // Crear nueva categoría
-        await createCategory(tenantId, currentBranch.id, {
-          name: formData.name!,
-          description: formData.description,
-          imageUrl: formData.imageUrl,
-          order: formData.order || 0,
-          isActive: formData.isActive !== false,
-        })
+        // Crear nueva categoría con la imagen si existe
+        await createCategory(
+          tenantId,
+          currentBranch.id,
+          {
+            name: formData.name!,
+            description: formData.description,
+            imageUrl: formData.imageUrl,
+            order: formData.order || 0,
+            isActive: formData.isActive !== false,
+          },
+          imageFile || undefined,
+        )
 
         toast({
           title: "Categoría creada",
           description: "La categoría se ha creado correctamente",
         })
       } else {
-        // Actualizar categoría existente
-        await updateCategory(tenantId, currentBranch.id, categoryId, {
-          name: formData.name,
-          description: formData.description,
-          imageUrl: formData.imageUrl,
-          order: formData.order,
-          isActive: formData.isActive,
-        })
+        // Actualizar categoría existente con la imagen si existe
+        await updateCategory(
+          tenantId,
+          currentBranch.id,
+          categoryId,
+          {
+            name: formData.name,
+            description: formData.description,
+            imageUrl: formData.imageUrl,
+            order: formData.order,
+            isActive: formData.isActive,
+          },
+          imageFile || undefined,
+        )
 
         toast({
           title: "Categoría actualizada",
@@ -147,7 +159,7 @@ export default function CategoryFormPage({
       }
 
       // Redirigir a la lista de categorías
-      router.push("/admin/categories")
+      router.push(`/tenant/${tenantId}/admin/categories`)
     } catch (error) {
       console.error("Error al guardar categoría:", error)
       toast({
@@ -189,8 +201,10 @@ export default function CategoryFormPage({
       setUploadingImage(true)
 
       if (isNewCategory) {
-        // Para categorías nuevas, solo guardamos el archivo temporalmente
-        // y lo subimos cuando se guarde la categoría
+        // Para categorías nuevas, guardamos el archivo para subirlo cuando se guarde la categoría
+        setImageFile(file)
+
+        // Mostrar vista previa
         const reader = new FileReader()
         reader.onload = (event) => {
           if (event.target?.result) {
@@ -199,7 +213,7 @@ export default function CategoryFormPage({
         }
         reader.readAsDataURL(file)
       } else {
-        // Para categorías existentes, subimos la imagen directamente
+        // Para categorías existentes, subimos la imagen directamente a Blob
         const imageUrl = await uploadCategoryImage(tenantId, currentBranch.id, categoryId, file)
         setFormData((prev) => ({ ...prev, imageUrl }))
 
@@ -224,6 +238,7 @@ export default function CategoryFormPage({
 
   const handleRemoveImage = () => {
     setFormData((prev) => ({ ...prev, imageUrl: "" }))
+    setImageFile(null)
   }
 
   if (loading) {
@@ -238,7 +253,7 @@ export default function CategoryFormPage({
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">{isNewCategory ? "Nueva Categoría" : "Editar Categoría"}</h1>
-        <Button variant="outline" onClick={() => router.push("/admin/categories")}>
+        <Button variant="outline" onClick={() => router.push(`/tenant/${tenantId}/admin/categories`)}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Volver
         </Button>
       </div>

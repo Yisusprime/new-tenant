@@ -1,7 +1,6 @@
-import { db } from "@/lib/firebase/client"
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, orderBy } from "firebase/firestore"
-import { del, put } from "@vercel/blob"
-import { v4 as uuidv4 } from "uuid"
+import { ref, get, set, update, remove, push } from "firebase/database"
+import { realtimeDb } from "@/lib/firebase/client"
+import { put, del } from "@vercel/blob"
 
 export interface Subcategory {
   id: string
@@ -20,7 +19,7 @@ export interface Category {
   imageUrl?: string
   order: number
   isActive: boolean
-  subcategories?: Subcategory[]
+  subcategories?: Record<string, Subcategory>
   createdAt: string
   updatedAt: string
 }
@@ -28,36 +27,39 @@ export interface Category {
 // Función para obtener todas las categorías de una sucursal
 export async function getCategories(tenantId: string, branchId: string): Promise<Category[]> {
   try {
-    const categoriesRef = collection(db, `tenants/${tenantId}/branches/${branchId}/categories`)
-    const q = query(categoriesRef, orderBy("order", "asc"))
-    const snapshot = await getDocs(q)
+    const categoriesRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories`)
+    const snapshot = await get(categoriesRef)
 
-    const categories: Category[] = []
-
-    for (const categoryDoc of snapshot.docs) {
-      const categoryData = categoryDoc.data() as Category
-
-      // Obtener subcategorías
-      const subcategoriesRef = collection(
-        db,
-        `tenants/${tenantId}/branches/${branchId}/categories/${categoryDoc.id}/subcategories`,
-      )
-      const subcategoriesQuery = query(subcategoriesRef, orderBy("order", "asc"))
-      const subcategoriesSnapshot = await getDocs(subcategoriesQuery)
-
-      const subcategories = subcategoriesSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Subcategory[]
-
-      categories.push({
-        id: categoryDoc.id,
-        ...categoryData,
-        subcategories,
-      })
+    if (!snapshot.exists()) {
+      return []
     }
 
-    return categories
+    const categoriesData = snapshot.val()
+
+    // Convertir el objeto a un array y ordenar por el campo order
+    const categories = Object.entries(categoriesData).map(([id, data]) => {
+      const categoryData = data as any
+
+      // Convertir subcategorías si existen
+      let subcategories: Subcategory[] = []
+      if (categoryData.subcategories) {
+        subcategories = Object.entries(categoryData.subcategories).map(([subId, subData]) => ({
+          id: subId,
+          ...(subData as any),
+        }))
+        // Ordenar subcategorías por orden
+        subcategories.sort((a, b) => a.order - b.order)
+      }
+
+      return {
+        id,
+        ...categoryData,
+        subcategories,
+      } as Category
+    })
+
+    // Ordenar categorías por orden
+    return categories.sort((a, b) => a.order - b.order)
   } catch (error) {
     console.error("Error al obtener categorías:", error)
     throw error
@@ -67,30 +69,31 @@ export async function getCategories(tenantId: string, branchId: string): Promise
 // Función para obtener una categoría específica
 export async function getCategory(tenantId: string, branchId: string, categoryId: string): Promise<Category | null> {
   try {
-    const categoryRef = doc(db, `tenants/${tenantId}/branches/${branchId}/categories`, categoryId)
-    const categoryDoc = await getDoc(categoryRef)
+    const categoryRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}`)
+    const snapshot = await get(categoryRef)
 
-    if (!categoryDoc.exists()) {
+    if (!snapshot.exists()) {
       return null
     }
 
-    const categoryData = categoryDoc.data() as Category
+    const categoryData = snapshot.val()
 
-    // Obtener subcategorías
-    const subcategoriesRef = collection(categoryRef, "subcategories")
-    const subcategoriesQuery = query(subcategoriesRef, orderBy("order", "asc"))
-    const subcategoriesSnapshot = await getDocs(subcategoriesQuery)
-
-    const subcategories = subcategoriesSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as Subcategory[]
+    // Convertir subcategorías si existen
+    let subcategories: Subcategory[] = []
+    if (categoryData.subcategories) {
+      subcategories = Object.entries(categoryData.subcategories).map(([subId, subData]) => ({
+        id: subId,
+        ...(subData as any),
+      }))
+      // Ordenar subcategorías por orden
+      subcategories.sort((a, b) => a.order - b.order)
+    }
 
     return {
       id: categoryId,
       ...categoryData,
       subcategories,
-    }
+    } as Category
   } catch (error) {
     console.error("Error al obtener categoría:", error)
     throw error
@@ -102,20 +105,40 @@ export async function createCategory(
   tenantId: string,
   branchId: string,
   categoryData: Omit<Category, "id" | "createdAt" | "updatedAt">,
+  imageFile?: File,
 ): Promise<Category> {
   try {
-    const categoryId = uuidv4()
     const timestamp = new Date().toISOString()
+    const categoriesRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories`)
 
-    const newCategory: Category = {
-      id: categoryId,
+    // Generar un nuevo ID para la categoría
+    const newCategoryRef = push(categoriesRef)
+    const categoryId = newCategoryRef.key!
+
+    let imageUrl = categoryData.imageUrl || ""
+
+    // Si hay un archivo de imagen, subirlo a Blob
+    if (imageFile) {
+      const blobName = `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}-${Date.now()}.${imageFile.name.split(".").pop()}`
+      const blob = await put(blobName, imageFile, {
+        access: "public",
+      })
+      imageUrl = blob.url
+    }
+
+    const newCategory = {
       ...categoryData,
+      id: categoryId,
+      imageUrl,
       createdAt: timestamp,
       updatedAt: timestamp,
     }
 
-    const categoryRef = doc(db, `tenants/${tenantId}/branches/${branchId}/categories`, categoryId)
-    await setDoc(categoryRef, newCategory)
+    // Eliminar el campo id antes de guardar en la base de datos
+    const { id, subcategories, ...categoryToSave } = newCategory
+
+    // Guardar la categoría en Realtime Database
+    await set(newCategoryRef, categoryToSave)
 
     return newCategory
   } catch (error) {
@@ -130,28 +153,54 @@ export async function updateCategory(
   branchId: string,
   categoryId: string,
   categoryData: Partial<Omit<Category, "id" | "createdAt" | "updatedAt">>,
+  imageFile?: File,
 ): Promise<Category> {
   try {
     const timestamp = new Date().toISOString()
+    const categoryRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}`)
 
-    const categoryRef = doc(db, `tenants/${tenantId}/branches/${branchId}/categories`, categoryId)
-    const categoryDoc = await getDoc(categoryRef)
-
-    if (!categoryDoc.exists()) {
+    // Obtener la categoría actual
+    const snapshot = await get(categoryRef)
+    if (!snapshot.exists()) {
       throw new Error("La categoría no existe")
     }
 
-    const updatedCategory = {
+    const currentCategory = snapshot.val()
+
+    let imageUrl = categoryData.imageUrl !== undefined ? categoryData.imageUrl : currentCategory.imageUrl
+
+    // Si hay un nuevo archivo de imagen, subirlo a Blob
+    if (imageFile) {
+      // Si ya existe una imagen, eliminarla primero
+      if (currentCategory.imageUrl) {
+        try {
+          await del(currentCategory.imageUrl)
+        } catch (error) {
+          console.error("Error al eliminar imagen anterior:", error)
+          // Continuar aunque falle la eliminación
+        }
+      }
+
+      const blobName = `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}-${Date.now()}.${imageFile.name.split(".").pop()}`
+      const blob = await put(blobName, imageFile, {
+        access: "public",
+      })
+      imageUrl = blob.url
+    }
+
+    const updatedData = {
       ...categoryData,
+      imageUrl,
       updatedAt: timestamp,
     }
 
-    await updateDoc(categoryRef, updatedCategory)
+    // Actualizar la categoría en Realtime Database
+    await update(categoryRef, updatedData)
 
     return {
       id: categoryId,
-      ...categoryDoc.data(),
-      ...updatedCategory,
+      ...currentCategory,
+      ...updatedData,
     } as Category
   } catch (error) {
     console.error("Error al actualizar categoría:", error)
@@ -162,17 +211,17 @@ export async function updateCategory(
 // Función para eliminar una categoría y su imagen
 export async function deleteCategory(tenantId: string, branchId: string, categoryId: string): Promise<void> {
   try {
-    // Primero obtenemos la categoría para ver si tiene imagen
-    const categoryRef = doc(db, `tenants/${tenantId}/branches/${branchId}/categories`, categoryId)
-    const categoryDoc = await getDoc(categoryRef)
+    const categoryRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}`)
 
-    if (!categoryDoc.exists()) {
+    // Obtener la categoría para ver si tiene imagen
+    const snapshot = await get(categoryRef)
+    if (!snapshot.exists()) {
       throw new Error("La categoría no existe")
     }
 
-    const categoryData = categoryDoc.data() as Category
+    const categoryData = snapshot.val()
 
-    // Si tiene imagen, la eliminamos de Blob
+    // Si tiene imagen, eliminarla de Blob
     if (categoryData.imageUrl) {
       try {
         await del(categoryData.imageUrl)
@@ -183,16 +232,8 @@ export async function deleteCategory(tenantId: string, branchId: string, categor
       }
     }
 
-    // Eliminar todas las subcategorías
-    const subcategoriesRef = collection(categoryRef, "subcategories")
-    const subcategoriesSnapshot = await getDocs(subcategoriesRef)
-
-    const deleteSubcategoriesPromises = subcategoriesSnapshot.docs.map((doc) => deleteDoc(doc.ref))
-
-    await Promise.all(deleteSubcategoriesPromises)
-
-    // Finalmente eliminamos la categoría
-    await deleteDoc(categoryRef)
+    // Eliminar la categoría de Realtime Database
+    await remove(categoryRef)
   } catch (error) {
     console.error("Error al eliminar categoría:", error)
     throw error
@@ -208,16 +249,16 @@ export async function uploadCategoryImage(
 ): Promise<string> {
   try {
     // Crear un nombre de archivo único
-    const filename = `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}-${Date.now()}.${file.name.split(".").pop()}`
+    const blobName = `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}-${Date.now()}.${file.name.split(".").pop()}`
 
     // Subir la imagen a Blob
-    const blob = await put(filename, file, {
+    const blob = await put(blobName, file, {
       access: "public",
     })
 
     // Actualizar la URL de la imagen en la categoría
-    const categoryRef = doc(db, `tenants/${tenantId}/branches/${branchId}/categories`, categoryId)
-    await updateDoc(categoryRef, {
+    const categoryRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}`)
+    await update(categoryRef, {
       imageUrl: blob.url,
       updatedAt: new Date().toISOString(),
     })
@@ -239,23 +280,28 @@ export async function createSubcategory(
   subcategoryData: Omit<Subcategory, "id" | "createdAt" | "updatedAt">,
 ): Promise<Subcategory> {
   try {
-    const subcategoryId = uuidv4()
     const timestamp = new Date().toISOString()
+    const subcategoriesRef = ref(
+      realtimeDb,
+      `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}/subcategories`,
+    )
 
-    const newSubcategory: Subcategory = {
-      id: subcategoryId,
+    // Generar un nuevo ID para la subcategoría
+    const newSubcategoryRef = push(subcategoriesRef)
+    const subcategoryId = newSubcategoryRef.key!
+
+    const newSubcategory = {
       ...subcategoryData,
+      id: subcategoryId,
       createdAt: timestamp,
       updatedAt: timestamp,
     }
 
-    const subcategoryRef = doc(
-      db,
-      `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}/subcategories`,
-      subcategoryId,
-    )
+    // Eliminar el campo id antes de guardar en la base de datos
+    const { id, ...subcategoryToSave } = newSubcategory
 
-    await setDoc(subcategoryRef, newSubcategory)
+    // Guardar la subcategoría en Realtime Database
+    await set(newSubcategoryRef, subcategoryToSave)
 
     return newSubcategory
   } catch (error) {
@@ -274,30 +320,31 @@ export async function updateSubcategory(
 ): Promise<Subcategory> {
   try {
     const timestamp = new Date().toISOString()
-
-    const subcategoryRef = doc(
-      db,
-      `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}/subcategories`,
-      subcategoryId,
+    const subcategoryRef = ref(
+      realtimeDb,
+      `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}/subcategories/${subcategoryId}`,
     )
 
-    const subcategoryDoc = await getDoc(subcategoryRef)
-
-    if (!subcategoryDoc.exists()) {
+    // Obtener la subcategoría actual
+    const snapshot = await get(subcategoryRef)
+    if (!snapshot.exists()) {
       throw new Error("La subcategoría no existe")
     }
 
-    const updatedSubcategory = {
+    const currentSubcategory = snapshot.val()
+
+    const updatedData = {
       ...subcategoryData,
       updatedAt: timestamp,
     }
 
-    await updateDoc(subcategoryRef, updatedSubcategory)
+    // Actualizar la subcategoría en Realtime Database
+    await update(subcategoryRef, updatedData)
 
     return {
       id: subcategoryId,
-      ...subcategoryDoc.data(),
-      ...updatedSubcategory,
+      ...currentSubcategory,
+      ...updatedData,
     } as Subcategory
   } catch (error) {
     console.error("Error al actualizar subcategoría:", error)
@@ -313,13 +360,13 @@ export async function deleteSubcategory(
   subcategoryId: string,
 ): Promise<void> {
   try {
-    const subcategoryRef = doc(
-      db,
-      `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}/subcategories`,
-      subcategoryId,
+    const subcategoryRef = ref(
+      realtimeDb,
+      `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}/subcategories/${subcategoryId}`,
     )
 
-    await deleteDoc(subcategoryRef)
+    // Eliminar la subcategoría de Realtime Database
+    await remove(subcategoryRef)
   } catch (error) {
     console.error("Error al eliminar subcategoría:", error)
     throw error

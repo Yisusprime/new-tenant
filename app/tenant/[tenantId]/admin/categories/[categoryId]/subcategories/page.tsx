@@ -18,9 +18,6 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
   DialogContent,
@@ -29,6 +26,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/components/ui/use-toast"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,8 +40,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { useToast } from "@/components/ui/use-toast"
-import { Loader2, Plus, Pencil, Trash, ArrowLeft, Eye, EyeOff } from "lucide-react"
+import { Loader2, Plus, Pencil, Trash, ArrowLeft, Save, Eye, EyeOff } from "lucide-react"
 import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
 
 export default function SubcategoriesPage({
@@ -51,11 +51,12 @@ export default function SubcategoriesPage({
   const { tenantId, categoryId } = params
   const { currentBranch } = useBranch()
   const [category, setCategory] = useState<Category | null>(null)
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [editingSubcategory, setEditingSubcategory] = useState<Subcategory | null>(null)
   const [subcategoryToDelete, setSubcategoryToDelete] = useState<Subcategory | null>(null)
+  const [editingSubcategory, setEditingSubcategory] = useState<Subcategory | null>(null)
   const [formData, setFormData] = useState<Partial<Subcategory>>({
     name: "",
     description: "",
@@ -70,6 +71,7 @@ export default function SubcategoriesPage({
     async function loadCategory() {
       if (!currentBranch) {
         setCategory(null)
+        setSubcategories([])
         setLoading(false)
         return
       }
@@ -77,7 +79,28 @@ export default function SubcategoriesPage({
       try {
         setLoading(true)
         const categoryData = await getCategory(tenantId, currentBranch.id, categoryId)
-        setCategory(categoryData)
+
+        if (categoryData) {
+          setCategory(categoryData)
+
+          // Convertir subcategorías de objeto a array si existen
+          if (categoryData.subcategories) {
+            const subcategoriesArray = Array.isArray(categoryData.subcategories)
+              ? categoryData.subcategories
+              : Object.values(categoryData.subcategories)
+
+            setSubcategories(subcategoriesArray)
+          } else {
+            setSubcategories([])
+          }
+        } else {
+          toast({
+            title: "Error",
+            description: "No se encontró la categoría",
+            variant: "destructive",
+          })
+          router.push(`/tenant/${tenantId}/admin/categories`)
+        }
       } catch (error) {
         console.error("Error al cargar categoría:", error)
         toast({
@@ -91,7 +114,21 @@ export default function SubcategoriesPage({
     }
 
     loadCategory()
-  }, [tenantId, categoryId, currentBranch, toast])
+  }, [tenantId, categoryId, currentBranch, toast, router])
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleSwitchChange = (checked: boolean) => {
+    setFormData((prev) => ({ ...prev, isActive: checked }))
+  }
+
+  const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: Number.parseInt(value) || 0 }))
+  }
 
   const handleOpenDialog = (subcategory?: Subcategory) => {
     if (subcategory) {
@@ -107,25 +144,22 @@ export default function SubcategoriesPage({
       setFormData({
         name: "",
         description: "",
-        order: category?.subcategories?.length || 0,
+        order: subcategories.length,
         isActive: true,
       })
     }
     setDialogOpen(true)
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
-
-  const handleSwitchChange = (checked: boolean) => {
-    setFormData((prev) => ({ ...prev, isActive: checked }))
-  }
-
-  const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: Number.parseInt(value) || 0 }))
+  const handleCloseDialog = () => {
+    setDialogOpen(false)
+    setEditingSubcategory(null)
+    setFormData({
+      name: "",
+      description: "",
+      order: 0,
+      isActive: true,
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -154,19 +188,21 @@ export default function SubcategoriesPage({
 
       if (editingSubcategory) {
         // Actualizar subcategoría existente
-        await updateSubcategory(tenantId, currentBranch.id, categoryId, editingSubcategory.id, {
-          name: formData.name,
-          description: formData.description,
-          order: formData.order,
-          isActive: formData.isActive,
-        })
-
-        // Actualizar la subcategoría en el estado local
-        const updatedSubcategories = category.subcategories?.map((sub) =>
-          sub.id === editingSubcategory.id ? { ...sub, ...formData, updatedAt: new Date().toISOString() } : sub,
+        const updatedSubcategory = await updateSubcategory(
+          tenantId,
+          currentBranch.id,
+          categoryId,
+          editingSubcategory.id,
+          {
+            name: formData.name,
+            description: formData.description,
+            order: formData.order,
+            isActive: formData.isActive,
+          },
         )
 
-        setCategory({ ...category, subcategories: updatedSubcategories })
+        // Actualizar la lista de subcategorías
+        setSubcategories(subcategories.map((sub) => (sub.id === updatedSubcategory.id ? updatedSubcategory : sub)))
 
         toast({
           title: "Subcategoría actualizada",
@@ -181,9 +217,8 @@ export default function SubcategoriesPage({
           isActive: formData.isActive !== false,
         })
 
-        // Añadir la nueva subcategoría al estado local
-        const updatedSubcategories = [...(category.subcategories || []), newSubcategory]
-        setCategory({ ...category, subcategories: updatedSubcategories })
+        // Añadir a la lista de subcategorías
+        setSubcategories([...subcategories, newSubcategory])
 
         toast({
           title: "Subcategoría creada",
@@ -191,15 +226,7 @@ export default function SubcategoriesPage({
         })
       }
 
-      // Cerrar el diálogo y limpiar el formulario
-      setDialogOpen(false)
-      setEditingSubcategory(null)
-      setFormData({
-        name: "",
-        description: "",
-        order: 0,
-        isActive: true,
-      })
+      handleCloseDialog()
     } catch (error) {
       console.error("Error al guardar subcategoría:", error)
       toast({
@@ -218,14 +245,13 @@ export default function SubcategoriesPage({
   }
 
   const handleDeleteSubcategory = async () => {
-    if (!currentBranch || !category || !subcategoryToDelete) return
+    if (!currentBranch || !subcategoryToDelete) return
 
     try {
       await deleteSubcategory(tenantId, currentBranch.id, categoryId, subcategoryToDelete.id)
 
-      // Actualizar el estado local
-      const updatedSubcategories = category.subcategories?.filter((sub) => sub.id !== subcategoryToDelete.id)
-      setCategory({ ...category, subcategories: updatedSubcategories })
+      // Actualizar la lista de subcategorías
+      setSubcategories(subcategories.filter((sub) => sub.id !== subcategoryToDelete.id))
 
       toast({
         title: "Subcategoría eliminada",
@@ -244,49 +270,18 @@ export default function SubcategoriesPage({
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    )
-  }
-
-  if (!category) {
-    return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Subcategorías</h1>
-          <Button variant="outline" onClick={() => router.push("/admin/categories")}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Volver a Categorías
-          </Button>
-        </div>
-
-        <NoBranchSelectedAlert />
-
-        <Card>
-          <CardContent className="py-10">
-            <div className="text-center">
-              <p className="text-gray-500 mb-4">Categoría no encontrada</p>
-              <Button variant="outline" onClick={() => router.push("/admin/categories")}>
-                Volver a Categorías
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Subcategorías de {category.name}</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Subcategorías</h1>
+          {category && <p className="text-gray-500">Categoría: {category.name}</p>}
+        </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => router.push("/admin/categories")}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Volver
+          <Button variant="outline" onClick={() => router.push(`/tenant/${tenantId}/admin/categories`)}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Volver a Categorías
           </Button>
-          <Button onClick={() => handleOpenDialog()} disabled={!currentBranch}>
+          <Button onClick={() => handleOpenDialog()} disabled={!currentBranch || !category}>
             <Plus className="mr-2 h-4 w-4" /> Nueva Subcategoría
           </Button>
         </div>
@@ -297,13 +292,19 @@ export default function SubcategoriesPage({
       <Card>
         <CardHeader>
           <CardTitle>Gestión de Subcategorías</CardTitle>
-          <CardDescription>Administra las subcategorías para {category.name}</CardDescription>
+          <CardDescription>
+            Administra las subcategorías para {category ? `"${category.name}"` : "esta categoría"}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {category.subcategories?.length === 0 ? (
+          {loading ? (
+            <div className="flex justify-center items-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : subcategories.length === 0 ? (
             <div className="text-center py-8 bg-gray-50 rounded-lg">
               <p className="text-gray-500 mb-4">No hay subcategorías configuradas</p>
-              <Button onClick={() => handleOpenDialog()} disabled={!currentBranch}>
+              <Button onClick={() => handleOpenDialog()} disabled={!currentBranch || !category}>
                 Crear Primera Subcategoría
               </Button>
             </div>
@@ -319,7 +320,7 @@ export default function SubcategoriesPage({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {category.subcategories?.map((subcategory) => (
+                {subcategories.map((subcategory) => (
                   <TableRow key={subcategory.id}>
                     <TableCell className="font-medium">{subcategory.name}</TableCell>
                     <TableCell>{subcategory.description || "-"}</TableCell>
@@ -369,7 +370,6 @@ export default function SubcategoriesPage({
                 : "Completa el formulario para crear una nueva subcategoría"}
             </DialogDescription>
           </DialogHeader>
-
           <form id="subcategory-form" onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Nombre de la Subcategoría *</Label>
@@ -413,20 +413,19 @@ export default function SubcategoriesPage({
               <Label htmlFor="isActive">Subcategoría Activa</Label>
             </div>
           </form>
-
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
+            <Button variant="outline" onClick={handleCloseDialog}>
               Cancelar
             </Button>
             <Button type="submit" form="subcategory-form" disabled={saving}>
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               {editingSubcategory ? "Guardar Cambios" : "Crear Subcategoría"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Diálogo de confirmación para eliminar subcategoría */}
+      {/* Diálogo de confirmación para eliminar */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
