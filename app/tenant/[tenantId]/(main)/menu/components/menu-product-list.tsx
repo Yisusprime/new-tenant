@@ -63,9 +63,9 @@ export function MenuProductList({ tenantId, branchId, categoryId }: MenuProductL
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
       {products.map((product) => (
-        <Card key={product.id} className="overflow-hidden">
+        <Card key={product.id} className="overflow-hidden hover:shadow-md transition-shadow">
           <CardContent className="p-0">
             <div className="flex flex-row h-full">
               <div className="flex-1 p-4">
@@ -77,7 +77,7 @@ export function MenuProductList({ tenantId, branchId, categoryId }: MenuProductL
               </div>
 
               {product.image && (
-                <div className="relative w-24 h-24 md:w-32 md:h-32">
+                <div className="relative w-24 h-24 md:w-28 md:h-28">
                   <Image
                     src={product.image || "/placeholder.svg?height=100&width=100&query=food"}
                     alt={product.name}

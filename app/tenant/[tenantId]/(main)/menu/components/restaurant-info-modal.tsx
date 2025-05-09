@@ -31,7 +31,7 @@ export function RestaurantInfoModal({ open, onClose, restaurantData, restaurantC
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent side="left" className="w-full sm:max-w-md overflow-y-auto">
+      <SheetContent side="left" className="w-full sm:max-w-sm overflow-y-auto">
         <SheetHeader className="text-left">
           <SheetTitle className="text-xl">{restaurantName}</SheetTitle>
           <SheetDescription>Información del restaurante</SheetDescription>

@@ -73,7 +73,7 @@ export default function MenuPage({
   }
 
   return (
-    <div className="pb-20">
+    <div className="pb-20 md:pb-10 max-w-7xl mx-auto">
       <RestaurantHeader
         restaurantData={restaurantData}
         restaurantConfig={restaurantConfig}

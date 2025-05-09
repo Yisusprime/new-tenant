@@ -32,7 +32,7 @@ export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick
   return (
     <div className="relative">
       {/* Banner */}
-      <div className="relative h-48 md:h-64 w-full overflow-hidden">
+      <div className="relative h-48 md:h-56 w-full overflow-hidden rounded-b-lg">
         <Image
           src={bannerImage || "/placeholder.svg"}
           alt={`Banner de ${restaurantName}`}
@@ -59,10 +59,10 @@ export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick
       </div>
 
       {/* Logo y detalles */}
-      <div className="container px-4 relative">
+      <div className="px-4 md:px-6 relative max-w-5xl mx-auto">
         <div className="flex flex-col md:flex-row gap-4 -mt-16 md:-mt-20">
           {/* Logo */}
-          <div className="relative w-32 h-32 rounded-full border-4 border-white overflow-hidden bg-white shadow-md">
+          <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-full border-4 border-white overflow-hidden bg-white shadow-md">
             <Image
               src={logoImage || "/placeholder.svg"}
               alt={`Logo de ${restaurantName}`}
