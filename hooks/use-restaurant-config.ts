@@ -109,7 +109,8 @@ export function useRestaurantConfig<T>(
     }
 
     try {
-      await updateRestaurantConfigSection(tenantId, currentBranch.id, configSection as any, data)
+      // Aquí está el cambio principal: pasar el configSection como string, no como any
+      await updateRestaurantConfigSection(tenantId, configSection, data, currentBranch.id)
 
       toast({
         title: "Información guardada",

@@ -2,13 +2,8 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
-import {
-  getRestaurantConfig,
-  updateRestaurantConfigSection,
-  type RestaurantHours,
-  type DaySchedule,
-} from "@/lib/services/restaurant-config-service"
+import { useState } from "react"
+import type { RestaurantHours, DaySchedule } from "@/lib/services/restaurant-config-service"
 import { RestaurantConfigSteps } from "@/components/restaurant-config-steps"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,16 +12,30 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, Clock } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useRestaurantConfig } from "@/hooks/use-restaurant-config"
+import { useBranch } from "@/lib/context/branch-context"
 
 export default function RestaurantHoursPage({
   params,
 }: {
   params: { tenantId: string }
 }) {
+  // Actualizar para usar el hook useRestaurantConfig en lugar de la implementación manual
+
+  // Reemplazar el código dentro de la función RestaurantHoursPage con:
   const { tenantId } = params
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [hours, setHours] = useState<RestaurantHours>({
+  const { toast } = useToast()
+  const { currentBranch } = useBranch()
+
+  // Usar nuestro hook personalizado para cargar los datos
+  const {
+    data: hours,
+    setData: setHours,
+    loading,
+    saveData,
+    saveCompleted,
+  } = useRestaurantConfig<RestaurantHours>(tenantId, "hours", {
     schedule: [
       { day: "Lunes", isOpen: true, openTime: "09:00", closeTime: "18:00" },
       { day: "Martes", isOpen: true, openTime: "09:00", closeTime: "18:00" },
@@ -37,58 +46,31 @@ export default function RestaurantHoursPage({
       { day: "Domingo", isOpen: false, openTime: "00:00", closeTime: "00:00" },
     ],
   })
-  const { toast } = useToast()
-
-  useEffect(() => {
-    async function loadConfig() {
-      try {
-        setLoading(true)
-        const config = await getRestaurantConfig(tenantId)
-
-        if (config && config.hours) {
-          setHours(config.hours)
-        }
-      } catch (error) {
-        console.error("Error al cargar configuración:", error)
-        toast({
-          title: "Error",
-          description: "No se pudieron cargar los horarios",
-          variant: "destructive",
-        })
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadConfig()
-  }, [tenantId, toast])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (!currentBranch) {
+      toast({
+        title: "Error",
+        description: "Debes seleccionar una sucursal primero",
+        variant: "destructive",
+      })
+      return
+    }
+
     try {
       setSaving(true)
 
-      await updateRestaurantConfigSection(tenantId, "hours", hours)
+      // Usar el nuevo método saveData
+      const success = await saveData()
 
-      toast({
-        title: "Información guardada",
-        description: "Los horarios se han actualizado correctamente",
-      })
-
-      // Marcar este paso como completado
-      const completedSteps = JSON.parse(localStorage.getItem(`${tenantId}_completedConfigSteps`) || "[]")
-      if (!completedSteps.includes("hours")) {
-        completedSteps.push("hours")
-        localStorage.setItem(`${tenantId}_completedConfigSteps`, JSON.stringify(completedSteps))
+      if (success) {
+        // Marcar este paso como completado
+        saveCompleted("hours")
       }
     } catch (error) {
       console.error("Error al guardar horarios:", error)
-      toast({
-        title: "Error",
-        description: "No se pudieron guardar los horarios",
-        variant: "destructive",
-      })
     } finally {
       setSaving(false)
     }

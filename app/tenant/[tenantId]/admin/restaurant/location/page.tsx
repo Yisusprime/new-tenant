@@ -2,13 +2,8 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
-import {
-  getRestaurantConfig,
-  updateRestaurantConfigSection,
-  type RestaurantLocation,
-  type CoverageZone,
-} from "@/lib/services/restaurant-config-service"
+import { useState } from "react"
+import type { RestaurantLocation, CoverageZone } from "@/lib/services/restaurant-config-service"
 import { RestaurantConfigSteps } from "@/components/restaurant-config-steps"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,77 +13,65 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, MapPin, Plus, Trash, Map } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useRestaurantConfig } from "@/hooks/use-restaurant-config"
+import { useBranch } from "@/lib/context/branch-context"
 
 export default function RestaurantLocationPage({
   params,
 }: {
   params: { tenantId: string }
 }) {
+  // Actualizar para usar el hook useRestaurantConfig en lugar de la implementación manual
+
+  // Reemplazar el código dentro de la función RestaurantLocationPage con:
   const { tenantId } = params
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [location, setLocation] = useState<RestaurantLocation>({
+  const { toast } = useToast()
+  const { currentBranch } = useBranch()
+
+  // Usar nuestro hook personalizado para cargar los datos
+  const {
+    data: location,
+    setData: setLocation,
+    loading,
+    saveData,
+    saveCompleted,
+  } = useRestaurantConfig<RestaurantLocation>(tenantId, "location", {
     address: "",
     city: "",
     region: "",
     coverageZones: [],
   })
+
   const [newZone, setNewZone] = useState<Partial<CoverageZone>>({
     name: "",
     deliveryCost: 0,
   })
-  const { toast } = useToast()
-
-  useEffect(() => {
-    async function loadConfig() {
-      try {
-        setLoading(true)
-        const config = await getRestaurantConfig(tenantId)
-
-        if (config && config.location) {
-          setLocation(config.location)
-        }
-      } catch (error) {
-        console.error("Error al cargar configuración:", error)
-        toast({
-          title: "Error",
-          description: "No se pudo cargar la información de ubicación",
-          variant: "destructive",
-        })
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadConfig()
-  }, [tenantId, toast])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (!currentBranch) {
+      toast({
+        title: "Error",
+        description: "Debes seleccionar una sucursal primero",
+        variant: "destructive",
+      })
+      return
+    }
+
     try {
       setSaving(true)
 
-      await updateRestaurantConfigSection(tenantId, "location", location)
+      // Usar el nuevo método saveData
+      const success = await saveData()
 
-      toast({
-        title: "Información guardada",
-        description: "La información de ubicación se ha actualizado correctamente",
-      })
-
-      // Marcar este paso como completado
-      const completedSteps = JSON.parse(localStorage.getItem(`${tenantId}_completedConfigSteps`) || "[]")
-      if (!completedSteps.includes("location")) {
-        completedSteps.push("location")
-        localStorage.setItem(`${tenantId}_completedConfigSteps`, JSON.stringify(completedSteps))
+      if (success) {
+        // Marcar este paso como completado
+        saveCompleted("location")
       }
     } catch (error) {
       console.error("Error al guardar información de ubicación:", error)
-      toast({
-        title: "Error",
-        description: "No se pudo guardar la información de ubicación",
-        variant: "destructive",
-      })
     } finally {
       setSaving(false)
     }

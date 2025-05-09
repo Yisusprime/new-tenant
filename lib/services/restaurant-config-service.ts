@@ -113,12 +113,14 @@ export async function getRestaurantConfig(tenantId: string, branchId?: string): 
   }
 }
 
-// Función para actualizar una sección específica de la configuración
+// Corregir la función updateRestaurantConfigSection para que maneje correctamente los parámetros
+
+// Reemplazar la función updateRestaurantConfigSection con esta versión corregida:
 export async function updateRestaurantConfigSection<T>(
   tenantId: string,
-  branchId: string,
-  section: keyof RestaurantConfig,
+  section: string,
   data: T,
+  branchId?: string,
 ): Promise<void> {
   try {
     if (!branchId) {

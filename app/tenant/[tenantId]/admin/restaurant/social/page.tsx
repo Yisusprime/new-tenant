@@ -2,12 +2,8 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
-import {
-  getRestaurantConfig,
-  updateRestaurantConfigSection,
-  type RestaurantSocialMedia,
-} from "@/lib/services/restaurant-config-service"
+import { useState } from "react"
+import type { RestaurantSocialMedia } from "@/lib/services/restaurant-config-service"
 import { RestaurantConfigSteps } from "@/components/restaurant-config-steps"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,6 +11,8 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, Globe, Facebook, Instagram, Twitter, TwitterIcon as TikTok } from "lucide-react"
+import { useRestaurantConfig } from "@/hooks/use-restaurant-config"
+import { useBranch } from "@/lib/context/branch-context"
 
 export default function RestaurantSocialMediaPage({
   params,
@@ -22,66 +20,48 @@ export default function RestaurantSocialMediaPage({
   params: { tenantId: string }
 }) {
   const { tenantId } = params
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [socialMedia, setSocialMedia] = useState<RestaurantSocialMedia>({
+  const { toast } = useToast()
+  const { currentBranch } = useBranch()
+
+  // Usar nuestro hook personalizado para cargar los datos
+  const {
+    data: socialMedia,
+    setData: setSocialMedia,
+    loading,
+    saveData,
+    saveCompleted,
+  } = useRestaurantConfig<RestaurantSocialMedia>(tenantId, "socialMedia", {
     facebook: "",
     instagram: "",
     twitter: "",
     tiktok: "",
   })
-  const { toast } = useToast()
-
-  useEffect(() => {
-    async function loadConfig() {
-      try {
-        setLoading(true)
-        const config = await getRestaurantConfig(tenantId)
-
-        if (config && config.socialMedia) {
-          setSocialMedia(config.socialMedia)
-        }
-      } catch (error) {
-        console.error("Error al cargar configuración:", error)
-        toast({
-          title: "Error",
-          description: "No se pudieron cargar las redes sociales",
-          variant: "destructive",
-        })
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadConfig()
-  }, [tenantId, toast])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (!currentBranch) {
+      toast({
+        title: "Error",
+        description: "Debes seleccionar una sucursal primero",
+        variant: "destructive",
+      })
+      return
+    }
+
     try {
       setSaving(true)
 
-      await updateRestaurantConfigSection(tenantId, "socialMedia", socialMedia)
+      // Usar el nuevo método saveData
+      const success = await saveData()
 
-      toast({
-        title: "Información guardada",
-        description: "Las redes sociales se han actualizado correctamente",
-      })
-
-      // Marcar este paso como completado
-      const completedSteps = JSON.parse(localStorage.getItem(`${tenantId}_completedConfigSteps`) || "[]")
-      if (!completedSteps.includes("social")) {
-        completedSteps.push("social")
-        localStorage.setItem(`${tenantId}_completedConfigSteps`, JSON.stringify(completedSteps))
+      if (success) {
+        // Marcar este paso como completado
+        saveCompleted("social")
       }
     } catch (error) {
       console.error("Error al guardar redes sociales:", error)
-      toast({
-        title: "Error",
-        description: "No se pudieron guardar las redes sociales",
-        variant: "destructive",
-      })
     } finally {
       setSaving(false)
     }

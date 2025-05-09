@@ -2,12 +2,8 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
-import {
-  getRestaurantConfig,
-  updateRestaurantConfigSection,
-  type RestaurantPaymentMethods,
-} from "@/lib/services/restaurant-config-service"
+import { useState } from "react"
+import type { RestaurantPaymentMethods } from "@/lib/services/restaurant-config-service"
 import { RestaurantConfigSteps } from "@/components/restaurant-config-steps"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,6 +12,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, CreditCard, Plus, Trash } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useRestaurantConfig } from "@/hooks/use-restaurant-config"
+import { useBranch } from "@/lib/context/branch-context"
 
 export default function RestaurantPaymentMethodsPage({
   params,
@@ -23,9 +21,19 @@ export default function RestaurantPaymentMethodsPage({
   params: { tenantId: string }
 }) {
   const { tenantId } = params
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [paymentMethods, setPaymentMethods] = useState<RestaurantPaymentMethods>({
+  const { toast } = useToast()
+  const { currentBranch } = useBranch()
+  const [newMethod, setNewMethod] = useState<string>("")
+
+  // Usar nuestro hook personalizado para cargar los datos
+  const {
+    data: paymentMethods,
+    setData: setPaymentMethods,
+    loading,
+    saveData,
+    saveCompleted,
+  } = useRestaurantConfig<RestaurantPaymentMethods>(tenantId, "paymentMethods", {
     methods: [
       { id: "cash", name: "Efectivo", isActive: true },
       { id: "credit_card", name: "Tarjeta de Crédito", isActive: false },
@@ -33,59 +41,31 @@ export default function RestaurantPaymentMethodsPage({
       { id: "transfer", name: "Transferencia Bancaria", isActive: false },
     ],
   })
-  const [newMethod, setNewMethod] = useState<string>("")
-  const { toast } = useToast()
-
-  useEffect(() => {
-    async function loadConfig() {
-      try {
-        setLoading(true)
-        const config = await getRestaurantConfig(tenantId)
-
-        if (config && config.paymentMethods) {
-          setPaymentMethods(config.paymentMethods)
-        }
-      } catch (error) {
-        console.error("Error al cargar configuración:", error)
-        toast({
-          title: "Error",
-          description: "No se pudieron cargar los métodos de pago",
-          variant: "destructive",
-        })
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadConfig()
-  }, [tenantId, toast])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (!currentBranch) {
+      toast({
+        title: "Error",
+        description: "Debes seleccionar una sucursal primero",
+        variant: "destructive",
+      })
+      return
+    }
+
     try {
       setSaving(true)
 
-      await updateRestaurantConfigSection(tenantId, "paymentMethods", paymentMethods)
+      // Usar el nuevo método saveData
+      const success = await saveData()
 
-      toast({
-        title: "Información guardada",
-        description: "Los métodos de pago se han actualizado correctamente",
-      })
-
-      // Marcar este paso como completado
-      const completedSteps = JSON.parse(localStorage.getItem(`${tenantId}_completedConfigSteps`) || "[]")
-      if (!completedSteps.includes("payment")) {
-        completedSteps.push("payment")
-        localStorage.setItem(`${tenantId}_completedConfigSteps`, JSON.stringify(completedSteps))
+      if (success) {
+        // Marcar este paso como completado
+        saveCompleted("payment")
       }
     } catch (error) {
       console.error("Error al guardar métodos de pago:", error)
-      toast({
-        title: "Error",
-        description: "No se pudieron guardar los métodos de pago",
-        variant: "destructive",
-      })
     } finally {
       setSaving(false)
     }
