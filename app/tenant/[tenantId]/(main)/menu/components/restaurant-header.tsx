@@ -6,7 +6,7 @@ import { MapPin, Info, Star, Search, User, ShoppingBag } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { isRestaurantOpen } from "../utils/restaurant-hours"
-import { DesktopNavigation } from "./desktop-navigation"
+import { useRouter } from "next/navigation"
 
 export function RestaurantHeader({
   restaurantData,
@@ -20,6 +20,7 @@ export function RestaurantHeader({
   params?: { tenantId: string }
 }) {
   const [isOpen, setIsOpen] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     if (restaurantConfig?.hours) {
@@ -39,19 +40,20 @@ export function RestaurantHeader({
     <div className="bg-white relative">
       {/* Botones de PC en la esquina superior derecha */}
       <div className="absolute top-4 right-4 z-10 hidden md:flex gap-2">
-        {/* Navegación de escritorio */}
-        <div className="hidden md:block">
-          <DesktopNavigation params={params} />
-        </div>
-        <Button variant="outline" size="sm" className="bg-white/80 backdrop-blur-sm rounded-full">
+        <Button variant="outline" size="sm" className="bg-white/80 backdrop-blur-sm rounded-full" onClick={() => {}}>
           <Search className="h-4 w-4 mr-2" />
           Buscar
         </Button>
-        <Button variant="outline" size="sm" className="bg-white/80 backdrop-blur-sm rounded-full">
+        <Button
+          variant="outline"
+          size="sm"
+          className="bg-white/80 backdrop-blur-sm rounded-full"
+          onClick={() => router.push("/menu/login")}
+        >
           <User className="h-4 w-4 mr-2" />
           Login
         </Button>
-        <Button variant="outline" size="sm" className="bg-white/80 backdrop-blur-sm rounded-full">
+        <Button variant="outline" size="sm" className="bg-white/80 backdrop-blur-sm rounded-full" onClick={() => {}}>
           <ShoppingBag className="h-4 w-4 mr-2" />
           Pedidos
         </Button>

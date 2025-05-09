@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Home, Search, ShoppingBag, User, Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 
-export function MobileNavigation({ params }: { params?: { tenantId: string } }) {
+export function MobileNavigation() {
   const [cartCount, setCartCount] = useState(3) // Simulación de productos en el carrito
   const router = useRouter()
 
@@ -23,7 +23,7 @@ export function MobileNavigation({ params }: { params?: { tenantId: string } }) 
         </Link>
 
         {/* Botón central con signo + */}
-        <div className="flex flex-col items-center justify-center" onClick={() => router.push(`/menu/login`)}>
+        <div className="flex flex-col items-center justify-center" onClick={() => {}}>
           <div className="bg-primary rounded-full w-12 h-12 flex items-center justify-center -mt-5">
             <Plus className="h-6 w-6 text-white" />
           </div>
@@ -42,10 +42,10 @@ export function MobileNavigation({ params }: { params?: { tenantId: string } }) 
           <span className="text-xs mt-1 text-gray-500">Carrito</span>
         </Link>
 
-        <Link href="/menu/login" className="flex flex-col items-center justify-center">
+        <div className="flex flex-col items-center justify-center" onClick={() => router.push("/menu/login")}>
           <User className="h-5 w-5 text-gray-500" />
           <span className="text-xs mt-1 text-gray-500">Perfil</span>
-        </Link>
+        </div>
       </div>
     </div>
   )

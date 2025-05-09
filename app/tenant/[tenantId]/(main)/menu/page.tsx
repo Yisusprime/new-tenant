@@ -242,7 +242,7 @@ export default function MenuPage({
 
           {/* Navegación móvil */}
           <div className="md:hidden">
-            <MobileNavigation params={params} />
+            <MobileNavigation />
           </div>
 
           {/* Carrito */}
