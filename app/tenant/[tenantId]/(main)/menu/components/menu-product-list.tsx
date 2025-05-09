@@ -72,12 +72,12 @@ export function MenuProductList({ tenantId, branchId, categoryId }: MenuProductL
             <p className="font-bold mt-2">${product.price.toFixed(2)}</p>
           </div>
 
-          <div className="relative min-w-[100px] h-[100px]">
+          <div className="relative min-w-[90px] h-[90px] bg-gray-50 rounded-lg">
             <Image
               src={product.image || `/placeholder.svg?height=100&width=100&query=${encodeURIComponent(product.name)}`}
               alt={product.name}
               fill
-              className="object-cover rounded-lg"
+              className="object-contain p-1 rounded-lg"
             />
             <Button size="icon" className="absolute bottom-2 right-2 h-8 w-8 rounded-full bg-white shadow-md">
               <Plus className="h-5 w-5" />

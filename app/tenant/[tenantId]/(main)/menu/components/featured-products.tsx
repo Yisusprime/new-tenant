@@ -74,19 +74,19 @@ export function FeaturedProducts({ tenantId, branchId }: FeaturedProductsProps) 
     <div className="overflow-x-auto pb-2">
       <div className="flex gap-4" style={{ minWidth: "max-content" }}>
         {products.map((product) => (
-          <div key={product.id} className="w-40 flex-shrink-0">
+          <div key={product.id} className="w-36 md:w-32 flex-shrink-0">
             <div className="relative">
               <div className="absolute top-0 left-0 bg-green-600 text-white text-xs px-2 py-1 rounded-br-lg z-10">
                 #{product.rank} de tus favoritos
               </div>
-              <div className="relative h-32 w-full rounded-lg overflow-hidden">
+              <div className="relative h-28 w-full rounded-lg overflow-hidden bg-gray-50">
                 <Image
                   src={
                     product.image || `/placeholder.svg?height=150&width=150&query=${encodeURIComponent(product.name)}`
                   }
                   alt={product.name}
                   fill
-                  className="object-cover"
+                  className="object-contain p-1"
                 />
               </div>
               <Button size="icon" className="absolute bottom-2 right-2 h-8 w-8 rounded-full bg-white shadow-md">

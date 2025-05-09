@@ -24,19 +24,17 @@ export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick
   }, [restaurantConfig])
 
   // Usar imagen de placeholder de Next.js en lugar de la imagen actual
-  const bannerImage = "/delicious-food-banner.png"
-  const logoImage = restaurantConfig?.basicInfo?.logo || "/restaurant-logo.png"
+  const logoImage = restaurantConfig?.basicInfo?.logo || "/restaurant-logo-transparent.png"
   const restaurantName = restaurantData?.name || restaurantConfig?.basicInfo?.name || "Restaurante"
-  const shortDescription = restaurantConfig?.basicInfo?.shortDescription || "Deliciosa comida para todos los gustos"
   const address = restaurantConfig?.location?.address || "Dirección no disponible"
 
   return (
     <div className="bg-white">
-      {/* Banner con controles */}
+      {/* Banner con controles - más delgado en PC */}
       <div className="relative">
-        <div className="relative h-48 w-full overflow-hidden">
+        <div className="relative h-48 md:h-36 w-full overflow-hidden">
           <Image
-            src={bannerImage || `/placeholder.svg?height=200&width=400&query=restaurant banner`}
+            src="/transparent-banner.png"
             alt={`Banner de ${restaurantName}`}
             fill
             className="object-cover"
@@ -73,14 +71,14 @@ export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick
           </div>
         </div>
 
-        {/* Logo superpuesto */}
+        {/* Logo superpuesto - sin fondo */}
         <div className="absolute left-1/2 transform -translate-x-1/2 -bottom-12">
           <div className="relative w-24 h-24 rounded-full border-4 border-white overflow-hidden bg-white shadow-md">
             <Image
-              src={logoImage || `/placeholder.svg?height=100&width=100&query=restaurant logo`}
+              src={logoImage || "/placeholder.svg"}
               alt={`Logo de ${restaurantName}`}
               fill
-              className="object-cover"
+              className="object-contain p-1"
             />
           </div>
         </div>

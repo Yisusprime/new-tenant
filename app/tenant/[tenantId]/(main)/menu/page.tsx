@@ -79,21 +79,24 @@ export default function MenuPage({
 
   return (
     <div className="bg-gray-50 min-h-screen pb-20">
-      <RestaurantHeader
-        restaurantData={restaurantData}
-        restaurantConfig={restaurantConfig}
-        onInfoClick={() => setInfoModalOpen(true)}
-      />
+      {/* Contenedor principal más delgado en PC */}
+      <div className="max-w-3xl mx-auto">
+        <RestaurantHeader
+          restaurantData={restaurantData}
+          restaurantConfig={restaurantConfig}
+          onInfoClick={() => setInfoModalOpen(true)}
+        />
 
-      {/* Productos destacados */}
-      <div className="bg-white px-4 py-6">
-        <h2 className="text-xl font-bold mb-4">Artículos destacados</h2>
-        <FeaturedProducts tenantId={tenantId} branchId={currentBranchId} />
-      </div>
+        {/* Productos destacados */}
+        <div className="bg-white px-4 py-6">
+          <h2 className="text-xl font-bold mb-4">Artículos destacados</h2>
+          <FeaturedProducts tenantId={tenantId} branchId={currentBranchId} />
+        </div>
 
-      {/* Categorías y productos */}
-      <div className="mt-2 bg-white">
-        <MenuCategories tenantId={tenantId} branchId={currentBranchId} />
+        {/* Categorías y productos */}
+        <div className="mt-2 bg-white">
+          <MenuCategories tenantId={tenantId} branchId={currentBranchId} />
+        </div>
       </div>
 
       <RestaurantInfoModal
