@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
-import { updateRestaurantConfigSection, type RestaurantServiceMethods } from "@/lib/services/restaurant-config-service"
+import type { RestaurantServiceMethods } from "@/lib/services/restaurant-config-service"
 import { RestaurantConfigSteps } from "@/components/restaurant-config-steps"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -29,6 +29,7 @@ export default function RestaurantServiceMethodsPage({
     data: serviceMethods,
     setData: setServiceMethods,
     loading,
+    saveData,
     saveCompleted,
   } = useRestaurantConfig<RestaurantServiceMethods>(tenantId, "serviceMethods", {
     dineIn: false,
@@ -52,22 +53,15 @@ export default function RestaurantServiceMethodsPage({
     try {
       setSaving(true)
 
-      await updateRestaurantConfigSection(tenantId, currentBranch.id, "serviceMethods", serviceMethods)
+      // Usar el nuevo método saveData
+      const success = await saveData()
 
-      toast({
-        title: "Información guardada",
-        description: "Los métodos de servicio se han actualizado correctamente",
-      })
-
-      // Marcar este paso como completado
-      saveCompleted("service")
+      if (success) {
+        // Marcar este paso como completado
+        saveCompleted("service")
+      }
     } catch (error) {
       console.error("Error al guardar métodos de servicio:", error)
-      toast({
-        title: "Error",
-        description: "No se pudieron guardar los métodos de servicio",
-        variant: "destructive",
-      })
     } finally {
       setSaving(false)
     }

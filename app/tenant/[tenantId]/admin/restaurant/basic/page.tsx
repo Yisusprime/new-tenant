@@ -4,7 +4,6 @@ import type React from "react"
 
 import { useState, useRef } from "react"
 import {
-  updateRestaurantConfigSection,
   uploadRestaurantLogo,
   deleteRestaurantLogo,
   type RestaurantBasicInfo,
@@ -39,6 +38,7 @@ export default function RestaurantBasicInfoPage({
     data: basicInfo,
     setData: setBasicInfo,
     loading,
+    saveData,
     saveCompleted,
   } = useRestaurantConfig<RestaurantBasicInfo>(tenantId, "basicInfo", {
     name: currentBranch?.name || "",
@@ -62,22 +62,15 @@ export default function RestaurantBasicInfoPage({
     try {
       setSaving(true)
 
-      await updateRestaurantConfigSection(tenantId, currentBranch.id, "basicInfo", basicInfo)
+      // Usar el nuevo método saveData
+      const success = await saveData()
 
-      toast({
-        title: "Información guardada",
-        description: "La información básica del restaurante se ha actualizado correctamente",
-      })
-
-      // Marcar este paso como completado
-      saveCompleted("basic")
+      if (success) {
+        // Marcar este paso como completado
+        saveCompleted("basic")
+      }
     } catch (error) {
       console.error("Error al guardar información básica:", error)
-      toast({
-        title: "Error",
-        description: "No se pudo guardar la información básica",
-        variant: "destructive",
-      })
     } finally {
       setSaving(false)
     }

@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
-import { updateRestaurantConfigSection, type RestaurantContactInfo } from "@/lib/services/restaurant-config-service"
+import type { RestaurantContactInfo } from "@/lib/services/restaurant-config-service"
 import { RestaurantConfigSteps } from "@/components/restaurant-config-steps"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -29,6 +29,7 @@ export default function RestaurantContactPage({
     data: contactInfo,
     setData: setContactInfo,
     loading,
+    saveData,
     saveCompleted,
   } = useRestaurantConfig<RestaurantContactInfo>(tenantId, "contactInfo", {
     phone: "",
@@ -51,22 +52,15 @@ export default function RestaurantContactPage({
     try {
       setSaving(true)
 
-      await updateRestaurantConfigSection(tenantId, currentBranch.id, "contactInfo", contactInfo)
+      // Usar el nuevo método saveData
+      const success = await saveData()
 
-      toast({
-        title: "Información guardada",
-        description: "La información de contacto se ha actualizado correctamente",
-      })
-
-      // Marcar este paso como completado
-      saveCompleted("contact")
+      if (success) {
+        // Marcar este paso como completado
+        saveCompleted("contact")
+      }
     } catch (error) {
       console.error("Error al guardar información de contacto:", error)
-      toast({
-        title: "Error",
-        description: "No se pudo guardar la información de contacto",
-        variant: "destructive",
-      })
     } finally {
       setSaving(false)
     }

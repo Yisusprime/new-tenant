@@ -2,8 +2,8 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
-import { getRestaurantConfig } from "@/lib/services/restaurant-config-service"
+import { useState, useEffect, useRef } from "react"
+import { getRestaurantConfig, updateRestaurantConfigSection } from "@/lib/services/restaurant-config-service"
 import { useToast } from "@/components/ui/use-toast"
 import { useBranch } from "@/lib/context/branch-context"
 
@@ -16,6 +16,7 @@ export function useRestaurantConfig<T>(
   setData: React.Dispatch<React.SetStateAction<T>>
   loading: boolean
   error: string | null
+  saveData: () => Promise<boolean>
   saveCompleted: (stepId: string) => void
 } {
   const [data, setData] = useState<T>(defaultValue)
@@ -23,10 +24,16 @@ export function useRestaurantConfig<T>(
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
   const { currentBranch } = useBranch()
+  const configLoadedRef = useRef<boolean>(false)
 
   // Cargar datos cuando cambia la sucursal
   useEffect(() => {
     let isMounted = true
+
+    // Si ya cargamos la configuración para esta sucursal, no la volvemos a cargar
+    if (currentBranch && configLoadedRef.current) {
+      return
+    }
 
     async function loadConfig() {
       // Si no hay sucursal seleccionada, no intentamos cargar datos
@@ -60,6 +67,9 @@ export function useRestaurantConfig<T>(
           setData(defaultValue)
           console.log(`No hay datos para sección ${configSection}, usando valores por defecto`)
         }
+
+        // Marcamos que ya cargamos la configuración para esta sucursal
+        configLoadedRef.current = true
       } catch (err) {
         console.error(`Error al cargar configuración de ${configSection}:`, err)
 
@@ -80,7 +90,40 @@ export function useRestaurantConfig<T>(
     return () => {
       isMounted = false
     }
-  }, [tenantId, currentBranch, configSection, defaultValue, toast])
+  }, [tenantId, currentBranch, configSection, defaultValue])
+
+  // Función para guardar los datos
+  const saveData = async (): Promise<boolean> => {
+    if (!currentBranch) {
+      toast({
+        title: "Error",
+        description: "Debes seleccionar una sucursal primero",
+        variant: "destructive",
+      })
+      return false
+    }
+
+    try {
+      await updateRestaurantConfigSection(tenantId, currentBranch.id, configSection as any, data)
+
+      toast({
+        title: "Información guardada",
+        description: `La información de ${configSection} se ha actualizado correctamente`,
+      })
+
+      return true
+    } catch (error) {
+      console.error(`Error al guardar información de ${configSection}:`, error)
+
+      toast({
+        title: "Error",
+        description: `No se pudo guardar la información de ${configSection}`,
+        variant: "destructive",
+      })
+
+      return false
+    }
+  }
 
   // Función para marcar un paso como completado
   const saveCompleted = (stepId: string) => {
@@ -95,5 +138,5 @@ export function useRestaurantConfig<T>(
     }
   }
 
-  return { data, setData, loading, error, saveCompleted }
+  return { data, setData, loading, error, saveData, saveCompleted }
 }
