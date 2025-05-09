@@ -79,7 +79,7 @@ export default function MenuPage({
 
   return (
     <div className="bg-gray-50 min-h-screen pb-20 flex justify-center">
-      <div className="w-full max-w-3xl">
+      <div className="w-full max-w-5xl">
         <RestaurantHeader
           restaurantData={restaurantData}
           restaurantConfig={restaurantConfig}

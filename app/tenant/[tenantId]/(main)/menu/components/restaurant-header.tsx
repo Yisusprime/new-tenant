@@ -23,9 +23,10 @@ export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick
     }
   }, [restaurantConfig])
 
-  // Usar imágenes predeterminadas
-  const bannerImage = "/default-restaurant-banner.png"
-  const logoImage = restaurantConfig?.basicInfo?.logo || "/default-restaurant-logo.png"
+  // Usar imágenes de placeholder
+  const bannerImage =
+    restaurantConfig?.basicInfo?.banner || `/placeholder.svg?height=300&width=1200&query=restaurant banner with food`
+  const logoImage = restaurantConfig?.basicInfo?.logo || `/placeholder.svg?height=200&width=200&query=restaurant logo`
   const restaurantName = restaurantData?.name || restaurantConfig?.basicInfo?.name || "Restaurante"
   const shortDescription = restaurantConfig?.basicInfo?.shortDescription || "Deliciosa comida para todos los gustos"
   const address = restaurantConfig?.location?.address || "Dirección no disponible"
