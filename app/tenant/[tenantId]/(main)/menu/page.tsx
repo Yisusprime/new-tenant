@@ -7,7 +7,7 @@ import { getRestaurantConfig } from "@/lib/services/restaurant-config-service"
 import { RestaurantHeader } from "./components/restaurant-header"
 import { MenuCategories } from "./components/menu-categories"
 import { RestaurantInfoModal } from "./components/restaurant-info-modal"
-import { Loader2 } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function MenuPage({
   params,
@@ -58,22 +58,46 @@ export default function MenuPage({
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="space-y-6 pt-4">
+        <Skeleton className="h-56 w-full rounded-lg" />
+        <div className="flex gap-4">
+          <Skeleton className="h-24 w-24 rounded-lg" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-8 w-3/4" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+        </div>
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-10 w-20 rounded-full" />
+            ))}
+          </div>
+          <Skeleton className="h-8 w-1/3" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-24 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
 
   if (!restaurantData) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <p className="text-lg text-gray-500">Restaurante no encontrado</p>
+      <div className="flex justify-center items-center min-h-[50vh]">
+        <div className="text-center p-8 bg-white rounded-lg shadow-sm">
+          <h2 className="text-xl font-bold mb-2">Restaurante no encontrado</h2>
+          <p className="text-gray-500">No pudimos encontrar la información de este restaurante</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="pb-20 md:pb-10 max-w-7xl mx-auto">
+    <>
       <RestaurantHeader
         restaurantData={restaurantData}
         restaurantConfig={restaurantConfig}
@@ -88,6 +112,6 @@ export default function MenuPage({
         restaurantData={restaurantData}
         restaurantConfig={restaurantConfig}
       />
-    </div>
+    </>
   )
 }

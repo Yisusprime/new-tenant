@@ -4,12 +4,14 @@ import { useState } from "react"
 import Link from "next/link"
 import { Home, Search, ShoppingBag, User, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 
 export function MobileNavigation() {
   const [activeItem, setActiveItem] = useState("home")
+  const [cartCount, setCartCount] = useState(3) // Example cart count
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 shadow-lg">
       <div className="flex items-center justify-around h-16">
         {/* Inicio */}
         <Link
@@ -49,10 +51,20 @@ export function MobileNavigation() {
         {/* Carrito */}
         <Link
           href="#"
-          className="flex flex-col items-center justify-center w-1/5"
+          className="flex flex-col items-center justify-center w-1/5 relative"
           onClick={() => setActiveItem("cart")}
         >
-          <ShoppingBag className={`h-5 w-5 ${activeItem === "cart" ? "text-primary" : "text-gray-500"}`} />
+          <div className="relative">
+            <ShoppingBag className={`h-5 w-5 ${activeItem === "cart" ? "text-primary" : "text-gray-500"}`} />
+            {cartCount > 0 && (
+              <Badge
+                className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center bg-primary text-white text-[10px]"
+                variant="default"
+              >
+                {cartCount}
+              </Badge>
+            )}
+          </div>
           <span className={`text-xs mt-1 ${activeItem === "cart" ? "text-primary font-medium" : "text-gray-500"}`}>
             Carrito
           </span>

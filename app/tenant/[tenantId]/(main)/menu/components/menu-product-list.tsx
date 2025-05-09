@@ -1,11 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { collection, query, where, getDocs } from "firebase/firestore"
+import { collection, query, where, getDocs, orderBy } from "firebase/firestore"
 import { db } from "@/lib/firebase/client"
 import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
-import { Loader2 } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Plus } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 interface MenuProductListProps {
   tenantId: string
@@ -26,7 +28,12 @@ export function MenuProductList({ tenantId, branchId, categoryId }: MenuProductL
 
         const productsRef = collection(db, `tenants/${tenantId}/branches/${branchId}/products`)
         const productsSnapshot = await getDocs(
-          query(productsRef, where("categoryId", "==", categoryId), where("isActive", "==", true)),
+          query(
+            productsRef,
+            where("categoryId", "==", categoryId),
+            where("isActive", "==", true),
+            orderBy("order", "asc"),
+          ),
         )
 
         const productsData = productsSnapshot.docs.map((doc) => ({
@@ -47,8 +54,17 @@ export function MenuProductList({ tenantId, branchId, categoryId }: MenuProductL
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="flex gap-4">
+            <div className="flex-1">
+              <Skeleton className="h-6 w-3/4 mb-2" />
+              <Skeleton className="h-4 w-full mb-2" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
+            <Skeleton className="h-24 w-24 rounded-lg" />
+          </div>
+        ))}
       </div>
     )
   }
@@ -63,29 +79,33 @@ export function MenuProductList({ tenantId, branchId, categoryId }: MenuProductL
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
       {products.map((product) => (
-        <Card key={product.id} className="overflow-hidden hover:shadow-md transition-shadow">
+        <Card key={product.id} className="overflow-hidden hover:shadow-md transition-shadow border-0 shadow-sm">
           <CardContent className="p-0">
             <div className="flex flex-row h-full">
               <div className="flex-1 p-4">
-                <h3 className="font-medium">{product.name}</h3>
+                <h3 className="font-medium text-lg">{product.name}</h3>
                 {product.description && (
                   <p className="text-sm text-gray-600 mt-1 line-clamp-2">{product.description}</p>
                 )}
-                <p className="font-semibold mt-2">${product.price.toFixed(2)}</p>
+                <div className="flex items-center justify-between mt-2">
+                  <p className="font-semibold text-lg">${product.price.toFixed(2)}</p>
+                  <Button size="sm" variant="ghost" className="rounded-full h-8 w-8 p-0">
+                    <Plus className="h-5 w-5" />
+                  </Button>
+                </div>
               </div>
 
-              {product.image && (
-                <div className="relative w-24 h-24 md:w-28 md:h-28">
-                  <Image
-                    src={product.image || "/placeholder.svg?height=100&width=100&query=food"}
-                    alt={product.name}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-              )}
+              <div className="relative w-28 h-28 md:w-32 md:h-32">
+                <Image
+                  src={product.image || `/placeholder.svg?height=128&width=128&query=food ${product.name}`}
+                  alt={product.name}
+                  fill
+                  sizes="(max-width: 768px) 112px, 128px"
+                  className="object-cover"
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
