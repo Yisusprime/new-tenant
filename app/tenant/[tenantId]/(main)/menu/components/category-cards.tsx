@@ -9,31 +9,31 @@ const sampleCategories = [
   {
     id: "cat1",
     name: "Hamburguesas",
-    image: "/classic-hamburger.png",
+    image: "default.png",
     count: 8,
   },
   {
     id: "cat2",
     name: "Pizzas",
-    image: "/delicious-pizza.png",
+    image: "/default.png",
     count: 12,
   },
   {
     id: "cat3",
     name: "Ensaladas",
-    image: "/vibrant-mixed-salad.png",
+    image: "/default.png",
     count: 6,
   },
   {
     id: "cat4",
     name: "Postres",
-    image: "/assorted-desserts.png",
+    image: "/default.png",
     count: 9,
   },
   {
     id: "cat5",
     name: "Bebidas",
-    image: "/assorted-drinks.png",
+    image: "/default.png",
     count: 10,
   },
 ]
