@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -134,7 +134,7 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
     }
   }
 
-  // Renderizar esqueleto de carga
+  // Renderizar esqueletos de carga
   if (loading) {
     return (
       <div className="space-y-4">
@@ -142,9 +142,9 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-24" />
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-          {[...Array(10)].map((_, i) => (
-            <Skeleton key={i} className="h-[120px] w-full rounded-lg" />
+        <div className="space-y-2">
+          {[...Array(6)].map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-lg" />
           ))}
         </div>
       </div>
@@ -161,7 +161,7 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Buscador */}
       <div className="flex flex-col sm:flex-row gap-2 items-center">
         <div className="relative w-full">
@@ -190,73 +190,81 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
       )}
 
       {/* Lista de extras */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+      <div className="space-y-2">
         {filteredExtras.map((extra) => (
-          <Card key={extra.id} className="overflow-hidden h-full">
-            <div className="relative aspect-square bg-muted">
-              {extra.imageUrl ? (
-                <Image
-                  src={extra.imageUrl || "/placeholder.svg"}
-                  alt={extra.name}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 50vw, 20vw"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-muted">
-                  <span className="text-muted-foreground text-xs">Sin imagen</span>
+          <Card key={extra.id} className="overflow-hidden">
+            <div className="flex items-center p-2">
+              {/* Imagen cuadrada a la izquierda */}
+              <div className="relative h-12 w-12 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                {extra.imageUrl ? (
+                  <Image
+                    src={extra.imageUrl || "/placeholder.svg"}
+                    alt={extra.name}
+                    fill
+                    className="object-cover"
+                    sizes="48px"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <span className="text-muted-foreground text-[10px]">Sin imagen</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Información a la derecha */}
+              <div className="ml-3 flex-1 min-w-0">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-medium text-sm truncate" title={extra.name}>
+                      {extra.name}
+                    </h3>
+                    <p className="text-xs text-muted-foreground truncate" title={extra.description || ""}>
+                      {extra.description || "Sin descripción"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={extra.isActive ? "default" : "secondary"} className="text-xs">
+                      {extra.isActive ? "Activo" : "Inactivo"}
+                    </Badge>
+                    <span className="font-medium text-sm">${extra.price.toFixed(2)}</span>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <MoreVertical className="h-4 w-4" />
+                          <span className="sr-only">Acciones</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEdit(extra.id)}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => toggleActive(extra)}>
+                          {extra.isActive ? (
+                            <>
+                              <EyeOff className="mr-2 h-4 w-4" />
+                              Desactivar
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="mr-2 h-4 w-4" />
+                              Activar
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => setExtraToDelete(extra.id)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Eliminar
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
-              )}
-              <div className="absolute top-2 right-2">
-                <Badge variant={extra.isActive ? "default" : "secondary"} className="text-xs">
-                  {extra.isActive ? "Activo" : "Inactivo"}
-                </Badge>
               </div>
             </div>
-            <CardContent className="p-3">
-              <div className="flex justify-between items-start gap-2">
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-sm truncate" title={extra.name}>
-                    {extra.name}
-                  </h3>
-                  <p className="text-sm font-semibold">${extra.price.toFixed(2)}</p>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                      <MoreVertical className="h-4 w-4" />
-                      <span className="sr-only">Acciones</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleEdit(extra.id)}>
-                      <Edit className="mr-2 h-4 w-4" />
-                      Editar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toggleActive(extra)}>
-                      {extra.isActive ? (
-                        <>
-                          <EyeOff className="mr-2 h-4 w-4" />
-                          Desactivar
-                        </>
-                      ) : (
-                        <>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Activar
-                        </>
-                      )}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
-                      onClick={() => setExtraToDelete(extra.id)}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Eliminar
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </CardContent>
           </Card>
         ))}
       </div>

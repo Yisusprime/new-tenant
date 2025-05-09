@@ -10,7 +10,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -160,18 +159,14 @@ export function ProductsList({ tenantId, branchId, products, loading, onRefresh 
 
   // Renderizar esqueletos de carga
   const renderSkeletons = () => {
-    return Array.from({ length: 8 }).map((_, index) => (
+    return Array.from({ length: 12 }).map((_, index) => (
       <Card key={index} className="overflow-hidden">
-        <div className="aspect-square relative bg-muted">
+        <div className="h-24 relative bg-muted">
           <Skeleton className="h-full w-full" />
         </div>
-        <CardContent className="p-3">
-          <Skeleton className="h-4 w-3/4 mb-2" />
-          <Skeleton className="h-4 w-1/2 mb-2" />
-          <div className="flex justify-between items-center mt-2">
-            <Skeleton className="h-4 w-1/4" />
-            <Skeleton className="h-6 w-6 rounded-full" />
-          </div>
+        <CardContent className="p-2">
+          <Skeleton className="h-3 w-3/4 mb-1" />
+          <Skeleton className="h-3 w-1/2" />
         </CardContent>
       </Card>
     ))
@@ -204,7 +199,7 @@ export function ProductsList({ tenantId, branchId, products, loading, onRefresh 
         </p>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
         {loading || loadingCategories ? (
           renderSkeletons()
         ) : filteredProducts.length === 0 ? (
@@ -217,31 +212,41 @@ export function ProductsList({ tenantId, branchId, products, loading, onRefresh 
           </div>
         ) : (
           filteredProducts.map((product) => (
-            <Card key={product.id} className="overflow-hidden group">
-              <div className="aspect-square relative bg-muted">
+            <Card key={product.id} className="overflow-hidden group h-full">
+              <div className="h-24 relative bg-muted">
                 {product.imageUrl ? (
                   <Image
                     src={product.imageUrl || "/placeholder.svg"}
                     alt={product.name}
                     fill
                     className="object-cover"
-                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
+                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 25vw, (max-width: 1024px) 16vw, 12.5vw"
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full bg-muted">
                     <span className="text-xs text-muted-foreground">Sin imagen</span>
                   </div>
                 )}
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute top-1 right-1 flex gap-0.5">
+                  {!product.isActive && (
+                    <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-background/80 backdrop-blur-sm">
+                      Inactivo
+                    </Badge>
+                  )}
+                  {product.isFeatured && (
+                    <Badge className="bg-amber-500 text-[10px] px-1 py-0 h-4 bg-background/80 backdrop-blur-sm">
+                      <Star className="h-2 w-2" />
+                    </Badge>
+                  )}
+                </div>
+                <div className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80 backdrop-blur-sm">
-                        <MoreVertical className="h-4 w-4" />
+                      <Button variant="secondary" size="icon" className="h-6 w-6 bg-background/80 backdrop-blur-sm">
+                        <MoreVertical className="h-3 w-3" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => router.push(`/admin/products/${product.id}`)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Editar
@@ -284,29 +289,14 @@ export function ProductsList({ tenantId, branchId, products, loading, onRefresh 
                   </DropdownMenu>
                 </div>
               </div>
-              <CardContent className="p-3">
-                <div className="space-y-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-medium text-sm leading-tight line-clamp-1" title={product.name}>
-                      {product.name}
-                    </h3>
-                    <div className="flex gap-1 flex-shrink-0">
-                      {!product.isActive && (
-                        <Badge variant="outline" className="text-xs px-1 py-0 h-5">
-                          Inactivo
-                        </Badge>
-                      )}
-                      {product.isFeatured && (
-                        <Badge className="bg-amber-500 text-xs px-1 py-0 h-5">
-                          <Star className="h-3 w-3 mr-1" />
-                          <span className="sr-only">Destacado</span>
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
+              <CardContent className="p-2">
+                <div className="space-y-0.5">
+                  <h3 className="font-medium text-xs leading-tight line-clamp-1" title={product.name}>
+                    {product.name}
+                  </h3>
                   <div className="flex justify-between items-center">
-                    <p className="text-sm font-medium">${product.price.toFixed(2)}</p>
-                    <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5">
+                    <p className="text-xs font-medium">${product.price.toFixed(2)}</p>
+                    <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
                       {getCategoryName(product.categoryId)}
                     </Badge>
                   </div>
