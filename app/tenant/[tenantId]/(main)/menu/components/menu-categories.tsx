@@ -68,12 +68,16 @@ export function MenuCategories({ tenantId, branchId }: MenuCategoriesProps) {
   }
 
   return (
-    <div className="px-4 md:px-6 mt-8 pb-16 md:pb-0 max-w-5xl mx-auto">
+    <div className="px-4 md:px-6 mt-4 pb-16 md:pb-0 max-w-5xl mx-auto">
       <Tabs value={activeCategory || undefined} onValueChange={setActiveCategory} className="w-full">
         <div className="border-b sticky top-0 bg-white z-10 pb-2">
-          <TabsList className="w-full h-auto flex overflow-x-auto py-1 justify-start">
+          <TabsList className="w-full h-auto flex overflow-x-auto py-1 justify-start bg-transparent">
             {categories.map((category) => (
-              <TabsTrigger key={category.id} value={category.id} className="px-4 py-2 whitespace-nowrap">
+              <TabsTrigger
+                key={category.id}
+                value={category.id}
+                className="px-4 py-2 whitespace-nowrap rounded-full data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
                 {category.name}
               </TabsTrigger>
             ))}

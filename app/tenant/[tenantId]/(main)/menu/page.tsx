@@ -7,6 +7,7 @@ import { getRestaurantConfig } from "@/lib/services/restaurant-config-service"
 import { RestaurantHeader } from "./components/restaurant-header"
 import { MenuCategories } from "./components/menu-categories"
 import { RestaurantInfoModal } from "./components/restaurant-info-modal"
+import { MobileNavigation } from "./components/mobile-navigation"
 import { Loader2 } from "lucide-react"
 
 export default function MenuPage({
@@ -73,7 +74,7 @@ export default function MenuPage({
   }
 
   return (
-    <div className="pb-20 md:pb-10 max-w-7xl mx-auto">
+    <div className="pb-20 md:pb-10">
       <RestaurantHeader
         restaurantData={restaurantData}
         restaurantConfig={restaurantConfig}
@@ -88,6 +89,11 @@ export default function MenuPage({
         restaurantData={restaurantData}
         restaurantConfig={restaurantConfig}
       />
+
+      {/* Mobile navigation - only visible on mobile */}
+      <div className="md:hidden">
+        <MobileNavigation />
+      </div>
     </div>
   )
 }
