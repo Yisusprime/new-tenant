@@ -161,6 +161,7 @@ export function CategoryForm({
       const result = await uploadImage(null, formData)
 
       if (result.success && result.url) {
+        // No usamos la URL temporal del objeto File, sino la URL real devuelta por Vercel Blob
         setImagePreview(result.url)
         toast({
           title: "Imagen subida",
@@ -292,7 +293,14 @@ export function CategoryForm({
           <div className="flex flex-col items-center mb-4">
             <div className="relative h-24 w-24 rounded-lg overflow-hidden bg-gray-100 mb-2">
               {imagePreview ? (
-                <Image src={imagePreview || "/placeholder.svg"} alt="Preview" fill className="object-cover" />
+                <Image
+                  src={imagePreview || "/placeholder.svg"}
+                  alt="Preview"
+                  fill
+                  className="object-cover"
+                  sizes="96px"
+                  crossOrigin="anonymous"
+                />
               ) : (
                 <div className="flex items-center justify-center h-full w-full text-gray-400">
                   <Tag className="h-8 w-8" />

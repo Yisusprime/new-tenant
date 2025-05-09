@@ -21,8 +21,11 @@ export async function uploadImage(prevState: any, formData: FormData) {
       }
     }
 
-    // Generate a unique filename
-    const filename = `${tenantId}-${branchId}-${categoryId}-${Date.now()}.${file.name.split(".").pop()}`
+    // Crear una estructura de carpetas usando prefijos en el nombre del archivo
+    // Formato: tenants/[tenantId]/branches/[branchId]/categories/[categoryId]/[timestamp].[extension]
+    const fileExtension = file.name.split(".").pop()
+    const timestamp = Date.now()
+    const filename = `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}/${timestamp}.${fileExtension}`
 
     // Upload to Vercel Blob (el token se accede automáticamente en el servidor)
     const blob = await put(filename, file, {

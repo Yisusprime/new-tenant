@@ -102,6 +102,8 @@ export function CategoryList({
                       alt={category.name}
                       fill
                       className="object-cover"
+                      sizes="40px"
+                      crossOrigin="anonymous"
                     />
                   ) : (
                     <div className="flex items-center justify-center h-full w-full text-gray-400">
