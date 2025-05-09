@@ -23,11 +23,7 @@ import {
 import { toast } from "@/components/ui/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
 
-export default function ProductsPage({
-  params,
-}: {
-  params: { tenantId: string }
-}) {
+export default function ProductsPage() {
   const { currentBranch } = useBranch()
   const router = useRouter()
   const [products, setProducts] = useState<Product[]>([])
@@ -50,8 +46,8 @@ export default function ProductsPage({
     setLoading(true)
     try {
       const [productsData, categoriesData] = await Promise.all([
-        getProducts(params.tenantId, currentBranch.id),
-        getCategories(params.tenantId, currentBranch.id),
+        getProducts(currentBranch.tenantId, currentBranch.id),
+        getCategories(currentBranch.tenantId, currentBranch.id),
       ])
       setProducts(productsData)
       setCategories(categoriesData)
@@ -72,7 +68,7 @@ export default function ProductsPage({
 
     setIsDeleting(true)
     try {
-      await deleteProduct(params.tenantId, currentBranch.id, productToDelete.id)
+      await deleteProduct(currentBranch.tenantId, currentBranch.id, productToDelete.id)
       setProducts(products.filter((p) => p.id !== productToDelete.id))
       toast({
         title: "Producto eliminado",
@@ -98,14 +94,14 @@ export default function ProductsPage({
 
   const navigateToProductForm = (productId?: string) => {
     if (productId) {
-      router.push(`/tenant/${params.tenantId}/admin/products/${productId}`)
+      router.push(`/admin/products/${productId}`)
     } else {
-      router.push(`/tenant/${params.tenantId}/admin/products/new-product`)
+      router.push(`/admin/products/new`)
     }
   }
 
   const navigateToExtras = (productId: string) => {
-    router.push(`/tenant/${params.tenantId}/admin/products/${productId}/extras`)
+    router.push(`/admin/products/${productId}/extras`)
   }
 
   return (

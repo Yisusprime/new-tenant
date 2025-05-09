@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { useBranch } from "@/lib/context/branch-context"
-import { getProduct, createProduct, updateProduct } from "@/lib/services/product-service"
+import { getProduct, updateProduct } from "@/lib/services/product-service"
 import { getCategories, getAllSubcategories, type Category, type Subcategory } from "@/lib/services/category-service"
 import { toast } from "@/components/ui/use-toast"
 import { ArrowLeft, Upload, X } from "lucide-react"
@@ -19,16 +19,15 @@ import Image from "next/image"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 
-export default function ProductPage({
+export default function EditProductPage({
   params,
 }: {
-  params: { tenantId: string; productId: string }
+  params: { productId: string }
 }) {
   const router = useRouter()
   const { currentBranch } = useBranch()
-  const isNew = params.productId === "new-product"
 
-  const [loading, setLoading] = useState(!isNew)
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [subcategories, setSubcategories] = useState<Subcategory[]>([])
@@ -49,13 +48,9 @@ export default function ProductPage({
   useEffect(() => {
     if (currentBranch) {
       loadCategories()
-      if (!isNew) {
-        loadProduct()
-      } else {
-        setLoading(false)
-      }
+      loadProduct()
     }
-  }, [currentBranch, isNew])
+  }, [currentBranch, params.productId])
 
   useEffect(() => {
     if (categoryId) {
@@ -70,7 +65,7 @@ export default function ProductPage({
     if (!currentBranch) return
 
     try {
-      const categoriesData = await getCategories(params.tenantId, currentBranch.id)
+      const categoriesData = await getCategories(currentBranch.tenantId, currentBranch.id)
       setCategories(categoriesData)
     } catch (error) {
       console.error("Error al cargar categorías:", error)
@@ -86,7 +81,7 @@ export default function ProductPage({
     if (!currentBranch || !categoryId) return
 
     try {
-      const subcategoriesData = await getAllSubcategories(params.tenantId, currentBranch.id, categoryId)
+      const subcategoriesData = await getAllSubcategories(currentBranch.tenantId, currentBranch.id, categoryId)
       setSubcategories(subcategoriesData)
     } catch (error) {
       console.error("Error al cargar subcategorías:", error)
@@ -98,7 +93,7 @@ export default function ProductPage({
 
     setLoading(true)
     try {
-      const product = await getProduct(params.tenantId, currentBranch.id, params.productId)
+      const product = await getProduct(currentBranch.tenantId, currentBranch.id, params.productId)
       if (product) {
         setName(product.name)
         setDescription(product.description || "")
@@ -118,7 +113,7 @@ export default function ProductPage({
           description: "Producto no encontrado",
           variant: "destructive",
         })
-        router.push(`/tenant/${params.tenantId}/admin/products`)
+        router.push(`/admin/products`)
       }
     } catch (error) {
       console.error("Error al cargar producto:", error)
@@ -185,26 +180,24 @@ export default function ProductPage({
         imageUrl: imagePreview && !imageFile ? imagePreview : undefined,
       }
 
-      if (isNew) {
-        await createProduct(params.tenantId, currentBranch.id, productData, imageFile || undefined)
-        toast({
-          title: "Producto creado",
-          description: "El producto ha sido creado correctamente",
-        })
-      } else {
-        await updateProduct(params.tenantId, currentBranch.id, params.productId, productData, imageFile || undefined)
-        toast({
-          title: "Producto actualizado",
-          description: "El producto ha sido actualizado correctamente",
-        })
-      }
+      await updateProduct(
+        currentBranch.tenantId,
+        currentBranch.id,
+        params.productId,
+        productData,
+        imageFile || undefined,
+      )
+      toast({
+        title: "Producto actualizado",
+        description: "El producto ha sido actualizado correctamente",
+      })
 
-      router.push(`/tenant/${params.tenantId}/admin/products`)
+      router.push(`/admin/products`)
     } catch (error) {
       console.error("Error al guardar producto:", error)
       toast({
         title: "Error",
-        description: `No se pudo ${isNew ? "crear" : "actualizar"} el producto`,
+        description: "No se pudo actualizar el producto",
         variant: "destructive",
       })
     } finally {
@@ -219,13 +212,13 @@ export default function ProductPage({
           <ArrowLeft className="h-4 w-4 mr-2" />
           Volver
         </Button>
-        <h1 className="text-2xl font-bold">{isNew ? "Nuevo Producto" : "Editar Producto"}</h1>
+        <h1 className="text-2xl font-bold">Editar Producto</h1>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>{isNew ? "Crear Producto" : "Editar Producto"}</CardTitle>
-          <CardDescription>Completa la información del producto</CardDescription>
+          <CardTitle>Editar Producto</CardTitle>
+          <CardDescription>Actualiza la información del producto</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -399,7 +392,7 @@ export default function ProductPage({
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={saving}>
-                  {saving ? "Guardando..." : isNew ? "Crear Producto" : "Guardar Cambios"}
+                  {saving ? "Guardando..." : "Guardar Cambios"}
                 </Button>
               </div>
             </form>
