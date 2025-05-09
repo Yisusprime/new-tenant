@@ -6,38 +6,37 @@ import { Button } from "@/components/ui/button"
 import { AlertCircle } from "lucide-react"
 import Link from "next/link"
 
-export function NoBranchSelectedAlert() {
-  const { currentBranch, loading, hasActiveBranches } = useBranch()
+export function BranchAlert() {
+  const { loading, hasBranches, hasActiveBranches } = useBranch()
 
   // No mostrar nada mientras está cargando
   if (loading) return null
 
-  // Si hay una sucursal seleccionada, no mostrar alerta
-  if (currentBranch) return null
+  // Si hay sucursales activas, no mostrar alerta
+  if (hasActiveBranches) return null
 
   return (
     <Alert variant="destructive" className="mb-6">
       <AlertCircle className="h-4 w-4" />
-      <AlertTitle>No hay sucursal seleccionada</AlertTitle>
+      <AlertTitle>Atención</AlertTitle>
       <AlertDescription className="flex flex-col gap-4">
-        {!hasActiveBranches ? (
+        {!hasBranches ? (
           <>
-            <p>
-              No tienes ninguna sucursal activa. Debes crear y activar al menos una sucursal para configurar tu
-              restaurante.
-            </p>
+            <p>No tienes ninguna sucursal creada. Debes crear al menos una sucursal para comenzar a usar el sistema.</p>
             <div>
               <Button asChild size="sm" variant="outline">
-                <Link href="/admin/branches">Gestionar Sucursales</Link>
+                <Link href="/admin/branches">Crear Sucursal</Link>
               </Button>
             </div>
           </>
         ) : (
           <>
-            <p>
-              Debes seleccionar una sucursal para configurar la información del restaurante. Por favor, selecciona una
-              sucursal en el menú superior.
-            </p>
+            <p>Tienes sucursales creadas, pero ninguna está activa. Debes activar al menos una sucursal.</p>
+            <div>
+              <Button asChild size="sm" variant="outline">
+                <Link href="/admin/branches">Activar Sucursal</Link>
+              </Button>
+            </div>
           </>
         )}
       </AlertDescription>

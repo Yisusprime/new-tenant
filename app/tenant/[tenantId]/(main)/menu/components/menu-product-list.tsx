@@ -1,372 +1,174 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
-import { Plus, Minus, Info } from "lucide-react"
+import { Loader2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogClose,
-} from "@/components/ui/dialog"
-import { Separator } from "@/components/ui/separator"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
 import { useCart } from "../context/cart-context"
-import type { ProductExtra, ProductExtraOption } from "@/lib/types/products"
 
-interface Product {
-  id: string
-  name: string
-  description: string
-  price: number
-  imageUrl?: string
-  extras?: ProductExtra[]
+// Datos de ejemplo para productos por categoría
+const sampleProductsByCategory = {
+  cat1: [
+    {
+      id: "burger1",
+      name: "Hamburguesa Clásica",
+      price: 8.99,
+      description: "Carne de res, lechuga, tomate, cebolla, queso y salsa especial",
+      image: "/classic-hamburger.png",
+    },
+    {
+      id: "burger2",
+      name: "Hamburguesa con Queso",
+      price: 9.99,
+      description: "Doble carne, doble queso, cebolla caramelizada y salsa BBQ",
+      image: "/cheeseburger.png",
+    },
+    {
+      id: "burger3",
+      name: "Hamburguesa Vegetariana",
+      price: 7.99,
+      description: "Hamburguesa de lentejas, aguacate, rúcula y salsa de yogur",
+      image: "/vegetarian-burger.png",
+    },
+  ],
+  cat2: [
+    {
+      id: "pizza1",
+      name: "Pizza Margherita",
+      price: 12.99,
+      description: "Salsa de tomate, mozzarella y albahaca fresca",
+      image: "/pizza-margherita.png",
+    },
+    {
+      id: "pizza2",
+      name: "Pizza Pepperoni",
+      price: 14.99,
+      description: "Salsa de tomate, mozzarella y pepperoni",
+      image: "/pepperoni-pizza.png",
+    },
+  ],
+  cat3: [
+    {
+      id: "salad1",
+      name: "Ensalada César",
+      price: 7.5,
+      description: "Lechuga romana, crutones, queso parmesano y aderezo César",
+      image: "/ensalada-cesar.png",
+    },
+    {
+      id: "salad2",
+      name: "Ensalada Griega",
+      price: 8.5,
+      description: "Tomate, pepino, cebolla, aceitunas, queso feta y aderezo de limón",
+      image: "/ensalada-griega.png",
+    },
+  ],
+  cat4: [
+    {
+      id: "dessert1",
+      name: "Tarta de Chocolate",
+      price: 5.99,
+      description: "Tarta de chocolate con base de galleta y cobertura de ganache",
+      image: "/chocolate-cake.png",
+    },
+    {
+      id: "dessert2",
+      name: "Helado de Vainilla",
+      price: 3.99,
+      description: "Helado cremoso de vainilla con sirope de chocolate",
+      image: "/placeholder.svg?height=200&width=200&query=helado de vainilla",
+    },
+  ],
+  cat5: [
+    {
+      id: "drink1",
+      name: "Refresco de Cola",
+      price: 2.5,
+      description: "Refresco de cola con hielo",
+      image: "/placeholder.svg?height=200&width=200&query=refresco de cola",
+    },
+    {
+      id: "drink2",
+      name: "Limonada Casera",
+      price: 3.5,
+      description: "Limonada fresca con menta y azúcar",
+      image: "/placeholder.svg?height=200&width=200&query=limonada casera",
+    },
+  ],
 }
 
 interface MenuProductListProps {
-  products: Product[]
-  categoryName: string
+  tenantId: string
+  branchId: string | null
+  categoryId: string
 }
 
-export function MenuProductList({ products, categoryName }: MenuProductListProps) {
-  const { addToCart } = useCart()
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
-  const [quantity, setQuantity] = useState(1)
-  const [selectedExtras, setSelectedExtras] = useState<Record<string, ProductExtraOption[]>>({})
-  const [totalPrice, setTotalPrice] = useState(0)
+export function MenuProductList({ tenantId, branchId, categoryId }: MenuProductListProps) {
+  const [products, setProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const { addItem } = useCart()
 
-  const handleOpenProductDialog = (product: Product) => {
-    setSelectedProduct(product)
-    setQuantity(1)
+  useEffect(() => {
+    // Simulamos la carga de productos desde la base de datos
+    setLoading(true)
+    setTimeout(() => {
+      setProducts(sampleProductsByCategory[categoryId as keyof typeof sampleProductsByCategory] || [])
+      setLoading(false)
+    }, 500)
+  }, [categoryId])
 
-    // Initialize selected extras
-    const initialSelectedExtras: Record<string, ProductExtraOption[]> = {}
-    if (product.extras && product.extras.length > 0) {
-      product.extras.forEach((extra) => {
-        // For required extras with default options, preselect them
-        if (extra.isRequired) {
-          const defaultOptions = extra.options.filter((option) => option.isDefault)
-          if (defaultOptions.length > 0) {
-            initialSelectedExtras[extra.id] = defaultOptions
-          }
-        }
-      })
-    }
-
-    setSelectedExtras(initialSelectedExtras)
-
-    // Calculate initial total price
-    calculateTotalPrice(product, initialSelectedExtras)
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    )
   }
 
-  const calculateTotalPrice = (product: Product, extrasSelection: Record<string, ProductExtraOption[]>) => {
-    let price = product.price
-
-    // Add price of selected extras
-    Object.entries(extrasSelection).forEach(([extraId, options]) => {
-      const extra = product.extras?.find((e) => e.id === extraId)
-      if (extra) {
-        // Add base price of the extra
-        price += extra.price
-
-        // Add price of each selected option
-        options.forEach((option) => {
-          price += option.price
-        })
-      }
-    })
-
-    setTotalPrice(price * quantity)
-  }
-
-  const handleExtraOptionChange = (
-    extraId: string,
-    option: ProductExtraOption,
-    isChecked: boolean,
-    isRadio: boolean,
-  ) => {
-    if (!selectedProduct) return
-
-    const newSelectedExtras = { ...selectedExtras }
-
-    if (isRadio) {
-      // For radio buttons (single selection)
-      newSelectedExtras[extraId] = [option]
-    } else {
-      // For checkboxes (multiple selection)
-      const currentOptions = newSelectedExtras[extraId] || []
-
-      if (isChecked) {
-        // Add option if it doesn't exist
-        if (!currentOptions.some((opt) => opt.id === option.id)) {
-          newSelectedExtras[extraId] = [...currentOptions, option]
-        }
-      } else {
-        // Remove option
-        newSelectedExtras[extraId] = currentOptions.filter((opt) => opt.id !== option.id)
-      }
-    }
-
-    setSelectedExtras(newSelectedExtras)
-    calculateTotalPrice(selectedProduct, newSelectedExtras)
-  }
-
-  const handleAddToCart = () => {
-    if (!selectedProduct) return
-
-    // Format selected extras for cart
-    const formattedExtras = Object.entries(selectedExtras).map(([extraId, options]) => {
-      const extra = selectedProduct.extras?.find((e) => e.id === extraId)
-      return {
-        id: extraId,
-        name: extra?.name || "",
-        options: options.map((opt) => ({
-          id: opt.id,
-          name: opt.name,
-          price: opt.price,
-        })),
-      }
-    })
-
-    addToCart({
-      id: selectedProduct.id,
-      name: selectedProduct.name,
-      price: totalPrice / quantity,
-      quantity,
-      extras: formattedExtras,
-      totalPrice: totalPrice,
-    })
-
-    // Reset state
-    setSelectedProduct(null)
-    setQuantity(1)
-    setSelectedExtras({})
-  }
-
-  const incrementQuantity = () => {
-    const newQuantity = quantity + 1
-    setQuantity(newQuantity)
-    if (selectedProduct) {
-      calculateTotalPrice(selectedProduct, selectedExtras)
-    }
-  }
-
-  const decrementQuantity = () => {
-    if (quantity > 1) {
-      const newQuantity = quantity - 1
-      setQuantity(newQuantity)
-      if (selectedProduct) {
-        calculateTotalPrice(selectedProduct, selectedExtras)
-      }
-    }
-  }
-
-  const isExtraValid = (extra: ProductExtra) => {
-    const selectedOptions = selectedExtras[extra.id] || []
-
-    if (extra.isRequired && selectedOptions.length === 0) {
-      return false
-    }
-
-    if (extra.minSelections && selectedOptions.length < extra.minSelections) {
-      return false
-    }
-
-    if (extra.maxSelections && selectedOptions.length > extra.maxSelections) {
-      return false
-    }
-
-    return true
-  }
-
-  const isFormValid = () => {
-    if (!selectedProduct || !selectedProduct.extras) return true
-
-    return selectedProduct.extras.every(isExtraValid)
+  // Si no hay productos, mostrar mensaje
+  if (products.length === 0) {
+    return (
+      <div className="text-center py-8 bg-gray-50 rounded-lg">
+        <p className="text-gray-500">No hay productos disponibles en esta categoría</p>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">{categoryName}</h2>
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {products.map((product) => (
-          <div
-            key={product.id}
-            className="group relative overflow-hidden rounded-lg border bg-background p-2 transition-colors hover:bg-accent hover:text-accent-foreground"
-          >
-            <div className="flex cursor-pointer" onClick={() => handleOpenProductDialog(product)}>
-              <div className="flex-1 p-2">
-                <h3 className="font-semibold">{product.name}</h3>
-                <p className="line-clamp-2 text-sm text-muted-foreground">{product.description}</p>
-                <p className="mt-2 font-medium">${product.price.toFixed(2)}</p>
-                {product.extras && product.extras.length > 0 && (
-                  <div className="mt-1 flex items-center text-xs text-muted-foreground">
-                    <Info className="mr-1 h-3 w-3" />
-                    <span>Personalizable</span>
-                  </div>
-                )}
-              </div>
-              {product.imageUrl && (
-                <div className="h-24 w-24 overflow-hidden rounded-md">
-                  <Image
-                    src={product.imageUrl || "/placeholder.svg"}
-                    alt={product.name}
-                    width={96}
-                    height={96}
-                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                  />
-                </div>
-              )}
-            </div>
-            <Button
-              size="sm"
-              className="absolute bottom-2 right-2 opacity-0 transition-opacity group-hover:opacity-100"
-              onClick={() => handleOpenProductDialog(product)}
-            >
-              Agregar
-            </Button>
+    <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+      {products.map((product) => (
+        <div
+          key={product.id}
+          className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden"
+        >
+          <div className="relative h-32 md:h-48 w-full">
+            <Image src={product.image || "/placeholder.svg"} alt={product.name} fill className="object-cover" />
           </div>
-        ))}
-      </div>
-
-      {selectedProduct && (
-        <Dialog open={!!selectedProduct} onOpenChange={(open) => !open && setSelectedProduct(null)}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>{selectedProduct.name}</DialogTitle>
-              <DialogDescription>{selectedProduct.description}</DialogDescription>
-            </DialogHeader>
-
-            {selectedProduct.imageUrl && (
-              <div className="relative h-48 w-full overflow-hidden rounded-md">
-                <Image
-                  src={selectedProduct.imageUrl || "/placeholder.svg"}
-                  alt={selectedProduct.name}
-                  fill
-                  className="object-cover"
-                />
-              </div>
+          <div className="p-3 md:p-4">
+            <h3 className="font-medium text-sm md:text-lg line-clamp-1">{product.name}</h3>
+            {product.description && (
+              <p className="text-xs md:text-sm text-gray-600 mt-1 line-clamp-2">{product.description}</p>
             )}
-
-            {selectedProduct.extras && selectedProduct.extras.length > 0 && (
-              <div className="max-h-[300px] overflow-y-auto pr-1">
-                {selectedProduct.extras.map((extra) => (
-                  <div key={extra.id} className="mb-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-medium">{extra.name}</h4>
-                      {extra.isRequired && <span className="text-xs text-red-500">Requerido</span>}
-                    </div>
-
-                    {extra.minSelections && extra.maxSelections && (
-                      <p className="text-xs text-muted-foreground">
-                        {extra.minSelections === extra.maxSelections
-                          ? `Selecciona ${extra.minSelections} opción${extra.minSelections !== 1 ? "es" : ""}`
-                          : `Selecciona entre ${extra.minSelections} y ${extra.maxSelections} opciones`}
-                      </p>
-                    )}
-
-                    <div className="mt-2 space-y-2">
-                      {extra.maxSelections === 1 ? (
-                        // Radio buttons for single selection
-                        <RadioGroup
-                          value={selectedExtras[extra.id]?.[0]?.id || ""}
-                          onValueChange={(value) => {
-                            const option = extra.options.find((opt) => opt.id === value)
-                            if (option) {
-                              handleExtraOptionChange(extra.id, option, true, true)
-                            }
-                          }}
-                        >
-                          {extra.options.map((option) => (
-                            <div
-                              key={option.id}
-                              className="flex items-center justify-between space-x-2 rounded-md border p-2"
-                            >
-                              <div className="flex items-center space-x-2">
-                                <RadioGroupItem value={option.id} id={`option-${option.id}`} />
-                                <Label htmlFor={`option-${option.id}`}>{option.name}</Label>
-                              </div>
-                              {option.price > 0 && <span className="text-sm">+${option.price.toFixed(2)}</span>}
-                            </div>
-                          ))}
-                        </RadioGroup>
-                      ) : (
-                        // Checkboxes for multiple selection
-                        <div className="space-y-2">
-                          {extra.options.map((option) => {
-                            const isSelected = (selectedExtras[extra.id] || []).some((opt) => opt.id === option.id)
-
-                            return (
-                              <div
-                                key={option.id}
-                                className="flex items-center justify-between space-x-2 rounded-md border p-2"
-                              >
-                                <div className="flex items-center space-x-2">
-                                  <Checkbox
-                                    id={`option-${option.id}`}
-                                    checked={isSelected}
-                                    onCheckedChange={(checked) => {
-                                      handleExtraOptionChange(extra.id, option, checked as boolean, false)
-                                    }}
-                                  />
-                                  <Label htmlFor={`option-${option.id}`}>{option.name}</Label>
-                                </div>
-                                {option.price > 0 && <span className="text-sm">+${option.price.toFixed(2)}</span>}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </div>
-
-                    {!isExtraValid(extra) && (
-                      <p className="mt-1 text-xs text-red-500">
-                        {extra.isRequired
-                          ? "Esta selección es requerida"
-                          : extra.minSelections && (selectedExtras[extra.id] || []).length < extra.minSelections
-                            ? `Selecciona al menos ${extra.minSelections} opción${extra.minSelections !== 1 ? "es" : ""}`
-                            : extra.maxSelections && (selectedExtras[extra.id] || []).length > extra.maxSelections
-                              ? `Selecciona máximo ${extra.maxSelections} opción${extra.maxSelections !== 1 ? "es" : ""}`
-                              : ""}
-                      </p>
-                    )}
-
-                    <Separator className="my-3" />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Button variant="outline" size="icon" onClick={decrementQuantity} disabled={quantity <= 1}>
-                  <Minus className="h-4 w-4" />
-                </Button>
-                <span>{quantity}</span>
-                <Button variant="outline" size="icon" onClick={incrementQuantity}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="text-lg font-semibold">${totalPrice.toFixed(2)}</div>
-            </div>
-
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button variant="outline">Cancelar</Button>
-              </DialogClose>
-              <Button onClick={handleAddToCart} disabled={!isFormValid()}>
-                Agregar al Carrito
+            <div className="flex justify-between items-center mt-2 md:mt-4">
+              <p className="font-bold text-sm md:text-base">${product.price.toFixed(2)}</p>
+              <Button
+                size="sm"
+                className="h-8 w-8 md:h-9 md:w-9 p-0 rounded-full"
+                onClick={() =>
+                  addItem({
+                    id: product.id,
+                    name: product.name,
+                    price: product.price,
+                    image: product.image,
+                  })
+                }
+              >
+                <Plus className="h-4 w-4 md:h-5 md:w-5" />
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
