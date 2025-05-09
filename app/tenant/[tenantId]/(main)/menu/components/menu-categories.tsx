@@ -71,7 +71,7 @@ export function MenuCategories({ tenantId, branchId }: MenuCategoriesProps) {
       {/* Navegación de categorías */}
       <div className="sticky top-0 bg-white z-10 border-b">
         <div className="overflow-x-auto">
-          <div className="flex whitespace-nowrap py-3 px-4 gap-4">
+          <div className="flex whitespace-nowrap py-3 px-3 gap-3">
             {categories.map((category) => (
               <button
                 key={category.id}

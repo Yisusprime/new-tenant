@@ -78,9 +78,8 @@ export default function MenuPage({
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen pb-20">
-      {/* Contenedor principal más delgado en PC */}
-      <div className="max-w-3xl mx-auto">
+    <div className="bg-gray-50 min-h-screen pb-20 flex justify-center">
+      <div className="w-full max-w-3xl">
         <RestaurantHeader
           restaurantData={restaurantData}
           restaurantConfig={restaurantConfig}
@@ -97,18 +96,18 @@ export default function MenuPage({
         <div className="mt-2 bg-white">
           <MenuCategories tenantId={tenantId} branchId={currentBranchId} />
         </div>
-      </div>
 
-      <RestaurantInfoModal
-        open={infoModalOpen}
-        onClose={() => setInfoModalOpen(false)}
-        restaurantData={restaurantData}
-        restaurantConfig={restaurantConfig}
-      />
+        <RestaurantInfoModal
+          open={infoModalOpen}
+          onClose={() => setInfoModalOpen(false)}
+          restaurantData={restaurantData}
+          restaurantConfig={restaurantConfig}
+        />
 
-      {/* Navegación móvil */}
-      <div className="md:hidden">
-        <MobileNavigation />
+        {/* Navegación móvil */}
+        <div className="md:hidden">
+          <MobileNavigation />
+        </div>
       </div>
     </div>
   )

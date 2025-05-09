@@ -23,18 +23,20 @@ export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick
     }
   }, [restaurantConfig])
 
-  // Usar imagen de placeholder de Next.js en lugar de la imagen actual
-  const logoImage = restaurantConfig?.basicInfo?.logo || "/restaurant-logo-transparent.png"
+  // Usar imágenes predeterminadas
+  const bannerImage = "/default-restaurant-banner.png"
+  const logoImage = restaurantConfig?.basicInfo?.logo || "/default-restaurant-logo.png"
   const restaurantName = restaurantData?.name || restaurantConfig?.basicInfo?.name || "Restaurante"
+  const shortDescription = restaurantConfig?.basicInfo?.shortDescription || "Deliciosa comida para todos los gustos"
   const address = restaurantConfig?.location?.address || "Dirección no disponible"
 
   return (
     <div className="bg-white">
-      {/* Banner con controles - más delgado en PC */}
+      {/* Banner con controles */}
       <div className="relative">
-        <div className="relative h-48 md:h-36 w-full overflow-hidden">
+        <div className="relative h-40 w-full overflow-hidden">
           <Image
-            src="/transparent-banner.png"
+            src={bannerImage || `/placeholder.svg?height=200&width=400&query=restaurant banner`}
             alt={`Banner de ${restaurantName}`}
             fill
             className="object-cover"
@@ -71,14 +73,14 @@ export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick
           </div>
         </div>
 
-        {/* Logo superpuesto - sin fondo */}
+        {/* Logo superpuesto */}
         <div className="absolute left-1/2 transform -translate-x-1/2 -bottom-12">
           <div className="relative w-24 h-24 rounded-full border-4 border-white overflow-hidden bg-white shadow-md">
             <Image
-              src={logoImage || "/placeholder.svg"}
+              src={logoImage || `/placeholder.svg?height=100&width=100&query=restaurant logo`}
               alt={`Logo de ${restaurantName}`}
               fill
-              className="object-contain p-1"
+              className="object-cover"
             />
           </div>
         </div>
