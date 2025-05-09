@@ -159,7 +159,7 @@ export default function CategoryFormPage({
       }
 
       // Redirigir a la lista de categorías
-      router.push(`/tenant/${tenantId}/admin/categories`)
+      router.push(`/admin/categories`)
     } catch (error) {
       console.error("Error al guardar categoría:", error)
       toast({
@@ -253,7 +253,7 @@ export default function CategoryFormPage({
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">{isNewCategory ? "Nueva Categoría" : "Editar Categoría"}</h1>
-        <Button variant="outline" onClick={() => router.push(`/tenant/${tenantId}/admin/categories`)}>
+        <Button variant="outline" onClick={() => router.push(`/admin/categories`)}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Volver
         </Button>
       </div>

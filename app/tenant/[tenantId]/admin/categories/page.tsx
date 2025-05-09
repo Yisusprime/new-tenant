@@ -74,12 +74,12 @@ export default function CategoriesPage({
       return
     }
 
-    router.push(`/tenant/${tenantId}/admin/categories/new`)
+    router.push(`/admin/categories/new`)
   }
 
   const handleEditCategory = (categoryId: string) => {
     if (!currentBranch) return
-    router.push(`/tenant/${tenantId}/admin/categories/${categoryId}`)
+    router.push(`/admin/categories/${categoryId}`)
   }
 
   const handleDeleteCategory = async () => {
@@ -114,7 +114,7 @@ export default function CategoriesPage({
 
   const handleManageSubcategories = (categoryId: string) => {
     if (!currentBranch) return
-    router.push(`/tenant/${tenantId}/admin/categories/${categoryId}/subcategories`)
+    router.push(`/admin/categories/${categoryId}/subcategories`)
   }
 
   return (
