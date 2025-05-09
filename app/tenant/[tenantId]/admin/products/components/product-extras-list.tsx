@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Card } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -48,8 +48,8 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
       try {
         setLoading(true)
         const data = await getProductExtras(tenantId, branchId)
-        setExtras(data)
-        setFilteredExtras(data)
+        setExtras(data || [])
+        setFilteredExtras(data || [])
       } catch (error) {
         console.error("Error al cargar extras:", error)
         toast({
@@ -57,6 +57,8 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
           description: "No se pudieron cargar los extras",
           variant: "destructive",
         })
+        setExtras([])
+        setFilteredExtras([])
       } finally {
         setLoading(false)
       }
@@ -69,15 +71,16 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
 
   // Filtrar extras cuando cambia la búsqueda
   useEffect(() => {
-    if (searchQuery.trim() === "") {
-      setFilteredExtras(extras)
-    } else {
-      const query = searchQuery.toLowerCase()
-      const filtered = extras.filter(
-        (extra) => extra.name.toLowerCase().includes(query) || extra.description?.toLowerCase().includes(query),
-      )
-      setFilteredExtras(filtered)
+    if (!searchQuery.trim() || !Array.isArray(extras)) {
+      setFilteredExtras(extras || [])
+      return
     }
+
+    const query = searchQuery.toLowerCase()
+    const filtered = extras.filter(
+      (extra) => extra.name.toLowerCase().includes(query) || extra.description?.toLowerCase().includes(query),
+    )
+    setFilteredExtras(filtered)
   }, [searchQuery, extras])
 
   // Editar extra
@@ -142,9 +145,9 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-24" />
         </div>
-        <div className="space-y-2">
-          {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-lg" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {[...Array(8)].map((_, i) => (
+            <Skeleton key={i} className="h-[140px] w-full rounded-lg" />
           ))}
         </div>
       </div>
@@ -152,7 +155,7 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
   }
 
   // Si no hay extras
-  if (extras.length === 0) {
+  if (!Array.isArray(extras) || extras.length === 0) {
     return (
       <div className="text-center py-10">
         <p className="text-muted-foreground">No hay extras disponibles. Crea tu primer extra global.</p>
@@ -181,7 +184,7 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
       </div>
 
       {/* Resultados de búsqueda */}
-      {searchQuery && (
+      {searchQuery && Array.isArray(filteredExtras) && (
         <div className="text-sm text-muted-foreground">
           {filteredExtras.length === 0
             ? "No se encontraron extras"
@@ -189,44 +192,49 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
         </div>
       )}
 
-      {/* Lista de extras */}
-      <div className="space-y-2">
-        {filteredExtras.map((extra) => (
-          <Card key={extra.id} className="overflow-hidden">
-            <div className="flex items-center p-2">
-              {/* Imagen cuadrada a la izquierda */}
-              <div className="relative h-12 w-12 rounded-md overflow-hidden bg-muted flex-shrink-0">
-                {extra.imageUrl ? (
-                  <Image
-                    src={extra.imageUrl || "/placeholder.svg"}
-                    alt={extra.name}
-                    fill
-                    className="object-cover"
-                    sizes="48px"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <span className="text-muted-foreground text-[10px]">Sin imagen</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Información a la derecha */}
-              <div className="ml-3 flex-1 min-w-0">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-medium text-sm truncate" title={extra.name}>
-                      {extra.name}
-                    </h3>
-                    <p className="text-xs text-muted-foreground truncate" title={extra.description || ""}>
-                      {extra.description || "Sin descripción"}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={extra.isActive ? "default" : "secondary"} className="text-xs">
+      {/* Lista de extras en cuadrícula */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        {Array.isArray(filteredExtras) &&
+          filteredExtras.map((extra) => (
+            <Card key={extra.id} className="overflow-hidden h-full">
+              <div className="flex flex-col h-full">
+                <div className="relative h-24 w-full bg-muted">
+                  {extra.imageUrl ? (
+                    <Image
+                      src={extra.imageUrl || "/placeholder.svg"}
+                      alt={extra.name}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className="text-muted-foreground text-xs">Sin imagen</span>
+                    </div>
+                  )}
+                  <div className="absolute top-1 right-1">
+                    <Badge
+                      variant={extra.isActive ? "default" : "secondary"}
+                      className="text-xs px-1.5 py-0 h-5 bg-background/80 backdrop-blur-sm"
+                    >
                       {extra.isActive ? "Activo" : "Inactivo"}
                     </Badge>
-                    <span className="font-medium text-sm">${extra.price.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <CardContent className="p-3 flex-1 flex flex-col">
+                  <div className="flex justify-between items-start gap-2 mb-1">
+                    <h3 className="font-medium text-sm line-clamp-1" title={extra.name}>
+                      {extra.name}
+                    </h3>
+                    <span className="font-medium text-sm whitespace-nowrap">${extra.price.toFixed(2)}</span>
+                  </div>
+                  {extra.description && (
+                    <p className="text-xs text-muted-foreground line-clamp-2 mb-2" title={extra.description}>
+                      {extra.description}
+                    </p>
+                  )}
+                  <div className="mt-auto flex justify-end">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -262,11 +270,10 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                </div>
+                </CardContent>
               </div>
-            </div>
-          </Card>
-        ))}
+            </Card>
+          ))}
       </div>
 
       {/* Diálogo de confirmación para eliminar */}

@@ -216,12 +216,12 @@ export function ProductsList({ tenantId, branchId }: ProductsListProps) {
   const renderSkeletons = () => {
     return Array.from({ length: 12 }).map((_, index) => (
       <Card key={index} className="overflow-hidden">
-        <div className="h-24 relative bg-muted">
+        <div className="h-32 relative bg-muted">
           <Skeleton className="h-full w-full" />
         </div>
-        <CardContent className="p-2">
-          <Skeleton className="h-3 w-3/4 mb-1" />
-          <Skeleton className="h-3 w-1/2" />
+        <CardContent className="p-3">
+          <Skeleton className="h-4 w-3/4 mb-2" />
+          <Skeleton className="h-4 w-1/2" />
         </CardContent>
       </Card>
     ))
@@ -254,7 +254,7 @@ export function ProductsList({ tenantId, branchId }: ProductsListProps) {
         </p>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
         {loading || loadingCategories ? (
           renderSkeletons()
         ) : !Array.isArray(filteredProducts) || filteredProducts.length === 0 ? (
@@ -268,14 +268,14 @@ export function ProductsList({ tenantId, branchId }: ProductsListProps) {
         ) : (
           filteredProducts.map((product) => (
             <Card key={product.id} className="overflow-hidden group h-full">
-              <div className="h-24 relative bg-muted">
+              <div className="h-32 relative bg-muted">
                 {product.imageUrl ? (
                   <Image
                     src={product.imageUrl || "/placeholder.svg"}
                     alt={product.name}
                     fill
                     className="object-cover"
-                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 25vw, (max-width: 1024px) 16vw, 12.5vw"
+                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 16vw"
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full bg-muted">
@@ -344,14 +344,14 @@ export function ProductsList({ tenantId, branchId }: ProductsListProps) {
                   </DropdownMenu>
                 </div>
               </div>
-              <CardContent className="p-2">
-                <div className="space-y-0.5">
-                  <h3 className="font-medium text-xs leading-tight line-clamp-1" title={product.name}>
+              <CardContent className="p-3">
+                <div className="space-y-1">
+                  <h3 className="font-medium text-sm leading-tight line-clamp-1" title={product.name}>
                     {product.name}
                   </h3>
                   <div className="flex justify-between items-center">
-                    <p className="text-xs font-medium">${product.price.toFixed(2)}</p>
-                    <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
+                    <p className="text-sm font-medium">${product.price.toFixed(2)}</p>
+                    <Badge variant="secondary" className="text-xs px-1 py-0 h-5">
                       {getCategoryName(product.categoryId)}
                     </Badge>
                   </div>
