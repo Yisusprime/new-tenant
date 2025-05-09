@@ -5,6 +5,7 @@ export interface Subcategory {
   id: string
   name: string
   description?: string
+  imageUrl?: string
   order: number
   isActive: boolean
   createdAt: string

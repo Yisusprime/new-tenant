@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useBranch } from "@/lib/context/branch-context"
 import {
@@ -10,6 +10,8 @@ import {
   createSubcategory,
   updateSubcategory,
   deleteSubcategory,
+  uploadImageToBlob,
+  deleteImageFromBlob,
   type Category,
   type Subcategory,
 } from "@/lib/services/category-service"
@@ -40,7 +42,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Loader2, Plus, Pencil, Trash, ArrowLeft, Save, Eye, EyeOff } from "lucide-react"
+import { Loader2, Plus, Pencil, Trash, ArrowLeft, Save, Eye, EyeOff, ImageIcon, X } from "lucide-react"
 import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
 
 export default function SubcategoriesPage({
@@ -62,7 +64,11 @@ export default function SubcategoriesPage({
     description: "",
     order: 0,
     isActive: true,
+    imageUrl: "",
   })
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [saving, setSaving] = useState(false)
   const { toast } = useToast()
   const router = useRouter()
@@ -130,6 +136,26 @@ export default function SubcategoriesPage({
     setFormData((prev) => ({ ...prev, [name]: Number.parseInt(value) || 0 }))
   }
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setImageFile(file)
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleRemoveImage = () => {
+    setImageFile(null)
+    setImagePreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
+
   const handleOpenDialog = (subcategory?: Subcategory) => {
     if (subcategory) {
       setEditingSubcategory(subcategory)
@@ -138,7 +164,9 @@ export default function SubcategoriesPage({
         description: subcategory.description || "",
         order: subcategory.order,
         isActive: subcategory.isActive,
+        imageUrl: subcategory.imageUrl || "",
       })
+      setImagePreview(subcategory.imageUrl || null)
     } else {
       setEditingSubcategory(null)
       setFormData({
@@ -146,8 +174,11 @@ export default function SubcategoriesPage({
         description: "",
         order: subcategories.length,
         isActive: true,
+        imageUrl: "",
       })
+      setImagePreview(null)
     }
+    setImageFile(null)
     setDialogOpen(true)
   }
 
@@ -159,7 +190,10 @@ export default function SubcategoriesPage({
       description: "",
       order: 0,
       isActive: true,
+      imageUrl: "",
     })
+    setImageFile(null)
+    setImagePreview(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -186,7 +220,28 @@ export default function SubcategoriesPage({
     try {
       setSaving(true)
 
+      let imageUrl = formData.imageUrl || ""
+
+      // Si hay un nuevo archivo de imagen, subirlo
+      if (imageFile) {
+        const blobPath = `tenants/${tenantId}/branches/${currentBranch.id}/categories/${categoryId}/subcategories/${
+          editingSubcategory?.id || "new"
+        }-${Date.now()}.${imageFile.name.split(".").pop()}`
+
+        imageUrl = await uploadImageToBlob(imageFile, blobPath)
+      }
+
       if (editingSubcategory) {
+        // Si estamos editando y hay una nueva imagen, eliminar la anterior
+        if (imageFile && editingSubcategory.imageUrl) {
+          try {
+            await deleteImageFromBlob(editingSubcategory.imageUrl)
+          } catch (error) {
+            console.error("Error al eliminar imagen anterior:", error)
+            // Continuar aunque falle la eliminación
+          }
+        }
+
         // Actualizar subcategoría existente
         const updatedSubcategory = await updateSubcategory(
           tenantId,
@@ -198,6 +253,7 @@ export default function SubcategoriesPage({
             description: formData.description,
             order: formData.order,
             isActive: formData.isActive,
+            imageUrl: imageUrl,
           },
         )
 
@@ -215,6 +271,7 @@ export default function SubcategoriesPage({
           description: formData.description,
           order: formData.order || 0,
           isActive: formData.isActive !== false,
+          imageUrl: imageUrl,
         })
 
         // Añadir a la lista de subcategorías
@@ -248,6 +305,16 @@ export default function SubcategoriesPage({
     if (!currentBranch || !subcategoryToDelete) return
 
     try {
+      // Si la subcategoría tiene imagen, eliminarla
+      if (subcategoryToDelete.imageUrl) {
+        try {
+          await deleteImageFromBlob(subcategoryToDelete.imageUrl)
+        } catch (error) {
+          console.error("Error al eliminar imagen:", error)
+          // Continuar aunque falle la eliminación de la imagen
+        }
+      }
+
       await deleteSubcategory(tenantId, currentBranch.id, categoryId, subcategoryToDelete.id)
 
       // Actualizar la lista de subcategorías
@@ -312,6 +379,7 @@ export default function SubcategoriesPage({
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Imagen</TableHead>
                   <TableHead>Nombre</TableHead>
                   <TableHead>Descripción</TableHead>
                   <TableHead>Estado</TableHead>
@@ -322,6 +390,21 @@ export default function SubcategoriesPage({
               <TableBody>
                 {subcategories.map((subcategory) => (
                   <TableRow key={subcategory.id}>
+                    <TableCell>
+                      {subcategory.imageUrl ? (
+                        <div className="relative h-10 w-10 rounded overflow-hidden">
+                          <img
+                            src={subcategory.imageUrl || "/placeholder.svg"}
+                            alt={subcategory.name}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="h-10 w-10 bg-gray-100 flex items-center justify-center rounded">
+                          <ImageIcon className="h-5 w-5 text-gray-400" />
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell className="font-medium">{subcategory.name}</TableCell>
                     <TableCell>{subcategory.description || "-"}</TableCell>
                     <TableCell>
@@ -361,7 +444,7 @@ export default function SubcategoriesPage({
 
       {/* Diálogo para crear/editar subcategoría */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{editingSubcategory ? "Editar Subcategoría" : "Nueva Subcategoría"}</DialogTitle>
             <DialogDescription>
@@ -393,6 +476,51 @@ export default function SubcategoriesPage({
                 placeholder="Descripción breve de la subcategoría"
                 rows={3}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="image">Imagen</Label>
+              <div className="mt-1 flex items-center gap-4">
+                {imagePreview ? (
+                  <div className="relative h-24 w-24 rounded-md overflow-hidden border border-gray-200">
+                    <img
+                      src={imagePreview || "/placeholder.svg"}
+                      alt="Vista previa"
+                      className="h-full w-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 shadow-sm hover:bg-red-600"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="h-24 w-24 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center bg-gray-50">
+                    <ImageIcon className="h-8 w-8 text-gray-400" />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <Input
+                    id="image"
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full"
+                  >
+                    {imagePreview ? "Cambiar imagen" : "Subir imagen"}
+                  </Button>
+                  <p className="text-xs text-gray-500 mt-1">Formatos recomendados: JPG, PNG. Máximo 2MB.</p>
+                </div>
+              </div>
             </div>
 
             <div className="space-y-2">
