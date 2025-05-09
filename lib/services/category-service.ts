@@ -18,14 +18,14 @@ export interface Category {
   description?: string
   imageUrl?: string
   order: number
-  active: boolean
+  isActive: boolean
   subcategories?: Record<string, Subcategory>
   createdAt: string
   updatedAt: string
 }
 
 // Función para obtener todas las categorías de una sucursal
-export async function getAllCategories(tenantId: string, branchId: string): Promise<Category[]> {
+export async function getCategories(tenantId: string, branchId: string): Promise<Category[]> {
   try {
     const categoriesRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories`)
     const snapshot = await get(categoriesRef)
@@ -62,39 +62,6 @@ export async function getAllCategories(tenantId: string, branchId: string): Prom
     return categories.sort((a, b) => a.order - b.order)
   } catch (error) {
     console.error("Error al obtener categorías:", error)
-    throw error
-  }
-}
-
-// Función para obtener todas las subcategorías de una categoría
-export async function getAllSubcategories(
-  tenantId: string,
-  branchId: string,
-  categoryId: string,
-): Promise<Subcategory[]> {
-  try {
-    const subcategoriesRef = ref(
-      realtimeDb,
-      `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}/subcategories`,
-    )
-    const snapshot = await get(subcategoriesRef)
-
-    if (!snapshot.exists()) {
-      return []
-    }
-
-    const subcategoriesData = snapshot.val()
-
-    // Convertir el objeto a un array y ordenar por el campo order
-    const subcategories = Object.entries(subcategoriesData).map(([id, data]) => ({
-      id,
-      ...(data as any),
-    }))
-
-    // Ordenar subcategorías por orden
-    return subcategories.sort((a, b) => a.order - b.order)
-  } catch (error) {
-    console.error("Error al obtener subcategorías:", error)
     throw error
   }
 }
@@ -180,7 +147,7 @@ export async function createCategory(
     const newCategoryRef = push(categoriesRef)
     const categoryId = newCategoryRef.key!
 
-    let imageUrl = ""
+    let imageUrl = categoryData.imageUrl || ""
 
     // Si hay un archivo de imagen, subirlo a Blob
     if (imageFile) {
@@ -335,6 +302,7 @@ export async function createSubcategory(
   branchId: string,
   categoryId: string,
   subcategoryData: Omit<Subcategory, "id" | "createdAt" | "updatedAt">,
+  imageFile?: File,
 ): Promise<Subcategory> {
   try {
     const timestamp = new Date().toISOString()
@@ -347,9 +315,18 @@ export async function createSubcategory(
     const newSubcategoryRef = push(subcategoriesRef)
     const subcategoryId = newSubcategoryRef.key!
 
+    let imageUrl = subcategoryData.imageUrl || ""
+
+    // Si hay un archivo de imagen, subirlo a Blob
+    if (imageFile) {
+      const blobPath = `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}/subcategories/${subcategoryId}-${Date.now()}.${imageFile.name.split(".").pop()}`
+      imageUrl = await uploadImageToBlob(imageFile, blobPath)
+    }
+
     const newSubcategory = {
       ...subcategoryData,
       id: subcategoryId,
+      imageUrl,
       createdAt: timestamp,
       updatedAt: timestamp,
     }
@@ -374,6 +351,7 @@ export async function updateSubcategory(
   categoryId: string,
   subcategoryId: string,
   subcategoryData: Partial<Omit<Subcategory, "id" | "createdAt" | "updatedAt">>,
+  imageFile?: File,
 ): Promise<Subcategory> {
   try {
     const timestamp = new Date().toISOString()
@@ -390,8 +368,27 @@ export async function updateSubcategory(
 
     const currentSubcategory = snapshot.val()
 
+    let imageUrl = subcategoryData.imageUrl !== undefined ? subcategoryData.imageUrl : currentSubcategory.imageUrl
+
+    // Si hay un nuevo archivo de imagen, subirlo a Blob
+    if (imageFile) {
+      // Si ya existe una imagen, eliminarla primero
+      if (currentSubcategory.imageUrl) {
+        try {
+          await deleteImageFromBlob(currentSubcategory.imageUrl)
+        } catch (error) {
+          console.error("Error al eliminar imagen anterior:", error)
+          // Continuar aunque falle la eliminación
+        }
+      }
+
+      const blobPath = `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}/subcategories/${subcategoryId}-${Date.now()}.${imageFile.name.split(".").pop()}`
+      imageUrl = await uploadImageToBlob(imageFile, blobPath)
+    }
+
     const updatedData = {
       ...subcategoryData,
+      imageUrl,
       updatedAt: timestamp,
     }
 
@@ -422,10 +419,62 @@ export async function deleteSubcategory(
       `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}/subcategories/${subcategoryId}`,
     )
 
+    // Obtener la subcategoría para ver si tiene imagen
+    const snapshot = await get(subcategoryRef)
+    if (!snapshot.exists()) {
+      throw new Error("La subcategoría no existe")
+    }
+
+    const subcategoryData = snapshot.val()
+
+    // Si tiene imagen, eliminarla de Blob
+    if (subcategoryData.imageUrl) {
+      try {
+        await deleteImageFromBlob(subcategoryData.imageUrl)
+        console.log("Imagen eliminada de Blob:", subcategoryData.imageUrl)
+      } catch (blobError) {
+        console.error("Error al eliminar imagen de Blob:", blobError)
+        // Continuamos con la eliminación de la subcategoría aunque falle la eliminación de la imagen
+      }
+    }
+
     // Eliminar la subcategoría de Realtime Database
     await remove(subcategoryRef)
   } catch (error) {
     console.error("Error al eliminar subcategoría:", error)
+    throw error
+  }
+}
+
+// Función para obtener todas las subcategorías de una categoría
+export async function getAllSubcategories(
+  tenantId: string,
+  branchId: string,
+  categoryId: string,
+): Promise<Subcategory[]> {
+  try {
+    const subcategoriesRef = ref(
+      realtimeDb,
+      `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}/subcategories`,
+    )
+    const snapshot = await get(subcategoriesRef)
+
+    if (!snapshot.exists()) {
+      return []
+    }
+
+    const subcategoriesData = snapshot.val()
+
+    // Convertir el objeto a un array y ordenar por el campo order
+    const subcategories = Object.entries(subcategoriesData).map(([id, data]) => ({
+      id,
+      ...(data as any),
+    })) as Subcategory[]
+
+    // Ordenar subcategorías por orden
+    return subcategories.sort((a, b) => a.order - b.order)
+  } catch (error) {
+    console.error("Error al obtener subcategorías:", error)
     throw error
   }
 }

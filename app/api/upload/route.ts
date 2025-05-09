@@ -1,5 +1,5 @@
-import { type NextRequest, NextResponse } from "next/server"
 import { put, del } from "@vercel/blob"
+import { type NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,10 +23,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ url: blob.url })
   } catch (error) {
     console.error("Error al subir archivo:", error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Error desconocido al subir archivo" },
-      { status: 500 },
-    )
+    return NextResponse.json({ error: "Error al subir archivo" }, { status: 500 })
   }
 }
 
@@ -44,9 +41,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Error al eliminar archivo:", error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Error desconocido al eliminar archivo" },
-      { status: 500 },
-    )
+    return NextResponse.json({ error: "Error al eliminar archivo" }, { status: 500 })
   }
 }
