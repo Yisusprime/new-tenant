@@ -2,8 +2,10 @@
 
 import { put, del } from "@vercel/blob"
 import { revalidatePath } from "next/cache"
-import { db } from "@/lib/firebase/client"
-import { doc, updateDoc } from "firebase/firestore"
+import { getDatabase, ref as dbRef, update } from "firebase/database"
+
+// Obtener la instancia de Realtime Database
+const realtimeDb = getDatabase()
 
 // Server Action para subir imágenes a Vercel Blob
 export async function uploadImage(prevState: any, formData: FormData) {
@@ -33,9 +35,9 @@ export async function uploadImage(prevState: any, formData: FormData) {
       addRandomSuffix: false,
     })
 
-    // Update the category with the new image URL
-    const categoryRef = doc(db, `tenants/${tenantId}/branches/${branchId}/categories`, categoryId)
-    await updateDoc(categoryRef, {
+    // Update the category with the new image URL in Realtime Database
+    const categoryRef = dbRef(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}`)
+    await update(categoryRef, {
       image: blob.url,
       updatedAt: new Date().toISOString(),
     })
@@ -59,21 +61,28 @@ export async function uploadImage(prevState: any, formData: FormData) {
 }
 
 // Función para eliminar una imagen de Vercel Blob
-export async function deleteImage(imageUrl: string): Promise<void> {
+export async function deleteImage(imageUrl: string): Promise<boolean> {
+  if (!imageUrl) {
+    console.warn("No se proporcionó URL de imagen para eliminar")
+    return false
+  }
+
   try {
     console.log("Intentando eliminar imagen:", imageUrl)
 
     // Verificar que la URL sea de Vercel Blob
     if (!imageUrl.includes("blob.vercel-storage.com")) {
       console.warn("La URL no parece ser de Vercel Blob:", imageUrl)
-      return
+      return false
     }
 
     // Eliminar la imagen usando la API de Vercel Blob
     await del(imageUrl)
     console.log("Imagen eliminada correctamente:", imageUrl)
+    return true
   } catch (error: any) {
     console.error("Error al eliminar la imagen de Vercel Blob:", error)
-    throw new Error(`Error al eliminar la imagen: ${error.message || "Error desconocido"}`)
+    // No lanzamos el error para que no interrumpa el flujo principal
+    return false
   }
 }

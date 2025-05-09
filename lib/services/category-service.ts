@@ -1,6 +1,8 @@
-import { db } from "@/lib/firebase/client"
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, orderBy } from "firebase/firestore"
+import { getDatabase, ref, get, set, update, remove } from "firebase/database"
 import { deleteImage } from "@/app/api/upload/actions"
+
+// Obtener la instancia de Realtime Database
+const realtimeDb = getDatabase()
 
 export interface Category {
   id: string
@@ -19,11 +21,18 @@ export interface Category {
 // Get all categories for a tenant and branch
 export async function getCategories(tenantId: string, branchId: string): Promise<Category[]> {
   try {
-    const categoriesRef = collection(db, `tenants/${tenantId}/branches/${branchId}/categories`)
-    const q = query(categoriesRef, orderBy("order", "asc"))
-    const snapshot = await getDocs(q)
+    const categoriesRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories`)
+    const snapshot = await get(categoriesRef)
 
-    return snapshot.docs.map((doc) => doc.data() as Category)
+    if (!snapshot.exists()) {
+      return []
+    }
+
+    const categoriesData = snapshot.val()
+    const categories: Category[] = Object.values(categoriesData || {})
+
+    // Ordenar por el campo order
+    return categories.sort((a: any, b: any) => a.order - b.order)
   } catch (error) {
     console.error("Error getting categories:", error)
     throw error
@@ -33,14 +42,14 @@ export async function getCategories(tenantId: string, branchId: string): Promise
 // Get a specific category
 export async function getCategory(tenantId: string, branchId: string, categoryId: string): Promise<Category | null> {
   try {
-    const categoryRef = doc(db, `tenants/${tenantId}/branches/${branchId}/categories`, categoryId)
-    const categoryDoc = await getDoc(categoryRef)
+    const categoryRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}`)
+    const snapshot = await get(categoryRef)
 
-    if (!categoryDoc.exists()) {
+    if (!snapshot.exists()) {
       return null
     }
 
-    return categoryDoc.data() as Category
+    return snapshot.val() as Category
   } catch (error) {
     console.error("Error getting category:", error)
     throw error
@@ -58,23 +67,27 @@ export async function createCategory(
     const now = new Date().toISOString()
 
     // Crear objeto base de categoría
-    const newCategory: Omit<Category, "parentId"> & { parentId?: string } = {
+    const newCategory: Category = {
       id: categoryId,
       ...categoryData,
       createdAt: now,
       updatedAt: now,
       tenantId,
       branchId,
+      order: categoryData.order || 0,
+      isActive: categoryData.isActive !== undefined ? categoryData.isActive : true,
     }
 
-    // Si parentId es undefined o una cadena vacía, eliminar la propiedad
+    // Si parentId es undefined o una cadena vacía, asegurarse de que no se incluya
     if (!categoryData.parentId) {
-      delete newCategory.parentId
+      delete (newCategory as any).parentId
     }
 
-    await setDoc(doc(db, `tenants/${tenantId}/branches/${branchId}/categories`, categoryId), newCategory)
+    // Guardar en Realtime Database
+    const categoryRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}`)
+    await set(categoryRef, newCategory)
 
-    return newCategory as Category
+    return newCategory
   } catch (error) {
     console.error("Error creating category:", error)
     throw error
@@ -89,12 +102,14 @@ export async function updateCategory(
   categoryData: Partial<Omit<Category, "id" | "createdAt" | "tenantId" | "branchId">>,
 ): Promise<Category> {
   try {
-    const categoryRef = doc(db, `tenants/${tenantId}/branches/${branchId}/categories`, categoryId)
-    const categoryDoc = await getDoc(categoryRef)
+    const categoryRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}`)
+    const snapshot = await get(categoryRef)
 
-    if (!categoryDoc.exists()) {
+    if (!snapshot.exists()) {
       throw new Error("Category not found")
     }
+
+    const existingCategory = snapshot.val() as Category
 
     // Crear objeto de actualización
     const updatedData: Record<string, any> = {
@@ -102,15 +117,16 @@ export async function updateCategory(
       updatedAt: new Date().toISOString(),
     }
 
-    // Si parentId es undefined o una cadena vacía, eliminar la propiedad
+    // Si parentId es undefined o una cadena vacía, eliminarlo
     if (categoryData.parentId === undefined || categoryData.parentId === "") {
       delete updatedData.parentId
     }
 
-    await updateDoc(categoryRef, updatedData)
+    // Actualizar en Realtime Database
+    await update(categoryRef, updatedData)
 
     return {
-      ...(categoryDoc.data() as Category),
+      ...existingCategory,
       ...updatedData,
     }
   } catch (error) {
@@ -123,25 +139,26 @@ export async function updateCategory(
 export async function deleteCategory(tenantId: string, branchId: string, categoryId: string): Promise<void> {
   try {
     // Primero obtenemos la categoría para verificar si tiene imagen
-    const categoryRef = doc(db, `tenants/${tenantId}/branches/${branchId}/categories`, categoryId)
-    const categoryDoc = await getDoc(categoryRef)
+    const categoryRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}`)
+    const snapshot = await get(categoryRef)
 
-    if (!categoryDoc.exists()) {
+    if (!snapshot.exists()) {
       throw new Error("Categoría no encontrada")
     }
 
-    const category = categoryDoc.data() as Category
+    const category = snapshot.val() as Category
 
     // Verificamos si hay subcategorías
-    const categoriesRef = collection(db, `tenants/${tenantId}/branches/${branchId}/categories`)
-    const snapshot = await getDocs(categoriesRef)
-    const hasSubcategories = snapshot.docs.some((doc) => {
-      const data = doc.data()
-      return data.parentId === categoryId
-    })
+    const categoriesRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories`)
+    const categoriesSnapshot = await get(categoriesRef)
 
-    if (hasSubcategories) {
-      throw new Error("No se puede eliminar una categoría con subcategorías. Elimine primero las subcategorías.")
+    if (categoriesSnapshot.exists()) {
+      const categoriesData = categoriesSnapshot.val()
+      const hasSubcategories = Object.values(categoriesData).some((cat: any) => cat.parentId === categoryId)
+
+      if (hasSubcategories) {
+        throw new Error("No se puede eliminar una categoría con subcategorías. Elimine primero las subcategorías.")
+      }
     }
 
     // Eliminamos la imagen si existe
@@ -157,7 +174,7 @@ export async function deleteCategory(tenantId: string, branchId: string, categor
     }
 
     // Eliminamos la categoría
-    await deleteDoc(categoryRef)
+    await remove(categoryRef)
   } catch (error) {
     console.error("Error al eliminar la categoría:", error)
     throw error
@@ -167,13 +184,19 @@ export async function deleteCategory(tenantId: string, branchId: string, categor
 // Get subcategories for a parent category
 export async function getSubcategories(tenantId: string, branchId: string, parentId: string): Promise<Category[]> {
   try {
-    const categoriesRef = collection(db, `tenants/${tenantId}/branches/${branchId}/categories`)
-    const snapshot = await getDocs(categoriesRef)
+    const categoriesRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories`)
+    const snapshot = await get(categoriesRef)
 
-    return snapshot.docs
-      .map((doc) => doc.data() as Category)
-      .filter((category) => category.parentId === parentId)
-      .sort((a, b) => a.order - b.order)
+    if (!snapshot.exists()) {
+      return []
+    }
+
+    const categoriesData = snapshot.val()
+    const categories: Category[] = Object.values(categoriesData || {})
+
+    return categories
+      .filter((category: Category) => category.parentId === parentId)
+      .sort((a: Category, b: Category) => a.order - b.order)
   } catch (error) {
     console.error("Error getting subcategories:", error)
     throw error
@@ -183,13 +206,19 @@ export async function getSubcategories(tenantId: string, branchId: string, paren
 // Get only parent categories (no subcategories)
 export async function getParentCategories(tenantId: string, branchId: string): Promise<Category[]> {
   try {
-    const categoriesRef = collection(db, `tenants/${tenantId}/branches/${branchId}/categories`)
-    const snapshot = await getDocs(categoriesRef)
+    const categoriesRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories`)
+    const snapshot = await get(categoriesRef)
 
-    return snapshot.docs
-      .map((doc) => doc.data() as Category)
-      .filter((category) => !category.parentId)
-      .sort((a, b) => a.order - b.order)
+    if (!snapshot.exists()) {
+      return []
+    }
+
+    const categoriesData = snapshot.val()
+    const categories: Category[] = Object.values(categoriesData || {})
+
+    return categories
+      .filter((category: Category) => !category.parentId)
+      .sort((a: Category, b: Category) => a.order - b.order)
   } catch (error) {
     console.error("Error getting parent categories:", error)
     throw error
