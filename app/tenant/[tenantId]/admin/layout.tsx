@@ -25,7 +25,6 @@ import {
   Truck,
   CreditCardIcon as PaymentIcon,
   Globe,
-  Tag,
 } from "lucide-react"
 import Link from "next/link"
 import { BranchProvider, useBranch } from "@/lib/context/branch-context"
@@ -215,7 +214,6 @@ function AdminLayoutContent({
     { path: "/dashboard", label: "Dashboard", icon: Home },
     { path: "/branches", label: "Sucursales", icon: MapPin },
     { path: "/products", label: "Productos", icon: Store },
-    { path: "/categories", label: "Categorías", icon: Tag },
     { path: "/plans", label: "Planes", icon: CreditCard },
     { path: "/debug", label: "Depuración", icon: AlertCircle },
   ]
