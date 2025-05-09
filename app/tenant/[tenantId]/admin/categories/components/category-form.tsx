@@ -3,8 +3,10 @@
 import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
+import { usePathname } from "next/navigation"
 import Image from "next/image"
-import { createCategory, updateCategory, uploadCategoryImage, type Category } from "@/lib/services/category-service"
+import { createCategory, updateCategory, type Category } from "@/lib/services/category-service"
+import { uploadImage } from "@/app/api/upload/actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -21,6 +23,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, Camera, Tag, Upload } from "lucide-react"
+import { useFormState } from "react-dom"
 
 interface CategoryFormProps {
   open: boolean
@@ -58,6 +61,11 @@ export function CategoryForm({
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
+  const pathname = usePathname()
+
+  // Estado inicial para la carga de imágenes
+  const initialUploadState = { success: false, url: "", error: "" }
+  const [uploadState, formAction] = useFormState(uploadImage, initialUploadState)
 
   // Reset form when dialog opens/closes or category changes
   useEffect(() => {
@@ -86,6 +94,27 @@ export function CategoryForm({
       setImageFile(null)
     }
   }, [open, category, parentId, categories])
+
+  // Manejar el resultado de la carga de imágenes
+  useEffect(() => {
+    if (uploadState && uploadState !== initialUploadState) {
+      if (uploadState.success && uploadState.url) {
+        setImagePreview(uploadState.url)
+        setIsUploading(false)
+        toast({
+          title: "Imagen subida",
+          description: "La imagen se ha subido correctamente.",
+        })
+      } else if (uploadState.error) {
+        setIsUploading(false)
+        toast({
+          title: "Error al subir la imagen",
+          description: uploadState.error,
+          variant: "destructive",
+        })
+      }
+    }
+  }, [uploadState, initialUploadState, toast])
 
   // Get the next order number based on existing categories
   const getNextOrder = () => {
@@ -139,6 +168,24 @@ export function CategoryForm({
     reader.readAsDataURL(file)
   }
 
+  // Función para subir la imagen usando la Server Action
+  const handleImageUpload = async (categoryId: string) => {
+    if (!imageFile || !branchId) return null
+
+    setIsUploading(true)
+
+    // Crear un FormData para la Server Action
+    const formData = new FormData()
+    formData.append("file", imageFile)
+    formData.append("tenantId", tenantId)
+    formData.append("branchId", branchId)
+    formData.append("categoryId", categoryId)
+    formData.append("path", pathname)
+
+    // Llamar a la Server Action
+    formAction(formData)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -166,9 +213,7 @@ export function CategoryForm({
 
         // Upload image if changed
         if (imageFile) {
-          setIsUploading(true)
-          await uploadCategoryImage(tenantId, branchId, category.id, imageFile)
-          updatedCategory.image = URL.createObjectURL(imageFile) // Temporary URL for UI update
+          await handleImageUpload(category.id)
         }
 
         onCategoryUpdated(updatedCategory)
@@ -177,6 +222,10 @@ export function CategoryForm({
           title: "Categoría actualizada",
           description: `La categoría "${formData.name}" ha sido actualizada correctamente.`,
         })
+
+        if (!imageFile) {
+          onOpenChange(false)
+        }
       } else {
         // Create new category
         const newCategory = await createCategory(tenantId, branchId, {
@@ -189,9 +238,7 @@ export function CategoryForm({
 
         // Upload image if provided
         if (imageFile) {
-          setIsUploading(true)
-          await uploadCategoryImage(tenantId, branchId, newCategory.id, imageFile)
-          newCategory.image = URL.createObjectURL(imageFile) // Temporary URL for UI update
+          await handleImageUpload(newCategory.id)
         }
 
         onCategoryCreated(newCategory)
@@ -200,23 +247,34 @@ export function CategoryForm({
           title: "Categoría creada",
           description: `La categoría "${formData.name}" ha sido creada correctamente.`,
         })
-      }
 
-      onOpenChange(false)
+        if (!imageFile) {
+          onOpenChange(false)
+        }
+      }
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message || "No se pudo guardar la categoría.",
         variant: "destructive",
       })
-    } finally {
       setIsSubmitting(false)
-      setIsUploading(false)
+    } finally {
+      if (!imageFile) {
+        setIsSubmitting(false)
+      }
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(newOpen) => {
+        if (!isSubmitting && !isUploading) {
+          onOpenChange(newOpen)
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>{category ? "Editar Categoría" : "Nueva Categoría"}</DialogTitle>
@@ -354,14 +412,19 @@ export function CategoryForm({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isSubmitting || isUploading}
+            >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? (
+            <Button type="submit" disabled={isSubmitting || isUploading}>
+              {isSubmitting || isUploading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {category ? "Actualizando..." : "Creando..."}
+                  {isUploading ? "Subiendo imagen..." : category ? "Actualizando..." : "Creando..."}
                 </>
               ) : (
                 <>{category ? "Actualizar" : "Crear"}</>

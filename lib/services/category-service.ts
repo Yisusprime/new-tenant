@@ -1,6 +1,5 @@
 import { db } from "@/lib/firebase/client"
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, orderBy } from "firebase/firestore"
-import { put } from "@vercel/blob"
 
 export interface Category {
   id: string
@@ -173,33 +172,5 @@ export async function getParentCategories(tenantId: string, branchId: string): P
   }
 }
 
-// Upload category image
-export async function uploadCategoryImage(
-  tenantId: string,
-  branchId: string,
-  categoryId: string,
-  file: File,
-): Promise<string> {
-  try {
-    // Generate a unique filename
-    const filename = `${tenantId}-${branchId}-${categoryId}-${Date.now()}.${file.name.split(".").pop()}`
-
-    // Upload to Vercel Blob
-    const blob = await put(filename, file, {
-      access: "public",
-      addRandomSuffix: false,
-    })
-
-    // Update the category with the new image URL
-    const categoryRef = doc(db, `tenants/${tenantId}/branches/${branchId}/categories`, categoryId)
-    await updateDoc(categoryRef, {
-      image: blob.url,
-      updatedAt: new Date().toISOString(),
-    })
-
-    return blob.url
-  } catch (error) {
-    console.error("Error uploading category image:", error)
-    throw error
-  }
-}
+// Eliminamos la función uploadCategoryImage que accedía directamente al token
+// Esta funcionalidad ahora se maneja a través de la Server Action
