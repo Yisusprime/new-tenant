@@ -53,7 +53,7 @@ export function MenuProductList({ tenantId, branchId, categoryId }: MenuProductL
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-8">
+      <div className="flex justify-center items-center py-8 min-h-[200px]">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     )
@@ -61,7 +61,7 @@ export function MenuProductList({ tenantId, branchId, categoryId }: MenuProductL
 
   if (error) {
     return (
-      <div className="text-center py-8">
+      <div className="text-center py-8 min-h-[200px]">
         <p className="text-red-500">{error}</p>
       </div>
     )
@@ -70,7 +70,7 @@ export function MenuProductList({ tenantId, branchId, categoryId }: MenuProductL
   // Si no hay productos, mostrar mensaje
   if (products.length === 0) {
     return (
-      <div className="text-center py-8 bg-gray-50 rounded-lg">
+      <div className="text-center py-8 bg-gray-50 rounded-lg min-h-[200px]">
         <p className="text-gray-500">No hay productos disponibles en esta categoría</p>
       </div>
     )
@@ -88,7 +88,7 @@ export function MenuProductList({ tenantId, branchId, categoryId }: MenuProductL
               src={product.imageUrl || "/placeholder.svg?height=192&width=256&query=food"}
               alt={product.name}
               fill
-              className="object-cover"
+              className="object-cover rounded-lg" // Añadido rounded-lg para bordes redondeados
             />
           </div>
           <div className="p-3 md:p-4">

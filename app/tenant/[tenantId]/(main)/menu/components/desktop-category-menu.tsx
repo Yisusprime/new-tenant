@@ -3,54 +3,22 @@
 import { useState, useEffect } from "react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getCategories } from "@/lib/services/category-service"
-import { Loader2 } from "lucide-react"
 
 interface DesktopCategoryMenuProps {
   activeCategory: string | null
   onCategoryChange: (categoryId: string) => void
+  tenantId: string
+  branchId: string | null
 }
 
-// Obtener el tenantId y branchId del contexto global o de props
-export function DesktopCategoryMenu({ activeCategory, onCategoryChange }: DesktopCategoryMenuProps) {
+export function DesktopCategoryMenu({
+  activeCategory,
+  onCategoryChange,
+  tenantId,
+  branchId,
+}: DesktopCategoryMenuProps) {
   const [categories, setCategories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  // Obtener tenantId y branchId de la URL
-  const [tenantId, setTenantId] = useState<string>("")
-  const [branchId, setBranchId] = useState<string | null>(null)
-
-  useEffect(() => {
-    // Extraer tenantId de la URL
-    const pathParts = window.location.pathname.split("/")
-    const tenantIdIndex = pathParts.findIndex((part) => part === "tenant") + 1
-    if (tenantIdIndex > 0 && tenantIdIndex < pathParts.length) {
-      setTenantId(pathParts[tenantIdIndex])
-    }
-
-    // Obtener branchId de localStorage o de alguna otra fuente
-    // Por ahora, usaremos un enfoque simplificado
-    const fetchBranchId = async () => {
-      try {
-        // Aquí normalmente obtendrías el branchId de alguna fuente
-        // Por ahora, usaremos localStorage como ejemplo
-        const storedBranchId = localStorage.getItem("currentBranchId")
-        if (storedBranchId) {
-          setBranchId(storedBranchId)
-        } else {
-          // Si no hay branchId en localStorage, intentamos obtenerlo de otra manera
-          // Por ejemplo, obteniendo la primera sucursal activa
-          // Esto es solo un placeholder, deberías implementar tu propia lógica
-          setBranchId(null)
-        }
-      } catch (error) {
-        console.error("Error al obtener branchId:", error)
-        setBranchId(null)
-      }
-    }
-
-    fetchBranchId()
-  }, [])
 
   useEffect(() => {
     async function loadCategories() {
@@ -70,11 +38,8 @@ export function DesktopCategoryMenu({ activeCategory, onCategoryChange }: Deskto
         if (!activeCategory && activeCategories.length > 0) {
           onCategoryChange(activeCategories[0].id)
         }
-
-        setError(null)
       } catch (err) {
         console.error("Error al cargar categorías:", err)
-        setError("Error al cargar categorías")
       } finally {
         setLoading(false)
       }
@@ -85,15 +50,8 @@ export function DesktopCategoryMenu({ activeCategory, onCategoryChange }: Deskto
     }
   }, [tenantId, branchId, activeCategory, onCategoryChange])
 
-  if (loading) {
-    return (
-      <div className="bg-white p-2 rounded-md shadow-sm flex justify-center">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
-      </div>
-    )
-  }
-
-  if (error || categories.length === 0) {
+  // Si está cargando o no hay categorías, no mostramos nada
+  if (loading || categories.length === 0) {
     return null
   }
 

@@ -13,6 +13,7 @@ import { FeaturedProducts } from "./components/featured-products"
 import { Cart } from "./components/cart"
 import { CartProvider } from "./context/cart-context"
 import { DesktopCategoryMenu } from "./components/desktop-category-menu"
+import { getCategories } from "@/lib/services/category-service"
 
 export default function MenuPage({
   params,
@@ -27,6 +28,7 @@ export default function MenuPage({
   const [currentBranchId, setCurrentBranchId] = useState<string | null>(null)
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const [categories, setCategories] = useState<any[]>([])
   const headerRef = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -53,6 +55,16 @@ export default function MenuPage({
           const config = await getRestaurantConfig(tenantId, branchId)
           if (config) {
             setRestaurantConfig(config)
+          }
+
+          // Cargar categorías
+          const categoriesData = await getCategories(tenantId, branchId)
+          const activeCategories = categoriesData.filter((cat) => cat.isActive)
+          setCategories(activeCategories)
+
+          // Seleccionar la primera categoría por defecto
+          if (activeCategories.length > 0) {
+            setActiveCategory(activeCategories[0].id)
           }
         }
       } catch (error) {
@@ -84,9 +96,6 @@ export default function MenuPage({
 
   const handleCategorySelect = (categoryId: string) => {
     setActiveCategory(categoryId)
-
-    // Eliminamos el scroll automático al seleccionar una categoría
-    // Solo actualizamos el estado
   }
 
   if (loading) {
