@@ -98,12 +98,12 @@ export function FeaturedProducts({ tenantId, branchId }: FeaturedProductsProps) 
       >
         {featuredProducts.map((product) => (
           <div key={product.id} className="flex-shrink-0 w-64 bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="relative h-40 w-full">
+            <div className="relative h-40 w-full rounded-lg overflow-hidden">
               <Image
                 src={product.imageUrl || "/placeholder.svg?height=160&width=256&query=featured food"}
                 alt={product.name}
                 fill
-                className="object-cover"
+                className="object-cover rounded-lg"
               />
             </div>
             <div className="p-3">

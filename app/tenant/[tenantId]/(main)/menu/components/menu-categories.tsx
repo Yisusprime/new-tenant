@@ -83,7 +83,7 @@ export function MenuCategories({
 
   return (
     <Tabs value={activeCategory || categories[0]?.id} onValueChange={onCategoryChange} className="w-full">
-      <div className={`sticky top-0 bg-white z-20 ${showMobileMenu ? "block" : "hidden"} md:block`}>
+      <div className="sticky top-0 bg-white z-20 shadow-sm">
         <TabsList className="h-auto p-1 w-full overflow-x-auto flex flex-nowrap justify-start md:justify-center">
           {categories.map((category) => (
             <TabsTrigger key={category.id} value={category.id} className="px-4 py-2 whitespace-nowrap">
@@ -93,12 +93,14 @@ export function MenuCategories({
         </TabsList>
       </div>
 
-      {categories.map((category) => (
-        <TabsContent key={category.id} value={category.id} className="p-4">
-          <h2 className="text-xl font-bold mb-4">{category.name}</h2>
-          <MenuProductList tenantId={tenantId} branchId={branchId} categoryId={category.id} />
-        </TabsContent>
-      ))}
+      <div className="min-h-[200px]">
+        {categories.map((category) => (
+          <TabsContent key={category.id} value={category.id} className="p-4">
+            <h2 className="text-xl font-bold mb-4">{category.name}</h2>
+            <MenuProductList tenantId={tenantId} branchId={branchId} categoryId={category.id} />
+          </TabsContent>
+        ))}
+      </div>
     </Tabs>
   )
 }
