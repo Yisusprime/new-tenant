@@ -21,7 +21,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, Save, ArrowLeft, Upload, Trash } from "lucide-react"
 import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
-import Image from "next/image"
 
 export default function CategoryFormPage({
   params,
@@ -279,11 +278,10 @@ export default function CategoryFormPage({
                   <div className="relative mb-4">
                     {formData.imageUrl ? (
                       <div className="relative w-40 h-40 rounded-lg overflow-hidden border">
-                        <Image
+                        <img
                           src={formData.imageUrl || "/placeholder.svg"}
                           alt="Imagen de categoría"
-                          fill
-                          className="object-cover"
+                          className="w-full h-full object-cover"
                         />
                       </div>
                     ) : (

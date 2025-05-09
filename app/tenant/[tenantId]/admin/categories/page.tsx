@@ -7,7 +7,7 @@ import { getCategories, deleteCategory, type Category } from "@/lib/services/cat
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, Plus, Edit, Trash, Folder, Image, ImageIcon } from "lucide-react"
+import { Loader2, Plus, Edit, Trash, Folder, ImageIcon } from "lucide-react"
 import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
 import {
   AlertDialog,
@@ -110,12 +110,13 @@ export default function CategoriesPage({ params }: { params: { tenantId: string 
               <Card key={category.id} className="overflow-hidden">
                 <div className="relative h-40 bg-gray-100">
                   {category.imageUrl ? (
-                    <Image
-                      src={category.imageUrl || "/placeholder.svg"}
-                      alt={category.name}
-                      fill
-                      className="object-cover"
-                    />
+                    <div className="relative w-full h-full">
+                      <img
+                        src={category.imageUrl || "/placeholder.svg"}
+                        alt={category.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
                   ) : (
                     <div className="flex items-center justify-center h-full">
                       <ImageIcon className="h-12 w-12 text-gray-400" />
