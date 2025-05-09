@@ -24,28 +24,36 @@ export function useRestaurantConfig<T>(
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
   const { currentBranch } = useBranch()
-  const configLoadedRef = useRef<boolean>(false)
+
+  // Guardar la última sucursal cargada para detectar cambios
+  const lastBranchIdRef = useRef<string | null>(null)
 
   // Cargar datos cuando cambia la sucursal
   useEffect(() => {
     let isMounted = true
 
-    // Si ya cargamos la configuración para esta sucursal, no la volvemos a cargar
-    if (currentBranch && configLoadedRef.current) {
+    // Si no hay sucursal seleccionada, no intentamos cargar datos
+    if (!currentBranch) {
+      if (isMounted) {
+        setData(defaultValue)
+        setLoading(false)
+        setError(null)
+      }
       return
     }
 
-    async function loadConfig() {
-      // Si no hay sucursal seleccionada, no intentamos cargar datos
-      if (!currentBranch) {
-        if (isMounted) {
-          setData(defaultValue)
-          setLoading(false)
-          setError(null)
-        }
-        return
-      }
+    // Verificar si la sucursal ha cambiado
+    const branchChanged = lastBranchIdRef.current !== currentBranch.id
 
+    // Si la sucursal no ha cambiado y ya tenemos datos, no hacemos nada
+    if (!branchChanged && !loading && error === null) {
+      return
+    }
+
+    // Actualizar la referencia a la sucursal actual
+    lastBranchIdRef.current = currentBranch.id
+
+    async function loadConfig() {
       try {
         if (isMounted) {
           setLoading(true)
@@ -67,9 +75,6 @@ export function useRestaurantConfig<T>(
           setData(defaultValue)
           console.log(`No hay datos para sección ${configSection}, usando valores por defecto`)
         }
-
-        // Marcamos que ya cargamos la configuración para esta sucursal
-        configLoadedRef.current = true
       } catch (err) {
         console.error(`Error al cargar configuración de ${configSection}:`, err)
 
@@ -90,7 +95,7 @@ export function useRestaurantConfig<T>(
     return () => {
       isMounted = false
     }
-  }, [tenantId, currentBranch, configSection, defaultValue])
+  }, [tenantId, currentBranch, configSection, defaultValue, loading, error])
 
   // Función para guardar los datos
   const saveData = async (): Promise<boolean> => {

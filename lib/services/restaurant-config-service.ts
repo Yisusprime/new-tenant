@@ -91,6 +91,8 @@ export async function getRestaurantConfig(tenantId: string, branchId?: string): 
       return null
     }
 
+    console.log(`Obteniendo configuración para tenant: ${tenantId}, sucursal: ${branchId}`)
+
     const configRef = doc(db, `tenants/${tenantId}/branches/${branchId}/config`, "restaurant")
     const configDoc = await getDoc(configRef)
 
@@ -99,10 +101,13 @@ export async function getRestaurantConfig(tenantId: string, branchId?: string): 
       return null
     }
 
-    return configDoc.data() as RestaurantConfig
+    const configData = configDoc.data() as RestaurantConfig
+    console.log(`Configuración obtenida para sucursal ${branchId}:`, configData)
+
+    return configData
   } catch (error) {
     console.error("Error al obtener configuración del restaurante:", error)
-    return null
+    throw error // Lanzamos el error para manejarlo en el hook
   }
 }
 
@@ -118,6 +123,8 @@ export async function updateRestaurantConfigSection<T>(
       throw new Error("No se proporcionó ID de sucursal")
     }
 
+    console.log(`Actualizando sección ${section} para tenant: ${tenantId}, sucursal: ${branchId}`)
+
     const configRef = doc(db, `tenants/${tenantId}/branches/${branchId}/config`, "restaurant")
     const configDoc = await getDoc(configRef)
 
@@ -128,6 +135,7 @@ export async function updateRestaurantConfigSection<T>(
         updatedAt: new Date().toISOString(),
         branchId: branchId,
       })
+      console.log(`Sección ${section} actualizada correctamente para sucursal ${branchId}`)
     } else {
       // Crear un documento inicial con la sección proporcionada
       const initialConfig: Partial<RestaurantConfig> = {
@@ -136,6 +144,7 @@ export async function updateRestaurantConfigSection<T>(
         branchId: branchId,
       }
       await setDoc(configRef, initialConfig)
+      console.log(`Creada configuración inicial con sección ${section} para sucursal ${branchId}`)
     }
   } catch (error) {
     console.error(`Error al actualizar sección ${section}:`, error)
@@ -149,6 +158,8 @@ export async function uploadRestaurantLogo(tenantId: string, branchId: string, f
     if (!branchId) {
       throw new Error("No se proporcionó ID de sucursal")
     }
+
+    console.log(`Subiendo logo para tenant: ${tenantId}, sucursal: ${branchId}`)
 
     // Crear una referencia al archivo en Storage
     const storageRef = ref(storage, `tenants/${tenantId}/branches/${branchId}/restaurant/logo`)
@@ -176,6 +187,7 @@ export async function uploadRestaurantLogo(tenantId: string, branchId: string, f
       })
     }
 
+    console.log(`Logo subido correctamente para sucursal ${branchId}`)
     return downloadURL
   } catch (error) {
     console.error("Error al subir logo del restaurante:", error)
@@ -189,6 +201,8 @@ export async function deleteRestaurantLogo(tenantId: string, branchId: string): 
     if (!branchId) {
       throw new Error("No se proporcionó ID de sucursal")
     }
+
+    console.log(`Eliminando logo para tenant: ${tenantId}, sucursal: ${branchId}`)
 
     // Crear una referencia al archivo en Storage
     const storageRef = ref(storage, `tenants/${tenantId}/branches/${branchId}/restaurant/logo`)
@@ -212,6 +226,8 @@ export async function deleteRestaurantLogo(tenantId: string, branchId: string): 
         updatedAt: new Date().toISOString(),
       })
     }
+
+    console.log(`Logo eliminado correctamente para sucursal ${branchId}`)
   } catch (error) {
     console.error("Error al eliminar logo del restaurante:", error)
     throw error
@@ -228,6 +244,8 @@ export async function initializeRestaurantConfig(
     if (!branchId) {
       throw new Error("No se proporcionó ID de sucursal")
     }
+
+    console.log(`Inicializando configuración para tenant: ${tenantId}, sucursal: ${branchId}`)
 
     const defaultConfig: RestaurantConfig = {
       basicInfo: {
@@ -290,6 +308,7 @@ export async function initializeRestaurantConfig(
     const configRef = doc(db, `tenants/${tenantId}/branches/${branchId}/config`, "restaurant")
     await setDoc(configRef, defaultConfig)
 
+    console.log(`Configuración inicializada correctamente para sucursal ${branchId}`)
     return defaultConfig
   } catch (error) {
     console.error("Error al inicializar configuración del restaurante:", error)
