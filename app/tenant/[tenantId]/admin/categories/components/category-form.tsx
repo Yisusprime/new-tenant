@@ -23,7 +23,6 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, Camera, Tag, Upload } from "lucide-react"
-import { useFormState } from "react-dom"
 
 interface CategoryFormProps {
   open: boolean
@@ -63,10 +62,6 @@ export function CategoryForm({
   const { toast } = useToast()
   const pathname = usePathname()
 
-  // Estado inicial para la carga de imágenes
-  const initialUploadState = { success: false, url: "", error: "" }
-  const [uploadState, formAction] = useFormState(uploadImage, initialUploadState)
-
   // Reset form when dialog opens/closes or category changes
   useEffect(() => {
     if (open) {
@@ -94,27 +89,6 @@ export function CategoryForm({
       setImageFile(null)
     }
   }, [open, category, parentId, categories])
-
-  // Manejar el resultado de la carga de imágenes
-  useEffect(() => {
-    if (uploadState && uploadState !== initialUploadState) {
-      if (uploadState.success && uploadState.url) {
-        setImagePreview(uploadState.url)
-        setIsUploading(false)
-        toast({
-          title: "Imagen subida",
-          description: "La imagen se ha subido correctamente.",
-        })
-      } else if (uploadState.error) {
-        setIsUploading(false)
-        toast({
-          title: "Error al subir la imagen",
-          description: uploadState.error,
-          variant: "destructive",
-        })
-      }
-    }
-  }, [uploadState, initialUploadState, toast])
 
   // Get the next order number based on existing categories
   const getNextOrder = () => {
@@ -174,16 +148,43 @@ export function CategoryForm({
 
     setIsUploading(true)
 
-    // Crear un FormData para la Server Action
-    const formData = new FormData()
-    formData.append("file", imageFile)
-    formData.append("tenantId", tenantId)
-    formData.append("branchId", branchId)
-    formData.append("categoryId", categoryId)
-    formData.append("path", pathname)
+    try {
+      // Crear un FormData para la Server Action
+      const formData = new FormData()
+      formData.append("file", imageFile)
+      formData.append("tenantId", tenantId)
+      formData.append("branchId", branchId)
+      formData.append("categoryId", categoryId)
+      formData.append("path", pathname)
 
-    // Llamar a la Server Action
-    formAction(formData)
+      // Llamar a la Server Action directamente
+      const result = await uploadImage(null, formData)
+
+      if (result.success && result.url) {
+        setImagePreview(result.url)
+        toast({
+          title: "Imagen subida",
+          description: "La imagen se ha subido correctamente.",
+        })
+        return result.url
+      } else {
+        toast({
+          title: "Error al subir la imagen",
+          description: result.error || "No se pudo subir la imagen",
+          variant: "destructive",
+        })
+        return null
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error al subir la imagen",
+        description: error.message || "No se pudo subir la imagen",
+        variant: "destructive",
+      })
+      return null
+    } finally {
+      setIsUploading(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -213,7 +214,10 @@ export function CategoryForm({
 
         // Upload image if changed
         if (imageFile) {
-          await handleImageUpload(category.id)
+          const imageUrl = await handleImageUpload(category.id)
+          if (imageUrl) {
+            updatedCategory.image = imageUrl
+          }
         }
 
         onCategoryUpdated(updatedCategory)
@@ -223,9 +227,7 @@ export function CategoryForm({
           description: `La categoría "${formData.name}" ha sido actualizada correctamente.`,
         })
 
-        if (!imageFile) {
-          onOpenChange(false)
-        }
+        onOpenChange(false)
       } else {
         // Create new category
         const newCategory = await createCategory(tenantId, branchId, {
@@ -238,7 +240,10 @@ export function CategoryForm({
 
         // Upload image if provided
         if (imageFile) {
-          await handleImageUpload(newCategory.id)
+          const imageUrl = await handleImageUpload(newCategory.id)
+          if (imageUrl) {
+            newCategory.image = imageUrl
+          }
         }
 
         onCategoryCreated(newCategory)
@@ -248,9 +253,7 @@ export function CategoryForm({
           description: `La categoría "${formData.name}" ha sido creada correctamente.`,
         })
 
-        if (!imageFile) {
-          onOpenChange(false)
-        }
+        onOpenChange(false)
       }
     } catch (error: any) {
       toast({
@@ -258,11 +261,8 @@ export function CategoryForm({
         description: error.message || "No se pudo guardar la categoría.",
         variant: "destructive",
       })
-      setIsSubmitting(false)
     } finally {
-      if (!imageFile) {
-        setIsSubmitting(false)
-      }
+      setIsSubmitting(false)
     }
   }
 
