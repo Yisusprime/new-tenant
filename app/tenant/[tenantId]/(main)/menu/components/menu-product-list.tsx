@@ -1,13 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { collection, query, where, getDocs, orderBy } from "firebase/firestore"
+import { collection, query, where, getDocs } from "firebase/firestore"
 import { db } from "@/lib/firebase/client"
 import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Loader2, Plus, Star } from "lucide-react"
+import { motion } from "framer-motion"
 
 interface MenuProductListProps {
   tenantId: string
@@ -28,12 +28,7 @@ export function MenuProductList({ tenantId, branchId, categoryId }: MenuProductL
 
         const productsRef = collection(db, `tenants/${tenantId}/branches/${branchId}/products`)
         const productsSnapshot = await getDocs(
-          query(
-            productsRef,
-            where("categoryId", "==", categoryId),
-            where("isActive", "==", true),
-            orderBy("order", "asc"),
-          ),
+          query(productsRef, where("categoryId", "==", categoryId), where("isActive", "==", true)),
         )
 
         const productsData = productsSnapshot.docs.map((doc) => ({
@@ -54,17 +49,8 @@ export function MenuProductList({ tenantId, branchId, categoryId }: MenuProductL
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="flex gap-4">
-            <div className="flex-1">
-              <Skeleton className="h-6 w-3/4 mb-2" />
-              <Skeleton className="h-4 w-full mb-2" />
-              <Skeleton className="h-4 w-1/2" />
-            </div>
-            <Skeleton className="h-24 w-24 rounded-lg" />
-          </div>
-        ))}
+      <div className="flex justify-center items-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     )
   }
@@ -79,36 +65,53 @@ export function MenuProductList({ tenantId, branchId, categoryId }: MenuProductL
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-      {products.map((product) => (
-        <Card key={product.id} className="overflow-hidden hover:shadow-md transition-shadow border-0 shadow-sm">
-          <CardContent className="p-0">
-            <div className="flex flex-row h-full">
-              <div className="flex-1 p-4">
-                <h3 className="font-medium text-lg">{product.name}</h3>
-                {product.description && (
-                  <p className="text-sm text-gray-600 mt-1 line-clamp-2">{product.description}</p>
-                )}
-                <div className="flex items-center justify-between mt-2">
-                  <p className="font-semibold text-lg">${product.price.toFixed(2)}</p>
-                  <Button size="sm" variant="ghost" className="rounded-full h-8 w-8 p-0">
-                    <Plus className="h-5 w-5" />
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+      {products.map((product, index) => (
+        <motion.div
+          key={product.id}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: index * 0.05 }}
+        >
+          <Card className="overflow-hidden hover:shadow-md transition-all duration-300 h-full group">
+            <CardContent className="p-0 h-full">
+              <div className="flex flex-col h-full">
+                {/* Imagen del producto */}
+                <div className="relative w-full h-40 overflow-hidden">
+                  <Image
+                    src={
+                      product.image || `/placeholder.svg?height=200&width=400&query=${encodeURIComponent(product.name)}`
+                    }
+                    alt={product.name}
+                    fill
+                    className="object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  {product.isPopular && (
+                    <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full flex items-center">
+                      <Star className="h-3 w-3 mr-1 fill-white" />
+                      Popular
+                    </div>
+                  )}
+                </div>
+
+                {/* Información del producto */}
+                <div className="p-4 flex flex-col flex-grow">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-medium text-lg">{product.name}</h3>
+                    <span className="font-bold text-primary">${product.price.toFixed(2)}</span>
+                  </div>
+
+                  {product.description && <p className="text-sm text-gray-600 mb-4 flex-grow">{product.description}</p>}
+
+                  <Button className="w-full mt-auto" size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Añadir al carrito
                   </Button>
                 </div>
               </div>
-
-              <div className="relative w-28 h-28 md:w-32 md:h-32">
-                <Image
-                  src={product.image || `/placeholder.svg?height=128&width=128&query=food ${product.name}`}
-                  alt={product.name}
-                  fill
-                  sizes="(max-width: 768px) 112px, 128px"
-                  className="object-cover"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </motion.div>
       ))}
     </div>
   )

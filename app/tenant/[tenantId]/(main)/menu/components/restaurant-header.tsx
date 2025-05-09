@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import { MapPin, Info, Star } from "lucide-react"
+import { MapPin, Info, Clock, Star } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { isRestaurantOpen } from "../utils/restaurant-hours"
+import { motion } from "framer-motion"
 
 interface RestaurantHeaderProps {
   restaurantData: any
@@ -23,95 +24,76 @@ export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick
     }
   }, [restaurantConfig])
 
-  const bannerImage = restaurantConfig?.basicInfo?.bannerImage || "/restaurant-banner.png"
+  // Usar imagen de placeholder de Next.js en lugar de la imagen actual
+  const bannerImage = "/colorful-restaurant-banner.png"
   const logoImage = restaurantConfig?.basicInfo?.logo || "/restaurant-logo.png"
   const restaurantName = restaurantData?.name || restaurantConfig?.basicInfo?.name || "Restaurante"
   const shortDescription = restaurantConfig?.basicInfo?.shortDescription || "Deliciosa comida para todos los gustos"
   const address = restaurantConfig?.location?.address || "Dirección no disponible"
 
   return (
-    <div className="relative mb-6">
-      {/* Banner with gradient overlay */}
-      <div className="relative h-56 md:h-64 w-full overflow-hidden rounded-lg">
+    <div className="relative">
+      {/* Banner */}
+      <div className="relative h-64 md:h-80 w-full overflow-hidden">
         <Image
           src={bannerImage || "/placeholder.svg"}
           alt={`Banner de ${restaurantName}`}
           fill
-          sizes="100vw"
-          priority
           className="object-cover"
-          style={{ objectPosition: "center 60%" }}
+          priority
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 to-black/20"></div>
 
-        {/* Indicador de abierto/cerrado */}
-        <div className="absolute top-4 left-4 z-10">
-          <Button
-            variant="outline"
-            size="sm"
-            className={`rounded-full backdrop-blur-sm ${
-              isOpen
-                ? "bg-green-100/80 hover:bg-green-200/80 border-green-500 text-green-700"
-                : "bg-red-100/80 hover:bg-red-200/80 border-red-500 text-red-700"
-            }`}
-            onClick={onInfoClick}
-          >
-            <div className={`w-2 h-2 rounded-full mr-2 ${isOpen ? "bg-green-500" : "bg-red-500"}`}></div>
-            <span className="text-xs font-medium">{isOpen ? "Abierto" : "Cerrado"}</span>
-            <Info className="ml-2 h-3 w-3" />
-          </Button>
+        {/* Contenido sobre el banner */}
+        <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-10 text-white">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+            <h1 className="text-3xl md:text-5xl font-bold mb-2 drop-shadow-md">{restaurantName}</h1>
+            <p className="text-lg md:text-xl mb-4 max-w-2xl drop-shadow-md">{shortDescription}</p>
+
+            <div className="flex flex-wrap items-center gap-3 mb-4">
+              <div className="flex items-center bg-black/30 backdrop-blur-sm rounded-full px-3 py-1.5">
+                <MapPin className="h-4 w-4 mr-1" />
+                <span className="text-sm">{address}</span>
+              </div>
+
+              <div className="flex items-center bg-black/30 backdrop-blur-sm rounded-full px-3 py-1.5">
+                <Clock className="h-4 w-4 mr-1" />
+                <span className="text-sm">{isOpen ? "Abierto ahora" : "Cerrado"}</span>
+              </div>
+
+              <div className="flex items-center bg-black/30 backdrop-blur-sm rounded-full px-3 py-1.5">
+                <Star className="h-4 w-4 mr-1 text-yellow-400" />
+                <span className="text-sm">4.8 (120 reseñas)</span>
+              </div>
+            </div>
+          </motion.div>
         </div>
       </div>
 
-      {/* Logo y detalles */}
-      <div className="relative px-4 md:px-6 -mt-24">
-        <div className="flex flex-col md:flex-row gap-4 md:items-end">
-          {/* Logo */}
-          <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-xl border-4 border-white overflow-hidden bg-white shadow-lg">
-            <Image
-              src={logoImage || "/placeholder.svg"}
-              alt={`Logo de ${restaurantName}`}
-              fill
-              sizes="(max-width: 768px) 112px, 128px"
-              className="object-cover"
-            />
-          </div>
+      {/* Botón de información */}
+      <div className="absolute top-4 right-4 z-10">
+        <Button
+          variant="outline"
+          size="sm"
+          className="rounded-full bg-white/80 backdrop-blur-sm hover:bg-white"
+          onClick={onInfoClick}
+        >
+          <Info className="h-4 w-4 mr-2" />
+          <span>Información</span>
+        </Button>
+      </div>
 
-          {/* Información del restaurante */}
-          <div className="flex-1 md:pb-2">
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl md:text-3xl font-bold text-white md:text-gray-900">{restaurantName}</h1>
-              <div className="flex items-center bg-yellow-400 text-yellow-800 px-2 py-0.5 rounded text-xs font-medium">
-                <Star className="h-3 w-3 mr-1 fill-yellow-800" />
-                4.8
-              </div>
-            </div>
-            <p className="text-white md:text-gray-600 mt-1">{shortDescription}</p>
-
-            <div className="flex items-center mt-2 text-sm text-white md:text-gray-500">
-              <MapPin className="h-4 w-4 mr-1" />
-              <span>{address}</span>
-            </div>
-
-            <div className="flex flex-wrap gap-2 mt-3">
-              {restaurantConfig?.serviceMethods?.delivery && (
-                <Badge variant="outline" className="bg-white/90 md:bg-gray-100 backdrop-blur-sm">
-                  Delivery
-                </Badge>
-              )}
-              {restaurantConfig?.serviceMethods?.takeaway && (
-                <Badge variant="outline" className="bg-white/90 md:bg-gray-100 backdrop-blur-sm">
-                  Para llevar
-                </Badge>
-              )}
-              {restaurantConfig?.serviceMethods?.dineIn && (
-                <Badge variant="outline" className="bg-white/90 md:bg-gray-100 backdrop-blur-sm">
-                  En el local
-                </Badge>
-              )}
-            </div>
-          </div>
-        </div>
+      {/* Indicador de abierto/cerrado */}
+      <div className="absolute top-4 left-4 z-10">
+        <Badge
+          variant="outline"
+          className={`px-3 py-1.5 text-sm font-medium rounded-full ${
+            isOpen ? "bg-green-500/90 text-white border-green-600" : "bg-red-500/90 text-white border-red-600"
+          }`}
+        >
+          <div className={`w-2 h-2 rounded-full mr-2 ${isOpen ? "bg-white" : "bg-white"}`}></div>
+          {isOpen ? "Abierto ahora" : "Cerrado"}
+        </Badge>
       </div>
     </div>
   )

@@ -7,7 +7,8 @@ import { getRestaurantConfig } from "@/lib/services/restaurant-config-service"
 import { RestaurantHeader } from "./components/restaurant-header"
 import { MenuCategories } from "./components/menu-categories"
 import { RestaurantInfoModal } from "./components/restaurant-info-modal"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Loader2 } from "lucide-react"
+import { MobileNavigation } from "./components/mobile-navigation"
 
 export default function MenuPage({
   params,
@@ -58,28 +59,10 @@ export default function MenuPage({
 
   if (loading) {
     return (
-      <div className="space-y-6 pt-4">
-        <Skeleton className="h-56 w-full rounded-lg" />
-        <div className="flex gap-4">
-          <Skeleton className="h-24 w-24 rounded-lg" />
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-8 w-3/4" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-1/2" />
-          </div>
-        </div>
-        <div className="space-y-4">
-          <div className="flex gap-2">
-            {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-10 w-20 rounded-full" />
-            ))}
-          </div>
-          <Skeleton className="h-8 w-1/3" />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-24 w-full rounded-lg" />
-            ))}
-          </div>
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-gray-500">Cargando menú...</p>
         </div>
       </div>
     )
@@ -87,24 +70,25 @@ export default function MenuPage({
 
   if (!restaurantData) {
     return (
-      <div className="flex justify-center items-center min-h-[50vh]">
-        <div className="text-center p-8 bg-white rounded-lg shadow-sm">
-          <h2 className="text-xl font-bold mb-2">Restaurante no encontrado</h2>
-          <p className="text-gray-500">No pudimos encontrar la información de este restaurante</p>
-        </div>
+      <div className="flex justify-center items-center min-h-screen">
+        <p className="text-lg text-gray-500">Restaurante no encontrado</p>
       </div>
     )
   }
 
   return (
-    <>
+    <div className="bg-gray-50 min-h-screen pb-20 md:pb-10">
       <RestaurantHeader
         restaurantData={restaurantData}
         restaurantConfig={restaurantConfig}
         onInfoClick={() => setInfoModalOpen(true)}
       />
 
-      <MenuCategories tenantId={tenantId} branchId={currentBranchId} />
+      <div className="max-w-7xl mx-auto px-4 md:px-6 -mt-10 relative z-10">
+        <div className="bg-white rounded-xl shadow-lg p-4 md:p-6">
+          <MenuCategories tenantId={tenantId} branchId={currentBranchId} />
+        </div>
+      </div>
 
       <RestaurantInfoModal
         open={infoModalOpen}
@@ -112,6 +96,11 @@ export default function MenuPage({
         restaurantData={restaurantData}
         restaurantConfig={restaurantConfig}
       />
-    </>
+
+      {/* Navegación móvil */}
+      <div className="md:hidden">
+        <MobileNavigation />
+      </div>
+    </div>
   )
 }
