@@ -13,6 +13,7 @@ import { FeaturedProducts } from "./components/featured-products"
 import { CategoryCards } from "./components/category-cards"
 import { Cart } from "./components/cart"
 import { CartProvider } from "./context/cart-context"
+import { DesktopCategoryMenu } from "./components/desktop-category-menu"
 
 export default function MenuPage({
   params,
@@ -100,15 +101,18 @@ export default function MenuPage({
             onInfoClick={() => setInfoModalOpen(true)}
           />
 
-          {/* Tarjetas de categorías */}
-          <div className="bg-white px-4 py-6 mb-2">
-            <CategoryCards onSelectCategory={handleCategorySelect} />
-          </div>
+          {/* Menú de categorías para PC */}
+          <DesktopCategoryMenu activeCategory={activeCategory} onCategoryChange={handleCategorySelect} />
 
           {/* Productos destacados */}
           <div className="bg-white px-4 py-6 mb-2">
             <h2 className="text-xl font-bold mb-4">Artículos destacados</h2>
             <FeaturedProducts tenantId={tenantId} branchId={currentBranchId} />
+          </div>
+
+          {/* Tarjetas de categorías solo para móvil */}
+          <div className="md:hidden bg-white px-4 py-4 mb-2">
+            <CategoryCards onSelectCategory={handleCategorySelect} />
           </div>
 
           {/* Categorías y productos */}

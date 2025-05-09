@@ -65,8 +65,8 @@ export function MenuCategories({ tenantId, branchId, activeCategory, onCategoryC
 
   return (
     <div className="pb-4">
-      {/* Navegación de categorías */}
-      <div className="sticky top-0 bg-white z-10 border-b">
+      {/* Navegación de categorías solo para móvil */}
+      <div className="md:hidden sticky top-0 bg-white z-10 border-b">
         <div className="overflow-x-auto">
           <div className="flex whitespace-nowrap py-3 px-3 gap-3">
             {categories.map((category) => (
