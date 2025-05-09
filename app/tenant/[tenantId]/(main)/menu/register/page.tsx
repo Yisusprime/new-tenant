@@ -58,12 +58,7 @@ export default function RegisterPage({ params }: { params: { tenantId: string } 
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="mb-6">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mb-4"
-            onClick={() => router.push(`/tenant/${params.tenantId}/menu`)}
-          >
+          <Button variant="ghost" size="sm" className="mb-4" onClick={() => router.push(`/menu`)}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Volver al menú
           </Button>
@@ -166,11 +161,11 @@ export default function RegisterPage({ params }: { params: { tenantId: string } 
                   />
                   <Label htmlFor="terms" className="text-sm">
                     Acepto los{" "}
-                    <Link href={`/tenant/${params.tenantId}/menu/terms`} className="text-primary hover:underline">
+                    <Link href={`/menu/terms`} className="text-primary hover:underline">
                       términos y condiciones
                     </Link>{" "}
                     y la{" "}
-                    <Link href={`/tenant/${params.tenantId}/menu/privacy`} className="text-primary hover:underline">
+                    <Link href={`/menu/privacy`} className="text-primary hover:underline">
                       política de privacidad
                     </Link>
                   </Label>
@@ -183,7 +178,7 @@ export default function RegisterPage({ params }: { params: { tenantId: string } 
 
               <div className="mt-4 text-center text-sm">
                 ¿Ya tienes una cuenta?{" "}
-                <Link href={`/tenant/${params.tenantId}/menu/login`} className="text-primary hover:underline">
+                <Link href={`/menu/login`} className="text-primary hover:underline">
                   Iniciar sesión
                 </Link>
               </div>

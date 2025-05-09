@@ -30,7 +30,7 @@ export default function ProfilePage({ params }: { params: { tenantId: string } }
 
   const handleLogout = () => {
     // Simulación de cierre de sesión
-    router.push(`/tenant/${params.tenantId}/menu/login`)
+    router.push(`/menu/login`)
   }
 
   return (

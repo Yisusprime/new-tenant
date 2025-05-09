@@ -36,12 +36,7 @@ export default function LoginPage({ params }: { params: { tenantId: string } }) 
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="mb-6">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mb-4"
-            onClick={() => router.push(`/tenant/${params.tenantId}/menu`)}
-          >
+          <Button variant="ghost" size="sm" className="mb-4" onClick={() => router.push(`/menu`)}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Volver al menú
           </Button>
@@ -69,10 +64,7 @@ export default function LoginPage({ params }: { params: { tenantId: string } }) 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="password">Contraseña</Label>
-                    <Link
-                      href={`/tenant/${params.tenantId}/menu/forgot-password`}
-                      className="text-sm text-primary hover:underline"
-                    >
+                    <Link href={`/menu/forgot-password`} className="text-sm text-primary hover:underline">
                       ¿Olvidaste tu contraseña?
                     </Link>
                   </div>
@@ -114,7 +106,7 @@ export default function LoginPage({ params }: { params: { tenantId: string } }) 
 
               <div className="mt-4 text-center text-sm">
                 ¿No tienes una cuenta?{" "}
-                <Link href={`/tenant/${params.tenantId}/menu/register`} className="text-primary hover:underline">
+                <Link href={`/menu/register`} className="text-primary hover:underline">
                   Regístrate
                 </Link>
               </div>
