@@ -147,6 +147,7 @@ export async function deleteCategory(tenantId: string, branchId: string, categor
     // Eliminamos la imagen si existe
     if (category.image) {
       try {
+        console.log("Eliminando imagen de categoría:", category.image)
         await deleteImage(category.image)
         console.log("Imagen eliminada correctamente:", category.image)
       } catch (imageError) {

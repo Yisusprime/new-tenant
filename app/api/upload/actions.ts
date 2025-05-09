@@ -1,10 +1,9 @@
 "use server"
 
-import { put } from "@vercel/blob"
+import { put, del } from "@vercel/blob"
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/firebase/client"
 import { doc, updateDoc } from "firebase/firestore"
-import { ref, deleteObject, getStorage } from "firebase/storage"
 
 // Server Action para subir imágenes a Vercel Blob
 export async function uploadImage(prevState: any, formData: FormData) {
@@ -59,21 +58,22 @@ export async function uploadImage(prevState: any, formData: FormData) {
   }
 }
 
+// Función para eliminar una imagen de Vercel Blob
 export async function deleteImage(imageUrl: string): Promise<void> {
   try {
-    const storage = getStorage()
-    // Extract the path from the URL
-    const decodedUrl = decodeURIComponent(imageUrl)
-    const storagePath = decodedUrl.split("/o/")[1].split("?")[0]
+    console.log("Intentando eliminar imagen:", imageUrl)
 
-    // Create a reference to the file to delete
-    const imageRef = ref(storage, storagePath)
+    // Verificar que la URL sea de Vercel Blob
+    if (!imageUrl.includes("blob.vercel-storage.com")) {
+      console.warn("La URL no parece ser de Vercel Blob:", imageUrl)
+      return
+    }
 
-    // Delete the image
-    await deleteObject(imageRef)
+    // Eliminar la imagen usando la API de Vercel Blob
+    await del(imageUrl)
     console.log("Imagen eliminada correctamente:", imageUrl)
   } catch (error: any) {
-    console.error("Error al eliminar la imagen:", error)
-    throw new Error(error.message || "Error al eliminar la imagen")
+    console.error("Error al eliminar la imagen de Vercel Blob:", error)
+    throw new Error(`Error al eliminar la imagen: ${error.message || "Error desconocido"}`)
   }
 }
