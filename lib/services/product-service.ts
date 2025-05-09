@@ -52,6 +52,25 @@ export interface ProductExtraFormData {
   isActive: boolean
 }
 
+// Función auxiliar para eliminar propiedades undefined
+function removeUndefinedProperties<T>(obj: T): T {
+  const result = { ...obj } as any
+
+  // Recorrer todas las propiedades del objeto
+  Object.keys(result).forEach((key) => {
+    // Si la propiedad es undefined, eliminarla
+    if (result[key] === undefined) {
+      delete result[key]
+    }
+    // Si la propiedad es un objeto (pero no null), aplicar recursivamente
+    else if (typeof result[key] === "object" && result[key] !== null) {
+      result[key] = removeUndefinedProperties(result[key])
+    }
+  })
+
+  return result as T
+}
+
 // Función para obtener todos los productos de una sucursal
 export async function getProducts(tenantId: string, branchId: string): Promise<Product[]> {
   try {
@@ -120,12 +139,13 @@ export async function createProduct(
       imageUrl = await uploadImageToBlob(imageFile, blobPath)
     }
 
-    const newProduct = {
+    // Crear el objeto del producto y eliminar propiedades undefined
+    const newProduct = removeUndefinedProperties({
       ...productData,
       imageUrl,
       createdAt: timestamp,
       updatedAt: timestamp,
-    }
+    })
 
     // Guardar el producto en Realtime Database
     await set(newProductRef, newProduct)
@@ -178,11 +198,12 @@ export async function updateProduct(
       imageUrl = await uploadImageToBlob(imageFile, blobPath)
     }
 
-    const updatedData = {
+    // Crear el objeto de actualización y eliminar propiedades undefined
+    const updatedData = removeUndefinedProperties({
       ...productData,
       imageUrl,
       updatedAt: timestamp,
-    }
+    })
 
     // Actualizar el producto en Realtime Database
     await update(productRef, updatedData)
@@ -294,11 +315,12 @@ export async function createProductExtra(
     const newExtraRef = push(extrasRef)
     const extraId = newExtraRef.key!
 
-    const newExtra = {
+    // Crear el objeto del extra y eliminar propiedades undefined
+    const newExtra = removeUndefinedProperties({
       ...extraData,
       createdAt: timestamp,
       updatedAt: timestamp,
-    }
+    })
 
     // Guardar el extra en Realtime Database
     await set(newExtraRef, newExtra)
@@ -332,10 +354,11 @@ export async function updateProductExtra(
 
     const currentExtra = snapshot.val()
 
-    const updatedData = {
+    // Crear el objeto de actualización y eliminar propiedades undefined
+    const updatedData = removeUndefinedProperties({
       ...extraData,
       updatedAt: timestamp,
-    }
+    })
 
     // Actualizar el extra en Realtime Database
     await update(extraRef, updatedData)

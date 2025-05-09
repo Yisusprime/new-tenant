@@ -32,14 +32,14 @@ const productSchema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
   description: z.string().optional(),
   price: z.coerce.number().min(0, "El precio debe ser mayor o igual a 0"),
-  discountPrice: z.coerce.number().min(0, "El precio con descuento debe ser mayor o igual a 0").optional(),
+  discountPrice: z.coerce.number().min(0, "El precio con descuento debe ser mayor o igual a 0").optional().nullable(),
   categoryId: z.string().min(1, "La categoría es requerida"),
-  subcategoryId: z.string().optional(),
+  subcategoryId: z.string().optional().nullable(),
   isActive: z.boolean().default(true),
   isFeatured: z.boolean().default(false),
-  availableExtras: z.array(z.string()).optional(),
-  stock: z.coerce.number().min(0, "El stock debe ser mayor o igual a 0").optional(),
-  sku: z.string().optional(),
+  availableExtras: z.array(z.string()).optional().nullable(),
+  stock: z.coerce.number().min(0, "El stock debe ser mayor o igual a 0").optional().nullable(),
+  sku: z.string().optional().nullable(),
 })
 
 type ProductFormValues = z.infer<typeof productSchema>
@@ -69,14 +69,14 @@ export function ProductForm({ tenantId, branchId, productId }: ProductFormProps)
       name: "",
       description: "",
       price: 0,
-      discountPrice: undefined,
+      discountPrice: null,
       categoryId: "",
-      subcategoryId: "",
+      subcategoryId: null,
       isActive: true,
       isFeatured: false,
       availableExtras: [],
-      stock: undefined,
-      sku: "",
+      stock: null,
+      sku: null,
     },
   })
 
@@ -155,14 +155,14 @@ export function ProductForm({ tenantId, branchId, productId }: ProductFormProps)
           name: product.name,
           description: product.description || "",
           price: product.price,
-          discountPrice: product.discountPrice,
+          discountPrice: product.discountPrice || null,
           categoryId: product.categoryId,
-          subcategoryId: product.subcategoryId || "",
+          subcategoryId: product.subcategoryId || null,
           isActive: product.isActive,
           isFeatured: product.isFeatured,
           availableExtras: product.availableExtras || [],
-          stock: product.stock,
-          sku: product.sku || "",
+          stock: product.stock || null,
+          sku: product.sku || null,
         })
 
         // Establecer vista previa de imagen
@@ -189,7 +189,7 @@ export function ProductForm({ tenantId, branchId, productId }: ProductFormProps)
   // Manejar cambio de categoría para cargar subcategorías
   const handleCategoryChange = async (categoryId: string) => {
     setSelectedCategory(categoryId)
-    form.setValue("subcategoryId", "")
+    form.setValue("subcategoryId", null)
 
     if (!categoryId) {
       setSubcategories([])
@@ -234,16 +234,28 @@ export function ProductForm({ tenantId, branchId, productId }: ProductFormProps)
     try {
       setLoading(true)
 
+      // Preparar los datos para enviar a Firebase
+      const productData = {
+        ...data,
+        // Convertir valores vacíos a null para evitar undefined
+        description: data.description || null,
+        discountPrice: data.discountPrice || null,
+        subcategoryId: data.subcategoryId || null,
+        availableExtras: data.availableExtras || [],
+        stock: data.stock || null,
+        sku: data.sku || null,
+      }
+
       if (isEditing && productId) {
         // Actualizar producto existente
-        await updateProduct(tenantId, branchId, productId, data, imageFile || undefined)
+        await updateProduct(tenantId, branchId, productId, productData, imageFile || undefined)
         toast({
           title: "Producto actualizado",
           description: "El producto ha sido actualizado correctamente",
         })
       } else {
         // Crear nuevo producto
-        await createProduct(tenantId, branchId, data, imageFile || undefined)
+        await createProduct(tenantId, branchId, productData, imageFile || undefined)
         toast({
           title: "Producto creado",
           description: "El producto ha sido creado correctamente",
@@ -329,7 +341,17 @@ export function ProductForm({ tenantId, branchId, productId }: ProductFormProps)
                       <FormItem>
                         <FormLabel>Precio con descuento (opcional)</FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.01" min="0" {...field} value={field.value || ""} />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            {...field}
+                            value={field.value === null ? "" : field.value}
+                            onChange={(e) => {
+                              const value = e.target.value === "" ? null : Number.parseFloat(e.target.value)
+                              field.onChange(value)
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -345,7 +367,16 @@ export function ProductForm({ tenantId, branchId, productId }: ProductFormProps)
                       <FormItem>
                         <FormLabel>Stock (opcional)</FormLabel>
                         <FormControl>
-                          <Input type="number" min="0" {...field} value={field.value || ""} />
+                          <Input
+                            type="number"
+                            min="0"
+                            {...field}
+                            value={field.value === null ? "" : field.value}
+                            onChange={(e) => {
+                              const value = e.target.value === "" ? null : Number.parseInt(e.target.value)
+                              field.onChange(value)
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -359,7 +390,14 @@ export function ProductForm({ tenantId, branchId, productId }: ProductFormProps)
                       <FormItem>
                         <FormLabel>SKU (opcional)</FormLabel>
                         <FormControl>
-                          <Input {...field} value={field.value || ""} />
+                          <Input
+                            {...field}
+                            value={field.value || ""}
+                            onChange={(e) => {
+                              const value = e.target.value === "" ? null : e.target.value
+                              field.onChange(value)
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -415,9 +453,9 @@ export function ProductForm({ tenantId, branchId, productId }: ProductFormProps)
                     <FormItem>
                       <FormLabel>Subcategoría (opcional)</FormLabel>
                       <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        value={field.value}
+                        onValueChange={(value) => field.onChange(value || null)}
+                        defaultValue={field.value || ""}
+                        value={field.value || ""}
                         disabled={!selectedCategory || subcategories.length === 0}
                       >
                         <FormControl>
@@ -426,6 +464,7 @@ export function ProductForm({ tenantId, branchId, productId }: ProductFormProps)
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
+                          <SelectItem value="none">Ninguna</SelectItem>
                           {subcategories.map((subcategory) => (
                             <SelectItem key={subcategory.id} value={subcategory.id}>
                               {subcategory.name}
