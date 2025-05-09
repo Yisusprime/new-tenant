@@ -1,46 +1,31 @@
 "use client"
 
-import { useBranch } from "@/lib/context/branch-context"
+import { AlertCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { AlertCircle } from "lucide-react"
-import Link from "next/link"
+import { useBranch } from "@/lib/hooks/use-branch"
+import { useRouter } from "next/navigation"
 
-export function NoBranchSelectedAlert() {
-  const { currentBranch, loading, hasActiveBranches } = useBranch()
+export const NoBranchSelectedAlert = () => {
+  const { selectedBranch } = useBranch()
+  const router = useRouter()
 
-  // No mostrar nada mientras está cargando
-  if (loading) return null
-
-  // Si hay una sucursal seleccionada, no mostrar alerta
-  if (currentBranch) return null
+  if (selectedBranch) {
+    return null
+  }
 
   return (
-    <Alert variant="destructive" className="mb-6">
+    <Alert variant="destructive" className="mb-4">
       <AlertCircle className="h-4 w-4" />
-      <AlertTitle>No hay sucursal seleccionada</AlertTitle>
-      <AlertDescription className="flex flex-col gap-4">
-        {!hasActiveBranches ? (
-          <>
-            <p>
-              No tienes ninguna sucursal activa. Debes crear y activar al menos una sucursal para configurar tu
-              restaurante.
-            </p>
-            <div>
-              <Button asChild size="sm" variant="outline">
-                <Link href="/admin/branches">Gestionar Sucursales</Link>
-              </Button>
-            </div>
-          </>
-        ) : (
-          <>
-            <p>
-              Debes seleccionar una sucursal para configurar la información del restaurante. Por favor, selecciona una
-              sucursal en el menú superior.
-            </p>
-          </>
-        )}
+      <AlertTitle>No branch selected</AlertTitle>
+      <AlertDescription className="flex flex-col gap-2">
+        <p>You need to select a branch to continue.</p>
+        <Button variant="outline" size="sm" onClick={() => router.push("./branches")} className="w-fit">
+          Go to Branches
+        </Button>
       </AlertDescription>
     </Alert>
   )
 }
+
+export default NoBranchSelectedAlert

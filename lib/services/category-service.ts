@@ -1,480 +1,186 @@
-import { ref, get, set, update, remove, push } from "firebase/database"
-import { realtimeDb } from "@/lib/firebase/client"
+import { db } from "../firebase/admin"
+import { collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, query, orderBy } from "firebase/firestore"
 
-export interface Subcategory {
-  id: string
-  name: string
-  description?: string
-  imageUrl?: string
-  order: number
-  active: boolean
-  createdAt: string
-  updatedAt: string
-}
+class CategoryService {
+  private getCollectionPath(tenantId: string, branchId: string) {
+    return `tenants/${tenantId}/branches/${branchId}/categories`
+  }
 
-export interface Category {
-  id: string
-  name: string
-  description?: string
-  imageUrl?: string
-  order: number
-  isActive: boolean
-  subcategories?: Record<string, Subcategory>
-  createdAt: string
-  updatedAt: string
-}
+  private getSubcategoriesCollectionPath(tenantId: string, branchId: string, categoryId: string) {
+    return `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}/subcategories`
+  }
 
-// Función para obtener todas las categorías de una sucursal
-export async function getCategories(tenantId: string, branchId: string): Promise<Category[]> {
-  try {
-    const categoriesRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories`)
-    const snapshot = await get(categoriesRef)
+  async getCategories(tenantId: string, branchId: string) {
+    try {
+      const categoriesRef = collection(db, this.getCollectionPath(tenantId, branchId))
+      const categoriesSnapshot = await getDocs(query(categoriesRef, orderBy("order", "asc")))
 
-    if (!snapshot.exists()) {
-      return []
+      return categoriesSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }))
+    } catch (error) {
+      console.error("Error getting categories:", error)
+      throw error
     }
+  }
 
-    const categoriesData = snapshot.val()
+  async getCategory(tenantId: string, branchId: string, categoryId: string) {
+    try {
+      const categoryRef = doc(db, this.getCollectionPath(tenantId, branchId), categoryId)
+      const categorySnapshot = await getDoc(categoryRef)
 
-    // Convertir el objeto a un array y ordenar por el campo order
-    const categories = Object.entries(categoriesData).map(([id, data]) => {
-      const categoryData = data as any
-
-      // Convertir subcategorías si existen
-      let subcategories: Subcategory[] = []
-      if (categoryData.subcategories) {
-        subcategories = Object.entries(categoryData.subcategories).map(([subId, subData]) => ({
-          id: subId,
-          ...(subData as any),
-        }))
-        // Ordenar subcategorías por orden
-        subcategories.sort((a, b) => a.order - b.order)
+      if (!categorySnapshot.exists()) {
+        throw new Error("Category not found")
       }
 
       return {
-        id,
+        id: categorySnapshot.id,
+        ...categorySnapshot.data(),
+      }
+    } catch (error) {
+      console.error("Error getting category:", error)
+      throw error
+    }
+  }
+
+  async createCategory(tenantId: string, branchId: string, categoryData: any) {
+    try {
+      const categoriesRef = collection(db, this.getCollectionPath(tenantId, branchId))
+      const newCategoryRef = await addDoc(categoriesRef, {
         ...categoryData,
-        subcategories,
-      } as Category
-    })
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
 
-    // Ordenar categorías por orden
-    return categories.sort((a, b) => a.order - b.order)
-  } catch (error) {
-    console.error("Error al obtener categorías:", error)
-    throw error
-  }
-}
-
-// Función para obtener una categoría específica
-export async function getCategory(tenantId: string, branchId: string, categoryId: string): Promise<Category | null> {
-  try {
-    const categoryRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}`)
-    const snapshot = await get(categoryRef)
-
-    if (!snapshot.exists()) {
-      return null
+      return {
+        id: newCategoryRef.id,
+        ...categoryData,
+      }
+    } catch (error) {
+      console.error("Error creating category:", error)
+      throw error
     }
+  }
 
-    const categoryData = snapshot.val()
+  async updateCategory(tenantId: string, branchId: string, categoryId: string, categoryData: any) {
+    try {
+      const categoryRef = doc(db, this.getCollectionPath(tenantId, branchId), categoryId)
+      await updateDoc(categoryRef, {
+        ...categoryData,
+        updatedAt: new Date(),
+      })
 
-    // Convertir subcategorías si existen
-    let subcategories: Subcategory[] = []
-    if (categoryData.subcategories) {
-      subcategories = Object.entries(categoryData.subcategories).map(([subId, subData]) => ({
-        id: subId,
-        ...(subData as any),
+      return {
+        id: categoryId,
+        ...categoryData,
+      }
+    } catch (error) {
+      console.error("Error updating category:", error)
+      throw error
+    }
+  }
+
+  async deleteCategory(tenantId: string, branchId: string, categoryId: string) {
+    try {
+      const categoryRef = doc(db, this.getCollectionPath(tenantId, branchId), categoryId)
+      await deleteDoc(categoryRef)
+      return true
+    } catch (error) {
+      console.error("Error deleting category:", error)
+      throw error
+    }
+  }
+
+  // Subcategories methods
+  async getSubcategories(tenantId: string, branchId: string, categoryId: string) {
+    try {
+      const subcategoriesRef = collection(db, this.getSubcategoriesCollectionPath(tenantId, branchId, categoryId))
+      const subcategoriesSnapshot = await getDocs(query(subcategoriesRef, orderBy("order", "asc")))
+
+      return subcategoriesSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
       }))
-      // Ordenar subcategorías por orden
-      subcategories.sort((a, b) => a.order - b.order)
+    } catch (error) {
+      console.error("Error getting subcategories:", error)
+      throw error
     }
-
-    return {
-      id: categoryId,
-      ...categoryData,
-      subcategories,
-    } as Category
-  } catch (error) {
-    console.error("Error al obtener categoría:", error)
-    throw error
-  }
-}
-
-// Función para subir una imagen a Blob a través del endpoint de API
-export async function uploadImageToBlob(file: File, path: string): Promise<string> {
-  const formData = new FormData()
-  formData.append("file", file)
-  formData.append("filename", path)
-
-  const response = await fetch("/api/upload", {
-    method: "POST",
-    body: formData,
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || "Error al subir imagen")
   }
 
-  const data = await response.json()
-  return data.url
-}
+  async getSubcategory(tenantId: string, branchId: string, categoryId: string, subcategoryId: string) {
+    try {
+      const subcategoryRef = doc(db, this.getSubcategoriesCollectionPath(tenantId, branchId, categoryId), subcategoryId)
+      const subcategorySnapshot = await getDoc(subcategoryRef)
 
-// Función para eliminar una imagen de Blob a través del endpoint de API
-export async function deleteImageFromBlob(url: string): Promise<void> {
-  const response = await fetch(`/api/upload?url=${encodeURIComponent(url)}`, {
-    method: "DELETE",
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || "Error al eliminar imagen")
-  }
-}
-
-// Función para crear una nueva categoría
-export async function createCategory(
-  tenantId: string,
-  branchId: string,
-  categoryData: Omit<Category, "id" | "createdAt" | "updatedAt">,
-  imageFile?: File,
-): Promise<Category> {
-  try {
-    const timestamp = new Date().toISOString()
-    const categoriesRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories`)
-
-    // Generar un nuevo ID para la categoría
-    const newCategoryRef = push(categoriesRef)
-    const categoryId = newCategoryRef.key!
-
-    let imageUrl = categoryData.imageUrl || ""
-
-    // Si hay un archivo de imagen, subirlo a Blob
-    if (imageFile) {
-      const blobPath = `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}-${Date.now()}.${imageFile.name.split(".").pop()}`
-      imageUrl = await uploadImageToBlob(imageFile, blobPath)
-    }
-
-    const newCategory = {
-      ...categoryData,
-      id: categoryId,
-      imageUrl,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    }
-
-    // Eliminar el campo id antes de guardar en la base de datos
-    const { id, subcategories, ...categoryToSave } = newCategory
-
-    // Guardar la categoría en Realtime Database
-    await set(newCategoryRef, categoryToSave)
-
-    return newCategory
-  } catch (error) {
-    console.error("Error al crear categoría:", error)
-    throw error
-  }
-}
-
-// Función para actualizar una categoría existente
-export async function updateCategory(
-  tenantId: string,
-  branchId: string,
-  categoryId: string,
-  categoryData: Partial<Omit<Category, "id" | "createdAt" | "updatedAt">>,
-  imageFile?: File,
-): Promise<Category> {
-  try {
-    const timestamp = new Date().toISOString()
-    const categoryRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}`)
-
-    // Obtener la categoría actual
-    const snapshot = await get(categoryRef)
-    if (!snapshot.exists()) {
-      throw new Error("La categoría no existe")
-    }
-
-    const currentCategory = snapshot.val()
-
-    let imageUrl = categoryData.imageUrl !== undefined ? categoryData.imageUrl : currentCategory.imageUrl
-
-    // Si hay un nuevo archivo de imagen, subirlo a Blob
-    if (imageFile) {
-      // Si ya existe una imagen, eliminarla primero
-      if (currentCategory.imageUrl) {
-        try {
-          await deleteImageFromBlob(currentCategory.imageUrl)
-        } catch (error) {
-          console.error("Error al eliminar imagen anterior:", error)
-          // Continuar aunque falle la eliminación
-        }
+      if (!subcategorySnapshot.exists()) {
+        throw new Error("Subcategory not found")
       }
 
-      const blobPath = `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}-${Date.now()}.${imageFile.name.split(".").pop()}`
-      imageUrl = await uploadImageToBlob(imageFile, blobPath)
-    }
-
-    const updatedData = {
-      ...categoryData,
-      imageUrl,
-      updatedAt: timestamp,
-    }
-
-    // Actualizar la categoría en Realtime Database
-    await update(categoryRef, updatedData)
-
-    return {
-      id: categoryId,
-      ...currentCategory,
-      ...updatedData,
-    } as Category
-  } catch (error) {
-    console.error("Error al actualizar categoría:", error)
-    throw error
-  }
-}
-
-// Función para eliminar una categoría y su imagen
-export async function deleteCategory(tenantId: string, branchId: string, categoryId: string): Promise<void> {
-  try {
-    const categoryRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}`)
-
-    // Obtener la categoría para ver si tiene imagen
-    const snapshot = await get(categoryRef)
-    if (!snapshot.exists()) {
-      throw new Error("La categoría no existe")
-    }
-
-    const categoryData = snapshot.val()
-
-    // Si tiene imagen, eliminarla de Blob
-    if (categoryData.imageUrl) {
-      try {
-        await deleteImageFromBlob(categoryData.imageUrl)
-        console.log("Imagen eliminada de Blob:", categoryData.imageUrl)
-      } catch (blobError) {
-        console.error("Error al eliminar imagen de Blob:", blobError)
-        // Continuamos con la eliminación de la categoría aunque falle la eliminación de la imagen
+      return {
+        id: subcategorySnapshot.id,
+        ...subcategorySnapshot.data(),
       }
+    } catch (error) {
+      console.error("Error getting subcategory:", error)
+      throw error
     }
-
-    // Eliminar la categoría de Realtime Database
-    await remove(categoryRef)
-  } catch (error) {
-    console.error("Error al eliminar categoría:", error)
-    throw error
   }
-}
 
-// Función para subir una imagen de categoría a Blob
-export async function uploadCategoryImage(
-  tenantId: string,
-  branchId: string,
-  categoryId: string,
-  file: File,
-): Promise<string> {
-  try {
-    // Crear un nombre de archivo único
-    const blobPath = `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}-${Date.now()}.${file.name.split(".").pop()}`
+  async createSubcategory(tenantId: string, branchId: string, categoryId: string, subcategoryData: any) {
+    try {
+      const subcategoriesRef = collection(db, this.getSubcategoriesCollectionPath(tenantId, branchId, categoryId))
+      const newSubcategoryRef = await addDoc(subcategoriesRef, {
+        ...subcategoryData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
 
-    // Subir la imagen a Blob a través del endpoint de API
-    const imageUrl = await uploadImageToBlob(file, blobPath)
-
-    // Actualizar la URL de la imagen en la categoría
-    const categoryRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}`)
-    await update(categoryRef, {
-      imageUrl,
-      updatedAt: new Date().toISOString(),
-    })
-
-    return imageUrl
-  } catch (error) {
-    console.error("Error al subir imagen de categoría:", error)
-    throw error
-  }
-}
-
-// Funciones para subcategorías
-
-// Función para crear una subcategoría
-export async function createSubcategory(
-  tenantId: string,
-  branchId: string,
-  categoryId: string,
-  subcategoryData: Omit<Subcategory, "id" | "createdAt" | "updatedAt">,
-  imageFile?: File,
-): Promise<Subcategory> {
-  try {
-    const timestamp = new Date().toISOString()
-    const subcategoriesRef = ref(
-      realtimeDb,
-      `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}/subcategories`,
-    )
-
-    // Generar un nuevo ID para la subcategoría
-    const newSubcategoryRef = push(subcategoriesRef)
-    const subcategoryId = newSubcategoryRef.key!
-
-    let imageUrl = subcategoryData.imageUrl || ""
-
-    // Si hay un archivo de imagen, subirlo a Blob
-    if (imageFile) {
-      const blobPath = `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}/subcategories/${subcategoryId}-${Date.now()}.${imageFile.name.split(".").pop()}`
-      imageUrl = await uploadImageToBlob(imageFile, blobPath)
-    }
-
-    const newSubcategory = {
-      ...subcategoryData,
-      id: subcategoryId,
-      imageUrl,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    }
-
-    // Eliminar el campo id antes de guardar en la base de datos
-    const { id, ...subcategoryToSave } = newSubcategory
-
-    // Guardar la subcategoría en Realtime Database
-    await set(newSubcategoryRef, subcategoryToSave)
-
-    return newSubcategory
-  } catch (error) {
-    console.error("Error al crear subcategoría:", error)
-    throw error
-  }
-}
-
-// Función para actualizar una subcategoría
-export async function updateSubcategory(
-  tenantId: string,
-  branchId: string,
-  categoryId: string,
-  subcategoryId: string,
-  subcategoryData: Partial<Omit<Subcategory, "id" | "createdAt" | "updatedAt">>,
-  imageFile?: File,
-): Promise<Subcategory> {
-  try {
-    const timestamp = new Date().toISOString()
-    const subcategoryRef = ref(
-      realtimeDb,
-      `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}/subcategories/${subcategoryId}`,
-    )
-
-    // Obtener la subcategoría actual
-    const snapshot = await get(subcategoryRef)
-    if (!snapshot.exists()) {
-      throw new Error("La subcategoría no existe")
-    }
-
-    const currentSubcategory = snapshot.val()
-
-    let imageUrl = subcategoryData.imageUrl !== undefined ? subcategoryData.imageUrl : currentSubcategory.imageUrl
-
-    // Si hay un nuevo archivo de imagen, subirlo a Blob
-    if (imageFile) {
-      // Si ya existe una imagen, eliminarla primero
-      if (currentSubcategory.imageUrl) {
-        try {
-          await deleteImageFromBlob(currentSubcategory.imageUrl)
-        } catch (error) {
-          console.error("Error al eliminar imagen anterior:", error)
-          // Continuar aunque falle la eliminación
-        }
+      return {
+        id: newSubcategoryRef.id,
+        ...subcategoryData,
       }
-
-      const blobPath = `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}/subcategories/${subcategoryId}-${Date.now()}.${imageFile.name.split(".").pop()}`
-      imageUrl = await uploadImageToBlob(imageFile, blobPath)
+    } catch (error) {
+      console.error("Error creating subcategory:", error)
+      throw error
     }
-
-    const updatedData = {
-      ...subcategoryData,
-      imageUrl,
-      updatedAt: timestamp,
-    }
-
-    // Actualizar la subcategoría en Realtime Database
-    await update(subcategoryRef, updatedData)
-
-    return {
-      id: subcategoryId,
-      ...currentSubcategory,
-      ...updatedData,
-    } as Subcategory
-  } catch (error) {
-    console.error("Error al actualizar subcategoría:", error)
-    throw error
   }
-}
 
-// Función para eliminar una subcategoría
-export async function deleteSubcategory(
-  tenantId: string,
-  branchId: string,
-  categoryId: string,
-  subcategoryId: string,
-): Promise<void> {
-  try {
-    const subcategoryRef = ref(
-      realtimeDb,
-      `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}/subcategories/${subcategoryId}`,
-    )
+  async updateSubcategory(
+    tenantId: string,
+    branchId: string,
+    categoryId: string,
+    subcategoryId: string,
+    subcategoryData: any,
+  ) {
+    try {
+      const subcategoryRef = doc(db, this.getSubcategoriesCollectionPath(tenantId, branchId, categoryId), subcategoryId)
+      await updateDoc(subcategoryRef, {
+        ...subcategoryData,
+        updatedAt: new Date(),
+      })
 
-    // Obtener la subcategoría para ver si tiene imagen
-    const snapshot = await get(subcategoryRef)
-    if (!snapshot.exists()) {
-      throw new Error("La subcategoría no existe")
-    }
-
-    const subcategoryData = snapshot.val()
-
-    // Si tiene imagen, eliminarla de Blob
-    if (subcategoryData.imageUrl) {
-      try {
-        await deleteImageFromBlob(subcategoryData.imageUrl)
-        console.log("Imagen eliminada de Blob:", subcategoryData.imageUrl)
-      } catch (blobError) {
-        console.error("Error al eliminar imagen de Blob:", blobError)
-        // Continuamos con la eliminación de la subcategoría aunque falle la eliminación de la imagen
+      return {
+        id: subcategoryId,
+        ...subcategoryData,
       }
+    } catch (error) {
+      console.error("Error updating subcategory:", error)
+      throw error
     }
+  }
 
-    // Eliminar la subcategoría de Realtime Database
-    await remove(subcategoryRef)
-  } catch (error) {
-    console.error("Error al eliminar subcategoría:", error)
-    throw error
+  async deleteSubcategory(tenantId: string, branchId: string, categoryId: string, subcategoryId: string) {
+    try {
+      const subcategoryRef = doc(db, this.getSubcategoriesCollectionPath(tenantId, branchId, categoryId), subcategoryId)
+      await deleteDoc(subcategoryRef)
+      return true
+    } catch (error) {
+      console.error("Error deleting subcategory:", error)
+      throw error
+    }
   }
 }
 
-// Función para obtener todas las subcategorías de una categoría
-export async function getAllSubcategories(
-  tenantId: string,
-  branchId: string,
-  categoryId: string,
-): Promise<Subcategory[]> {
-  try {
-    const subcategoriesRef = ref(
-      realtimeDb,
-      `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}/subcategories`,
-    )
-    const snapshot = await get(subcategoriesRef)
-
-    if (!snapshot.exists()) {
-      return []
-    }
-
-    const subcategoriesData = snapshot.val()
-
-    // Convertir el objeto a un array y ordenar por el campo order
-    const subcategories = Object.entries(subcategoriesData).map(([id, data]) => ({
-      id,
-      ...(data as any),
-    })) as Subcategory[]
-
-    // Ordenar subcategorías por orden
-    return subcategories.sort((a, b) => a.order - b.order)
-  } catch (error) {
-    console.error("Error al obtener subcategorías:", error)
-    throw error
-  }
-}
+export const categoryService = new CategoryService()
+export default categoryService

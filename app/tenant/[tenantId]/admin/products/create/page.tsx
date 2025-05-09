@@ -21,7 +21,7 @@ import { productService } from "@/lib/services/product-service"
 import { categoryService } from "@/lib/services/category-service"
 import { useBranch } from "@/lib/hooks/use-branch"
 import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
-import type { Product, ProductExtra, ProductExtraOption } from "@/lib/types/products"
+import type { ProductExtra, ProductExtraOption } from "@/lib/types/products"
 
 const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -34,12 +34,11 @@ const productSchema = z.object({
   featured: z.boolean().default(false),
 })
 
-export default function EditProductPage() {
-  const { tenantId, productId } = useParams<{ tenantId: string; productId: string }>()
+export default function CreateProductPage() {
+  const { tenantId } = useParams<{ tenantId: string }>()
   const router = useRouter()
   const { selectedBranch } = useBranch()
 
-  const [product, setProduct] = useState<Product | null>(null)
   const [categories, setCategories] = useState<any[]>([])
   const [subcategories, setSubcategories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -62,54 +61,20 @@ export default function EditProductPage() {
   useEffect(() => {
     if (!selectedBranch) return
 
-    const fetchData = async () => {
+    const fetchCategories = async () => {
       try {
         setLoading(true)
-
-        const [productData, categoriesData] = await Promise.all([
-          productService.getProduct(tenantId, selectedBranch.id, productId),
-          categoryService.getCategories(tenantId, selectedBranch.id),
-        ])
-
-        setProduct(productData)
+        const categoriesData = await categoryService.getCategories(tenantId, selectedBranch.id)
         setCategories(categoriesData)
-
-        if (productData.categoryId) {
-          const subcategoriesData = await categoryService.getSubcategories(
-            tenantId,
-            selectedBranch.id,
-            productData.categoryId,
-          )
-          setSubcategories(subcategoriesData)
-        }
-
-        // Set form values
-        form.reset({
-          name: productData.name,
-          description: productData.description || "",
-          price: productData.price,
-          discountedPrice: productData.discountedPrice,
-          categoryId: productData.categoryId,
-          subcategoryId: productData.subcategoryId || "",
-          available: productData.available,
-          featured: productData.featured,
-        })
-
-        // Set image URL
-        setImageUrl(productData.imageUrl || null)
-
-        // Set extras
-        setExtras(productData.extras || [])
       } catch (error) {
-        console.error("Error fetching data:", error)
-        alert("Failed to load product. Please try again.")
+        console.error("Error fetching categories:", error)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchData()
-  }, [tenantId, productId, selectedBranch, form])
+    fetchCategories()
+  }, [tenantId, selectedBranch])
 
   const handleCategoryChange = async (categoryId: string) => {
     if (!selectedBranch || !categoryId) {
@@ -248,7 +213,7 @@ export default function EditProductPage() {
       // Filter out extras with no options
       const finalExtras = extrasWithValidOptions.filter((extra) => extra.options.length > 0)
 
-      await productService.updateProduct(tenantId, selectedBranch.id, productId, {
+      await productService.createProduct(tenantId, selectedBranch.id, {
         ...values,
         imageUrl: imageUrl || undefined,
         extras: finalExtras.length > 0 ? finalExtras : undefined,
@@ -256,8 +221,8 @@ export default function EditProductPage() {
 
       router.push(`/tenant/${tenantId}/admin/products`)
     } catch (error) {
-      console.error("Error updating product:", error)
-      alert("Failed to update product. Please try again.")
+      console.error("Error creating product:", error)
+      alert("Failed to create product. Please try again.")
     } finally {
       setSubmitting(false)
     }
@@ -265,14 +230,6 @@ export default function EditProductPage() {
 
   if (!selectedBranch) {
     return <NoBranchSelectedAlert />
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    )
   }
 
   return (
@@ -286,7 +243,7 @@ export default function EditProductPage() {
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h1 className="text-2xl font-bold">Edit Product</h1>
+        <h1 className="text-2xl font-bold">Create Product</h1>
       </div>
 
       <Form {...form}>
@@ -294,7 +251,7 @@ export default function EditProductPage() {
           <Card>
             <CardHeader>
               <CardTitle>Basic Information</CardTitle>
-              <CardDescription>Edit the basic details of your product.</CardDescription>
+              <CardDescription>Enter the basic details of your product.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <FormField
@@ -716,10 +673,10 @@ export default function EditProductPage() {
               {submitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
+                  Creating...
                 </>
               ) : (
-                "Save Changes"
+                "Create Product"
               )}
             </Button>
           </div>

@@ -1,268 +1,294 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { useBranch } from "@/lib/context/branch-context"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, Plus, Edit, Trash2, Package } from "lucide-react"
-import { getProducts, deleteProduct, type Product } from "@/lib/services/product-service"
-import { getCategories, type Category } from "@/lib/services/category-service"
-import Image from "next/image"
+import { useParams, useRouter } from "next/navigation"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import { toast } from "@/components/ui/use-toast"
-import { Skeleton } from "@/components/ui/skeleton"
+import { PlusCircle, Search, Edit, Trash2, Star, StarOff, CheckCircle, XCircle } from "lucide-react"
+import { productService } from "@/lib/services/product-service"
+import { categoryService } from "@/lib/services/category-service"
+import { useBranch } from "@/lib/hooks/use-branch"
+import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
+import type { Product } from "@/lib/types/products"
 
-export default function ProductsPage({
-  params,
-}: {
-  params: { tenantId: string }
-}) {
-  const { currentBranch } = useBranch()
+export default function ProductsPage() {
+  const { tenantId } = useParams<{ tenantId: string }>()
   const router = useRouter()
+  const { selectedBranch } = useBranch()
+
   const [products, setProducts] = useState<Product[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
+  const [categories, setCategories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [productToDelete, setProductToDelete] = useState<Product | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState("all")
+  const [availabilityFilter, setAvailabilityFilter] = useState("all")
 
   useEffect(() => {
-    if (currentBranch) {
-      loadData()
-    } else {
-      setLoading(false)
+    if (!selectedBranch) return
+
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        const [productsData, categoriesData] = await Promise.all([
+          productService.getProducts(tenantId, selectedBranch.id),
+          categoryService.getCategories(tenantId, selectedBranch.id),
+        ])
+
+        setProducts(productsData)
+        setCategories(categoriesData)
+      } catch (error) {
+        console.error("Error fetching data:", error)
+      } finally {
+        setLoading(false)
+      }
     }
-  }, [currentBranch])
 
-  const loadData = async () => {
-    if (!currentBranch) return
+    fetchData()
+  }, [tenantId, selectedBranch])
 
-    setLoading(true)
-    try {
-      const [productsData, categoriesData] = await Promise.all([
-        getProducts(params.tenantId, currentBranch.id),
-        getCategories(params.tenantId, currentBranch.id),
-      ])
-      setProducts(productsData)
-      setCategories(categoriesData)
-    } catch (error) {
-      console.error("Error al cargar datos:", error)
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los productos",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
+  const handleCreateProduct = () => {
+    router.push(`/tenant/${tenantId}/admin/products/create`)
+  }
+
+  const handleEditProduct = (productId: string) => {
+    router.push(`/tenant/${tenantId}/admin/products/${productId}`)
+  }
+
+  const handleDeleteProduct = async (productId: string) => {
+    if (!selectedBranch) return
+
+    if (confirm("Are you sure you want to delete this product?")) {
+      try {
+        await productService.deleteProduct(tenantId, selectedBranch.id, productId)
+        setProducts(products.filter((product) => product.id !== productId))
+      } catch (error) {
+        console.error("Error deleting product:", error)
+      }
     }
   }
 
-  const handleDeleteProduct = async () => {
-    if (!productToDelete || !currentBranch) return
+  const handleToggleFeatured = async (product: Product) => {
+    if (!selectedBranch) return
 
-    setIsDeleting(true)
     try {
-      await deleteProduct(params.tenantId, currentBranch.id, productToDelete.id)
-      setProducts(products.filter((p) => p.id !== productToDelete.id))
-      toast({
-        title: "Producto eliminado",
-        description: "El producto ha sido eliminado correctamente",
+      const updatedProduct = await productService.updateProduct(tenantId, selectedBranch.id, product.id, {
+        featured: !product.featured,
       })
-      setProductToDelete(null)
+
+      setProducts(products.map((p) => (p.id === product.id ? updatedProduct : p)))
     } catch (error) {
-      console.error("Error al eliminar producto:", error)
-      toast({
-        title: "Error",
-        description: "No se pudo eliminar el producto",
-        variant: "destructive",
-      })
-    } finally {
-      setIsDeleting(false)
+      console.error("Error updating product:", error)
     }
   }
+
+  const handleToggleAvailability = async (product: Product) => {
+    if (!selectedBranch) return
+
+    try {
+      const updatedProduct = await productService.updateProduct(tenantId, selectedBranch.id, product.id, {
+        available: !product.available,
+      })
+
+      setProducts(products.map((p) => (p.id === product.id ? updatedProduct : p)))
+    } catch (error) {
+      console.error("Error updating product:", error)
+    }
+  }
+
+  const filteredProducts = products.filter((product) => {
+    const matchesSearch =
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (product.description || "").toLowerCase().includes(searchTerm.toLowerCase())
+
+    const matchesCategory = categoryFilter === "all" || product.categoryId === categoryFilter
+
+    const matchesAvailability =
+      availabilityFilter === "all" ||
+      (availabilityFilter === "available" && product.available) ||
+      (availabilityFilter === "unavailable" && !product.available)
+
+    return matchesSearch && matchesCategory && matchesAvailability
+  })
 
   const getCategoryName = (categoryId: string) => {
-    const category = categories.find((c) => c.id === categoryId)
-    return category ? category.name : "Categoría desconocida"
+    const category = categories.find((cat) => cat.id === categoryId)
+    return category ? category.name : "Unknown Category"
   }
 
-  const navigateToProductForm = (productId?: string) => {
-    if (productId) {
-      router.push(`/tenant/${params.tenantId}/admin/products/${productId}`)
-    } else {
-      router.push(`/tenant/${params.tenantId}/admin/products/new-product`)
-    }
-  }
-
-  const navigateToExtras = (productId: string) => {
-    router.push(`/tenant/${params.tenantId}/admin/products/${productId}/extras`)
+  if (!selectedBranch) {
+    return <NoBranchSelectedAlert />
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Productos</h1>
-        {currentBranch && (
-          <Button onClick={() => navigateToProductForm()} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Nuevo Producto
-          </Button>
-        )}
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Products</h1>
+        <Button onClick={handleCreateProduct}>
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Add Product
+        </Button>
       </div>
-
-      {!currentBranch && (
-        <Alert className="mb-6">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Debes seleccionar una sucursal para gestionar los productos</AlertDescription>
-        </Alert>
-      )}
 
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Productos</CardTitle>
-          <CardDescription>
-            {currentBranch
-              ? `Productos de la sucursal: ${currentBranch.name}`
-              : "Selecciona una sucursal para ver sus productos"}
-          </CardDescription>
+          <CardTitle>Filters</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center space-x-4">
-                  <Skeleton className="h-12 w-12 rounded-md" />
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-[250px]" />
-                    <Skeleton className="h-4 w-[200px]" />
-                  </div>
-                </div>
-              ))}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="relative">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search products..."
+                className="pl-8"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
-          ) : !currentBranch ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">Selecciona una sucursal para ver los productos</p>
-            </div>
-          ) : products.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500 mb-4">No hay productos registrados</p>
-              <Button onClick={() => navigateToProductForm()}>Crear Primer Producto</Button>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
+
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={availabilityFilter} onValueChange={setAvailabilityFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by availability" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="available">Available</SelectItem>
+                <SelectItem value="unavailable">Unavailable</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-6">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead className="text-right">Price</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Featured</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
                 <TableRow>
-                  <TableHead>Imagen</TableHead>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Precio</TableHead>
-                  <TableHead>Categoría</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Acciones</TableHead>
+                  <TableCell colSpan={6} className="text-center py-10">
+                    Loading products...
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {products.map((product) => (
+              ) : filteredProducts.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-10">
+                    No products found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredProducts.map((product) => (
                   <TableRow key={product.id}>
-                    <TableCell>
-                      {product.imageUrl ? (
-                        <Image
-                          src={product.imageUrl || "/placeholder.svg"}
-                          alt={product.name}
-                          width={50}
-                          height={50}
-                          className="rounded-md object-cover"
-                        />
-                      ) : (
-                        <div className="w-[50px] h-[50px] bg-gray-200 rounded-md flex items-center justify-center">
-                          <Package className="h-6 w-6 text-gray-400" />
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {product.imageUrl && (
+                          <img
+                            src={product.imageUrl || "/placeholder.svg"}
+                            alt={product.name}
+                            className="h-10 w-10 rounded-md object-cover"
+                          />
+                        )}
+                        <div>
+                          <div>{product.name}</div>
+                          {product.description && (
+                            <div className="text-sm text-muted-foreground truncate max-w-[200px]">
+                              {product.description}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell>
-                      ${product.price.toFixed(2)}
-                      {product.discountPrice && (
-                        <div className="text-sm text-gray-500 line-through">${product.discountPrice.toFixed(2)}</div>
-                      )}
+                      </div>
                     </TableCell>
                     <TableCell>{getCategoryName(product.categoryId)}</TableCell>
-                    <TableCell>
-                      <Badge variant={product.available ? "default" : "secondary"}>
-                        {product.available ? "Disponible" : "No disponible"}
-                      </Badge>
-                      {product.featured && (
-                        <Badge variant="outline" className="ml-2">
-                          Destacado
+                    <TableCell className="text-right">
+                      <div>
+                        {product.discountedPrice ? (
+                          <>
+                            <span className="line-through text-muted-foreground mr-2">${product.price.toFixed(2)}</span>
+                            <span className="font-bold text-green-600">${product.discountedPrice.toFixed(2)}</span>
+                          </>
+                        ) : (
+                          <span>${product.price.toFixed(2)}</span>
+                        )}
+                      </div>
+                      {product.extras && product.extras.length > 0 && (
+                        <Badge variant="outline" className="mt-1">
+                          {product.extras.length} extras
                         </Badge>
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => navigateToProductForm(product.id)}
-                          title="Editar producto"
-                        >
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleToggleAvailability(product)}
+                        className={product.available ? "text-green-600" : "text-red-600"}
+                      >
+                        {product.available ? <CheckCircle className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
+                      </Button>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleToggleFeatured(product)}
+                        className={product.featured ? "text-yellow-500" : "text-muted-foreground"}
+                      >
+                        {product.featured ? (
+                          <Star className="h-5 w-5 fill-yellow-500" />
+                        ) : (
+                          <StarOff className="h-5 w-5" />
+                        )}
+                      </Button>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="icon" onClick={() => handleEditProduct(product.id)}>
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="icon"
-                          onClick={() => navigateToExtras(product.id)}
-                          title="Gestionar extras"
-                        >
-                          <Package className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => setProductToDelete(product)}
-                          className="text-red-500 hover:text-red-700"
-                          title="Eliminar producto"
+                          className="text-red-600"
+                          onClick={() => handleDeleteProduct(product.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+                ))
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
-
-      {/* Diálogo de confirmación para eliminar producto */}
-      <Dialog open={!!productToDelete} onOpenChange={(open) => !open && setProductToDelete(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar eliminación</DialogTitle>
-            <DialogDescription>
-              ¿Estás seguro de que deseas eliminar el producto "{productToDelete?.name}"? Esta acción no se puede
-              deshacer.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setProductToDelete(null)} disabled={isDeleting}>
-              Cancelar
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteProduct} disabled={isDeleting}>
-              {isDeleting ? "Eliminando..." : "Eliminar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
