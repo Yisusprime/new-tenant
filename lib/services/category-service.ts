@@ -57,7 +57,8 @@ export async function createCategory(
     const categoryId = crypto.randomUUID().substring(0, 8)
     const now = new Date().toISOString()
 
-    const newCategory: Category = {
+    // Crear objeto base de categoría
+    const newCategory: Omit<Category, "parentId"> & { parentId?: string } = {
       id: categoryId,
       ...categoryData,
       createdAt: now,
@@ -66,9 +67,14 @@ export async function createCategory(
       branchId,
     }
 
+    // Si parentId es undefined o una cadena vacía, eliminar la propiedad
+    if (!categoryData.parentId) {
+      delete newCategory.parentId
+    }
+
     await setDoc(doc(db, `tenants/${tenantId}/branches/${branchId}/categories`, categoryId), newCategory)
 
-    return newCategory
+    return newCategory as Category
   } catch (error) {
     console.error("Error creating category:", error)
     throw error
@@ -90,16 +96,22 @@ export async function updateCategory(
       throw new Error("Category not found")
     }
 
-    const updatedCategory = {
+    // Crear objeto de actualización
+    const updatedData: Record<string, any> = {
       ...categoryData,
       updatedAt: new Date().toISOString(),
     }
 
-    await updateDoc(categoryRef, updatedCategory)
+    // Si parentId es undefined o una cadena vacía, eliminar la propiedad
+    if (categoryData.parentId === undefined || categoryData.parentId === "") {
+      delete updatedData.parentId
+    }
+
+    await updateDoc(categoryRef, updatedData)
 
     return {
       ...(categoryDoc.data() as Category),
-      ...updatedCategory,
+      ...updatedData,
     }
   } catch (error) {
     console.error("Error updating category:", error)
