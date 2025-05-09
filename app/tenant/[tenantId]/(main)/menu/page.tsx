@@ -13,7 +13,6 @@ import { FeaturedProducts } from "./components/featured-products"
 import { Cart } from "./components/cart"
 import { CartProvider } from "./context/cart-context"
 import { DesktopCategoryMenu } from "./components/desktop-category-menu"
-import { CategoryCards } from "./components/category-cards"
 
 export default function MenuPage({
   params,
@@ -29,6 +28,7 @@ export default function MenuPage({
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const headerRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     async function loadRestaurantData() {
@@ -84,11 +84,9 @@ export default function MenuPage({
 
   const handleCategorySelect = (categoryId: string) => {
     setActiveCategory(categoryId)
-    // Desplazarse a la sección de productos
-    const productsSection = document.getElementById("products-section")
-    if (productsSection) {
-      productsSection.scrollIntoView({ behavior: "smooth" })
-    }
+
+    // Eliminamos el scroll automático al seleccionar una categoría
+    // Solo actualizamos el estado
   }
 
   if (loading) {
@@ -122,11 +120,6 @@ export default function MenuPage({
             />
           </div>
 
-          {/* Categorías */}
-          <div className="bg-white px-4 py-2 mb-2">
-            <CategoryCards tenantId={tenantId} branchId={currentBranchId} onSelectCategory={handleCategorySelect} />
-          </div>
-
           {/* Productos destacados */}
           <div className="bg-white px-4 py-6 mb-2">
             <h2 className="text-xl font-bold mb-4">Artículos destacados</h2>
@@ -134,12 +127,17 @@ export default function MenuPage({
           </div>
 
           {/* Menú de categorías para PC - Debajo de productos destacados */}
-          <div className="hidden md:block mb-2">
-            <DesktopCategoryMenu activeCategory={activeCategory} onCategoryChange={handleCategorySelect} />
+          <div className="hidden md:block mb-2 sticky top-0 z-30 bg-white">
+            <DesktopCategoryMenu
+              activeCategory={activeCategory}
+              onCategoryChange={handleCategorySelect}
+              tenantId={tenantId}
+              branchId={currentBranchId}
+            />
           </div>
 
           {/* Categorías y productos */}
-          <div id="products-section" className="mt-2 bg-white">
+          <div id="products-section" className="mt-2 bg-white" ref={menuRef}>
             <MenuCategories
               tenantId={tenantId}
               branchId={currentBranchId}
