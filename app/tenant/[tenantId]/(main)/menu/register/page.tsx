@@ -2,16 +2,27 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Eye, EyeOff, ArrowLeft } from "lucide-react"
+import { Eye, EyeOff, ArrowLeft, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { auth, db } from "@/lib/firebase/client"
+import {
+  createUserWithEmailAndPassword,
+  updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup,
+  FacebookAuthProvider,
+} from "firebase/auth"
+import { doc, setDoc } from "firebase/firestore"
+import { useAuth } from "@/lib/context/auth-context"
 
 export default function RegisterPage({ params }: { params: { tenantId: string } }) {
   const router = useRouter()
@@ -26,6 +37,15 @@ export default function RegisterPage({ params }: { params: { tenantId: string } 
   })
   const [acceptTerms, setAcceptTerms] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const { user, loading } = useAuth()
+
+  // Redirigir si ya está autenticado
+  useEffect(() => {
+    if (user && !loading) {
+      router.push("/menu/profile")
+    }
+  }, [user, loading, router])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -34,31 +54,128 @@ export default function RegisterPage({ params }: { params: { tenantId: string } 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
 
     if (formData.password !== formData.confirmPassword) {
-      alert("Las contraseñas no coinciden")
+      setError("Las contraseñas no coinciden")
       return
     }
 
     if (!acceptTerms) {
-      alert("Debes aceptar los términos y condiciones")
+      setError("Debes aceptar los términos y condiciones")
       return
     }
 
     setIsLoading(true)
 
-    // Simulación de registro
-    setTimeout(() => {
+    try {
+      // Crear usuario en Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password)
+      const user = userCredential.user
+
+      // Actualizar el perfil del usuario
+      await updateProfile(user, {
+        displayName: formData.name,
+      })
+
+      // Guardar información adicional en Firestore
+      await setDoc(doc(db, `tenants/${params.tenantId}/users`, user.uid), {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        role: "customer", // Asignar rol de cliente
+        createdAt: new Date(),
+        tenantId: params.tenantId,
+      })
+
+      router.push("/menu/profile")
+    } catch (error: any) {
+      console.error("Error al registrar usuario:", error)
+
+      // Manejar errores específicos
+      if (error.code === "auth/email-already-in-use") {
+        setError("Este correo electrónico ya está en uso")
+      } else if (error.code === "auth/weak-password") {
+        setError("La contraseña es demasiado débil")
+      } else {
+        setError("Error al crear la cuenta. Inténtalo de nuevo")
+      }
+    } finally {
       setIsLoading(false)
-      router.push(`/tenant/${params.tenantId}/menu/profile`)
-    }, 1500)
+    }
+  }
+
+  const handleGoogleSignIn = async () => {
+    setError(null)
+    setIsLoading(true)
+
+    try {
+      const provider = new GoogleAuthProvider()
+      const result = await signInWithPopup(auth, provider)
+      const user = result.user
+
+      // Guardar información en Firestore
+      await setDoc(
+        doc(db, `tenants/${params.tenantId}/users`, user.uid),
+        {
+          name: user.displayName,
+          email: user.email,
+          phone: user.phoneNumber || "",
+          role: "customer", // Asignar rol de cliente
+          createdAt: new Date(),
+          tenantId: params.tenantId,
+          authProvider: "google",
+        },
+        { merge: true },
+      ) // merge: true para no sobrescribir datos existentes
+
+      router.push("/menu/profile")
+    } catch (error: any) {
+      console.error("Error al registrarse con Google:", error)
+      setError("Error al registrarse con Google")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleFacebookSignIn = async () => {
+    setError(null)
+    setIsLoading(true)
+
+    try {
+      const provider = new FacebookAuthProvider()
+      const result = await signInWithPopup(auth, provider)
+      const user = result.user
+
+      // Guardar información en Firestore
+      await setDoc(
+        doc(db, `tenants/${params.tenantId}/users`, user.uid),
+        {
+          name: user.displayName,
+          email: user.email,
+          phone: user.phoneNumber || "",
+          role: "customer", // Asignar rol de cliente
+          createdAt: new Date(),
+          tenantId: params.tenantId,
+          authProvider: "facebook",
+        },
+        { merge: true },
+      )
+
+      router.push("/menu/profile")
+    } catch (error: any) {
+      console.error("Error al registrarse con Facebook:", error)
+      setError("Error al registrarse con Facebook")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="mb-6">
-          <Button variant="ghost" size="sm" className="mb-4" onClick={() => router.push(`/menu`)}>
+          <Button variant="ghost" size="sm" className="mb-4" onClick={() => router.push("/menu")}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Volver al menú
           </Button>
@@ -70,6 +187,13 @@ export default function RegisterPage({ params }: { params: { tenantId: string } 
             </CardHeader>
 
             <CardContent>
+              {error && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Nombre completo</Label>
@@ -80,6 +204,7 @@ export default function RegisterPage({ params }: { params: { tenantId: string } 
                     value={formData.name}
                     onChange={handleChange}
                     required
+                    disabled={isLoading}
                   />
                 </div>
 
@@ -93,6 +218,7 @@ export default function RegisterPage({ params }: { params: { tenantId: string } 
                     value={formData.email}
                     onChange={handleChange}
                     required
+                    disabled={isLoading}
                   />
                 </div>
 
@@ -106,6 +232,7 @@ export default function RegisterPage({ params }: { params: { tenantId: string } 
                     value={formData.phone}
                     onChange={handleChange}
                     required
+                    disabled={isLoading}
                   />
                 </div>
 
@@ -120,11 +247,13 @@ export default function RegisterPage({ params }: { params: { tenantId: string } 
                       value={formData.password}
                       onChange={handleChange}
                       required
+                      disabled={isLoading}
                     />
                     <button
                       type="button"
                       className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
                       onClick={() => setShowPassword(!showPassword)}
+                      disabled={isLoading}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -142,11 +271,13 @@ export default function RegisterPage({ params }: { params: { tenantId: string } 
                       value={formData.confirmPassword}
                       onChange={handleChange}
                       required
+                      disabled={isLoading}
                     />
                     <button
                       type="button"
                       className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      disabled={isLoading}
                     >
                       {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -158,6 +289,7 @@ export default function RegisterPage({ params }: { params: { tenantId: string } 
                     id="terms"
                     checked={acceptTerms}
                     onCheckedChange={(checked) => setAcceptTerms(checked as boolean)}
+                    disabled={isLoading}
                   />
                   <Label htmlFor="terms" className="text-sm">
                     Acepto los{" "}
@@ -191,7 +323,7 @@ export default function RegisterPage({ params }: { params: { tenantId: string } 
               </div>
 
               <div className="grid grid-cols-2 gap-4 mt-6">
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading}>
                   <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
                     <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
                       <path
@@ -215,7 +347,7 @@ export default function RegisterPage({ params }: { params: { tenantId: string } 
                   Google
                 </Button>
 
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full" onClick={handleFacebookSignIn} disabled={isLoading}>
                   <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
                     <path
                       d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"

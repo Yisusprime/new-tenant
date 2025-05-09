@@ -2,11 +2,20 @@
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import { MapPin, Info, Star, Search, User, ShoppingBag } from "lucide-react"
+import { MapPin, Info, Star, Search, User, ShoppingBag, LogOut } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { isRestaurantOpen } from "../utils/restaurant-hours"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/lib/context/auth-context"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 
 export function RestaurantHeader({
   restaurantData,
@@ -20,7 +29,12 @@ export function RestaurantHeader({
   params?: { tenantId: string }
 }) {
   const [isOpen, setIsOpen] = useState(false)
+  const [showAdminDialog, setShowAdminDialog] = useState(false)
   const router = useRouter()
+  const { user, signOut, loading } = useAuth()
+
+  // Verificar si el usuario es admin (basado en el email o algún claim)
+  const isAdmin = user?.email?.includes("admin") || false // Esto debe ser reemplazado con tu lógica real
 
   useEffect(() => {
     if (restaurantConfig?.hours) {
@@ -28,6 +42,29 @@ export function RestaurantHeader({
       setIsOpen(open)
     }
   }, [restaurantConfig])
+
+  const handleAuthClick = () => {
+    if (user) {
+      if (isAdmin) {
+        setShowAdminDialog(true)
+      } else {
+        // Si es un cliente normal, redirigir al perfil
+        router.push("/menu/profile")
+      }
+    } else {
+      // Si no hay usuario, redirigir al login
+      router.push("/menu/login")
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      await signOut()
+      router.push("/menu")
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error)
+    }
+  }
 
   // Usar imágenes de placeholder
   const bannerImage = "/placeholder.svg?key=3wznk"
@@ -40,20 +77,31 @@ export function RestaurantHeader({
     <div className="bg-white relative">
       {/* Botones de PC en la esquina superior derecha */}
       <div className="absolute top-4 right-4 z-10 hidden md:flex gap-2">
-        <Button variant="outline" size="sm" className="bg-white/80 backdrop-blur-sm rounded-full" onClick={() => {}}>
+        <Button variant="outline" size="sm" className="bg-white/80 backdrop-blur-sm rounded-full">
           <Search className="h-4 w-4 mr-2" />
           Buscar
         </Button>
+
         <Button
           variant="outline"
           size="sm"
           className="bg-white/80 backdrop-blur-sm rounded-full"
-          onClick={() => router.push("/menu/login")}
+          onClick={handleAuthClick}
         >
-          <User className="h-4 w-4 mr-2" />
-          Login
+          {user ? (
+            <>
+              <User className="h-4 w-4 mr-2" />
+              {isAdmin ? "Admin" : "Mi Perfil"}
+            </>
+          ) : (
+            <>
+              <User className="h-4 w-4 mr-2" />
+              Login
+            </>
+          )}
         </Button>
-        <Button variant="outline" size="sm" className="bg-white/80 backdrop-blur-sm rounded-full" onClick={() => {}}>
+
+        <Button variant="outline" size="sm" className="bg-white/80 backdrop-blur-sm rounded-full">
           <ShoppingBag className="h-4 w-4 mr-2" />
           Pedidos
         </Button>
@@ -136,6 +184,28 @@ export function RestaurantHeader({
           {address}
         </div>
       </div>
+
+      {/* Diálogo para administradores */}
+      <Dialog open={showAdminDialog} onOpenChange={setShowAdminDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Sesión de administrador activa</DialogTitle>
+            <DialogDescription>
+              Actualmente estás logueado como administrador. Para acceder como cliente, primero debes cerrar tu sesión
+              de administrador.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setShowAdminDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleLogout} className="gap-2">
+              <LogOut className="h-4 w-4" />
+              Cerrar sesión de administrador
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

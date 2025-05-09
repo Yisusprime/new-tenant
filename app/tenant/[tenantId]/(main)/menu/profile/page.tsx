@@ -1,42 +1,90 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { User, ShoppingBag, MapPin, CreditCard, Bell, LogOut, ChevronRight, Heart } from "lucide-react"
+import { User, ShoppingBag, MapPin, CreditCard, Bell, LogOut, Heart, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Card, CardContent } from "@/components/ui/card"
-import { DesktopNavigation } from "../components/desktop-navigation"
 import { MobileNavigation } from "../components/mobile-navigation"
+import { useAuth } from "@/lib/context/auth-context"
+import { doc, getDoc } from "firebase/firestore"
+import { db } from "@/lib/firebase/client"
 
 export default function ProfilePage({ params }: { params: { tenantId: string } }) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("profile")
+  const { user, signOut, loading } = useAuth()
+  const [userData, setUserData] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-  // Datos de muestra del usuario
-  const user = {
-    name: "Carlos Rodríguez",
-    email: "carlos.rodriguez@example.com",
-    phone: "+34 612 345 678",
-    avatar: "/abstract-geometric-shapes.png",
-    address: "Calle Principal 123, Madrid, España",
-    orders: [
-      { id: "ORD-1234", date: "15/04/2023", total: "€24.99", status: "Entregado" },
-      { id: "ORD-5678", date: "02/05/2023", total: "€32.50", status: "En proceso" },
-      { id: "ORD-9012", date: "18/05/2023", total: "€18.75", status: "Cancelado" },
-    ],
+  // Redirigir si no está autenticado
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/menu/login")
+    }
+  }, [user, loading, router])
+
+  // Cargar datos del usuario desde Firestore
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (user) {
+        try {
+          const userDocRef = doc(db, `tenants/${params.tenantId}/users`, user.uid)
+          const userDoc = await getDoc(userDocRef)
+
+          if (userDoc.exists()) {
+            setUserData(userDoc.data())
+          } else {
+            // Si no existe en la colección de usuarios del tenant, crear un perfil básico
+            setUserData({
+              name: user.displayName || "Usuario",
+              email: user.email || "",
+              phone: user.phoneNumber || "",
+              role: "customer",
+            })
+          }
+        } catch (error) {
+          console.error("Error al cargar datos del usuario:", error)
+        } finally {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    if (user) {
+      fetchUserData()
+    } else if (!loading) {
+      setIsLoading(false)
+    }
+  }, [user, params.tenantId, loading])
+
+  const handleLogout = async () => {
+    try {
+      await signOut()
+      router.push("/menu")
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error)
+    }
   }
 
-  const handleLogout = () => {
-    // Simulación de cierre de sesión
-    router.push(`/menu/login`)
+  // Si está cargando, mostrar spinner
+  if (loading || isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  // Si no hay usuario autenticado, no debería llegar aquí (useEffect redirige)
+  if (!user) {
+    return null
   }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <DesktopNavigation />
-
       <div className="max-w-5xl mx-auto px-4 pt-6 pb-24">
         <div className="flex flex-col md:flex-row gap-6">
           {/* Sidebar con información del usuario */}
@@ -45,12 +93,15 @@ export default function ProfilePage({ params }: { params: { tenantId: string } }
               <CardContent className="p-6">
                 <div className="flex items-center space-x-4">
                   <Avatar className="h-16 w-16">
-                    <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                    <AvatarImage
+                      src={user.photoURL || "/abstract-geometric-shapes.png"}
+                      alt={userData?.name || user.displayName || ""}
+                    />
+                    <AvatarFallback>{(userData?.name || user.displayName || "U").charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <h2 className="text-xl font-bold">{user.name}</h2>
-                    <p className="text-gray-500">{user.email}</p>
+                    <h2 className="text-xl font-bold">{userData?.name || user.displayName || "Usuario"}</h2>
+                    <p className="text-gray-500">{userData?.email || user.email}</p>
                   </div>
                 </div>
               </CardContent>
@@ -131,22 +182,22 @@ export default function ProfilePage({ params }: { params: { tenantId: string } }
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-500 mb-1">Nombre completo</label>
-                      <p className="font-medium">{user.name}</p>
+                      <p className="font-medium">{userData?.name || user.displayName || "No especificado"}</p>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-500 mb-1">Correo electrónico</label>
-                      <p className="font-medium">{user.email}</p>
+                      <p className="font-medium">{userData?.email || user.email}</p>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-500 mb-1">Teléfono</label>
-                      <p className="font-medium">{user.phone}</p>
+                      <p className="font-medium">{userData?.phone || user.phoneNumber || "No especificado"}</p>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-500 mb-1">Dirección principal</label>
-                      <p className="font-medium">{user.address}</p>
+                      <p className="font-medium">{userData?.address || "No especificada"}</p>
                     </div>
                   </div>
 
@@ -160,32 +211,12 @@ export default function ProfilePage({ params }: { params: { tenantId: string } }
                 <CardContent className="p-6">
                   <h3 className="text-xl font-bold mb-4">Mis pedidos</h3>
 
-                  <div className="space-y-4">
-                    {user.orders.map((order) => (
-                      <div key={order.id} className="border rounded-lg p-4 hover:bg-gray-50">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="font-medium">{order.id}</p>
-                            <p className="text-sm text-gray-500">{order.date}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium">{order.total}</p>
-                            <p
-                              className={`text-sm ${
-                                order.status === "Entregado"
-                                  ? "text-green-500"
-                                  : order.status === "Cancelado"
-                                    ? "text-red-500"
-                                    : "text-orange-500"
-                              }`}
-                            >
-                              {order.status}
-                            </p>
-                          </div>
-                          <ChevronRight className="h-5 w-5 text-gray-400" />
-                        </div>
-                      </div>
-                    ))}
+                  <div className="text-center py-8 text-gray-500">
+                    <ShoppingBag className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>No tienes pedidos recientes</p>
+                    <Button variant="outline" className="mt-4" onClick={() => router.push("/menu")}>
+                      Explorar menú
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -196,39 +227,37 @@ export default function ProfilePage({ params }: { params: { tenantId: string } }
                 <CardContent className="p-6">
                   <h3 className="text-xl font-bold mb-4">Mis direcciones</h3>
 
-                  <div className="border rounded-lg p-4 mb-4">
-                    <div className="flex justify-between">
-                      <div>
-                        <p className="font-medium">Casa</p>
-                        <p className="text-gray-500">{user.address}</p>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button variant="outline" size="sm">
-                          Editar
-                        </Button>
-                        <Button variant="outline" size="sm" className="text-red-500 border-red-200 hover:bg-red-50">
-                          Eliminar
-                        </Button>
-                      </div>
+                  {userData?.addresses && userData.addresses.length > 0 ? (
+                    <div className="space-y-4">
+                      {userData.addresses.map((address: any, index: number) => (
+                        <div key={index} className="border rounded-lg p-4 mb-4">
+                          <div className="flex justify-between">
+                            <div>
+                              <p className="font-medium">{address.name}</p>
+                              <p className="text-gray-500">{address.fullAddress}</p>
+                            </div>
+                            <div className="flex space-x-2">
+                              <Button variant="outline" size="sm">
+                                Editar
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-red-500 border-red-200 hover:bg-red-50"
+                              >
+                                Eliminar
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-
-                  <div className="border rounded-lg p-4 mb-4">
-                    <div className="flex justify-between">
-                      <div>
-                        <p className="font-medium">Trabajo</p>
-                        <p className="text-gray-500">Avenida Empresarial 45, Madrid, España</p>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button variant="outline" size="sm">
-                          Editar
-                        </Button>
-                        <Button variant="outline" size="sm" className="text-red-500 border-red-200 hover:bg-red-50">
-                          Eliminar
-                        </Button>
-                      </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <MapPin className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p>No tienes direcciones guardadas</p>
                     </div>
-                  </div>
+                  )}
 
                   <Button>Añadir nueva dirección</Button>
                 </CardContent>
@@ -240,38 +269,9 @@ export default function ProfilePage({ params }: { params: { tenantId: string } }
                 <CardContent className="p-6">
                   <h3 className="text-xl font-bold mb-4">Métodos de pago</h3>
 
-                  <div className="border rounded-lg p-4 mb-4">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center space-x-3">
-                        <div className="bg-blue-100 p-2 rounded">
-                          <CreditCard className="h-6 w-6 text-blue-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium">Visa terminada en 4567</p>
-                          <p className="text-sm text-gray-500">Expira: 05/25</p>
-                        </div>
-                      </div>
-                      <Button variant="outline" size="sm">
-                        Eliminar
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="border rounded-lg p-4 mb-4">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center space-x-3">
-                        <div className="bg-red-100 p-2 rounded">
-                          <CreditCard className="h-6 w-6 text-red-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium">Mastercard terminada en 8901</p>
-                          <p className="text-sm text-gray-500">Expira: 12/24</p>
-                        </div>
-                      </div>
-                      <Button variant="outline" size="sm">
-                        Eliminar
-                      </Button>
-                    </div>
+                  <div className="text-center py-8 text-gray-500">
+                    <CreditCard className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>No tienes métodos de pago guardados</p>
                   </div>
 
                   <Button>Añadir método de pago</Button>
@@ -284,40 +284,12 @@ export default function ProfilePage({ params }: { params: { tenantId: string } }
                 <CardContent className="p-6">
                   <h3 className="text-xl font-bold mb-4">Mis favoritos</h3>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="border rounded-lg p-4 flex">
-                      <div className="h-16 w-16 rounded-md bg-gray-100 mr-3 flex-shrink-0">
-                        <img
-                          src="/classic-burger.png"
-                          alt="Hamburguesa"
-                          className="h-full w-full object-cover rounded-md"
-                        />
-                      </div>
-                      <div>
-                        <p className="font-medium">Hamburguesa Clásica</p>
-                        <p className="text-sm text-gray-500">€8.99</p>
-                        <Button variant="link" size="sm" className="p-0 h-auto text-primary">
-                          Añadir al carrito
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="border rounded-lg p-4 flex">
-                      <div className="h-16 w-16 rounded-md bg-gray-100 mr-3 flex-shrink-0">
-                        <img
-                          src="/margherita-pizza.png"
-                          alt="Pizza"
-                          className="h-full w-full object-cover rounded-md"
-                        />
-                      </div>
-                      <div>
-                        <p className="font-medium">Pizza Margherita</p>
-                        <p className="text-sm text-gray-500">€10.50</p>
-                        <Button variant="link" size="sm" className="p-0 h-auto text-primary">
-                          Añadir al carrito
-                        </Button>
-                      </div>
-                    </div>
+                  <div className="text-center py-8 text-gray-500">
+                    <Heart className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>No tienes productos favoritos</p>
+                    <Button variant="outline" className="mt-4" onClick={() => router.push("/menu")}>
+                      Explorar menú
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
