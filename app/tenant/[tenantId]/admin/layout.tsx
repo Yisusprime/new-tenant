@@ -322,7 +322,7 @@ function AdminLayoutContent({
                 >
                   <div className="flex items-center">
                     <Store className="mr-3 h-5 w-5" />
-                    <span>Personalizar Restaurante</span>
+                    <span>Restaurante</span>
                   </div>
                   <ChevronDown
                     className={`h-4 w-4 transition-transform ${

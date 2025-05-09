@@ -2,11 +2,13 @@ import { db, storage } from "@/lib/firebase/client"
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage"
 
+// Actualizar la interfaz RestaurantBasicInfo para incluir bannerImage
 export interface RestaurantBasicInfo {
   name: string
   shortDescription: string
   localId: string
   logo?: string
+  bannerImage?: string
   taxIncluded: boolean
 }
 
@@ -230,6 +232,49 @@ export async function deleteRestaurantLogo(tenantId: string, branchId: string): 
     console.log(`Logo eliminado correctamente para sucursal ${branchId}`)
   } catch (error) {
     console.error("Error al eliminar logo del restaurante:", error)
+    throw error
+  }
+}
+
+// Añadir función para subir el banner del restaurante
+export async function uploadRestaurantBanner(tenantId: string, branchId: string, file: File): Promise<string> {
+  try {
+    if (!branchId) {
+      throw new Error("No se proporcionó ID de sucursal")
+    }
+
+    console.log(`Subiendo banner para tenant: ${tenantId}, sucursal: ${branchId}`)
+
+    // Crear una referencia al archivo en Storage
+    const storageRef = ref(storage, `tenants/${tenantId}/branches/${branchId}/restaurant/banner`)
+
+    // Subir el archivo
+    await uploadBytes(storageRef, file)
+
+    // Obtener la URL de descarga
+    const downloadURL = await getDownloadURL(storageRef)
+
+    // Actualizar la configuración con la nueva URL
+    const configRef = doc(db, `tenants/${tenantId}/branches/${branchId}/config`, "restaurant")
+    const configDoc = await getDoc(configRef)
+
+    if (configDoc.exists()) {
+      const currentConfig = configDoc.data() as RestaurantConfig
+      const updatedBasicInfo = {
+        ...currentConfig.basicInfo,
+        bannerImage: downloadURL,
+      }
+
+      await updateDoc(configRef, {
+        basicInfo: updatedBasicInfo,
+        updatedAt: new Date().toISOString(),
+      })
+    }
+
+    console.log(`Banner subido correctamente para sucursal ${branchId}`)
+    return downloadURL
+  } catch (error) {
+    console.error("Error al subir banner del restaurante:", error)
     throw error
   }
 }
