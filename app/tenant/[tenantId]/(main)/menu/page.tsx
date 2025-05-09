@@ -27,7 +27,7 @@ export default function MenuPage({
   const [currentBranchId, setCurrentBranchId] = useState<string | null>(null)
   const [activeCategory, setActiveCategory] = useState<string | null>("cat1") // Categoría predeterminada
   const [showMobileMenu, setShowMobileMenu] = useState(false)
-  const featuredSectionRef = useRef<HTMLDivElement>(null)
+  const headerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     async function loadRestaurantData() {
@@ -67,9 +67,11 @@ export default function MenuPage({
   useEffect(() => {
     // Función para manejar el scroll y mostrar/ocultar el menú móvil
     const handleScroll = () => {
-      if (featuredSectionRef.current) {
-        const featuredBottom = featuredSectionRef.current.getBoundingClientRect().bottom
-        setShowMobileMenu(featuredBottom <= 0)
+      // Mostrar el menú después de un pequeño scroll (50px)
+      if (window.scrollY > 50) {
+        setShowMobileMenu(true)
+      } else {
+        setShowMobileMenu(false)
       }
     }
 
@@ -111,14 +113,16 @@ export default function MenuPage({
     <CartProvider>
       <div className="bg-gray-50 min-h-screen pb-20 flex justify-center">
         <div className="w-full max-w-5xl">
-          <RestaurantHeader
-            restaurantData={restaurantData}
-            restaurantConfig={restaurantConfig}
-            onInfoClick={() => setInfoModalOpen(true)}
-          />
+          <div ref={headerRef}>
+            <RestaurantHeader
+              restaurantData={restaurantData}
+              restaurantConfig={restaurantConfig}
+              onInfoClick={() => setInfoModalOpen(true)}
+            />
+          </div>
 
           {/* Productos destacados */}
-          <div ref={featuredSectionRef} className="bg-white px-4 py-6 mb-2">
+          <div className="bg-white px-4 py-6 mb-2">
             <h2 className="text-xl font-bold mb-4">Artículos destacados</h2>
             <FeaturedProducts tenantId={tenantId} branchId={currentBranchId} />
           </div>
