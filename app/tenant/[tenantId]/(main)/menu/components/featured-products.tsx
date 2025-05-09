@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCart } from "../context/cart-context"
 import { getProducts } from "@/lib/services/product-service"
+import { ProductDetailModal } from "./product-detail-modal"
 
 interface FeaturedProductsProps {
   tenantId: string
@@ -23,6 +24,11 @@ export function FeaturedProducts({ tenantId, branchId }: FeaturedProductsProps) 
   const [isDragging, setIsDragging] = useState(false)
   const [startX, setStartX] = useState(0)
   const [scrollLeft, setScrollLeft] = useState(0)
+  const [dragStartTime, setDragStartTime] = useState(0)
+
+  // Para el modal de detalle
+  const [selectedProduct, setSelectedProduct] = useState<any>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   useEffect(() => {
     async function loadFeaturedProducts() {
@@ -69,6 +75,7 @@ export function FeaturedProducts({ tenantId, branchId }: FeaturedProductsProps) 
     setIsDragging(true)
     setStartX(e.pageX - scrollContainerRef.current.offsetLeft)
     setScrollLeft(scrollContainerRef.current.scrollLeft)
+    setDragStartTime(Date.now())
   }
 
   const handleMouseMove = (e: MouseEvent) => {
@@ -80,12 +87,36 @@ export function FeaturedProducts({ tenantId, branchId }: FeaturedProductsProps) 
     scrollContainerRef.current.scrollLeft = scrollLeft - walk
   }
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e: MouseEvent) => {
     setIsDragging(false)
+
+    // Si el arrastre duró menos de 150ms y no se movió mucho, considerarlo un clic
+    const dragTime = Date.now() - dragStartTime
+    const dragDistance = Math.abs(e.pageX - (startX + (scrollContainerRef.current?.offsetLeft || 0)))
+
+    if (dragTime < 150 && dragDistance < 5) {
+      // Es un clic, no un arrastre
+      return false
+    }
+
+    return true
   }
 
   const handleMouseLeave = () => {
     setIsDragging(false)
+  }
+
+  const handleProductClick = (product: any, e: MouseEvent) => {
+    // Si estamos arrastrando, no abrir el modal
+    if (handleMouseUp(e)) return
+
+    setSelectedProduct(product)
+    setIsModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+    setSelectedProduct(null)
   }
 
   if (loading) {
@@ -143,7 +174,10 @@ export function FeaturedProducts({ tenantId, branchId }: FeaturedProductsProps) 
       >
         {featuredProducts.map((product, index) => (
           <div key={product.id} className="flex-shrink-0 w-64 bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="relative h-40 w-full rounded-lg overflow-hidden">
+            <div
+              className="relative h-40 w-full rounded-lg overflow-hidden cursor-pointer"
+              onClick={(e) => handleProductClick(product, e as unknown as MouseEvent)}
+            >
               <Image
                 src={product.imageUrl || "/placeholder.svg?height=160&width=256&query=featured food"}
                 alt={product.name}
@@ -187,6 +221,15 @@ export function FeaturedProducts({ tenantId, branchId }: FeaturedProductsProps) 
           </div>
         ))}
       </div>
+
+      {/* Modal de detalle del producto */}
+      <ProductDetailModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        product={selectedProduct}
+        tenantId={tenantId}
+        branchId={branchId}
+      />
 
       <style jsx>{`
         .scrollbar-hide::-webkit-scrollbar {
