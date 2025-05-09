@@ -105,7 +105,7 @@ export default function SubcategoriesPage({
             description: "No se encontró la categoría",
             variant: "destructive",
           })
-          router.push(`/tenant/${tenantId}/admin/categories`)
+          router.push(`/admin/categories`)
         }
       } catch (error) {
         console.error("Error al cargar categoría:", error)
@@ -345,7 +345,7 @@ export default function SubcategoriesPage({
           {category && <p className="text-gray-500">Categoría: {category.name}</p>}
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => router.push(`/tenant/${tenantId}/admin/categories`)}>
+          <Button variant="outline" onClick={() => router.push(`/admin/categories`)}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Volver a Categorías
           </Button>
           <Button onClick={() => handleOpenDialog()} disabled={!currentBranch || !category}>
