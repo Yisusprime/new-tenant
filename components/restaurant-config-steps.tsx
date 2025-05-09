@@ -6,7 +6,7 @@ import { useState, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Store, User, Truck, MapPin, Clock, CreditCard, Globe, CheckCircle2 } from "lucide-react"
+import { Store, User, Truck, MapPin, Clock, CreditCard, Globe, CheckCircle2, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { useBranch } from "@/lib/context/branch-context"
@@ -23,6 +23,7 @@ export function RestaurantConfigSteps({ tenantId, currentStep }: { tenantId: str
   const router = useRouter()
   const pathname = usePathname()
   const [completedSteps, setCompletedSteps] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
   const { currentBranch } = useBranch()
 
   // Definir los pasos de configuración
@@ -39,15 +40,43 @@ export function RestaurantConfigSteps({ tenantId, currentStep }: { tenantId: str
 
   // Cargar los pasos completados desde localStorage
   useEffect(() => {
-    if (!currentBranch) return
+    let isMounted = true
 
-    const branchKey = `${tenantId}_${currentBranch.id}_completedConfigSteps`
-    const savedCompletedSteps = localStorage.getItem(branchKey)
-    if (savedCompletedSteps) {
-      setCompletedSteps(JSON.parse(savedCompletedSteps))
-    } else {
-      // Si no hay pasos guardados para esta sucursal, reiniciar
-      setCompletedSteps([])
+    const loadCompletedSteps = () => {
+      setLoading(true)
+
+      if (!currentBranch) {
+        if (isMounted) {
+          setCompletedSteps([])
+          setLoading(false)
+        }
+        return
+      }
+
+      const branchKey = `${tenantId}_${currentBranch.id}_completedConfigSteps`
+      const savedCompletedSteps = localStorage.getItem(branchKey)
+
+      if (savedCompletedSteps && isMounted) {
+        try {
+          setCompletedSteps(JSON.parse(savedCompletedSteps))
+        } catch (err) {
+          console.error("Error parsing completed steps:", err)
+          setCompletedSteps([])
+        }
+      } else if (isMounted) {
+        // Si no hay pasos guardados para esta sucursal, reiniciar
+        setCompletedSteps([])
+      }
+
+      if (isMounted) {
+        setLoading(false)
+      }
+    }
+
+    loadCompletedSteps()
+
+    return () => {
+      isMounted = false
     }
   }, [tenantId, currentBranch])
 
@@ -80,6 +109,15 @@ export function RestaurantConfigSteps({ tenantId, currentStep }: { tenantId: str
       const previousStep = steps[currentIndex - 1]
       router.push(previousStep.path)
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-20">
+        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        <span className="ml-2">Cargando progreso...</span>
+      </div>
+    )
   }
 
   return (

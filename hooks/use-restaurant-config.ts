@@ -26,41 +26,60 @@ export function useRestaurantConfig<T>(
 
   // Cargar datos cuando cambia la sucursal
   useEffect(() => {
+    let isMounted = true
+
     async function loadConfig() {
-      // Resetear el estado cuando no hay sucursal seleccionada
+      // Si no hay sucursal seleccionada, no intentamos cargar datos
       if (!currentBranch) {
-        setData(defaultValue)
-        setLoading(false)
+        if (isMounted) {
+          setData(defaultValue)
+          setLoading(false)
+          setError(null)
+        }
         return
       }
 
       try {
-        setLoading(true)
-        setError(null)
+        if (isMounted) {
+          setLoading(true)
+          setError(null)
+        }
 
+        console.log(`Cargando configuración para sucursal ${currentBranch.id}, sección ${configSection}`)
         const config = await getRestaurantConfig(tenantId, currentBranch.id)
+
+        // Solo actualizamos el estado si el componente sigue montado
+        if (!isMounted) return
 
         if (config && config[configSection as keyof typeof config]) {
           // Actualizar los datos con la configuración de la sucursal actual
           setData(config[configSection as keyof typeof config] as T)
+          console.log(`Datos cargados para sección ${configSection}:`, config[configSection as keyof typeof config])
         } else {
           // Si no hay datos para esta sección, usar los valores por defecto
           setData(defaultValue)
+          console.log(`No hay datos para sección ${configSection}, usando valores por defecto`)
         }
       } catch (err) {
         console.error(`Error al cargar configuración de ${configSection}:`, err)
-        setError(`No se pudo cargar la información de ${configSection}`)
-        toast({
-          title: "Error",
-          description: `No se pudo cargar la información de ${configSection}`,
-          variant: "destructive",
-        })
+
+        if (isMounted) {
+          setError(`No se pudo cargar la información de ${configSection}`)
+          // No mostramos toast aquí para evitar múltiples notificaciones
+        }
       } finally {
-        setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
 
     loadConfig()
+
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      isMounted = false
+    }
   }, [tenantId, currentBranch, configSection, defaultValue, toast])
 
   // Función para marcar un paso como completado

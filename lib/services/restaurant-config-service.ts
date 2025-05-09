@@ -71,36 +71,38 @@ export interface RestaurantSocialMedia {
 }
 
 export interface RestaurantConfig {
-  basicInfo: RestaurantBasicInfo
-  contactInfo: RestaurantContactInfo
-  serviceMethods: RestaurantServiceMethods
-  location: RestaurantLocation
-  hours: RestaurantHours
-  paymentMethods: RestaurantPaymentMethods
-  deliverySettings: RestaurantDeliverySettings
-  socialMedia: RestaurantSocialMedia
+  basicInfo?: RestaurantBasicInfo
+  contactInfo?: RestaurantContactInfo
+  serviceMethods?: RestaurantServiceMethods
+  location?: RestaurantLocation
+  hours?: RestaurantHours
+  paymentMethods?: RestaurantPaymentMethods
+  deliverySettings?: RestaurantDeliverySettings
+  socialMedia?: RestaurantSocialMedia
   updatedAt: string
   branchId: string // Añadido para identificar a qué sucursal pertenece
 }
 
 // Función para obtener la configuración completa del restaurante para una sucursal específica
-export async function getRestaurantConfig(tenantId: string, branchId: string): Promise<RestaurantConfig | null> {
+export async function getRestaurantConfig(tenantId: string, branchId?: string): Promise<RestaurantConfig | null> {
   try {
     if (!branchId) {
-      console.error("No se proporcionó ID de sucursal")
+      console.log("No se proporcionó ID de sucursal en getRestaurantConfig")
       return null
     }
 
-    const configDoc = await getDoc(doc(db, `tenants/${tenantId}/branches/${branchId}/config`, "restaurant"))
+    const configRef = doc(db, `tenants/${tenantId}/branches/${branchId}/config`, "restaurant")
+    const configDoc = await getDoc(configRef)
 
     if (!configDoc.exists()) {
+      console.log(`No existe configuración para la sucursal ${branchId}`)
       return null
     }
 
     return configDoc.data() as RestaurantConfig
   } catch (error) {
     console.error("Error al obtener configuración del restaurante:", error)
-    throw error
+    return null
   }
 }
 

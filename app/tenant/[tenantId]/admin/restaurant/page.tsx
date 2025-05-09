@@ -20,7 +20,7 @@ export default function RestaurantConfigPage({
   const [loading, setLoading] = useState(true)
   const [completedSteps, setCompletedSteps] = useState<string[]>([])
   const { toast } = useToast()
-  const { currentBranch } = useBranch()
+  const { currentBranch, loading: branchLoading } = useBranch()
 
   // Definir los pasos de configuración
   const configSteps = [
@@ -35,45 +35,69 @@ export default function RestaurantConfigPage({
   ]
 
   useEffect(() => {
+    let isMounted = true
+
     async function loadConfig() {
       try {
-        setLoading(true)
+        // Si todavía se están cargando las sucursales, esperamos
+        if (branchLoading) return
 
+        if (isMounted) setLoading(true)
+
+        // Si no hay sucursal seleccionada, no cargamos nada
         if (!currentBranch) {
-          setCompletedSteps([])
-          setLoading(false)
+          if (isMounted) {
+            setCompletedSteps([])
+            setLoading(false)
+          }
           return
         }
+
+        console.log("Cargando configuración para sucursal:", currentBranch.id)
 
         // Cargar los pasos completados desde localStorage
         const branchKey = `${tenantId}_${currentBranch.id}_completedConfigSteps`
         const savedCompletedSteps = localStorage.getItem(branchKey)
-        if (savedCompletedSteps) {
+
+        if (savedCompletedSteps && isMounted) {
           setCompletedSteps(JSON.parse(savedCompletedSteps))
-        } else {
+        } else if (isMounted) {
           setCompletedSteps([])
         }
 
-        // Verificar si existe configuración
-        const config = await getRestaurantConfig(tenantId, currentBranch.id)
-        if (!config) {
-          // Si no hay configuración, podemos inicializarla o simplemente mostrar la página actual
-          console.log("No hay configuración para esta sucursal")
+        // Verificar si existe configuración (solo para logging)
+        try {
+          const config = await getRestaurantConfig(tenantId, currentBranch.id)
+          if (!config) {
+            console.log("No hay configuración para esta sucursal")
+          } else {
+            console.log("Configuración cargada correctamente")
+          }
+        } catch (err) {
+          console.error("Error al verificar configuración:", err)
         }
       } catch (error) {
         console.error("Error al cargar configuración:", error)
-        toast({
-          title: "Error",
-          description: "No se pudo cargar la información del restaurante",
-          variant: "destructive",
-        })
+        if (isMounted) {
+          toast({
+            title: "Error",
+            description: "No se pudo cargar la información del restaurante",
+            variant: "destructive",
+          })
+        }
       } finally {
-        setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
 
     loadConfig()
-  }, [tenantId, currentBranch, toast])
+
+    return () => {
+      isMounted = false
+    }
+  }, [tenantId, currentBranch, branchLoading, toast])
 
   const getNextIncompleteStep = () => {
     const nextStep = configSteps.find((step) => !completedSteps.includes(step.id))
@@ -84,10 +108,22 @@ export default function RestaurantConfigPage({
     return Math.round((completedSteps.length / configSteps.length) * 100)
   }
 
+  // Si todavía se están cargando las sucursales, mostramos un indicador de carga
+  if (branchLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Cargando sucursales...</span>
+      </div>
+    )
+  }
+
+  // Si se están cargando los datos de configuración, mostramos un indicador de carga
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Cargando configuración...</span>
       </div>
     )
   }
