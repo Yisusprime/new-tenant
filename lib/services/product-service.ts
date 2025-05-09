@@ -7,6 +7,7 @@ export interface ProductExtra {
   name: string
   price: number
   description?: string
+  imageUrl?: string
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -49,6 +50,7 @@ export interface ProductExtraFormData {
   name: string
   price: number
   description?: string
+  imageUrl?: string
   isActive: boolean
 }
 
@@ -306,6 +308,7 @@ export async function createProductExtra(
   tenantId: string,
   branchId: string,
   extraData: ProductExtraFormData,
+  imageFile?: File,
 ): Promise<ProductExtra> {
   try {
     const timestamp = new Date().toISOString()
@@ -315,9 +318,18 @@ export async function createProductExtra(
     const newExtraRef = push(extrasRef)
     const extraId = newExtraRef.key!
 
+    let imageUrl = extraData.imageUrl || ""
+
+    // Si hay un archivo de imagen, subirlo a Blob
+    if (imageFile) {
+      const blobPath = `tenants/${tenantId}/branches/${branchId}/productExtras/${extraId}-${Date.now()}.${imageFile.name.split(".").pop()}`
+      imageUrl = await uploadImageToBlob(imageFile, blobPath)
+    }
+
     // Crear el objeto del extra y eliminar propiedades undefined
     const newExtra = removeUndefinedProperties({
       ...extraData,
+      imageUrl,
       createdAt: timestamp,
       updatedAt: timestamp,
     })
@@ -341,6 +353,7 @@ export async function updateProductExtra(
   branchId: string,
   extraId: string,
   extraData: Partial<ProductExtraFormData>,
+  imageFile?: File,
 ): Promise<ProductExtra> {
   try {
     const timestamp = new Date().toISOString()
@@ -354,9 +367,28 @@ export async function updateProductExtra(
 
     const currentExtra = snapshot.val()
 
+    let imageUrl = extraData.imageUrl !== undefined ? extraData.imageUrl : currentExtra.imageUrl
+
+    // Si hay un nuevo archivo de imagen, subirlo a Blob
+    if (imageFile) {
+      // Si ya existe una imagen, eliminarla primero
+      if (currentExtra.imageUrl) {
+        try {
+          await deleteImageFromBlob(currentExtra.imageUrl)
+        } catch (error) {
+          console.error("Error al eliminar imagen anterior:", error)
+          // Continuar aunque falle la eliminación
+        }
+      }
+
+      const blobPath = `tenants/${tenantId}/branches/${branchId}/productExtras/${extraId}-${Date.now()}.${imageFile.name.split(".").pop()}`
+      imageUrl = await uploadImageToBlob(imageFile, blobPath)
+    }
+
     // Crear el objeto de actualización y eliminar propiedades undefined
     const updatedData = removeUndefinedProperties({
       ...extraData,
+      imageUrl,
       updatedAt: timestamp,
     })
 
@@ -383,6 +415,18 @@ export async function deleteProductExtra(tenantId: string, branchId: string, ext
     const snapshot = await get(extraRef)
     if (!snapshot.exists()) {
       throw new Error("El extra no existe")
+    }
+
+    const extraData = snapshot.val()
+
+    // Si tiene imagen, eliminarla de Blob
+    if (extraData.imageUrl) {
+      try {
+        await deleteImageFromBlob(extraData.imageUrl)
+      } catch (error) {
+        console.error("Error al eliminar imagen de Blob:", error)
+        // Continuar aunque falle la eliminación de la imagen
+      }
     }
 
     // Eliminar el extra de Realtime Database

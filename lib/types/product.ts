@@ -3,6 +3,7 @@ export interface ProductExtra {
   name: string
   price: number
   description?: string
+  imageUrl?: string
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -45,5 +46,6 @@ export interface ProductExtraFormData {
   name: string
   price: number
   description?: string
+  imageUrl?: string
   isActive: boolean
 }
