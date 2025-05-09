@@ -1,5 +1,6 @@
 import { db } from "@/lib/firebase/client"
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, orderBy } from "firebase/firestore"
+import { deleteImage } from "@/app/api/upload/actions"
 
 export interface Category {
   id: string
@@ -121,7 +122,17 @@ export async function updateCategory(
 // Delete a category
 export async function deleteCategory(tenantId: string, branchId: string, categoryId: string): Promise<void> {
   try {
-    // First check if there are subcategories
+    // Primero obtenemos la categoría para verificar si tiene imagen
+    const categoryRef = doc(db, `tenants/${tenantId}/branches/${branchId}/categories`, categoryId)
+    const categoryDoc = await getDoc(categoryRef)
+
+    if (!categoryDoc.exists()) {
+      throw new Error("Categoría no encontrada")
+    }
+
+    const category = categoryDoc.data() as Category
+
+    // Verificamos si hay subcategorías
     const categoriesRef = collection(db, `tenants/${tenantId}/branches/${branchId}/categories`)
     const snapshot = await getDocs(categoriesRef)
     const hasSubcategories = snapshot.docs.some((doc) => {
@@ -130,12 +141,24 @@ export async function deleteCategory(tenantId: string, branchId: string, categor
     })
 
     if (hasSubcategories) {
-      throw new Error("Cannot delete category with subcategories. Delete subcategories first.")
+      throw new Error("No se puede eliminar una categoría con subcategorías. Elimine primero las subcategorías.")
     }
 
-    await deleteDoc(doc(db, `tenants/${tenantId}/branches/${branchId}/categories`, categoryId))
+    // Eliminamos la imagen si existe
+    if (category.image) {
+      try {
+        await deleteImage(category.image)
+        console.log("Imagen eliminada correctamente:", category.image)
+      } catch (imageError) {
+        console.error("Error al eliminar la imagen:", imageError)
+        // Continuamos con la eliminación de la categoría aunque falle la eliminación de la imagen
+      }
+    }
+
+    // Eliminamos la categoría
+    await deleteDoc(categoryRef)
   } catch (error) {
-    console.error("Error deleting category:", error)
+    console.error("Error al eliminar la categoría:", error)
     throw error
   }
 }
@@ -171,6 +194,3 @@ export async function getParentCategories(tenantId: string, branchId: string): P
     throw error
   }
 }
-
-// Eliminamos la función uploadCategoryImage que accedía directamente al token
-// Esta funcionalidad ahora se maneja a través de la Server Action
