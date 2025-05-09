@@ -135,27 +135,25 @@ export function MenuProductList({ tenantId, branchId, categoryId }: MenuProductL
   }
 
   return (
-    <div className="space-y-4">
-      {/* Vista para móvil (lista) */}
-      <div className="md:hidden">
-        {products.map((product) => (
-          <div key={product.id} className="flex border-b pb-4 mb-4 last:border-0">
-            <div className="flex-grow pr-4">
-              <h3 className="font-medium">{product.name}</h3>
-              {product.description && <p className="text-sm text-gray-600 mt-1 line-clamp-2">{product.description}</p>}
-              <p className="font-bold mt-2">${product.price.toFixed(2)}</p>
-            </div>
-
-            <div className="relative min-w-[100px] h-[100px]">
-              <Image
-                src={product.image || "/placeholder.svg"}
-                alt={product.name}
-                fill
-                className="object-cover rounded-lg"
-              />
+    <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+      {products.map((product) => (
+        <div
+          key={product.id}
+          className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden"
+        >
+          <div className="relative h-32 md:h-48 w-full">
+            <Image src={product.image || "/placeholder.svg"} alt={product.name} fill className="object-cover" />
+          </div>
+          <div className="p-3 md:p-4">
+            <h3 className="font-medium text-sm md:text-lg line-clamp-1">{product.name}</h3>
+            {product.description && (
+              <p className="text-xs md:text-sm text-gray-600 mt-1 line-clamp-2">{product.description}</p>
+            )}
+            <div className="flex justify-between items-center mt-2 md:mt-4">
+              <p className="font-bold text-sm md:text-base">${product.price.toFixed(2)}</p>
               <Button
-                size="icon"
-                className="absolute bottom-2 right-2 h-8 w-8 rounded-full bg-white shadow-md"
+                size="sm"
+                className="h-8 w-8 md:h-9 md:w-9 p-0 rounded-full"
                 onClick={() =>
                   addItem({
                     id: product.id,
@@ -165,47 +163,12 @@ export function MenuProductList({ tenantId, branchId, categoryId }: MenuProductL
                   })
                 }
               >
-                <Plus className="h-5 w-5" />
+                <Plus className="h-4 w-4 md:h-5 md:w-5" />
               </Button>
             </div>
           </div>
-        ))}
-      </div>
-
-      {/* Vista para PC (tarjetas) */}
-      <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {products.map((product) => (
-          <div
-            key={product.id}
-            className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
-          >
-            <div className="relative h-48 w-full">
-              <Image src={product.image || "/placeholder.svg"} alt={product.name} fill className="object-cover" />
-            </div>
-            <div className="p-4">
-              <h3 className="font-medium text-lg">{product.name}</h3>
-              {product.description && <p className="text-sm text-gray-600 mt-1 line-clamp-2">{product.description}</p>}
-              <div className="flex justify-between items-center mt-4">
-                <p className="font-bold">${product.price.toFixed(2)}</p>
-                <Button
-                  size="sm"
-                  className="rounded-full"
-                  onClick={() =>
-                    addItem({
-                      id: product.id,
-                      name: product.name,
-                      price: product.price,
-                      image: product.image,
-                    })
-                  }
-                >
-                  <Plus className="h-5 w-5 mr-1" /> Agregar
-                </Button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   )
 }

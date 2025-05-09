@@ -38,9 +38,16 @@ interface MenuCategoriesProps {
   branchId: string | null
   activeCategory: string | null
   onCategoryChange: (categoryId: string) => void
+  showMobileMenu: boolean
 }
 
-export function MenuCategories({ tenantId, branchId, activeCategory, onCategoryChange }: MenuCategoriesProps) {
+export function MenuCategories({
+  tenantId,
+  branchId,
+  activeCategory,
+  onCategoryChange,
+  showMobileMenu,
+}: MenuCategoriesProps) {
   const [categories, setCategories] = useState(sampleCategories)
   const [loading, setLoading] = useState(false)
 
@@ -65,26 +72,28 @@ export function MenuCategories({ tenantId, branchId, activeCategory, onCategoryC
 
   return (
     <div className="pb-4">
-      {/* Navegación de categorías solo para móvil */}
-      <div className="md:hidden sticky top-0 bg-white z-10 border-b">
-        <div className="overflow-x-auto">
-          <div className="flex whitespace-nowrap py-3 px-3 gap-3">
-            {categories.map((category) => (
-              <button
-                key={category.id}
-                onClick={() => onCategoryChange(category.id)}
-                className={`px-4 py-2 text-sm font-medium rounded-full transition-colors ${
-                  activeCategory === category.id
-                    ? "bg-primary text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                {category.name}
-              </button>
-            ))}
+      {/* Navegación de categorías para móvil - Aparece al hacer scroll */}
+      {showMobileMenu && (
+        <div className="md:hidden sticky top-0 bg-white z-10 border-b shadow-sm">
+          <div className="overflow-x-auto">
+            <div className="flex whitespace-nowrap py-3 px-3 gap-3">
+              {categories.map((category) => (
+                <button
+                  key={category.id}
+                  onClick={() => onCategoryChange(category.id)}
+                  className={`px-4 py-2 text-sm font-medium rounded-full transition-colors ${
+                    activeCategory === category.id
+                      ? "bg-primary text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  {category.name}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Mostrar productos de la categoría activa */}
       {activeCategory && (

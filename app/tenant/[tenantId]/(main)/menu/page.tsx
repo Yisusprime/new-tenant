@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { doc, getDoc, collection, query, where, getDocs, limit } from "firebase/firestore"
 import { db } from "@/lib/firebase/client"
 import { getRestaurantConfig } from "@/lib/services/restaurant-config-service"
@@ -10,7 +10,6 @@ import { RestaurantInfoModal } from "./components/restaurant-info-modal"
 import { Loader2 } from "lucide-react"
 import { MobileNavigation } from "./components/mobile-navigation"
 import { FeaturedProducts } from "./components/featured-products"
-import { CategoryCards } from "./components/category-cards"
 import { Cart } from "./components/cart"
 import { CartProvider } from "./context/cart-context"
 import { DesktopCategoryMenu } from "./components/desktop-category-menu"
@@ -27,6 +26,8 @@ export default function MenuPage({
   const [infoModalOpen, setInfoModalOpen] = useState(false)
   const [currentBranchId, setCurrentBranchId] = useState<string | null>(null)
   const [activeCategory, setActiveCategory] = useState<string | null>("cat1") // Categoría predeterminada
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const featuredSectionRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     async function loadRestaurantData() {
@@ -62,6 +63,21 @@ export default function MenuPage({
 
     loadRestaurantData()
   }, [tenantId])
+
+  useEffect(() => {
+    // Función para manejar el scroll y mostrar/ocultar el menú móvil
+    const handleScroll = () => {
+      if (featuredSectionRef.current) {
+        const featuredBottom = featuredSectionRef.current.getBoundingClientRect().bottom
+        setShowMobileMenu(featuredBottom <= 0)
+      }
+    }
+
+    window.addEventListener("scroll", handleScroll)
+    return () => {
+      window.removeEventListener("scroll", handleScroll)
+    }
+  }, [])
 
   const handleCategorySelect = (categoryId: string) => {
     setActiveCategory(categoryId)
@@ -102,19 +118,14 @@ export default function MenuPage({
           />
 
           {/* Productos destacados */}
-          <div className="bg-white px-4 py-6 mb-2">
+          <div ref={featuredSectionRef} className="bg-white px-4 py-6 mb-2">
             <h2 className="text-xl font-bold mb-4">Artículos destacados</h2>
             <FeaturedProducts tenantId={tenantId} branchId={currentBranchId} />
           </div>
 
-          {/* Menú de categorías para PC - Ahora debajo de productos destacados */}
+          {/* Menú de categorías para PC - Debajo de productos destacados */}
           <div className="hidden md:block mb-2">
             <DesktopCategoryMenu activeCategory={activeCategory} onCategoryChange={handleCategorySelect} />
-          </div>
-
-          {/* Tarjetas de categorías solo para móvil */}
-          <div className="md:hidden bg-white px-4 py-4 mb-2">
-            <CategoryCards onSelectCategory={handleCategorySelect} />
           </div>
 
           {/* Categorías y productos */}
@@ -124,6 +135,7 @@ export default function MenuPage({
               branchId={currentBranchId}
               activeCategory={activeCategory}
               onCategoryChange={setActiveCategory}
+              showMobileMenu={showMobileMenu}
             />
           </div>
 
