@@ -23,13 +23,13 @@ export default function ProductsPage({
   // Redirigir a la página de creación de producto
   const handleCreateProduct = () => {
     if (!currentBranch) return
-    router.push(`/tenant/${params.tenantId}/admin/products/create`)
+    router.push(`/admin/products/create`)
   }
 
   // Redirigir a la página de creación de extra
   const handleCreateExtra = () => {
     if (!currentBranch) return
-    router.push(`/tenant/${params.tenantId}/admin/products/extras/create`)
+    router.push(`/admin/products/extras/create`)
   }
 
   return (

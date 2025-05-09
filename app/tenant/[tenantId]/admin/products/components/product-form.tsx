@@ -137,7 +137,7 @@ export function ProductForm({ tenantId, branchId, productId }: ProductFormProps)
             description: "Producto no encontrado",
             variant: "destructive",
           })
-          router.push(`/tenant/${tenantId}/admin/products`)
+          router.push(`/admin/products`)
           return
         }
 
@@ -251,7 +251,7 @@ export function ProductForm({ tenantId, branchId, productId }: ProductFormProps)
       }
 
       // Redirigir a la lista de productos
-      router.push(`/tenant/${tenantId}/admin/products`)
+      router.push(`/admin/products`)
     } catch (error) {
       console.error("Error al guardar producto:", error)
       toast({
@@ -574,12 +574,7 @@ export function ProductForm({ tenantId, branchId, productId }: ProductFormProps)
         </Card>
 
         <div className="flex justify-end gap-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.push(`/tenant/${tenantId}/admin/products`)}
-            disabled={loading}
-          >
+          <Button type="button" variant="outline" onClick={() => router.push(`/admin/products`)} disabled={loading}>
             Cancelar
           </Button>
           <Button type="submit" disabled={loading}>

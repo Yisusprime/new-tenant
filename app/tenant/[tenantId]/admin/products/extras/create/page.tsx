@@ -18,12 +18,7 @@ export default function CreateExtraPage({
   return (
     <div>
       <div className="mb-6 flex items-center">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="mr-2"
-          onClick={() => router.push(`/tenant/${params.tenantId}/admin/products`)}
-        >
+        <Button variant="ghost" size="sm" className="mr-2" onClick={() => router.push(`/admin/products`)}>
           <ArrowLeft className="h-4 w-4 mr-1" />
           Volver
         </Button>

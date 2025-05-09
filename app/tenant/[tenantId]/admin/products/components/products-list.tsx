@@ -60,7 +60,7 @@ export function ProductsList({ tenantId, branchId }: ProductsListProps) {
 
   // Editar producto
   const handleEdit = (productId: string) => {
-    router.push(`/tenant/${tenantId}/admin/products/${productId}`)
+    router.push(`/admin/products/${productId}`)
   }
 
   // Eliminar producto
