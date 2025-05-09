@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Edit, MoreVertical, Trash2, Eye, EyeOff } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Edit, MoreVertical, Trash2, Eye, EyeOff, Search, Filter } from "lucide-react"
 import {
   type ProductExtra,
   getProductExtras,
@@ -33,6 +34,8 @@ interface ProductExtrasListProps {
 
 export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps) {
   const [extras, setExtras] = useState<ProductExtra[]>([])
+  const [filteredExtras, setFilteredExtras] = useState<ProductExtra[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(true)
   const [extraToDelete, setExtraToDelete] = useState<string | null>(null)
   const router = useRouter()
@@ -45,6 +48,7 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
         setLoading(true)
         const data = await getProductExtras(tenantId, branchId)
         setExtras(data)
+        setFilteredExtras(data)
       } catch (error) {
         console.error("Error al cargar extras:", error)
         toast({
@@ -62,9 +66,22 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
     }
   }, [tenantId, branchId, toast])
 
+  // Filtrar extras cuando cambia la búsqueda
+  useEffect(() => {
+    if (searchQuery.trim() === "") {
+      setFilteredExtras(extras)
+    } else {
+      const query = searchQuery.toLowerCase()
+      const filtered = extras.filter(
+        (extra) => extra.name.toLowerCase().includes(query) || extra.description?.toLowerCase().includes(query),
+      )
+      setFilteredExtras(filtered)
+    }
+  }, [searchQuery, extras])
+
   // Editar extra
   const handleEdit = (extraId: string) => {
-    router.push(`/tenant/${tenantId}/admin/products/extras/${extraId}`)
+    router.push(`/admin/products/extras/${extraId}`)
   }
 
   // Eliminar extra
@@ -74,6 +91,7 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
     try {
       await deleteProductExtra(tenantId, branchId, extraToDelete)
       setExtras(extras.filter((e) => e.id !== extraToDelete))
+      setFilteredExtras(filteredExtras.filter((e) => e.id !== extraToDelete))
       toast({
         title: "Extra eliminado",
         description: "El extra ha sido eliminado correctamente",
@@ -93,9 +111,13 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
   // Cambiar estado activo/inactivo
   const toggleActive = async (extra: ProductExtra) => {
     try {
-      const updatedExtra = await updateProductExtra(tenantId, branchId, extra.id, { isActive: !extra.isActive })
+      const updatedExtra = await updateProductExtra(tenantId, branchId, extra.id, {
+        isActive: !extra.isActive,
+      })
 
-      setExtras(extras.map((e) => (e.id === extra.id ? updatedExtra : e)))
+      const updatedExtras = extras.map((e) => (e.id === extra.id ? updatedExtra : e))
+      setExtras(updatedExtras)
+      setFilteredExtras(filteredExtras.map((e) => (e.id === extra.id ? updatedExtra : e)))
 
       toast({
         title: updatedExtra.isActive ? "Extra activado" : "Extra desactivado",
@@ -115,14 +137,15 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
   if (loading) {
     return (
       <div className="space-y-4">
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="flex items-center space-x-4">
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-[250px]" />
-              <Skeleton className="h-4 w-[200px]" />
-            </div>
-          </div>
-        ))}
+        <div className="flex items-center space-x-2 mb-6">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-24" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <Skeleton key={i} className="h-[150px] w-full rounded-lg" />
+          ))}
+        </div>
       </div>
     )
   }
@@ -136,73 +159,92 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
     )
   }
 
-  // Renderizar tabla de extras
   return (
-    <div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nombre</TableHead>
-            <TableHead>Precio</TableHead>
-            <TableHead>Descripción</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead className="text-right">Acciones</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {extras.map((extra) => (
-            <TableRow key={extra.id}>
-              <TableCell className="font-medium">{extra.name}</TableCell>
-              <TableCell>${extra.price.toFixed(2)}</TableCell>
-              <TableCell className="max-w-[200px] truncate">
-                {extra.description || <span className="text-muted-foreground text-sm">Sin descripción</span>}
-              </TableCell>
-              <TableCell>
+    <div className="space-y-6">
+      {/* Buscador */}
+      <div className="flex flex-col sm:flex-row gap-2 items-center">
+        <div className="relative w-full">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Buscar extras..."
+            className="pl-8 w-full"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <Button variant="outline" className="w-full sm:w-auto">
+          <Filter className="mr-2 h-4 w-4" />
+          Filtros
+        </Button>
+      </div>
+
+      {/* Resultados de búsqueda */}
+      {searchQuery && (
+        <div className="text-sm text-muted-foreground">
+          {filteredExtras.length === 0
+            ? "No se encontraron extras"
+            : `Mostrando ${filteredExtras.length} de ${extras.length} extras`}
+        </div>
+      )}
+
+      {/* Lista de extras */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredExtras.map((extra) => (
+          <Card key={extra.id}>
+            <CardContent className="p-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="font-semibold text-lg">{extra.name}</h3>
+                  <div className="font-medium mt-1">${extra.price.toFixed(2)}</div>
+                </div>
                 <Badge variant={extra.isActive ? "default" : "secondary"}>
                   {extra.isActive ? "Activo" : "Inactivo"}
                 </Badge>
-              </TableCell>
-              <TableCell className="text-right">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-8 w-8 p-0">
-                      <span className="sr-only">Abrir menú</span>
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleEdit(extra.id)}>
-                      <Edit className="mr-2 h-4 w-4" />
-                      Editar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toggleActive(extra)}>
-                      {extra.isActive ? (
-                        <>
-                          <EyeOff className="mr-2 h-4 w-4" />
-                          Desactivar
-                        </>
-                      ) : (
-                        <>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Activar
-                        </>
-                      )}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
-                      onClick={() => setExtraToDelete(extra.id)}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Eliminar
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+              </div>
+              {extra.description && <p className="text-sm text-muted-foreground mt-2">{extra.description}</p>}
+            </CardContent>
+            <CardFooter className="p-4 pt-0 flex justify-end">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    <MoreVertical className="h-4 w-4" />
+                    <span className="sr-only">Acciones</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleEdit(extra.id)}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Editar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => toggleActive(extra)}>
+                    {extra.isActive ? (
+                      <>
+                        <EyeOff className="mr-2 h-4 w-4" />
+                        Desactivar
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="mr-2 h-4 w-4" />
+                        Activar
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => setExtraToDelete(extra.id)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Eliminar
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
 
+      {/* Diálogo de confirmación para eliminar */}
       <AlertDialog open={!!extraToDelete} onOpenChange={(open) => !open && setExtraToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

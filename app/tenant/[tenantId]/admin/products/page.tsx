@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useBranch } from "@/lib/context/branch-context"
@@ -42,7 +41,7 @@ export default function ProductsPage({
         <NoBranchSelectedAlert />
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <TabsList>
               <TabsTrigger value="products">Productos</TabsTrigger>
               <TabsTrigger value="extras">Extras Globales</TabsTrigger>
@@ -62,27 +61,11 @@ export default function ProductsPage({
           </div>
 
           <TabsContent value="products" className="mt-0">
-            <Card>
-              <CardHeader>
-                <CardTitle>Lista de Productos</CardTitle>
-                <CardDescription>Gestiona los productos de la sucursal: {currentBranch.name}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ProductsList tenantId={params.tenantId} branchId={currentBranch.id} />
-              </CardContent>
-            </Card>
+            <ProductsList tenantId={params.tenantId} branchId={currentBranch.id} />
           </TabsContent>
 
           <TabsContent value="extras" className="mt-0">
-            <Card>
-              <CardHeader>
-                <CardTitle>Lista de Extras Globales</CardTitle>
-                <CardDescription>Gestiona los extras que se pueden agregar a los productos</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ProductExtrasList tenantId={params.tenantId} branchId={currentBranch.id} />
-              </CardContent>
-            </Card>
+            <ProductExtrasList tenantId={params.tenantId} branchId={currentBranch.id} />
           </TabsContent>
         </Tabs>
       )}
