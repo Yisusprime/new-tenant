@@ -59,7 +59,7 @@ export function MenuCategories({ tenantId, branchId }: MenuCategoriesProps) {
   // Si no hay categorías, mostrar mensaje
   if (categories.length === 0) {
     return (
-      <div className="px-4 md:px-6 py-12 max-w-5xl mx-auto">
+      <div className="py-12">
         <div className="text-center py-8 bg-gray-50 rounded-lg">
           <p className="text-gray-500">No hay categorías disponibles</p>
         </div>
@@ -68,7 +68,7 @@ export function MenuCategories({ tenantId, branchId }: MenuCategoriesProps) {
   }
 
   return (
-    <div className="px-4 md:px-6 mt-4 pb-16 md:pb-0 max-w-5xl mx-auto">
+    <div className="mt-8 pb-16 md:pb-0">
       <Tabs value={activeCategory || undefined} onValueChange={setActiveCategory} className="w-full">
         <div className="border-b sticky top-0 bg-white z-10 pb-2">
           <TabsList className="w-full h-auto flex overflow-x-auto py-1 justify-start bg-transparent">

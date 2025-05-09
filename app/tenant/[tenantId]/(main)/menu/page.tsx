@@ -7,8 +7,8 @@ import { getRestaurantConfig } from "@/lib/services/restaurant-config-service"
 import { RestaurantHeader } from "./components/restaurant-header"
 import { MenuCategories } from "./components/menu-categories"
 import { RestaurantInfoModal } from "./components/restaurant-info-modal"
-import { MobileNavigation } from "./components/mobile-navigation"
 import { Loader2 } from "lucide-react"
+import { FeaturedProducts } from "./components/featured-products"
 
 export default function MenuPage({
   params,
@@ -81,7 +81,10 @@ export default function MenuPage({
         onInfoClick={() => setInfoModalOpen(true)}
       />
 
-      <MenuCategories tenantId={tenantId} branchId={currentBranchId} />
+      <div className="px-4 md:px-6 max-w-5xl mx-auto">
+        <FeaturedProducts tenantId={tenantId} branchId={currentBranchId} />
+        <MenuCategories tenantId={tenantId} branchId={currentBranchId} />
+      </div>
 
       <RestaurantInfoModal
         open={infoModalOpen}
@@ -89,11 +92,6 @@ export default function MenuPage({
         restaurantData={restaurantData}
         restaurantConfig={restaurantConfig}
       />
-
-      {/* Mobile navigation - only visible on mobile */}
-      <div className="md:hidden">
-        <MobileNavigation />
-      </div>
     </div>
   )
 }

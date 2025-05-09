@@ -4,8 +4,8 @@ import { useState, useEffect } from "react"
 import { collection, query, where, getDocs } from "firebase/firestore"
 import { db } from "@/lib/firebase/client"
 import Image from "next/image"
-import { Card, CardContent } from "@/components/ui/card"
-import { Loader2 } from "lucide-react"
+import { Loader2, Plus } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 interface MenuProductListProps {
   tenantId: string
@@ -63,30 +63,29 @@ export function MenuProductList({ tenantId, branchId, categoryId }: MenuProductL
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+    <div className="space-y-4">
       {products.map((product) => (
-        <Card key={product.id} className="overflow-hidden hover:shadow-md transition-shadow border rounded-xl">
-          <CardContent className="p-0">
-            <div className="flex flex-row h-full">
-              <div className="flex-1 p-4">
-                <h3 className="font-medium text-lg">{product.name}</h3>
-                {product.description && (
-                  <p className="text-sm text-gray-600 mt-1 line-clamp-2">{product.description}</p>
-                )}
-                <p className="font-semibold mt-2 text-primary">${product.price.toFixed(2)}</p>
-              </div>
-
-              <div className="relative w-28 h-28 md:w-32 md:h-32 shrink-0">
-                <Image
-                  src={product.image || "/placeholder.svg?height=100&width=100&query=food"}
-                  alt={product.name}
-                  fill
-                  className="object-cover"
-                />
-              </div>
+        <div key={product.id} className="border rounded-lg overflow-hidden relative">
+          <div className="flex">
+            <div className="flex-1 p-4">
+              <h3 className="font-medium text-lg">{product.name}</h3>
+              {product.description && <p className="text-sm text-gray-600 mt-1 line-clamp-2">{product.description}</p>}
+              <p className="font-semibold mt-2">CLP {product.price.toLocaleString()}</p>
             </div>
-          </CardContent>
-        </Card>
+
+            <div className="relative w-28 h-28 shrink-0">
+              <Image
+                src={product.image || "/placeholder.svg?height=100&width=100&query=food"}
+                alt={product.name}
+                fill
+                className="object-cover"
+              />
+              <Button size="icon" className="absolute bottom-2 right-2 rounded-full h-8 w-8 shadow-md">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
       ))}
     </div>
   )

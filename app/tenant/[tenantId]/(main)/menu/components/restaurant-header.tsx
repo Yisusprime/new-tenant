@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import { MapPin, Info, Star } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { MapPin, Heart, Search, MoreVertical, ArrowLeft } from "lucide-react"
 import { isRestaurantOpen } from "../utils/restaurant-hours"
+import { Button } from "@/components/ui/button"
 
 interface RestaurantHeaderProps {
   restaurantData: any
@@ -15,6 +14,7 @@ interface RestaurantHeaderProps {
 
 export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick }: RestaurantHeaderProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [isFavorite, setIsFavorite] = useState(false)
 
   useEffect(() => {
     if (restaurantConfig?.hours) {
@@ -26,85 +26,77 @@ export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick
   const bannerImage = restaurantConfig?.basicInfo?.bannerImage || "/restaurant-banner.png"
   const logoImage = restaurantConfig?.basicInfo?.logo || "/restaurant-logo.png"
   const restaurantName = restaurantData?.name || restaurantConfig?.basicInfo?.name || "Restaurante"
-  const shortDescription = restaurantConfig?.basicInfo?.shortDescription || "Deliciosa comida para todos los gustos"
   const address = restaurantConfig?.location?.address || "Dirección no disponible"
 
   return (
     <div className="relative mb-16">
+      {/* Top action buttons */}
+      <div className="absolute top-0 left-0 right-0 z-10 flex justify-between p-4">
+        <Button variant="ghost" size="icon" className="bg-black/20 text-white rounded-full hover:bg-black/30">
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="bg-black/20 text-white rounded-full hover:bg-black/30"
+            onClick={() => setIsFavorite(!isFavorite)}
+          >
+            <Heart className={`h-5 w-5 ${isFavorite ? "fill-white" : ""}`} />
+          </Button>
+          <Button variant="ghost" size="icon" className="bg-black/20 text-white rounded-full hover:bg-black/30">
+            <Search className="h-5 w-5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="bg-black/20 text-white rounded-full hover:bg-black/30">
+            <MoreVertical className="h-5 w-5" />
+          </Button>
+        </div>
+      </div>
+
       {/* Banner */}
-      <div className="relative h-48 w-full overflow-hidden">
+      <div className="relative h-56 w-full overflow-hidden">
         <Image
-          src={bannerImage || "/placeholder.svg"}
+          src={bannerImage || "/placeholder.svg?height=400&width=800&query=food"}
           alt={`Banner de ${restaurantName}`}
           fill
           className="object-cover"
           priority
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 to-black/10"></div>
-
-        {/* Indicador de abierto/cerrado */}
-        <div className="absolute top-4 right-4 z-10">
-          <Button
-            variant="outline"
-            size="sm"
-            className={`rounded-full ${isOpen ? "bg-green-100 hover:bg-green-200 border-green-500" : "bg-red-100 hover:bg-red-200 border-red-500"} bg-opacity-90`}
-            onClick={onInfoClick}
-          >
-            <div className={`w-2 h-2 rounded-full mr-2 ${isOpen ? "bg-green-500" : "bg-red-500"}`}></div>
-            <span className={`text-xs font-medium ${isOpen ? "text-green-700" : "text-red-700"}`}>
-              {isOpen ? "Abierto" : "Cerrado"}
-            </span>
-            <Info className="ml-2 h-3 w-3" />
-          </Button>
-        </div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-black/10"></div>
       </div>
 
-      {/* Logo y detalles */}
-      <div className="px-4 md:px-6 relative max-w-5xl mx-auto">
-        {/* Logo - positioned to overlap the banner */}
-        <div className="absolute -top-16 left-4 md:left-6 w-24 h-24 md:w-28 md:h-28 rounded-full border-4 border-white overflow-hidden bg-white shadow-md">
+      {/* Logo */}
+      <div className="absolute left-1/2 transform -translate-x-1/2 -bottom-12">
+        <div className="relative w-24 h-24 rounded-full border-4 border-white overflow-hidden bg-white shadow-lg">
           <Image
-            src={logoImage || "/placeholder.svg"}
+            src={logoImage || "/placeholder.svg?height=200&width=200&query=logo"}
             alt={`Logo de ${restaurantName}`}
             fill
             className="object-cover"
           />
         </div>
+      </div>
 
-        {/* Restaurant info with proper spacing to account for the logo */}
-        <div className="pt-12 md:pt-6 md:ml-32">
-          <div className="flex items-center">
-            <h1 className="text-2xl md:text-3xl font-bold">{restaurantName}</h1>
-            <div className="ml-2 flex items-center text-sm bg-green-50 text-green-700 px-2 py-1 rounded-full">
-              <Star className="h-3 w-3 mr-1 fill-green-500 text-green-500" />
-              <span>4.8</span>
-            </div>
-          </div>
+      {/* Restaurant info */}
+      <div className="text-center mt-14 px-4">
+        <h1 className="text-2xl font-bold">{restaurantName}</h1>
+        <div className="flex items-center justify-center mt-1 text-sm">
+          <span className="flex items-center">
+            <span className="font-semibold">4.2</span>
+            <span className="text-yellow-500 mx-1">★</span>
+            <span className="text-gray-500">(2,000+)</span>
+          </span>
+          <span className="mx-2 text-gray-400">•</span>
+          <span className="text-gray-500">0.9 km</span>
+        </div>
 
-          <p className="text-gray-600 mt-1">{shortDescription}</p>
+        <div className="flex items-center justify-center mt-2 text-sm text-gray-500">
+          <MapPin className="h-4 w-4 mr-1" />
+          <span>{address}</span>
+        </div>
 
-          <div className="flex items-center mt-2 text-sm text-gray-500">
-            <MapPin className="h-4 w-4 mr-1" />
-            <span>{address}</span>
-          </div>
-
-          <div className="flex flex-wrap gap-2 mt-3">
-            {restaurantConfig?.serviceMethods?.delivery && (
-              <Badge variant="outline" className="bg-gray-100">
-                Delivery
-              </Badge>
-            )}
-            {restaurantConfig?.serviceMethods?.takeaway && (
-              <Badge variant="outline" className="bg-gray-100">
-                Para llevar
-              </Badge>
-            )}
-            {restaurantConfig?.serviceMethods?.dineIn && (
-              <Badge variant="outline" className="bg-gray-100">
-                En el local
-              </Badge>
-            )}
-          </div>
+        <div className="mt-2 inline-block bg-green-100 text-green-800 text-sm px-3 py-1 rounded-full">
+          800+ pidieron de nuevo
         </div>
       </div>
     </div>
