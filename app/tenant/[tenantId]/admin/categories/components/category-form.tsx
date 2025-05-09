@@ -58,6 +58,7 @@ export function CategoryForm({
   const [imagePreview, setImagePreview] = useState<string>("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [useApiRoute, setUseApiRoute] = useState(false) // Flag para usar la ruta API como alternativa
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const pathname = usePathname()
@@ -87,6 +88,7 @@ export function CategoryForm({
         setImagePreview("")
       }
       setImageFile(null)
+      setUseApiRoute(false)
     }
   }, [open, category, parentId, categories])
 
@@ -142,6 +144,35 @@ export function CategoryForm({
     reader.readAsDataURL(file)
   }
 
+  // Función para subir la imagen usando la API Route como alternativa
+  const uploadImageViaApi = async (categoryId: string) => {
+    if (!imageFile || !branchId) return null
+
+    try {
+      const formData = new FormData()
+      formData.append("file", imageFile)
+      formData.append("tenantId", tenantId)
+      formData.append("branchId", branchId)
+      formData.append("categoryId", categoryId)
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      const result = await response.json()
+
+      if (result.success && result.url) {
+        return result.url
+      } else {
+        throw new Error(result.error || "Error al subir la imagen")
+      }
+    } catch (error: any) {
+      console.error("Error al subir imagen vía API:", error)
+      throw error
+    }
+  }
+
   // Función para subir la imagen usando la Server Action
   const handleImageUpload = async (categoryId: string) => {
     if (!imageFile || !branchId) return null
@@ -150,43 +181,48 @@ export function CategoryForm({
     console.log("Iniciando carga de imagen para categoría:", categoryId)
 
     try {
-      // Crear un FormData para la Server Action
-      const formData = new FormData()
-      formData.append("file", imageFile)
-      formData.append("tenantId", tenantId)
-      formData.append("branchId", branchId)
-      formData.append("categoryId", categoryId)
-      formData.append("path", pathname)
+      let imageUrl = null
 
-      console.log("FormData creado con:", {
-        fileName: imageFile.name,
-        fileSize: imageFile.size,
-        fileType: imageFile.type,
-        tenantId,
-        branchId,
-        categoryId,
-        pathname,
-      })
+      // Intentar usar la Server Action primero, a menos que ya sepamos que falla
+      if (!useApiRoute) {
+        try {
+          // Crear un FormData para la Server Action
+          const formData = new FormData()
+          formData.append("file", imageFile)
+          formData.append("tenantId", tenantId)
+          formData.append("branchId", branchId)
+          formData.append("categoryId", categoryId)
+          formData.append("path", pathname)
 
-      // Llamar a la Server Action directamente
-      const result = await uploadImage(null, formData)
-      console.log("Resultado de uploadImage:", result)
+          // Llamar a la Server Action
+          const result = await uploadImage(null, formData)
+          console.log("Resultado de uploadImage:", result)
 
-      if (result.success && result.url) {
-        // No usamos la URL temporal del objeto File, sino la URL real devuelta por Vercel Blob
-        setImagePreview(result.url)
+          if (result.success && result.url) {
+            imageUrl = result.url
+          } else {
+            throw new Error(result.error || "Error al subir la imagen")
+          }
+        } catch (serverActionError) {
+          console.error("Error con Server Action, intentando con API Route:", serverActionError)
+          setUseApiRoute(true) // Marcar para usar la API Route en futuros intentos
+          // Intentar con la API Route como alternativa
+          imageUrl = await uploadImageViaApi(categoryId)
+        }
+      } else {
+        // Usar directamente la API Route si ya sabemos que la Server Action falla
+        imageUrl = await uploadImageViaApi(categoryId)
+      }
+
+      if (imageUrl) {
+        setImagePreview(imageUrl)
         toast({
           title: "Imagen subida",
           description: "La imagen se ha subido correctamente.",
         })
-        return result.url
+        return imageUrl
       } else {
-        toast({
-          title: "Error al subir la imagen",
-          description: result.error || "No se pudo subir la imagen",
-          variant: "destructive",
-        })
-        return null
+        throw new Error("No se pudo obtener la URL de la imagen")
       }
     } catch (error: any) {
       console.error("Error al subir imagen:", error)
