@@ -4,8 +4,8 @@ import { useState, useEffect } from "react"
 import { collection, query, where, getDocs } from "firebase/firestore"
 import { db } from "@/lib/firebase/client"
 import Image from "next/image"
-import { Loader2, Plus } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Loader2 } from "lucide-react"
 
 interface MenuProductListProps {
   tenantId: string
@@ -63,29 +63,32 @@ export function MenuProductList({ tenantId, branchId, categoryId }: MenuProductL
   }
 
   return (
-    <div className="space-y-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
       {products.map((product) => (
-        <div key={product.id} className="border rounded-lg overflow-hidden relative">
-          <div className="flex">
-            <div className="flex-1 p-4">
-              <h3 className="font-medium text-lg">{product.name}</h3>
-              {product.description && <p className="text-sm text-gray-600 mt-1 line-clamp-2">{product.description}</p>}
-              <p className="font-semibold mt-2">CLP {product.price.toLocaleString()}</p>
-            </div>
+        <Card key={product.id} className="overflow-hidden hover:shadow-md transition-shadow">
+          <CardContent className="p-0">
+            <div className="flex flex-row h-full">
+              <div className="flex-1 p-4">
+                <h3 className="font-medium">{product.name}</h3>
+                {product.description && (
+                  <p className="text-sm text-gray-600 mt-1 line-clamp-2">{product.description}</p>
+                )}
+                <p className="font-semibold mt-2">${product.price.toFixed(2)}</p>
+              </div>
 
-            <div className="relative w-28 h-28 shrink-0">
-              <Image
-                src={product.image || "/placeholder.svg?height=100&width=100&query=food"}
-                alt={product.name}
-                fill
-                className="object-cover"
-              />
-              <Button size="icon" className="absolute bottom-2 right-2 rounded-full h-8 w-8 shadow-md">
-                <Plus className="h-4 w-4" />
-              </Button>
+              {product.image && (
+                <div className="relative w-24 h-24 md:w-28 md:h-28">
+                  <Image
+                    src={product.image || "/placeholder.svg?height=100&width=100&query=food"}
+                    alt={product.name}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              )}
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       ))}
     </div>
   )

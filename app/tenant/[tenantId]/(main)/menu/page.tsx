@@ -8,7 +8,6 @@ import { RestaurantHeader } from "./components/restaurant-header"
 import { MenuCategories } from "./components/menu-categories"
 import { RestaurantInfoModal } from "./components/restaurant-info-modal"
 import { Loader2 } from "lucide-react"
-import { FeaturedProducts } from "./components/featured-products"
 
 export default function MenuPage({
   params,
@@ -74,17 +73,14 @@ export default function MenuPage({
   }
 
   return (
-    <div className="pb-20 md:pb-10">
+    <div className="pb-20 md:pb-10 max-w-7xl mx-auto">
       <RestaurantHeader
         restaurantData={restaurantData}
         restaurantConfig={restaurantConfig}
         onInfoClick={() => setInfoModalOpen(true)}
       />
 
-      <div className="px-4 md:px-6 max-w-5xl mx-auto">
-        <FeaturedProducts tenantId={tenantId} branchId={currentBranchId} />
-        <MenuCategories tenantId={tenantId} branchId={currentBranchId} />
-      </div>
+      <MenuCategories tenantId={tenantId} branchId={currentBranchId} />
 
       <RestaurantInfoModal
         open={infoModalOpen}
