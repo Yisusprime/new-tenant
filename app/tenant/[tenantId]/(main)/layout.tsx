@@ -41,20 +41,6 @@ export default async function TenantMainLayout({
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-2xl font-bold">{tenantName}</div>
-          <nav className="flex gap-4">
-            <a href="/" className="hover:underline">
-              Inicio
-            </a>
-            <a href="/login" className="hover:underline">
-              Iniciar Sesión
-            </a>
-          </nav>
-        </div>
-      </header>
-
       <main className="flex-1">{children}</main>
 
       <footer className="bg-gray-800 text-white py-4">
