@@ -9,6 +9,7 @@ import { MenuCategories } from "./components/menu-categories"
 import { RestaurantInfoModal } from "./components/restaurant-info-modal"
 import { Loader2 } from "lucide-react"
 import { MobileNavigation } from "./components/mobile-navigation"
+import { FeaturedProducts } from "./components/featured-products"
 
 export default function MenuPage({
   params,
@@ -77,17 +78,22 @@ export default function MenuPage({
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen pb-20 md:pb-10">
+    <div className="bg-gray-50 min-h-screen pb-20">
       <RestaurantHeader
         restaurantData={restaurantData}
         restaurantConfig={restaurantConfig}
         onInfoClick={() => setInfoModalOpen(true)}
       />
 
-      <div className="max-w-7xl mx-auto px-4 md:px-6 -mt-10 relative z-10">
-        <div className="bg-white rounded-xl shadow-lg p-4 md:p-6">
-          <MenuCategories tenantId={tenantId} branchId={currentBranchId} />
-        </div>
+      {/* Productos destacados */}
+      <div className="bg-white px-4 py-6">
+        <h2 className="text-xl font-bold mb-4">Artículos destacados</h2>
+        <FeaturedProducts tenantId={tenantId} branchId={currentBranchId} />
+      </div>
+
+      {/* Categorías y productos */}
+      <div className="mt-2 bg-white">
+        <MenuCategories tenantId={tenantId} branchId={currentBranchId} />
       </div>
 
       <RestaurantInfoModal

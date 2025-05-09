@@ -4,10 +4,8 @@ import { useState, useEffect } from "react"
 import { collection, query, where, getDocs } from "firebase/firestore"
 import { db } from "@/lib/firebase/client"
 import Image from "next/image"
-import { Card, CardContent } from "@/components/ui/card"
+import { Loader2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Loader2, Plus, Star } from "lucide-react"
-import { motion } from "framer-motion"
 
 interface MenuProductListProps {
   tenantId: string
@@ -65,53 +63,27 @@ export function MenuProductList({ tenantId, branchId, categoryId }: MenuProductL
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-      {products.map((product, index) => (
-        <motion.div
-          key={product.id}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: index * 0.05 }}
-        >
-          <Card className="overflow-hidden hover:shadow-md transition-all duration-300 h-full group">
-            <CardContent className="p-0 h-full">
-              <div className="flex flex-col h-full">
-                {/* Imagen del producto */}
-                <div className="relative w-full h-40 overflow-hidden">
-                  <Image
-                    src={
-                      product.image || `/placeholder.svg?height=200&width=400&query=${encodeURIComponent(product.name)}`
-                    }
-                    alt={product.name}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  {product.isPopular && (
-                    <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full flex items-center">
-                      <Star className="h-3 w-3 mr-1 fill-white" />
-                      Popular
-                    </div>
-                  )}
-                </div>
+    <div className="space-y-4">
+      {products.map((product) => (
+        <div key={product.id} className="flex border-b pb-4 mb-4 last:border-0">
+          <div className="flex-grow pr-4">
+            <h3 className="font-medium">{product.name}</h3>
+            {product.description && <p className="text-sm text-gray-600 mt-1 line-clamp-2">{product.description}</p>}
+            <p className="font-bold mt-2">${product.price.toFixed(2)}</p>
+          </div>
 
-                {/* Información del producto */}
-                <div className="p-4 flex flex-col flex-grow">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-medium text-lg">{product.name}</h3>
-                    <span className="font-bold text-primary">${product.price.toFixed(2)}</span>
-                  </div>
-
-                  {product.description && <p className="text-sm text-gray-600 mb-4 flex-grow">{product.description}</p>}
-
-                  <Button className="w-full mt-auto" size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Añadir al carrito
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+          <div className="relative min-w-[100px] h-[100px]">
+            <Image
+              src={product.image || `/placeholder.svg?height=100&width=100&query=${encodeURIComponent(product.name)}`}
+              alt={product.name}
+              fill
+              className="object-cover rounded-lg"
+            />
+            <Button size="icon" className="absolute bottom-2 right-2 h-8 w-8 rounded-full bg-white shadow-md">
+              <Plus className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
       ))}
     </div>
   )
