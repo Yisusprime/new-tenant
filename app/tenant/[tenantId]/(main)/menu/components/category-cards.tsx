@@ -81,8 +81,6 @@ export function CategoryCards({ tenantId, branchId, onSelectCategory }: Category
 
   return (
     <div className="py-4 relative">
-      <h2 className="text-lg font-bold mb-3">Explora nuestras categorías</h2>
-
       <div className="relative">
         <button
           onClick={() => scroll("left")}
