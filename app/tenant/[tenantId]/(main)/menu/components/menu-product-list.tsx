@@ -136,38 +136,76 @@ export function MenuProductList({ tenantId, branchId, categoryId }: MenuProductL
 
   return (
     <div className="space-y-4">
-      {products.map((product) => (
-        <div key={product.id} className="flex border-b pb-4 mb-4 last:border-0">
-          <div className="flex-grow pr-4">
-            <h3 className="font-medium">{product.name}</h3>
-            {product.description && <p className="text-sm text-gray-600 mt-1 line-clamp-2">{product.description}</p>}
-            <p className="font-bold mt-2">${product.price.toFixed(2)}</p>
-          </div>
+      {/* Vista para móvil (lista) */}
+      <div className="md:hidden">
+        {products.map((product) => (
+          <div key={product.id} className="flex border-b pb-4 mb-4 last:border-0">
+            <div className="flex-grow pr-4">
+              <h3 className="font-medium">{product.name}</h3>
+              {product.description && <p className="text-sm text-gray-600 mt-1 line-clamp-2">{product.description}</p>}
+              <p className="font-bold mt-2">${product.price.toFixed(2)}</p>
+            </div>
 
-          <div className="relative min-w-[100px] h-[100px]">
-            <Image
-              src={product.image || "/placeholder.svg"}
-              alt={product.name}
-              fill
-              className="object-cover rounded-lg"
-            />
-            <Button
-              size="icon"
-              className="absolute bottom-2 right-2 h-8 w-8 rounded-full bg-white shadow-md"
-              onClick={() =>
-                addItem({
-                  id: product.id,
-                  name: product.name,
-                  price: product.price,
-                  image: product.image,
-                })
-              }
-            >
-              <Plus className="h-5 w-5" />
-            </Button>
+            <div className="relative min-w-[100px] h-[100px]">
+              <Image
+                src={product.image || "/placeholder.svg"}
+                alt={product.name}
+                fill
+                className="object-cover rounded-lg"
+              />
+              <Button
+                size="icon"
+                className="absolute bottom-2 right-2 h-8 w-8 rounded-full bg-white shadow-md"
+                onClick={() =>
+                  addItem({
+                    id: product.id,
+                    name: product.name,
+                    price: product.price,
+                    image: product.image,
+                  })
+                }
+              >
+                <Plus className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
+
+      {/* Vista para PC (tarjetas) */}
+      <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {products.map((product) => (
+          <div
+            key={product.id}
+            className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+          >
+            <div className="relative h-48 w-full">
+              <Image src={product.image || "/placeholder.svg"} alt={product.name} fill className="object-cover" />
+            </div>
+            <div className="p-4">
+              <h3 className="font-medium text-lg">{product.name}</h3>
+              {product.description && <p className="text-sm text-gray-600 mt-1 line-clamp-2">{product.description}</p>}
+              <div className="flex justify-between items-center mt-4">
+                <p className="font-bold">${product.price.toFixed(2)}</p>
+                <Button
+                  size="sm"
+                  className="rounded-full"
+                  onClick={() =>
+                    addItem({
+                      id: product.id,
+                      name: product.name,
+                      price: product.price,
+                      image: product.image,
+                    })
+                  }
+                >
+                  <Plus className="h-5 w-5 mr-1" /> Agregar
+                </Button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
