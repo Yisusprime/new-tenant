@@ -1,51 +1,48 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { collection, query, where, getDocs } from "firebase/firestore"
-import { db } from "@/lib/firebase/client"
+import { useState } from "react"
 import { MenuProductList } from "./menu-product-list"
 import { Loader2 } from "lucide-react"
+
+// Datos de ejemplo para categorías
+const sampleCategories = [
+  {
+    id: "cat1",
+    name: "Hamburguesas",
+    description: "Las mejores hamburguesas de la ciudad",
+  },
+  {
+    id: "cat2",
+    name: "Pizzas",
+    description: "Pizzas artesanales con ingredientes frescos",
+  },
+  {
+    id: "cat3",
+    name: "Ensaladas",
+    description: "Ensaladas frescas y saludables",
+  },
+  {
+    id: "cat4",
+    name: "Postres",
+    description: "Deliciosos postres caseros",
+  },
+  {
+    id: "cat5",
+    name: "Bebidas",
+    description: "Refrescantes bebidas para acompañar tu comida",
+  },
+]
 
 interface MenuCategoriesProps {
   tenantId: string
   branchId: string | null
+  activeCategory: string | null
+  onCategoryChange: (categoryId: string) => void
 }
 
-export function MenuCategories({ tenantId, branchId }: MenuCategoriesProps) {
-  const [categories, setCategories] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [activeCategory, setActiveCategory] = useState<string | null>(null)
-
-  useEffect(() => {
-    async function loadCategories() {
-      if (!branchId) return
-
-      try {
-        setLoading(true)
-
-        const categoriesRef = collection(db, `tenants/${tenantId}/branches/${branchId}/categories`)
-        const categoriesSnapshot = await getDocs(query(categoriesRef, where("isActive", "==", true)))
-
-        const categoriesData = categoriesSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }))
-
-        setCategories(categoriesData)
-
-        // Establecer la primera categoría como activa
-        if (categoriesData.length > 0 && !activeCategory) {
-          setActiveCategory(categoriesData[0].id)
-        }
-      } catch (error) {
-        console.error("Error al cargar categorías:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadCategories()
-  }, [tenantId, branchId, activeCategory])
+export function MenuCategories({ tenantId, branchId, activeCategory, onCategoryChange }: MenuCategoriesProps) {
+  const [categories, setCategories] = useState(sampleCategories)
+  const [loading, setLoading] = useState(false)
 
   if (loading) {
     return (
@@ -75,7 +72,7 @@ export function MenuCategories({ tenantId, branchId }: MenuCategoriesProps) {
             {categories.map((category) => (
               <button
                 key={category.id}
-                onClick={() => setActiveCategory(category.id)}
+                onClick={() => onCategoryChange(category.id)}
                 className={`px-4 py-2 text-sm font-medium rounded-full transition-colors ${
                   activeCategory === category.id
                     ? "bg-primary text-white"

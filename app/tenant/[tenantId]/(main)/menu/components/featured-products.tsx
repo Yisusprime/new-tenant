@@ -1,11 +1,49 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { collection, query, where, getDocs, limit } from "firebase/firestore"
-import { db } from "@/lib/firebase/client"
+import { useState } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Loader2, Plus } from "lucide-react"
+import { useCart } from "../context/cart-context"
+
+// Datos de ejemplo para productos destacados
+const sampleProducts = [
+  {
+    id: "prod1",
+    name: "Hamburguesa Clásica",
+    price: 8.99,
+    image: "/classic-burger.png",
+    rank: 1,
+  },
+  {
+    id: "prod2",
+    name: "Pizza Margherita",
+    price: 12.99,
+    image: "/margherita-pizza.png",
+    rank: 2,
+  },
+  {
+    id: "prod3",
+    name: "Ensalada César",
+    price: 7.5,
+    image: "/caesar-salad.png",
+    rank: 3,
+  },
+  {
+    id: "prod4",
+    name: "Pasta Carbonara",
+    price: 10.99,
+    image: "/pasta-carbonara.png",
+    rank: 4,
+  },
+  {
+    id: "prod5",
+    name: "Taco de Pollo",
+    price: 6.99,
+    image: "/chicken-taco.png",
+    rank: 5,
+  },
+]
 
 interface FeaturedProductsProps {
   tenantId: string
@@ -13,50 +51,9 @@ interface FeaturedProductsProps {
 }
 
 export function FeaturedProducts({ tenantId, branchId }: FeaturedProductsProps) {
-  const [products, setProducts] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    async function loadFeaturedProducts() {
-      if (!branchId) return
-
-      try {
-        setLoading(true)
-
-        const productsRef = collection(db, `tenants/${tenantId}/branches/${branchId}/products`)
-        const productsSnapshot = await getDocs(
-          query(productsRef, where("isActive", "==", true), where("isFeatured", "==", true), limit(5)),
-        )
-
-        // Si no hay productos destacados, obtener los más populares o recientes
-        if (productsSnapshot.empty) {
-          const regularProductsSnapshot = await getDocs(query(productsRef, where("isActive", "==", true), limit(5)))
-
-          const productsData = regularProductsSnapshot.docs.map((doc, index) => ({
-            id: doc.id,
-            ...doc.data(),
-            rank: index + 1,
-          }))
-
-          setProducts(productsData)
-        } else {
-          const productsData = productsSnapshot.docs.map((doc, index) => ({
-            id: doc.id,
-            ...doc.data(),
-            rank: index + 1,
-          }))
-
-          setProducts(productsData)
-        }
-      } catch (error) {
-        console.error("Error al cargar productos destacados:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadFeaturedProducts()
-  }, [tenantId, branchId])
+  const [products, setProducts] = useState(sampleProducts)
+  const [loading, setLoading] = useState(false)
+  const { addItem } = useCart()
 
   if (loading) {
     return (
@@ -80,16 +77,20 @@ export function FeaturedProducts({ tenantId, branchId }: FeaturedProductsProps) 
                 #{product.rank} de tus favoritos
               </div>
               <div className="relative h-32 w-full rounded-lg overflow-hidden">
-                <Image
-                  src={
-                    product.image || `/placeholder.svg?height=150&width=150&query=${encodeURIComponent(product.name)}`
-                  }
-                  alt={product.name}
-                  fill
-                  className="object-cover"
-                />
+                <Image src={product.image || "/placeholder.svg"} alt={product.name} fill className="object-cover" />
               </div>
-              <Button size="icon" className="absolute bottom-2 right-2 h-8 w-8 rounded-full bg-white shadow-md">
+              <Button
+                size="icon"
+                className="absolute bottom-2 right-2 h-8 w-8 rounded-full bg-white shadow-md"
+                onClick={() =>
+                  addItem({
+                    id: product.id,
+                    name: product.name,
+                    price: product.price,
+                    image: product.image,
+                  })
+                }
+              >
                 <Plus className="h-5 w-5" />
               </Button>
             </div>

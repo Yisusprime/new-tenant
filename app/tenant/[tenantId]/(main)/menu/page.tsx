@@ -10,6 +10,9 @@ import { RestaurantInfoModal } from "./components/restaurant-info-modal"
 import { Loader2 } from "lucide-react"
 import { MobileNavigation } from "./components/mobile-navigation"
 import { FeaturedProducts } from "./components/featured-products"
+import { CategoryCards } from "./components/category-cards"
+import { Cart } from "./components/cart"
+import { CartProvider } from "./context/cart-context"
 
 export default function MenuPage({
   params,
@@ -22,6 +25,7 @@ export default function MenuPage({
   const [loading, setLoading] = useState(true)
   const [infoModalOpen, setInfoModalOpen] = useState(false)
   const [currentBranchId, setCurrentBranchId] = useState<string | null>(null)
+  const [activeCategory, setActiveCategory] = useState<string | null>("cat1") // Categoría predeterminada
 
   useEffect(() => {
     async function loadRestaurantData() {
@@ -58,6 +62,15 @@ export default function MenuPage({
     loadRestaurantData()
   }, [tenantId])
 
+  const handleCategorySelect = (categoryId: string) => {
+    setActiveCategory(categoryId)
+    // Desplazarse a la sección de productos
+    const productsSection = document.getElementById("products-section")
+    if (productsSection) {
+      productsSection.scrollIntoView({ behavior: "smooth" })
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -78,37 +91,52 @@ export default function MenuPage({
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen pb-20 flex justify-center">
-      <div className="w-full max-w-5xl">
-        <RestaurantHeader
-          restaurantData={restaurantData}
-          restaurantConfig={restaurantConfig}
-          onInfoClick={() => setInfoModalOpen(true)}
-        />
+    <CartProvider>
+      <div className="bg-gray-50 min-h-screen pb-20 flex justify-center">
+        <div className="w-full max-w-5xl">
+          <RestaurantHeader
+            restaurantData={restaurantData}
+            restaurantConfig={restaurantConfig}
+            onInfoClick={() => setInfoModalOpen(true)}
+          />
 
-        {/* Productos destacados */}
-        <div className="bg-white px-4 py-6">
-          <h2 className="text-xl font-bold mb-4">Artículos destacados</h2>
-          <FeaturedProducts tenantId={tenantId} branchId={currentBranchId} />
-        </div>
+          {/* Tarjetas de categorías */}
+          <div className="bg-white px-4 py-6 mb-2">
+            <CategoryCards onSelectCategory={handleCategorySelect} />
+          </div>
 
-        {/* Categorías y productos */}
-        <div className="mt-2 bg-white">
-          <MenuCategories tenantId={tenantId} branchId={currentBranchId} />
-        </div>
+          {/* Productos destacados */}
+          <div className="bg-white px-4 py-6 mb-2">
+            <h2 className="text-xl font-bold mb-4">Artículos destacados</h2>
+            <FeaturedProducts tenantId={tenantId} branchId={currentBranchId} />
+          </div>
 
-        <RestaurantInfoModal
-          open={infoModalOpen}
-          onClose={() => setInfoModalOpen(false)}
-          restaurantData={restaurantData}
-          restaurantConfig={restaurantConfig}
-        />
+          {/* Categorías y productos */}
+          <div id="products-section" className="mt-2 bg-white">
+            <MenuCategories
+              tenantId={tenantId}
+              branchId={currentBranchId}
+              activeCategory={activeCategory}
+              onCategoryChange={setActiveCategory}
+            />
+          </div>
 
-        {/* Navegación móvil */}
-        <div className="md:hidden">
-          <MobileNavigation />
+          <RestaurantInfoModal
+            open={infoModalOpen}
+            onClose={() => setInfoModalOpen(false)}
+            restaurantData={restaurantData}
+            restaurantConfig={restaurantConfig}
+          />
+
+          {/* Navegación móvil */}
+          <div className="md:hidden">
+            <MobileNavigation />
+          </div>
+
+          {/* Carrito */}
+          <Cart />
         </div>
       </div>
-    </div>
+    </CartProvider>
   )
 }
