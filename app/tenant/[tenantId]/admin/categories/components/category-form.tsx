@@ -147,6 +147,7 @@ export function CategoryForm({
     if (!imageFile || !branchId) return null
 
     setIsUploading(true)
+    console.log("Iniciando carga de imagen para categoría:", categoryId)
 
     try {
       // Crear un FormData para la Server Action
@@ -157,8 +158,19 @@ export function CategoryForm({
       formData.append("categoryId", categoryId)
       formData.append("path", pathname)
 
+      console.log("FormData creado con:", {
+        fileName: imageFile.name,
+        fileSize: imageFile.size,
+        fileType: imageFile.type,
+        tenantId,
+        branchId,
+        categoryId,
+        pathname,
+      })
+
       // Llamar a la Server Action directamente
       const result = await uploadImage(null, formData)
+      console.log("Resultado de uploadImage:", result)
 
       if (result.success && result.url) {
         // No usamos la URL temporal del objeto File, sino la URL real devuelta por Vercel Blob
@@ -177,6 +189,7 @@ export function CategoryForm({
         return null
       }
     } catch (error: any) {
+      console.error("Error al subir imagen:", error)
       toast({
         title: "Error al subir la imagen",
         description: error.message || "No se pudo subir la imagen",
@@ -202,9 +215,11 @@ export function CategoryForm({
 
     try {
       setIsSubmitting(true)
+      console.log("Iniciando guardado de categoría")
 
       if (category) {
         // Update existing category
+        console.log("Actualizando categoría existente:", category.id)
         const updatedCategory = await updateCategory(tenantId, branchId, category.id, {
           name: formData.name,
           description: formData.description,
@@ -215,6 +230,7 @@ export function CategoryForm({
 
         // Upload image if changed
         if (imageFile) {
+          console.log("Subiendo nueva imagen para categoría existente")
           const imageUrl = await handleImageUpload(category.id)
           if (imageUrl) {
             updatedCategory.image = imageUrl
@@ -231,6 +247,7 @@ export function CategoryForm({
         onOpenChange(false)
       } else {
         // Create new category
+        console.log("Creando nueva categoría")
         const newCategory = await createCategory(tenantId, branchId, {
           name: formData.name,
           description: formData.description,
@@ -239,11 +256,15 @@ export function CategoryForm({
           parentId: formData.parentId || undefined,
         })
 
+        console.log("Nueva categoría creada:", newCategory)
+
         // Upload image if provided
         if (imageFile) {
+          console.log("Subiendo imagen para nueva categoría")
           const imageUrl = await handleImageUpload(newCategory.id)
           if (imageUrl) {
             newCategory.image = imageUrl
+            console.log("Imagen subida y asociada a la categoría:", imageUrl)
           }
         }
 
@@ -257,6 +278,7 @@ export function CategoryForm({
         onOpenChange(false)
       }
     } catch (error: any) {
+      console.error("Error al guardar categoría:", error)
       toast({
         title: "Error",
         description: error.message || "No se pudo guardar la categoría.",
