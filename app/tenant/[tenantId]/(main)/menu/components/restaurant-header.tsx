@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import { MapPin, Info, Star } from "lucide-react"
+import { MapPin, Info, Star, Search, User, ShoppingBag } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { isRestaurantOpen } from "../utils/restaurant-hours"
@@ -24,20 +24,35 @@ export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick
   }, [restaurantConfig])
 
   // Usar imágenes de placeholder
-  const bannerImage =
-    restaurantConfig?.basicInfo?.banner || `/placeholder.svg?height=300&width=1200&query=restaurant banner with food`
-  const logoImage = restaurantConfig?.basicInfo?.logo || `/placeholder.svg?height=200&width=200&query=restaurant logo`
+  const bannerImage = "/placeholder.svg?key=3wznk"
+  const logoImage = "/restaurant-logo.png"
   const restaurantName = restaurantData?.name || restaurantConfig?.basicInfo?.name || "Restaurante"
   const shortDescription = restaurantConfig?.basicInfo?.shortDescription || "Deliciosa comida para todos los gustos"
   const address = restaurantConfig?.location?.address || "Dirección no disponible"
 
   return (
-    <div className="bg-white">
+    <div className="bg-white relative">
+      {/* Botones de PC en la esquina superior derecha */}
+      <div className="absolute top-4 right-4 z-10 hidden md:flex gap-2">
+        <Button variant="outline" size="sm" className="bg-white/80 backdrop-blur-sm rounded-full">
+          <Search className="h-4 w-4 mr-2" />
+          Buscar
+        </Button>
+        <Button variant="outline" size="sm" className="bg-white/80 backdrop-blur-sm rounded-full">
+          <User className="h-4 w-4 mr-2" />
+          Login
+        </Button>
+        <Button variant="outline" size="sm" className="bg-white/80 backdrop-blur-sm rounded-full">
+          <ShoppingBag className="h-4 w-4 mr-2" />
+          Pedidos
+        </Button>
+      </div>
+
       {/* Banner con controles */}
       <div className="relative">
         <div className="relative h-40 w-full overflow-hidden">
           <Image
-            src={bannerImage || `/placeholder.svg?height=200&width=400&query=restaurant banner`}
+            src={bannerImage || "/placeholder.svg"}
             alt={`Banner de ${restaurantName}`}
             fill
             className="object-cover"
@@ -58,7 +73,7 @@ export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick
               {isOpen ? "Abierto ahora" : "Cerrado"}
             </Badge>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 md:hidden">
               <Button variant="outline" size="icon" className="bg-white/80 backdrop-blur-sm rounded-full h-10 w-10">
                 <Star className="h-5 w-5" />
               </Button>
@@ -78,7 +93,7 @@ export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick
         <div className="absolute left-1/2 transform -translate-x-1/2 -bottom-12">
           <div className="relative w-24 h-24 rounded-full border-4 border-white overflow-hidden bg-white shadow-md">
             <Image
-              src={logoImage || `/placeholder.svg?height=100&width=100&query=restaurant logo`}
+              src={logoImage || "/placeholder.svg"}
               alt={`Logo de ${restaurantName}`}
               fill
               className="object-cover"
