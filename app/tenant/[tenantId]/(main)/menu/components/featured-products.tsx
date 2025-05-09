@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, type MouseEvent } from "react"
 import Image from "next/image"
 import { ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -18,6 +18,11 @@ export function FeaturedProducts({ tenantId, branchId }: FeaturedProductsProps) 
   const [error, setError] = useState<string | null>(null)
   const { addItem } = useCart()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  // Para el arrastre con el mouse
+  const [isDragging, setIsDragging] = useState(false)
+  const [startX, setStartX] = useState(0)
+  const [scrollLeft, setScrollLeft] = useState(0)
 
   useEffect(() => {
     async function loadFeaturedProducts() {
@@ -57,6 +62,32 @@ export function FeaturedProducts({ tenantId, branchId }: FeaturedProductsProps) 
     }
   }
 
+  // Funciones para el arrastre con el mouse
+  const handleMouseDown = (e: MouseEvent) => {
+    if (!scrollContainerRef.current) return
+
+    setIsDragging(true)
+    setStartX(e.pageX - scrollContainerRef.current.offsetLeft)
+    setScrollLeft(scrollContainerRef.current.scrollLeft)
+  }
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging || !scrollContainerRef.current) return
+
+    e.preventDefault()
+    const x = e.pageX - scrollContainerRef.current.offsetLeft
+    const walk = (x - startX) * 2 // Velocidad de desplazamiento
+    scrollContainerRef.current.scrollLeft = scrollLeft - walk
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  const handleMouseLeave = () => {
+    setIsDragging(false)
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center items-center py-4">
@@ -83,20 +114,34 @@ export function FeaturedProducts({ tenantId, branchId }: FeaturedProductsProps) 
 
   return (
     <div className="relative">
-      <button
-        onClick={() => scroll("left")}
-        className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/80 rounded-full p-1 shadow-md"
-        aria-label="Desplazar a la izquierda"
-      >
-        <ChevronLeft className="h-5 w-5" />
-      </button>
+      {/* Controles de navegación en la parte superior */}
+      <div className="flex justify-end mb-2 gap-2">
+        <button
+          onClick={() => scroll("left")}
+          className="bg-white rounded-full p-1 shadow-md hover:bg-gray-100 transition-colors"
+          aria-label="Desplazar a la izquierda"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <button
+          onClick={() => scroll("right")}
+          className="bg-white rounded-full p-1 shadow-md hover:bg-gray-100 transition-colors"
+          aria-label="Desplazar a la derecha"
+        >
+          <ChevronRight className="h-5 w-5" />
+        </button>
+      </div>
 
       <div
         ref={scrollContainerRef}
-        className="flex overflow-x-auto scrollbar-hide gap-4 py-2 px-2"
+        className={`flex overflow-x-auto scrollbar-hide gap-4 py-2 px-2 ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
       >
-        {featuredProducts.map((product) => (
+        {featuredProducts.map((product, index) => (
           <div key={product.id} className="flex-shrink-0 w-64 bg-white rounded-lg shadow-sm overflow-hidden">
             <div className="relative h-40 w-full rounded-lg overflow-hidden">
               <Image
@@ -105,6 +150,13 @@ export function FeaturedProducts({ tenantId, branchId }: FeaturedProductsProps) 
                 fill
                 className="object-cover rounded-lg"
               />
+
+              {/* Etiqueta para los primeros 3 productos */}
+              {index < 3 && (
+                <div className="absolute top-0 left-0 bg-green-600 text-white text-xs px-2 py-1 rounded-br-lg z-10">
+                  #{index + 1} de tus favoritos
+                </div>
+              )}
             </div>
             <div className="p-3">
               <h3 className="font-medium text-sm line-clamp-1">{product.name}</h3>
@@ -135,14 +187,6 @@ export function FeaturedProducts({ tenantId, branchId }: FeaturedProductsProps) 
           </div>
         ))}
       </div>
-
-      <button
-        onClick={() => scroll("right")}
-        className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/80 rounded-full p-1 shadow-md"
-        aria-label="Desplazar a la derecha"
-      >
-        <ChevronRight className="h-5 w-5" />
-      </button>
 
       <style jsx>{`
         .scrollbar-hide::-webkit-scrollbar {
