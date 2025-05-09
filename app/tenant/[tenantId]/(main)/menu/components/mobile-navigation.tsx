@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Home, Search, ShoppingBag, User } from "lucide-react"
+import { Home, Search, ShoppingBag, User, Plus } from "lucide-react"
 
 export function MobileNavigation() {
   const [cartCount, setCartCount] = useState(3) // Simulación de productos en el carrito
@@ -18,6 +18,14 @@ export function MobileNavigation() {
         <Link href="#" className="flex flex-col items-center justify-center">
           <Search className="h-5 w-5 text-gray-500" />
           <span className="text-xs mt-1 text-gray-500">Buscar</span>
+        </Link>
+
+        {/* Botón central con signo + */}
+        <Link href="#" className="flex flex-col items-center justify-center">
+          <div className="bg-primary rounded-full w-12 h-12 flex items-center justify-center -mt-5">
+            <Plus className="h-6 w-6 text-white" />
+          </div>
+          <span className="text-xs mt-1 text-gray-500">Ordenar</span>
         </Link>
 
         <Link href="#" className="flex flex-col items-center justify-center">

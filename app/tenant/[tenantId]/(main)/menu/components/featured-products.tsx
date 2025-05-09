@@ -77,7 +77,7 @@ export function FeaturedProducts({ tenantId, branchId }: FeaturedProductsProps) 
           <div key={product.id} className="w-40 flex-shrink-0">
             <div className="relative">
               <div className="absolute top-0 left-0 bg-green-600 text-white text-xs px-2 py-1 rounded-br-lg z-10">
-                #{product.rank} favorito
+                #{product.rank} de tus favoritos
               </div>
               <div className="relative h-32 w-full rounded-lg overflow-hidden">
                 <Image
