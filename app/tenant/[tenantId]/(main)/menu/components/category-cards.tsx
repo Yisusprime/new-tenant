@@ -1,50 +1,47 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import Image from "next/image"
-import { ChevronLeft, ChevronRight } from "lucide-react"
-
-// Datos de ejemplo para categorías
-const sampleCategories = [
-  {
-    id: "cat1",
-    name: "Hamburguesas",
-    image: "default.png",
-    count: 8,
-  },
-  {
-    id: "cat2",
-    name: "Pizzas",
-    image: "/default.png",
-    count: 12,
-  },
-  {
-    id: "cat3",
-    name: "Ensaladas",
-    image: "/default.png",
-    count: 6,
-  },
-  {
-    id: "cat4",
-    name: "Postres",
-    image: "/default.png",
-    count: 9,
-  },
-  {
-    id: "cat5",
-    name: "Bebidas",
-    image: "/default.png",
-    count: 10,
-  },
-]
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
+import { getCategories } from "@/lib/services/category-service"
 
 interface CategoryCardsProps {
+  tenantId: string
+  branchId: string | null
   onSelectCategory: (categoryId: string) => void
 }
 
-export function CategoryCards({ onSelectCategory }: CategoryCardsProps) {
-  const [categories] = useState(sampleCategories)
+export function CategoryCards({ tenantId, branchId, onSelectCategory }: CategoryCardsProps) {
+  const [categories, setCategories] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    async function loadCategories() {
+      if (!branchId) {
+        setLoading(false)
+        setError("No se ha seleccionado una sucursal")
+        return
+      }
+
+      try {
+        setLoading(true)
+        const categoriesData = await getCategories(tenantId, branchId)
+        // Filtrar solo categorías activas
+        const activeCategories = categoriesData.filter((cat) => cat.isActive)
+        setCategories(activeCategories)
+        setError(null)
+      } catch (err) {
+        console.error("Error al cargar categorías:", err)
+        setError("Error al cargar categorías")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadCategories()
+  }, [tenantId, branchId])
 
   const scroll = (direction: "left" | "right") => {
     if (scrollContainerRef.current) {
@@ -56,6 +53,30 @@ export function CategoryCards({ onSelectCategory }: CategoryCardsProps) {
         current.scrollBy({ left: scrollAmount, behavior: "smooth" })
       }
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="py-4 flex justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="py-4 text-center">
+        <p className="text-sm text-red-500">{error}</p>
+      </div>
+    )
+  }
+
+  if (categories.length === 0) {
+    return (
+      <div className="py-4 text-center">
+        <p className="text-sm text-gray-500">No hay categorías disponibles</p>
+      </div>
+    )
   }
 
   return (
@@ -83,7 +104,12 @@ export function CategoryCards({ onSelectCategory }: CategoryCardsProps) {
               className="flex flex-col items-center flex-shrink-0"
             >
               <div className="relative h-16 w-16 rounded-full overflow-hidden mb-1 border-2 border-primary">
-                <Image src={category.image || "/placeholder.svg"} alt={category.name} fill className="object-cover" />
+                <Image
+                  src={category.imageUrl || "/placeholder.svg?height=64&width=64&query=category"}
+                  alt={category.name}
+                  fill
+                  className="object-cover"
+                />
               </div>
               <span className="text-xs font-medium text-center whitespace-nowrap">{category.name}</span>
             </button>

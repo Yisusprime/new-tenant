@@ -1,58 +1,113 @@
 "use client"
 
-import { useState } from "react"
-
-// Datos de ejemplo para categorías
-const sampleCategories = [
-  {
-    id: "cat1",
-    name: "Hamburguesas",
-  },
-  {
-    id: "cat2",
-    name: "Pizzas",
-  },
-  {
-    id: "cat3",
-    name: "Ensaladas",
-  },
-  {
-    id: "cat4",
-    name: "Postres",
-  },
-  {
-    id: "cat5",
-    name: "Bebidas",
-  },
-]
+import { useState, useEffect } from "react"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { getCategories } from "@/lib/services/category-service"
+import { Loader2 } from "lucide-react"
 
 interface DesktopCategoryMenuProps {
   activeCategory: string | null
   onCategoryChange: (categoryId: string) => void
 }
 
+// Obtener el tenantId y branchId del contexto global o de props
 export function DesktopCategoryMenu({ activeCategory, onCategoryChange }: DesktopCategoryMenuProps) {
-  const [categories, setCategories] = useState(sampleCategories)
+  const [categories, setCategories] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Obtener tenantId y branchId de la URL
+  const [tenantId, setTenantId] = useState<string>("")
+  const [branchId, setBranchId] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Extraer tenantId de la URL
+    const pathParts = window.location.pathname.split("/")
+    const tenantIdIndex = pathParts.findIndex((part) => part === "tenant") + 1
+    if (tenantIdIndex > 0 && tenantIdIndex < pathParts.length) {
+      setTenantId(pathParts[tenantIdIndex])
+    }
+
+    // Obtener branchId de localStorage o de alguna otra fuente
+    // Por ahora, usaremos un enfoque simplificado
+    const fetchBranchId = async () => {
+      try {
+        // Aquí normalmente obtendrías el branchId de alguna fuente
+        // Por ahora, usaremos localStorage como ejemplo
+        const storedBranchId = localStorage.getItem("currentBranchId")
+        if (storedBranchId) {
+          setBranchId(storedBranchId)
+        } else {
+          // Si no hay branchId en localStorage, intentamos obtenerlo de otra manera
+          // Por ejemplo, obteniendo la primera sucursal activa
+          // Esto es solo un placeholder, deberías implementar tu propia lógica
+          setBranchId(null)
+        }
+      } catch (error) {
+        console.error("Error al obtener branchId:", error)
+        setBranchId(null)
+      }
+    }
+
+    fetchBranchId()
+  }, [])
+
+  useEffect(() => {
+    async function loadCategories() {
+      if (!tenantId || !branchId) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        setLoading(true)
+        const categoriesData = await getCategories(tenantId, branchId)
+        // Filtrar solo categorías activas
+        const activeCategories = categoriesData.filter((cat) => cat.isActive)
+        setCategories(activeCategories)
+
+        // Si no hay categoría activa y hay categorías disponibles, seleccionar la primera
+        if (!activeCategory && activeCategories.length > 0) {
+          onCategoryChange(activeCategories[0].id)
+        }
+
+        setError(null)
+      } catch (err) {
+        console.error("Error al cargar categorías:", err)
+        setError("Error al cargar categorías")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (tenantId && branchId) {
+      loadCategories()
+    }
+  }, [tenantId, branchId, activeCategory, onCategoryChange])
+
+  if (loading) {
+    return (
+      <div className="bg-white p-2 rounded-md shadow-sm flex justify-center">
+        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (error || categories.length === 0) {
+    return null
+  }
 
   return (
-    <div className="bg-white border-b sticky top-0 z-20">
-      <div className="flex justify-center py-3">
-        <div className="flex gap-8">
+    <div className="bg-white p-2 rounded-md shadow-sm">
+      <Tabs value={activeCategory || categories[0]?.id} onValueChange={onCategoryChange} className="w-full">
+        <TabsList className="h-auto p-1 w-full flex justify-center">
           {categories.map((category) => (
-            <button
-              key={category.id}
-              onClick={() => onCategoryChange(category.id)}
-              className={`px-4 py-2 font-medium transition-colors border-b-2 ${
-                activeCategory === category.id
-                  ? "border-primary text-primary"
-                  : "border-transparent text-gray-700 hover:text-primary"
-              }`}
-            >
+            <TabsTrigger key={category.id} value={category.id} className="px-4 py-2">
               {category.name}
-            </button>
+            </TabsTrigger>
           ))}
-        </div>
-      </div>
+        </TabsList>
+      </Tabs>
     </div>
   )
 }

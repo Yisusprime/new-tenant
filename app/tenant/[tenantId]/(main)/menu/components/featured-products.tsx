@@ -1,49 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
+import { ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Loader2, Plus } from "lucide-react"
 import { useCart } from "../context/cart-context"
-
-// Datos de ejemplo para productos destacados
-const sampleProducts = [
-  {
-    id: "prod1",
-    name: "Hamburguesa Clásica",
-    price: 8.99,
-    image: "/classic-beef-burger.png",
-    rank: 1,
-  },
-  {
-    id: "prod2",
-    name: "Pizza Margherita",
-    price: 12.99,
-    image: "/delicious-pizza.png",
-    rank: 2,
-  },
-  {
-    id: "prod3",
-    name: "Ensalada César",
-    price: 7.5,
-    image: "/vibrant-salad-bowl.png",
-    rank: 3,
-  },
-  {
-    id: "prod4",
-    name: "Pasta Carbonara",
-    price: 10.99,
-    image: "/colorful-pasta-arrangement.png",
-    rank: 4,
-  },
-  {
-    id: "prod5",
-    name: "Taco de Pollo",
-    price: 6.99,
-    image: "/delicious-taco.png",
-    rank: 5,
-  },
-]
+import { getProducts } from "@/lib/services/product-service"
 
 interface FeaturedProductsProps {
   tenantId: string
@@ -51,9 +13,49 @@ interface FeaturedProductsProps {
 }
 
 export function FeaturedProducts({ tenantId, branchId }: FeaturedProductsProps) {
-  const [products, setProducts] = useState(sampleProducts)
-  const [loading, setLoading] = useState(false)
+  const [featuredProducts, setFeaturedProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const { addItem } = useCart()
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    async function loadFeaturedProducts() {
+      if (!branchId) {
+        setLoading(false)
+        setError("No se ha seleccionado una sucursal")
+        return
+      }
+
+      try {
+        setLoading(true)
+        const productsData = await getProducts(tenantId, branchId)
+        // Filtrar solo productos destacados y activos
+        const featured = productsData.filter((product) => product.isFeatured && product.isActive)
+        setFeaturedProducts(featured)
+        setError(null)
+      } catch (err) {
+        console.error("Error al cargar productos destacados:", err)
+        setError("Error al cargar productos destacados")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadFeaturedProducts()
+  }, [tenantId, branchId])
+
+  const scroll = (direction: "left" | "right") => {
+    if (scrollContainerRef.current) {
+      const { current } = scrollContainerRef
+      const scrollAmount = 300
+      if (direction === "left") {
+        current.scrollBy({ left: -scrollAmount, behavior: "smooth" })
+      } else {
+        current.scrollBy({ left: scrollAmount, behavior: "smooth" })
+      }
+    }
+  }
 
   if (loading) {
     return (
@@ -63,42 +65,90 @@ export function FeaturedProducts({ tenantId, branchId }: FeaturedProductsProps) 
     )
   }
 
-  if (products.length === 0) {
-    return null
+  if (error) {
+    return (
+      <div className="text-center py-4">
+        <p className="text-red-500">{error}</p>
+      </div>
+    )
+  }
+
+  if (featuredProducts.length === 0) {
+    return (
+      <div className="text-center py-4">
+        <p className="text-gray-500">No hay productos destacados disponibles</p>
+      </div>
+    )
   }
 
   return (
-    <div className="overflow-x-auto pb-2">
-      <div className="flex gap-3 px-1" style={{ minWidth: "max-content" }}>
-        {products.map((product) => (
-          <div key={product.id} className="w-40 flex-shrink-0">
-            <div className="relative">
-              <div className="absolute top-0 left-0 bg-green-600 text-white text-xs px-2 py-1 rounded-br-lg z-10">
-                #{product.rank} de tus favoritos
-              </div>
-              <div className="relative h-32 w-full rounded-lg overflow-hidden">
-                <Image src={product.image || "/placeholder.svg"} alt={product.name} fill className="object-cover" />
-              </div>
-              <Button
-                size="icon"
-                className="absolute bottom-2 right-2 h-8 w-8 rounded-full bg-white shadow-md"
-                onClick={() =>
-                  addItem({
-                    id: product.id,
-                    name: product.name,
-                    price: product.price,
-                    image: product.image,
-                  })
-                }
-              >
-                <Plus className="h-5 w-5" />
-              </Button>
+    <div className="relative">
+      <button
+        onClick={() => scroll("left")}
+        className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/80 rounded-full p-1 shadow-md"
+        aria-label="Desplazar a la izquierda"
+      >
+        <ChevronLeft className="h-5 w-5" />
+      </button>
+
+      <div
+        ref={scrollContainerRef}
+        className="flex overflow-x-auto scrollbar-hide gap-4 py-2 px-2"
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+      >
+        {featuredProducts.map((product) => (
+          <div key={product.id} className="flex-shrink-0 w-64 bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="relative h-40 w-full">
+              <Image
+                src={product.imageUrl || "/placeholder.svg?height=160&width=256&query=featured food"}
+                alt={product.name}
+                fill
+                className="object-cover"
+              />
             </div>
-            <h3 className="font-medium text-sm mt-2 line-clamp-2">{product.name}</h3>
-            <p className="text-sm font-bold">${product.price.toFixed(2)}</p>
+            <div className="p-3">
+              <h3 className="font-medium text-sm line-clamp-1">{product.name}</h3>
+              {product.description && <p className="text-xs text-gray-600 mt-1 line-clamp-2">{product.description}</p>}
+              <div className="flex justify-between items-center mt-2">
+                <p className="font-bold text-sm">
+                  ${product.discountPrice ? product.discountPrice.toFixed(2) : product.price.toFixed(2)}
+                  {product.discountPrice && (
+                    <span className="text-xs text-gray-500 line-through ml-2">${product.price.toFixed(2)}</span>
+                  )}
+                </p>
+                <Button
+                  size="sm"
+                  className="h-8 w-8 p-0 rounded-full"
+                  onClick={() =>
+                    addItem({
+                      id: product.id,
+                      name: product.name,
+                      price: product.discountPrice || product.price,
+                      image: product.imageUrl,
+                    })
+                  }
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
         ))}
       </div>
+
+      <button
+        onClick={() => scroll("right")}
+        className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/80 rounded-full p-1 shadow-md"
+        aria-label="Desplazar a la derecha"
+      >
+        <ChevronRight className="h-5 w-5" />
+      </button>
+
+      <style jsx>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
     </div>
   )
 }

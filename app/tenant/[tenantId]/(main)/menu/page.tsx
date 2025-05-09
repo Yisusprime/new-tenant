@@ -13,6 +13,7 @@ import { FeaturedProducts } from "./components/featured-products"
 import { Cart } from "./components/cart"
 import { CartProvider } from "./context/cart-context"
 import { DesktopCategoryMenu } from "./components/desktop-category-menu"
+import { CategoryCards } from "./components/category-cards"
 
 export default function MenuPage({
   params,
@@ -25,7 +26,7 @@ export default function MenuPage({
   const [loading, setLoading] = useState(true)
   const [infoModalOpen, setInfoModalOpen] = useState(false)
   const [currentBranchId, setCurrentBranchId] = useState<string | null>(null)
-  const [activeCategory, setActiveCategory] = useState<string | null>("cat1") // Categoría predeterminada
+  const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const headerRef = useRef<HTMLDivElement>(null)
 
@@ -119,6 +120,11 @@ export default function MenuPage({
               restaurantConfig={restaurantConfig}
               onInfoClick={() => setInfoModalOpen(true)}
             />
+          </div>
+
+          {/* Categorías */}
+          <div className="bg-white px-4 py-2 mb-2">
+            <CategoryCards tenantId={tenantId} branchId={currentBranchId} onSelectCategory={handleCategorySelect} />
           </div>
 
           {/* Productos destacados */}
