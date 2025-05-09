@@ -1,6 +1,5 @@
 import { ref, get, set, update, remove, push } from "firebase/database"
 import { realtimeDb } from "@/lib/firebase/client"
-import { put, del } from "@vercel/blob"
 
 export interface Subcategory {
   id: string
@@ -100,6 +99,38 @@ export async function getCategory(tenantId: string, branchId: string, categoryId
   }
 }
 
+// Función para subir una imagen a Blob a través del endpoint de API
+export async function uploadImageToBlob(file: File, path: string): Promise<string> {
+  const formData = new FormData()
+  formData.append("file", file)
+  formData.append("filename", path)
+
+  const response = await fetch("/api/upload", {
+    method: "POST",
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || "Error al subir imagen")
+  }
+
+  const data = await response.json()
+  return data.url
+}
+
+// Función para eliminar una imagen de Blob a través del endpoint de API
+export async function deleteImageFromBlob(url: string): Promise<void> {
+  const response = await fetch(`/api/upload?url=${encodeURIComponent(url)}`, {
+    method: "DELETE",
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || "Error al eliminar imagen")
+  }
+}
+
 // Función para crear una nueva categoría
 export async function createCategory(
   tenantId: string,
@@ -119,11 +150,8 @@ export async function createCategory(
 
     // Si hay un archivo de imagen, subirlo a Blob
     if (imageFile) {
-      const blobName = `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}-${Date.now()}.${imageFile.name.split(".").pop()}`
-      const blob = await put(blobName, imageFile, {
-        access: "public",
-      })
-      imageUrl = blob.url
+      const blobPath = `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}-${Date.now()}.${imageFile.name.split(".").pop()}`
+      imageUrl = await uploadImageToBlob(imageFile, blobPath)
     }
 
     const newCategory = {
@@ -174,18 +202,15 @@ export async function updateCategory(
       // Si ya existe una imagen, eliminarla primero
       if (currentCategory.imageUrl) {
         try {
-          await del(currentCategory.imageUrl)
+          await deleteImageFromBlob(currentCategory.imageUrl)
         } catch (error) {
           console.error("Error al eliminar imagen anterior:", error)
           // Continuar aunque falle la eliminación
         }
       }
 
-      const blobName = `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}-${Date.now()}.${imageFile.name.split(".").pop()}`
-      const blob = await put(blobName, imageFile, {
-        access: "public",
-      })
-      imageUrl = blob.url
+      const blobPath = `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}-${Date.now()}.${imageFile.name.split(".").pop()}`
+      imageUrl = await uploadImageToBlob(imageFile, blobPath)
     }
 
     const updatedData = {
@@ -224,7 +249,7 @@ export async function deleteCategory(tenantId: string, branchId: string, categor
     // Si tiene imagen, eliminarla de Blob
     if (categoryData.imageUrl) {
       try {
-        await del(categoryData.imageUrl)
+        await deleteImageFromBlob(categoryData.imageUrl)
         console.log("Imagen eliminada de Blob:", categoryData.imageUrl)
       } catch (blobError) {
         console.error("Error al eliminar imagen de Blob:", blobError)
@@ -249,21 +274,19 @@ export async function uploadCategoryImage(
 ): Promise<string> {
   try {
     // Crear un nombre de archivo único
-    const blobName = `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}-${Date.now()}.${file.name.split(".").pop()}`
+    const blobPath = `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}-${Date.now()}.${file.name.split(".").pop()}`
 
-    // Subir la imagen a Blob
-    const blob = await put(blobName, file, {
-      access: "public",
-    })
+    // Subir la imagen a Blob a través del endpoint de API
+    const imageUrl = await uploadImageToBlob(file, blobPath)
 
     // Actualizar la URL de la imagen en la categoría
     const categoryRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}`)
     await update(categoryRef, {
-      imageUrl: blob.url,
+      imageUrl,
       updatedAt: new Date().toISOString(),
     })
 
-    return blob.url
+    return imageUrl
   } catch (error) {
     console.error("Error al subir imagen de categoría:", error)
     throw error
