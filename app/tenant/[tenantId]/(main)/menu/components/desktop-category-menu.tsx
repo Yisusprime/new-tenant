@@ -35,7 +35,7 @@ export function DesktopCategoryMenu({ activeCategory, onCategoryChange }: Deskto
   const [categories, setCategories] = useState(sampleCategories)
 
   return (
-    <div className="hidden md:block bg-white border-b sticky top-0 z-20">
+    <div className="bg-white border-b sticky top-0 z-20">
       <div className="flex justify-center py-3">
         <div className="flex gap-8">
           {categories.map((category) => (

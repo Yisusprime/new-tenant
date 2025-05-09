@@ -101,13 +101,15 @@ export default function MenuPage({
             onInfoClick={() => setInfoModalOpen(true)}
           />
 
-          {/* Menú de categorías para PC */}
-          <DesktopCategoryMenu activeCategory={activeCategory} onCategoryChange={handleCategorySelect} />
-
           {/* Productos destacados */}
           <div className="bg-white px-4 py-6 mb-2">
             <h2 className="text-xl font-bold mb-4">Artículos destacados</h2>
             <FeaturedProducts tenantId={tenantId} branchId={currentBranchId} />
+          </div>
+
+          {/* Menú de categorías para PC - Ahora debajo de productos destacados */}
+          <div className="hidden md:block mb-2">
+            <DesktopCategoryMenu activeCategory={activeCategory} onCategoryChange={handleCategorySelect} />
           </div>
 
           {/* Tarjetas de categorías solo para móvil */}
