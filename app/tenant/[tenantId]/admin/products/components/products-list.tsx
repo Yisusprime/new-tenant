@@ -17,37 +17,70 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/use-toast"
 import { Search, MoreVertical, Edit, Trash2, Star, StarOff, Eye, EyeOff, Filter } from "lucide-react"
 import Image from "next/image"
-import { type Product, deleteProduct, updateProduct } from "@/lib/services/product-service"
+import { type Product, deleteProduct, updateProduct, getProducts } from "@/lib/services/product-service"
 import { type Category, getCategories } from "@/lib/services/category-service"
 
 interface ProductsListProps {
   tenantId: string
   branchId: string
-  products: Product[]
-  loading: boolean
-  onRefresh: () => void
 }
 
-export function ProductsList({ tenantId, branchId, products, loading, onRefresh }: ProductsListProps) {
+export function ProductsList({ tenantId, branchId }: ProductsListProps) {
+  const [products, setProducts] = useState<Product[]>([])
   const [searchTerm, setSearchTerm] = useState("")
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>(products)
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Record<string, Category>>({})
+  const [loading, setLoading] = useState(true)
   const [loadingCategories, setLoadingCategories] = useState(true)
   const router = useRouter()
   const { toast } = useToast()
 
+  // Cargar productos
+  useEffect(() => {
+    const loadProducts = async () => {
+      if (!branchId) return
+
+      try {
+        setLoading(true)
+        const data = await getProducts(tenantId, branchId)
+        setProducts(data || [])
+        setFilteredProducts(data || [])
+      } catch (error) {
+        console.error("Error al cargar productos:", error)
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los productos",
+          variant: "destructive",
+        })
+        // Asegurar que products y filteredProducts sean arrays vacíos en caso de error
+        setProducts([])
+        setFilteredProducts([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadProducts()
+  }, [tenantId, branchId, toast])
+
   // Cargar categorías
   useEffect(() => {
     const loadCategories = async () => {
+      if (!branchId) return
+
       try {
         setLoadingCategories(true)
         const categoriesData = await getCategories(tenantId, branchId)
 
         // Convertir el array de categorías a un objeto para facilitar la búsqueda
         const categoriesMap: Record<string, Category> = {}
-        categoriesData.forEach((category) => {
-          categoriesMap[category.id] = category
-        })
+        if (Array.isArray(categoriesData)) {
+          categoriesData.forEach((category) => {
+            if (category && category.id) {
+              categoriesMap[category.id] = category
+            }
+          })
+        }
 
         setCategories(categoriesMap)
       } catch (error) {
@@ -57,20 +90,20 @@ export function ProductsList({ tenantId, branchId, products, loading, onRefresh 
           description: "No se pudieron cargar las categorías",
           variant: "destructive",
         })
+        // Asegurar que categories sea un objeto vacío en caso de error
+        setCategories({})
       } finally {
         setLoadingCategories(false)
       }
     }
 
-    if (branchId) {
-      loadCategories()
-    }
+    loadCategories()
   }, [tenantId, branchId, toast])
 
   // Filtrar productos cuando cambia el término de búsqueda o los productos
   useEffect(() => {
-    if (!searchTerm.trim()) {
-      setFilteredProducts(products)
+    if (!searchTerm.trim() || !Array.isArray(products)) {
+      setFilteredProducts(products || [])
       return
     }
 
@@ -84,6 +117,27 @@ export function ProductsList({ tenantId, branchId, products, loading, onRefresh 
     setFilteredProducts(filtered)
   }, [searchTerm, products])
 
+  // Refrescar productos
+  const refreshProducts = async () => {
+    if (!branchId) return
+
+    try {
+      setLoading(true)
+      const data = await getProducts(tenantId, branchId)
+      setProducts(data || [])
+      setFilteredProducts(data || [])
+    } catch (error) {
+      console.error("Error al refrescar productos:", error)
+      toast({
+        title: "Error",
+        description: "No se pudieron refrescar los productos",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Manejar la eliminación de un producto
   const handleDelete = async (productId: string) => {
     if (!confirm("¿Estás seguro de que deseas eliminar este producto?")) {
@@ -96,7 +150,7 @@ export function ProductsList({ tenantId, branchId, products, loading, onRefresh 
         title: "Producto eliminado",
         description: "El producto ha sido eliminado correctamente",
       })
-      onRefresh()
+      refreshProducts()
     } catch (error) {
       console.error("Error al eliminar producto:", error)
       toast({
@@ -118,7 +172,7 @@ export function ProductsList({ tenantId, branchId, products, loading, onRefresh 
         title: product.isActive ? "Producto desactivado" : "Producto activado",
         description: `El producto ha sido ${product.isActive ? "desactivado" : "activado"} correctamente`,
       })
-      onRefresh()
+      refreshProducts()
     } catch (error) {
       console.error("Error al actualizar producto:", error)
       toast({
@@ -140,7 +194,7 @@ export function ProductsList({ tenantId, branchId, products, loading, onRefresh 
         title: product.isFeatured ? "Producto no destacado" : "Producto destacado",
         description: `El producto ha sido ${product.isFeatured ? "removido de destacados" : "marcado como destacado"} correctamente`,
       })
-      onRefresh()
+      refreshProducts()
     } catch (error) {
       console.error("Error al actualizar producto:", error)
       toast({
@@ -154,6 +208,7 @@ export function ProductsList({ tenantId, branchId, products, loading, onRefresh 
   // Obtener el nombre de la categoría
   const getCategoryName = (categoryId: string): string => {
     if (loadingCategories) return "Cargando..."
+    if (!categoryId) return "Sin categoría"
     return categories[categoryId]?.name || "Sin categoría"
   }
 
@@ -193,7 +248,7 @@ export function ProductsList({ tenantId, branchId, products, loading, onRefresh 
         </div>
       </div>
 
-      {searchTerm && (
+      {searchTerm && Array.isArray(filteredProducts) && (
         <p className="text-sm text-muted-foreground">
           {filteredProducts.length} resultado(s) encontrado(s) para "{searchTerm}"
         </p>
@@ -202,7 +257,7 @@ export function ProductsList({ tenantId, branchId, products, loading, onRefresh 
       <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
         {loading || loadingCategories ? (
           renderSkeletons()
-        ) : filteredProducts.length === 0 ? (
+        ) : !Array.isArray(filteredProducts) || filteredProducts.length === 0 ? (
           <div className="col-span-full text-center py-10">
             <p className="text-muted-foreground">
               {searchTerm
