@@ -2,24 +2,28 @@
 
 import type React from "react"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useBranch } from "@/lib/context/branch-context"
+import { useParams } from "next/navigation"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { PlusCircle, Pencil, Trash2, ArrowLeft, ImageIcon, Search } from "lucide-react"
 import {
   getCategory,
+  getAllSubcategories,
   createSubcategory,
   updateSubcategory,
   deleteSubcategory,
-  uploadImageToBlob,
-  deleteImageFromBlob,
   type Category,
   type Subcategory,
+  uploadImageToBlob,
+  deleteImageFromBlob,
 } from "@/lib/services/category-service"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
+import { useBranch } from "@/lib/hooks/use-branch"
+import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { toast } from "@/components/ui/use-toast"
 import {
   Dialog,
   DialogContent,
@@ -28,112 +32,72 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { useToast } from "@/components/ui/use-toast"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Loader2, Plus, Pencil, Trash, ArrowLeft, Save, Eye, EyeOff, ImageIcon, X } from "lucide-react"
-import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Switch } from "@/components/ui/switch"
 
-export default function SubcategoriesPage({
-  params,
-}: {
-  params: { tenantId: string; categoryId: string }
-}) {
-  const { tenantId, categoryId } = params
-  const { currentBranch } = useBranch()
+export default function SubcategoriesPage() {
+  const router = useRouter()
+  const { tenantId, categoryId } = useParams()
+  const { selectedBranch } = useBranch()
   const [category, setCategory] = useState<Category | null>(null)
   const [subcategories, setSubcategories] = useState<Subcategory[]>([])
   const [loading, setLoading] = useState(true)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [subcategoryToDelete, setSubcategoryToDelete] = useState<Subcategory | null>(null)
+  const [searchTerm, setSearchTerm] = useState("")
+
+  // Estado para el formulario de subcategoría
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingSubcategory, setEditingSubcategory] = useState<Subcategory | null>(null)
-  const [formData, setFormData] = useState<Partial<Subcategory>>({
+  const [formData, setFormData] = useState({
     name: "",
     description: "",
     order: 0,
-    isActive: true,
-    imageUrl: "",
+    active: true,
   })
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const [saving, setSaving] = useState(false)
-  const { toast } = useToast()
-  const router = useRouter()
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
-    async function loadCategory() {
-      if (!currentBranch) {
-        setCategory(null)
-        setSubcategories([])
-        setLoading(false)
-        return
-      }
-
-      try {
-        setLoading(true)
-        const categoryData = await getCategory(tenantId, currentBranch.id, categoryId)
-
-        if (categoryData) {
-          setCategory(categoryData)
-
-          // Convertir subcategorías de objeto a array si existen
-          if (categoryData.subcategories) {
-            const subcategoriesArray = Array.isArray(categoryData.subcategories)
-              ? categoryData.subcategories
-              : Object.values(categoryData.subcategories)
-
-            setSubcategories(subcategoriesArray)
-          } else {
-            setSubcategories([])
-          }
-        } else {
-          toast({
-            title: "Error",
-            description: "No se encontró la categoría",
-            variant: "destructive",
-          })
-          router.push(`/admin/categories`)
-        }
-      } catch (error) {
-        console.error("Error al cargar categoría:", error)
-        toast({
-          title: "Error",
-          description: "No se pudo cargar la información de la categoría",
-          variant: "destructive",
-        })
-      } finally {
-        setLoading(false)
-      }
+    if (selectedBranch && categoryId) {
+      loadCategory()
+      loadSubcategories()
     }
+  }, [selectedBranch, categoryId])
 
-    loadCategory()
-  }, [tenantId, categoryId, currentBranch, toast, router])
+  const loadCategory = async () => {
+    if (!selectedBranch) return
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
+    try {
+      const categoryData = await getCategory(tenantId as string, selectedBranch.id, categoryId as string)
+      setCategory(categoryData)
+    } catch (error) {
+      console.error("Error al cargar categoría:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo cargar la información de la categoría",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleSwitchChange = (checked: boolean) => {
-    setFormData((prev) => ({ ...prev, isActive: checked }))
-  }
+  const loadSubcategories = async () => {
+    if (!selectedBranch) return
 
-  const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: Number.parseInt(value) || 0 }))
+    setLoading(true)
+    try {
+      const subcategoriesData = await getAllSubcategories(tenantId as string, selectedBranch.id, categoryId as string)
+      setSubcategories(subcategoriesData)
+    } catch (error) {
+      console.error("Error al cargar subcategorías:", error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las subcategorías",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -148,142 +112,86 @@ export default function SubcategoriesPage({
     }
   }
 
-  const handleRemoveImage = () => {
-    setImageFile(null)
-    setImagePreview(null)
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""
-    }
-  }
-
-  const handleOpenDialog = (subcategory?: Subcategory) => {
-    if (subcategory) {
-      setEditingSubcategory(subcategory)
-      setFormData({
-        name: subcategory.name,
-        description: subcategory.description || "",
-        order: subcategory.order,
-        isActive: subcategory.isActive,
-        imageUrl: subcategory.imageUrl || "",
-      })
-      setImagePreview(subcategory.imageUrl || null)
-    } else {
-      setEditingSubcategory(null)
-      setFormData({
-        name: "",
-        description: "",
-        order: subcategories.length,
-        isActive: true,
-        imageUrl: "",
-      })
-      setImagePreview(null)
-    }
-    setImageFile(null)
-    setDialogOpen(true)
-  }
-
-  const handleCloseDialog = () => {
-    setDialogOpen(false)
-    setEditingSubcategory(null)
+  const resetForm = () => {
     setFormData({
       name: "",
       description: "",
       order: 0,
-      isActive: true,
-      imageUrl: "",
+      active: true,
     })
     setImageFile(null)
     setImagePreview(null)
+    setEditingSubcategory(null)
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const openCreateDialog = () => {
+    resetForm()
+    setIsDialogOpen(true)
+  }
 
-    if (!currentBranch || !category) {
-      toast({
-        title: "Error",
-        description: "Debes seleccionar una sucursal primero",
-        variant: "destructive",
-      })
-      return
+  const openEditDialog = (subcategory: Subcategory) => {
+    setEditingSubcategory(subcategory)
+    setFormData({
+      name: subcategory.name,
+      description: subcategory.description || "",
+      order: subcategory.order || 0,
+      active: subcategory.active,
+    })
+    if (subcategory.imageUrl) {
+      setImagePreview(subcategory.imageUrl)
     }
+    setIsDialogOpen(true)
+  }
 
-    if (!formData.name) {
-      toast({
-        title: "Error",
-        description: "El nombre de la subcategoría es obligatorio",
-        variant: "destructive",
-      })
-      return
-    }
+  const handleSaveSubcategory = async () => {
+    if (!selectedBranch) return
 
+    setIsSaving(true)
     try {
-      setSaving(true)
+      let imageUrl = editingSubcategory?.imageUrl || null
 
-      let imageUrl = formData.imageUrl || ""
-
-      // Si hay un nuevo archivo de imagen, subirlo
+      // Si hay un nuevo archivo de imagen, súbelo
       if (imageFile) {
-        const blobPath = `tenants/${tenantId}/branches/${currentBranch.id}/categories/${categoryId}/subcategories/${
-          editingSubcategory?.id || "new"
-        }-${Date.now()}.${imageFile.name.split(".").pop()}`
+        // Si ya había una imagen, elimínala primero
+        if (editingSubcategory?.imageUrl) {
+          await deleteImageFromBlob(editingSubcategory.imageUrl)
+        }
 
-        imageUrl = await uploadImageToBlob(imageFile, blobPath)
+        // Sube la nueva imagen
+        const path = `tenants/${tenantId}/branches/${selectedBranch.id}/subcategories/`
+        imageUrl = await uploadImageToBlob(imageFile, path)
+      }
+
+      const subcategoryData = {
+        ...formData,
+        imageUrl,
       }
 
       if (editingSubcategory) {
-        // Si estamos editando y hay una nueva imagen, eliminar la anterior
-        if (imageFile && editingSubcategory.imageUrl) {
-          try {
-            await deleteImageFromBlob(editingSubcategory.imageUrl)
-          } catch (error) {
-            console.error("Error al eliminar imagen anterior:", error)
-            // Continuar aunque falle la eliminación
-          }
-        }
-
         // Actualizar subcategoría existente
-        const updatedSubcategory = await updateSubcategory(
-          tenantId,
-          currentBranch.id,
-          categoryId,
+        await updateSubcategory(
+          tenantId as string,
+          selectedBranch.id,
+          categoryId as string,
           editingSubcategory.id,
-          {
-            name: formData.name,
-            description: formData.description,
-            order: formData.order,
-            isActive: formData.isActive,
-            imageUrl: imageUrl,
-          },
+          subcategoryData,
         )
-
-        // Actualizar la lista de subcategorías
-        setSubcategories(subcategories.map((sub) => (sub.id === updatedSubcategory.id ? updatedSubcategory : sub)))
-
         toast({
           title: "Subcategoría actualizada",
-          description: "La subcategoría se ha actualizado correctamente",
+          description: "La subcategoría ha sido actualizada correctamente",
         })
       } else {
         // Crear nueva subcategoría
-        const newSubcategory = await createSubcategory(tenantId, currentBranch.id, categoryId, {
-          name: formData.name!,
-          description: formData.description,
-          order: formData.order || 0,
-          isActive: formData.isActive !== false,
-          imageUrl: imageUrl,
-        })
-
-        // Añadir a la lista de subcategorías
-        setSubcategories([...subcategories, newSubcategory])
-
+        await createSubcategory(tenantId as string, selectedBranch.id, categoryId as string, subcategoryData)
         toast({
           title: "Subcategoría creada",
-          description: "La subcategoría se ha creado correctamente",
+          description: "La subcategoría ha sido creada correctamente",
         })
       }
 
-      handleCloseDialog()
+      setIsDialogOpen(false)
+      resetForm()
+      loadSubcategories()
     } catch (error) {
       console.error("Error al guardar subcategoría:", error)
       toast({
@@ -292,284 +200,223 @@ export default function SubcategoriesPage({
         variant: "destructive",
       })
     } finally {
-      setSaving(false)
+      setIsSaving(false)
     }
   }
 
-  const confirmDeleteSubcategory = (subcategory: Subcategory) => {
-    setSubcategoryToDelete(subcategory)
-    setDeleteDialogOpen(true)
-  }
+  const handleDeleteSubcategory = async (subcategoryId: string, imageUrl?: string) => {
+    if (!selectedBranch) return
 
-  const handleDeleteSubcategory = async () => {
-    if (!currentBranch || !subcategoryToDelete) return
+    if (confirm("¿Estás seguro de que deseas eliminar esta subcategoría? Esta acción no se puede deshacer.")) {
+      try {
+        await deleteSubcategory(tenantId as string, selectedBranch.id, categoryId as string, subcategoryId)
 
-    try {
-      // Si la subcategoría tiene imagen, eliminarla
-      if (subcategoryToDelete.imageUrl) {
-        try {
-          await deleteImageFromBlob(subcategoryToDelete.imageUrl)
-        } catch (error) {
-          console.error("Error al eliminar imagen:", error)
-          // Continuar aunque falle la eliminación de la imagen
+        // Si la subcategoría tiene una imagen, elimínala de Blob
+        if (imageUrl) {
+          await deleteImageFromBlob(imageUrl)
         }
+
+        toast({
+          title: "Subcategoría eliminada",
+          description: "La subcategoría ha sido eliminada correctamente",
+        })
+        loadSubcategories()
+      } catch (error) {
+        console.error("Error al eliminar subcategoría:", error)
+        toast({
+          title: "Error",
+          description: "No se pudo eliminar la subcategoría",
+          variant: "destructive",
+        })
       }
-
-      await deleteSubcategory(tenantId, currentBranch.id, categoryId, subcategoryToDelete.id)
-
-      // Actualizar la lista de subcategorías
-      setSubcategories(subcategories.filter((sub) => sub.id !== subcategoryToDelete.id))
-
-      toast({
-        title: "Subcategoría eliminada",
-        description: "La subcategoría se ha eliminado correctamente",
-      })
-    } catch (error) {
-      console.error("Error al eliminar subcategoría:", error)
-      toast({
-        title: "Error",
-        description: "No se pudo eliminar la subcategoría",
-        variant: "destructive",
-      })
-    } finally {
-      setDeleteDialogOpen(false)
-      setSubcategoryToDelete(null)
     }
   }
+
+  const filteredSubcategories = subcategories.filter((subcategory) =>
+    subcategory.name.toLowerCase().includes(searchTerm.toLowerCase()),
+  )
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">Subcategorías</h1>
-          {category && <p className="text-gray-500">Categoría: {category.name}</p>}
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => router.push(`/admin/categories`)}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Volver a Categorías
-          </Button>
-          <Button onClick={() => handleOpenDialog()} disabled={!currentBranch || !category}>
-            <Plus className="mr-2 h-4 w-4" /> Nueva Subcategoría
-          </Button>
+    <div className="container mx-auto py-6">
+      <div className="flex items-center mb-6">
+        <Button variant="outline" onClick={() => router.push(`/admin/categories`)}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Volver a Categorías
+        </Button>
+        <div className="ml-4">
+          <h1 className="text-2xl font-bold">Subcategorías de {category?.name || "Categoría"}</h1>
         </div>
       </div>
 
-      <NoBranchSelectedAlert />
+      <div className="flex justify-between items-center mb-6">
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Buscar subcategorías..."
+            className="pl-8"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <Button onClick={openCreateDialog}>
+          <PlusCircle className="mr-2 h-4 w-4" /> Nueva Subcategoría
+        </Button>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Gestión de Subcategorías</CardTitle>
-          <CardDescription>
-            Administra las subcategorías para {category ? `"${category.name}"` : "esta categoría"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center items-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : subcategories.length === 0 ? (
-            <div className="text-center py-8 bg-gray-50 rounded-lg">
-              <p className="text-gray-500 mb-4">No hay subcategorías configuradas</p>
-              <Button onClick={() => handleOpenDialog()} disabled={!currentBranch || !category}>
-                Crear Primera Subcategoría
-              </Button>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Imagen</TableHead>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Descripción</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Orden</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {subcategories.map((subcategory) => (
-                  <TableRow key={subcategory.id}>
-                    <TableCell>
-                      {subcategory.imageUrl ? (
-                        <div className="relative h-10 w-10 rounded overflow-hidden">
-                          <img
-                            src={subcategory.imageUrl || "/placeholder.svg"}
-                            alt={subcategory.name}
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <div className="h-10 w-10 bg-gray-100 flex items-center justify-center rounded">
-                          <ImageIcon className="h-5 w-5 text-gray-400" />
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-medium">{subcategory.name}</TableCell>
-                    <TableCell>{subcategory.description || "-"}</TableCell>
-                    <TableCell>
-                      {subcategory.isActive ? (
-                        <Badge className="bg-green-100 text-green-800 hover:bg-green-200">
-                          <Eye className="h-3 w-3 mr-1" /> Activa
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-gray-500">
-                          <EyeOff className="h-3 w-3 mr-1" /> Inactiva
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>{subcategory.order}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="icon" onClick={() => handleOpenDialog(subcategory)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => confirmDeleteSubcategory(subcategory)}
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {[...Array(8)].map((_, i) => (
+            <Card key={i} className="overflow-hidden">
+              <div className="aspect-[4/3] bg-muted">
+                <Skeleton className="h-full w-full" />
+              </div>
+              <CardHeader className="p-4">
+                <Skeleton className="h-4 w-3/4" />
+              </CardHeader>
+              <CardFooter className="p-4 pt-0 flex justify-between">
+                <Skeleton className="h-8 w-20" />
+                <Skeleton className="h-8 w-20" />
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      ) : filteredSubcategories.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {filteredSubcategories.map((subcategory) => (
+            <Card key={subcategory.id} className="overflow-hidden">
+              <div className="aspect-[4/3] relative bg-muted">
+                {subcategory.imageUrl ? (
+                  <img
+                    src={subcategory.imageUrl || "/placeholder.svg"}
+                    alt={subcategory.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center">
+                    <ImageIcon className="h-12 w-12 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+              <CardHeader className="p-4 pb-0">
+                <div className="flex justify-between items-start">
+                  <CardTitle className="text-lg">{subcategory.name}</CardTitle>
+                  <Badge variant={subcategory.active ? "default" : "outline"}>
+                    {subcategory.active ? "Activo" : "Inactivo"}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 pt-2">
+                <p className="text-sm text-muted-foreground line-clamp-2">
+                  {subcategory.description || "Sin descripción"}
+                </p>
+              </CardContent>
+              <CardFooter className="p-4 pt-0 flex justify-between">
+                <Button variant="outline" size="sm" onClick={() => openEditDialog(subcategory)}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDeleteSubcategory(subcategory.id, subcategory.imageUrl)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-10">
+          <p className="text-muted-foreground">
+            {searchTerm
+              ? "No se encontraron subcategorías que coincidan con la búsqueda."
+              : "No hay subcategorías creadas. Crea tu primera subcategoría haciendo clic en 'Nueva Subcategoría'."}
+          </p>
+        </div>
+      )}
 
       {/* Diálogo para crear/editar subcategoría */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editingSubcategory ? "Editar Subcategoría" : "Nueva Subcategoría"}</DialogTitle>
             <DialogDescription>
               {editingSubcategory
-                ? "Actualiza la información de la subcategoría"
-                : "Completa el formulario para crear una nueva subcategoría"}
+                ? "Modifica los detalles de la subcategoría"
+                : "Completa los detalles para crear una nueva subcategoría"}
             </DialogDescription>
           </DialogHeader>
-          <form id="subcategory-form" onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nombre de la Subcategoría *</Label>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Nombre</Label>
               <Input
                 id="name"
-                name="name"
-                value={formData.name || ""}
-                onChange={handleChange}
-                placeholder="Ej: Con queso, Vegetarianas, etc."
-                required
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Nombre de la subcategoría"
               />
             </div>
-
-            <div className="space-y-2">
+            <div className="grid gap-2">
               <Label htmlFor="description">Descripción</Label>
               <Textarea
                 id="description"
-                name="description"
-                value={formData.description || ""}
-                onChange={handleChange}
-                placeholder="Descripción breve de la subcategoría"
-                rows={3}
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Descripción de la subcategoría"
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="image">Imagen</Label>
-              <div className="mt-1 flex items-center gap-4">
-                {imagePreview ? (
-                  <div className="relative h-24 w-24 rounded-md overflow-hidden border border-gray-200">
-                    <img
-                      src={imagePreview || "/placeholder.svg"}
-                      alt="Vista previa"
-                      className="h-full w-full object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleRemoveImage}
-                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 shadow-sm hover:bg-red-600"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="h-24 w-24 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center bg-gray-50">
-                    <ImageIcon className="h-8 w-8 text-gray-400" />
-                  </div>
-                )}
-                <div className="flex-1">
-                  <Input
-                    id="image"
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="hidden"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full"
-                  >
-                    {imagePreview ? "Cambiar imagen" : "Subir imagen"}
-                  </Button>
-                  <p className="text-xs text-gray-500 mt-1">Formatos recomendados: JPG, PNG. Máximo 2MB.</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
+            <div className="grid gap-2">
               <Label htmlFor="order">Orden</Label>
               <Input
                 id="order"
-                name="order"
                 type="number"
-                min="0"
-                value={formData.order || 0}
-                onChange={handleNumberChange}
+                value={formData.order}
+                onChange={(e) => setFormData({ ...formData, order: Number.parseInt(e.target.value) || 0 })}
               />
-              <p className="text-xs text-gray-500">Las subcategorías se mostrarán ordenadas de menor a mayor.</p>
             </div>
-
-            <div className="flex items-center space-x-2 pt-2">
-              <Switch id="isActive" checked={formData.isActive !== false} onCheckedChange={handleSwitchChange} />
-              <Label htmlFor="isActive">Subcategoría Activa</Label>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="active">Activo</Label>
+              <Switch
+                id="active"
+                checked={formData.active}
+                onCheckedChange={(checked) => setFormData({ ...formData, active: checked })}
+              />
             </div>
-          </form>
+            <div className="grid gap-2">
+              <Label htmlFor="image">Imagen</Label>
+              <Input id="image" type="file" accept="image/*" onChange={handleImageChange} />
+              {imagePreview && (
+                <div className="mt-2 relative aspect-[4/3] bg-muted rounded-md overflow-hidden">
+                  <img
+                    src={imagePreview || "/placeholder.svg"}
+                    alt="Vista previa"
+                    className="h-full w-full object-cover"
+                  />
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="absolute top-2 right-2"
+                    onClick={() => {
+                      setImagePreview(null)
+                      setImageFile(null)
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={handleCloseDialog}>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button type="submit" form="subcategory-form" disabled={saving}>
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              {editingSubcategory ? "Guardar Cambios" : "Crear Subcategoría"}
+            <Button onClick={handleSaveSubcategory} disabled={!formData.name || isSaving}>
+              {isSaving ? "Guardando..." : "Guardar"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Diálogo de confirmación para eliminar */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción eliminará la subcategoría "{subcategoryToDelete?.name}". Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteSubcategory} className="bg-red-500 hover:bg-red-600">
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }

@@ -7,7 +7,7 @@ export interface Subcategory {
   description?: string
   imageUrl?: string
   order: number
-  isActive: boolean
+  active: boolean
   createdAt: string
   updatedAt: string
 }
@@ -18,14 +18,14 @@ export interface Category {
   description?: string
   imageUrl?: string
   order: number
-  isActive: boolean
+  active: boolean
   subcategories?: Record<string, Subcategory>
   createdAt: string
   updatedAt: string
 }
 
 // Función para obtener todas las categorías de una sucursal
-export async function getCategories(tenantId: string, branchId: string): Promise<Category[]> {
+export async function getAllCategories(tenantId: string, branchId: string): Promise<Category[]> {
   try {
     const categoriesRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/categories`)
     const snapshot = await get(categoriesRef)
@@ -62,6 +62,39 @@ export async function getCategories(tenantId: string, branchId: string): Promise
     return categories.sort((a, b) => a.order - b.order)
   } catch (error) {
     console.error("Error al obtener categorías:", error)
+    throw error
+  }
+}
+
+// Función para obtener todas las subcategorías de una categoría
+export async function getAllSubcategories(
+  tenantId: string,
+  branchId: string,
+  categoryId: string,
+): Promise<Subcategory[]> {
+  try {
+    const subcategoriesRef = ref(
+      realtimeDb,
+      `tenants/${tenantId}/branches/${branchId}/categories/${categoryId}/subcategories`,
+    )
+    const snapshot = await get(subcategoriesRef)
+
+    if (!snapshot.exists()) {
+      return []
+    }
+
+    const subcategoriesData = snapshot.val()
+
+    // Convertir el objeto a un array y ordenar por el campo order
+    const subcategories = Object.entries(subcategoriesData).map(([id, data]) => ({
+      id,
+      ...(data as any),
+    }))
+
+    // Ordenar subcategorías por orden
+    return subcategories.sort((a, b) => a.order - b.order)
+  } catch (error) {
+    console.error("Error al obtener subcategorías:", error)
     throw error
   }
 }
@@ -147,7 +180,7 @@ export async function createCategory(
     const newCategoryRef = push(categoriesRef)
     const categoryId = newCategoryRef.key!
 
-    let imageUrl = categoryData.imageUrl || ""
+    let imageUrl = ""
 
     // Si hay un archivo de imagen, subirlo a Blob
     if (imageFile) {
