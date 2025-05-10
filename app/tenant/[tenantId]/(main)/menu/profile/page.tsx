@@ -15,27 +15,26 @@ export default function ProfilePage({ params }: { params: { tenantId: string } }
   const [activeTab, setActiveTab] = useState("profile")
   const { user, signOut, loading } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
+  const [pageReady, setPageReady] = useState(false)
 
-  // Datos de muestra del usuario (usaremos estos mientras implementamos la conexión real)
-  const userData = {
-    name: user?.displayName || "Usuario",
-    email: user?.email || "usuario@example.com",
-    phone: user?.phoneNumber || "+34 612 345 678",
-    address: "Calle Principal 123, Madrid, España",
-    orders: [],
-    addresses: [],
-    role: "customer",
-  }
+  // Establecer un timeout para asegurar que la página se muestre después de un tiempo máximo
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setPageReady(true)
+    }, 3000) // 3 segundos máximo de espera
+
+    return () => clearTimeout(timeout)
+  }, [])
 
   // Verificar si el usuario es admin (basado en el email o algún claim)
   const isAdmin = user?.email?.includes("admin") || false
 
+  // Redirigir si no hay usuario autenticado y la página está lista
   useEffect(() => {
-    // Si no hay usuario y no está cargando, redirigir al login
-    if (!loading && !user) {
+    if (pageReady && !loading && !user) {
       router.push("/menu/login")
     }
-  }, [user, loading, router])
+  }, [user, loading, router, pageReady])
 
   const handleLogout = async () => {
     try {
@@ -49,18 +48,35 @@ export default function ProfilePage({ params }: { params: { tenantId: string } }
     }
   }
 
-  // Si está cargando, mostrar spinner por máximo 2 segundos
-  if (loading && !user) {
+  // Si está cargando y la página no está lista, mostrar spinner
+  if ((!pageReady || loading) && !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+        <p className="text-gray-500">Cargando perfil...</p>
       </div>
     )
   }
 
-  // Si no hay usuario autenticado y no está cargando, no debería llegar aquí (useEffect redirige)
-  if (!user && !loading) {
-    return null
+  // Si no hay usuario autenticado y la página está lista, mostrar mensaje
+  if (pageReady && !loading && !user) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <p className="text-gray-500 mb-4">Debes iniciar sesión para ver tu perfil</p>
+        <Button onClick={() => router.push("/menu/login")}>Iniciar sesión</Button>
+      </div>
+    )
+  }
+
+  // Datos de muestra del usuario (usaremos estos mientras implementamos la conexión real)
+  const userData = {
+    name: user?.displayName || "Usuario",
+    email: user?.email || "usuario@example.com",
+    phone: user?.phoneNumber || "+34 612 345 678",
+    address: "Calle Principal 123, Madrid, España",
+    orders: [],
+    addresses: [],
+    role: isAdmin ? "admin" : "customer",
   }
 
   return (

@@ -49,14 +49,22 @@ export const AuthProvider = ({
         console.log("Auth state timeout reached, forcing loading to complete")
         setLoading(false)
       }
-    }, 3000) // 3 segundos de timeout
+    }, 2000) // 2 segundos de timeout
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      console.log("Auth state changed:", user ? `User authenticated: ${user.email}` : "No user")
-      setUser(user)
-      setLoading(false)
-      clearTimeout(authStateTimeout)
-    })
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      (user) => {
+        console.log("Auth state changed:", user ? `User authenticated: ${user.email}` : "No user")
+        setUser(user)
+        setLoading(false)
+        clearTimeout(authStateTimeout)
+      },
+      (error) => {
+        console.error("Auth state change error:", error)
+        setLoading(false)
+        clearTimeout(authStateTimeout)
+      },
+    )
 
     return () => {
       console.log("AuthProvider cleanup")
@@ -69,6 +77,8 @@ export const AuthProvider = ({
     try {
       await firebaseSignOut(auth)
       console.log("User signed out successfully")
+      // Forzar una recarga completa para limpiar el estado
+      window.location.href = "/menu"
     } catch (error) {
       console.error("Error signing out:", error)
     }
