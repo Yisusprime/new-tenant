@@ -44,7 +44,7 @@ export default function MenuLoginPage({
 
       if (user) {
         // User is signed in, redirect to profile
-        router.push(`/tenant/${tenantId}/menu/profile`)
+        router.push(`/menu/profile`)
       } else {
         // No user is signed in, show login form
         setInitialLoading(false)
@@ -57,7 +57,7 @@ export default function MenuLoginPage({
       clearTimeout(timeoutId)
       unsubscribe()
     }
-  }, [tenantId, router])
+  }, [router])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -75,7 +75,7 @@ export default function MenuLoginPage({
       console.log("Login page: Attempting to sign in with email and password")
       await signInWithEmailAndPassword(auth, email, password)
       console.log("Login page: Sign in successful")
-      router.push(`/tenant/${tenantId}/menu/profile`)
+      router.push(`/menu/profile`)
     } catch (error: any) {
       console.error("Login page: Error signing in:", error)
 
@@ -134,7 +134,7 @@ export default function MenuLoginPage({
         title: "Cuenta creada",
         description: "Tu cuenta ha sido creada exitosamente",
       })
-      router.push(`/tenant/${tenantId}/menu/profile`)
+      router.push(`/menu/profile`)
     } catch (error: any) {
       console.error("Login page: Error registering:", error)
 
@@ -175,7 +175,7 @@ export default function MenuLoginPage({
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-md mx-auto px-4 py-8 pb-24 md:pb-8 pt-6">
         <div className="flex items-center mb-6">
-          <Button variant="ghost" size="icon" className="mr-2" onClick={() => router.push(`/tenant/${tenantId}/menu`)}>
+          <Button variant="ghost" size="icon" className="mr-2" onClick={() => router.push(`/menu`)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-2xl font-bold">Mi Cuenta</h1>

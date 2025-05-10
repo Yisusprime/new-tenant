@@ -54,7 +54,7 @@ export default function CustomerProfilePage({
       // If no user after timeout, redirect to login
       if (!auth.currentUser) {
         console.log("Profile page: No user after timeout, redirecting to login")
-        router.push(`/tenant/${tenantId}/menu/login`)
+        router.push(`/menu/login`)
       }
     }, 3000)
 
@@ -63,7 +63,7 @@ export default function CustomerProfilePage({
 
       if (!authUser) {
         console.log("Profile page: No user, redirecting to login")
-        router.push(`/tenant/${tenantId}/menu/login`)
+        router.push(`/menu/login`)
         return
       }
 
@@ -242,7 +242,7 @@ export default function CustomerProfilePage({
       console.log("Profile page: Signing out")
       await auth.signOut()
       console.log("Profile page: Signed out successfully")
-      router.push(`/tenant/${tenantId}/menu`)
+      router.push(`/menu`)
     } catch (error) {
       console.error("Profile page: Error signing out:", error)
       toast({
@@ -273,7 +273,7 @@ export default function CustomerProfilePage({
     // This should not happen due to the redirect in useEffect
     // But just in case, we'll handle it here too
     console.log("Profile page: No user in render, redirecting to login")
-    router.push(`/tenant/${tenantId}/menu/login`)
+    router.push(`/menu/login`)
     return null
   }
 
@@ -281,7 +281,7 @@ export default function CustomerProfilePage({
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-6 pb-24 md:pb-6 pt-6">
         <div className="flex items-center mb-6">
-          <Button variant="ghost" size="icon" className="mr-2" onClick={() => router.push(`/tenant/${tenantId}/menu`)}>
+          <Button variant="ghost" size="icon" className="mr-2" onClick={() => router.push(`/menu`)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-2xl font-bold">Mi Perfil</h1>
