@@ -1,25 +1,65 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import { Search, ShoppingBag, User, Menu } from "lucide-react"
+import { Search, ShoppingBag, User, Menu, Package } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { useAuth } from "@/lib/context/auth-context"
+import { getAuth } from "firebase/auth"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export function DesktopNavigation() {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [userInitials, setUserInitials] = useState("")
+  const [userPhotoURL, setUserPhotoURL] = useState("")
   const router = useRouter()
-  const { user } = useAuth()
+  const auth = getAuth()
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setIsLoggedIn(true)
+        // Get user initials from display name or email
+        if (user.displayName) {
+          const names = user.displayName.split(" ")
+          const initials = names.map((name) => name.charAt(0)).join("")
+          setUserInitials(initials.toUpperCase())
+        } else if (user.email) {
+          setUserInitials(user.email.charAt(0).toUpperCase())
+        }
+
+        // Set user photo if available
+        if (user.photoURL) {
+          setUserPhotoURL(user.photoURL)
+        }
+      } else {
+        setIsLoggedIn(false)
+        setUserInitials("")
+        setUserPhotoURL("")
+      }
+    })
+
+    return () => unsubscribe()
+  }, [auth])
 
   const handleProfileClick = () => {
-    const path = user
-      ? `/tenant/${window.location.pathname.split("/")[2]}/menu/profile`
-      : `/tenant/${window.location.pathname.split("/")[2]}/menu/login`
-    router.push(path)
+    if (isLoggedIn) {
+      router.push("/menu/profile")
+    } else {
+      router.push("/menu/login")
+    }
+  }
+
+  const handleOrdersClick = () => {
+    if (isLoggedIn) {
+      router.push("/menu/orders")
+    } else {
+      router.push("/menu/login?redirect=orders")
+    }
   }
 
   return (
@@ -28,7 +68,7 @@ export function DesktopNavigation() {
         <div className="flex items-center justify-between h-16">
           {/* Logo y menú izquierdo */}
           <div className="flex items-center">
-            <Link href="#" className="flex items-center mr-8">
+            <Link href="/menu" className="flex items-center mr-8">
               <div className="relative w-8 h-8 mr-2">
                 <Image src="/restaurant-logo.png" alt="Logo" fill className="object-contain" />
               </div>
@@ -36,16 +76,16 @@ export function DesktopNavigation() {
             </Link>
 
             <nav className="hidden lg:flex space-x-6">
-              <Link href="#" className="text-gray-700 hover:text-primary font-medium">
+              <Link href="/menu" className="text-gray-700 hover:text-primary font-medium">
                 Menú
               </Link>
-              <Link href="#" className="text-gray-700 hover:text-primary">
+              <Link href="/menu/promotions" className="text-gray-700 hover:text-primary">
                 Promociones
               </Link>
-              <Link href="#" className="text-gray-700 hover:text-primary">
+              <Link href="/menu/locations" className="text-gray-700 hover:text-primary">
                 Ubicaciones
               </Link>
-              <Link href="#" className="text-gray-700 hover:text-primary">
+              <Link href="/menu/about" className="text-gray-700 hover:text-primary">
                 Sobre nosotros
               </Link>
             </nav>
@@ -61,16 +101,16 @@ export function DesktopNavigation() {
               </SheetTrigger>
               <SheetContent side="left">
                 <nav className="flex flex-col space-y-4 mt-8">
-                  <Link href="#" className="text-lg font-medium">
+                  <Link href="/menu" className="text-lg font-medium">
                     Menú
                   </Link>
-                  <Link href="#" className="text-lg">
+                  <Link href="/menu/promotions" className="text-lg">
                     Promociones
                   </Link>
-                  <Link href="#" className="text-lg">
+                  <Link href="/menu/locations" className="text-lg">
                     Ubicaciones
                   </Link>
-                  <Link href="#" className="text-lg">
+                  <Link href="/menu/about" className="text-lg">
                     Sobre nosotros
                   </Link>
                 </nav>
@@ -98,6 +138,11 @@ export function DesktopNavigation() {
               </Button>
             )}
 
+            {/* Seguimiento de pedidos */}
+            <Button variant="ghost" size="icon" onClick={handleOrdersClick} title="Seguimiento de pedidos">
+              <Package className="h-5 w-5" />
+            </Button>
+
             {/* Carrito */}
             <Button variant="ghost" size="icon" className="relative">
               <ShoppingBag className="h-5 w-5" />
@@ -107,9 +152,18 @@ export function DesktopNavigation() {
             </Button>
 
             {/* Usuario */}
-            <Button variant="ghost" size="icon" onClick={handleProfileClick}>
-              <User className="h-5 w-5" />
-            </Button>
+            {isLoggedIn ? (
+              <Button variant="ghost" size="icon" onClick={handleProfileClick} className="relative" title="Mi perfil">
+                <Avatar className="h-8 w-8">
+                  {userPhotoURL ? <AvatarImage src={userPhotoURL || "/placeholder.svg"} alt="Foto de perfil" /> : null}
+                  <AvatarFallback>{userInitials}</AvatarFallback>
+                </Avatar>
+              </Button>
+            ) : (
+              <Button variant="ghost" size="icon" onClick={handleProfileClick} title="Iniciar sesión">
+                <User className="h-5 w-5" />
+              </Button>
+            )}
 
             {/* Botón de pedido */}
             <Button className="hidden md:flex">Ordenar ahora</Button>

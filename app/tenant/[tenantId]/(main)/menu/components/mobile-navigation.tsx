@@ -1,20 +1,67 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Home, Search, ShoppingBag, User, Plus } from "lucide-react"
-import { useAuth } from "@/lib/context/auth-context"
+import { Home, Search, User, Plus, Package } from "lucide-react"
+import { getAuth } from "firebase/auth"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export function MobileNavigation() {
   const [cartCount, setCartCount] = useState(3) // Simulación de productos en el carrito
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [userInitials, setUserInitials] = useState("")
+  const [userPhotoURL, setUserPhotoURL] = useState("")
   const router = useRouter()
-  const { user } = useAuth()
+  const auth = getAuth()
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setIsLoggedIn(true)
+        // Get user initials from display name or email
+        if (user.displayName) {
+          const names = user.displayName.split(" ")
+          const initials = names.map((name) => name.charAt(0)).join("")
+          setUserInitials(initials.toUpperCase())
+        } else if (user.email) {
+          setUserInitials(user.email.charAt(0).toUpperCase())
+        }
+
+        // Set user photo if available
+        if (user.photoURL) {
+          setUserPhotoURL(user.photoURL)
+        }
+      } else {
+        setIsLoggedIn(false)
+        setUserInitials("")
+        setUserPhotoURL("")
+      }
+    })
+
+    return () => unsubscribe()
+  }, [auth])
+
+  const handleProfileClick = () => {
+    if (isLoggedIn) {
+      router.push("/menu/profile")
+    } else {
+      router.push("/menu/login")
+    }
+  }
+
+  const handleOrdersClick = () => {
+    if (isLoggedIn) {
+      router.push("/menu/orders")
+    } else {
+      router.push("/menu/login?redirect=orders")
+    }
+  }
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 shadow-lg">
       <div className="flex items-center justify-around h-14">
-        <Link href="#" className="flex flex-col items-center justify-center">
+        <Link href="/menu" className="flex flex-col items-center justify-center">
           <Home className="h-5 w-5 text-gray-500" />
           <span className="text-xs mt-1 text-gray-500">Inicio</span>
         </Link>
@@ -32,32 +79,30 @@ export function MobileNavigation() {
           <span className="text-xs mt-1 text-gray-500">Ordenar</span>
         </Link>
 
-        <Link href="#" className="flex flex-col items-center justify-center">
-          <div className="relative">
-            <ShoppingBag className="h-5 w-5 text-gray-500" />
-            {cartCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                {cartCount}
-              </span>
-            )}
-          </div>
-          <span className="text-xs mt-1 text-gray-500">Carrito</span>
-        </Link>
+        {/* Seguimiento de pedidos */}
+        <div onClick={handleOrdersClick} className="flex flex-col items-center justify-center cursor-pointer">
+          <Package className="h-5 w-5 text-gray-500" />
+          <span className="text-xs mt-1 text-gray-500">Pedidos</span>
+        </div>
 
-        <div
-          onClick={() => {
-            // Get tenantId from the URL path
-            const pathParts = window.location.pathname.split("/")
-            const tenantIdIndex = pathParts.findIndex((part) => part === "tenant") + 1
-            const tenantId = pathParts[tenantIdIndex]
-
-            const path = user ? `/tenant/${tenantId}/menu/profile` : `/tenant/${tenantId}/menu/login`
-            router.push(path)
-          }}
-          className="flex flex-col items-center justify-center cursor-pointer"
-        >
-          <User className="h-5 w-5 text-gray-500" />
-          <span className="text-xs mt-1 text-gray-500">Perfil</span>
+        {/* Perfil de usuario */}
+        <div onClick={handleProfileClick} className="flex flex-col items-center justify-center cursor-pointer">
+          {isLoggedIn ? (
+            <>
+              <div className="relative flex items-center justify-center">
+                <Avatar className="h-5 w-5">
+                  {userPhotoURL ? <AvatarImage src={userPhotoURL || "/placeholder.svg"} alt="Foto de perfil" /> : null}
+                  <AvatarFallback className="text-[10px]">{userInitials}</AvatarFallback>
+                </Avatar>
+              </div>
+              <span className="text-xs mt-1 text-gray-500">Perfil</span>
+            </>
+          ) : (
+            <>
+              <User className="h-5 w-5 text-gray-500" />
+              <span className="text-xs mt-1 text-gray-500">Iniciar</span>
+            </>
+          )}
         </div>
       </div>
     </div>
