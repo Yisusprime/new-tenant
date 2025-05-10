@@ -9,68 +9,48 @@ import { Separator } from "@/components/ui/separator"
 import { Card, CardContent } from "@/components/ui/card"
 import { MobileNavigation } from "../components/mobile-navigation"
 import { useAuth } from "@/lib/context/auth-context"
-import { doc, getDoc } from "firebase/firestore"
-import { db } from "@/lib/firebase/client"
 
 export default function ProfilePage({ params }: { params: { tenantId: string } }) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("profile")
   const { user, signOut, loading } = useAuth()
-  const [userData, setUserData] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
 
-  // Redirigir si no está autenticado
+  // Datos de muestra del usuario (usaremos estos mientras implementamos la conexión real)
+  const userData = {
+    name: user?.displayName || "Usuario",
+    email: user?.email || "usuario@example.com",
+    phone: user?.phoneNumber || "+34 612 345 678",
+    address: "Calle Principal 123, Madrid, España",
+    orders: [],
+    addresses: [],
+    role: "customer",
+  }
+
+  // Verificar si el usuario es admin (basado en el email o algún claim)
+  const isAdmin = user?.email?.includes("admin") || false
+
   useEffect(() => {
+    // Si no hay usuario y no está cargando, redirigir al login
     if (!loading && !user) {
       router.push("/menu/login")
     }
   }, [user, loading, router])
 
-  // Cargar datos del usuario desde Firestore
-  useEffect(() => {
-    const fetchUserData = async () => {
-      if (user) {
-        try {
-          const userDocRef = doc(db, `tenants/${params.tenantId}/users`, user.uid)
-          const userDoc = await getDoc(userDocRef)
-
-          if (userDoc.exists()) {
-            setUserData(userDoc.data())
-          } else {
-            // Si no existe en la colección de usuarios del tenant, crear un perfil básico
-            setUserData({
-              name: user.displayName || "Usuario",
-              email: user.email || "",
-              phone: user.phoneNumber || "",
-              role: "customer",
-            })
-          }
-        } catch (error) {
-          console.error("Error al cargar datos del usuario:", error)
-        } finally {
-          setIsLoading(false)
-        }
-      }
-    }
-
-    if (user) {
-      fetchUserData()
-    } else if (!loading) {
-      setIsLoading(false)
-    }
-  }, [user, params.tenantId, loading])
-
   const handleLogout = async () => {
     try {
+      setIsLoading(true)
       await signOut()
       router.push("/menu")
     } catch (error) {
       console.error("Error al cerrar sesión:", error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  // Si está cargando, mostrar spinner
-  if (loading || isLoading) {
+  // Si está cargando, mostrar spinner por máximo 2 segundos
+  if (loading && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -78,14 +58,35 @@ export default function ProfilePage({ params }: { params: { tenantId: string } }
     )
   }
 
-  // Si no hay usuario autenticado, no debería llegar aquí (useEffect redirige)
-  if (!user) {
+  // Si no hay usuario autenticado y no está cargando, no debería llegar aquí (useEffect redirige)
+  if (!user && !loading) {
     return null
   }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="max-w-5xl mx-auto px-4 pt-6 pb-24">
+        {isAdmin && (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-yellow-800 font-medium">
+              Estás navegando como administrador. Para acceder como cliente, debes cerrar sesión primero.
+            </p>
+            <Button variant="outline" size="sm" className="mt-2" onClick={handleLogout} disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Cerrando sesión...
+                </>
+              ) : (
+                <>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Cerrar sesión de administrador
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+
         <div className="flex flex-col md:flex-row gap-6">
           {/* Sidebar con información del usuario */}
           <div className="w-full md:w-1/3">
@@ -93,15 +94,17 @@ export default function ProfilePage({ params }: { params: { tenantId: string } }
               <CardContent className="p-6">
                 <div className="flex items-center space-x-4">
                   <Avatar className="h-16 w-16">
-                    <AvatarImage
-                      src={user.photoURL || "/abstract-geometric-shapes.png"}
-                      alt={userData?.name || user.displayName || ""}
-                    />
-                    <AvatarFallback>{(userData?.name || user.displayName || "U").charAt(0)}</AvatarFallback>
+                    <AvatarImage src={user?.photoURL || "/abstract-geometric-shapes.png"} alt={userData?.name || ""} />
+                    <AvatarFallback>{(userData?.name || "U").charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <h2 className="text-xl font-bold">{userData?.name || user.displayName || "Usuario"}</h2>
-                    <p className="text-gray-500">{userData?.email || user.email}</p>
+                    <h2 className="text-xl font-bold">{userData?.name}</h2>
+                    <p className="text-gray-500">{userData?.email}</p>
+                    {isAdmin && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mt-1">
+                        Administrador
+                      </span>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -163,9 +166,19 @@ export default function ProfilePage({ params }: { params: { tenantId: string } }
                   <button
                     className="flex items-center space-x-3 p-4 text-red-500 hover:bg-gray-50"
                     onClick={handleLogout}
+                    disabled={isLoading}
                   >
-                    <LogOut className="h-5 w-5" />
-                    <span>Cerrar sesión</span>
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span>Cerrando sesión...</span>
+                      </>
+                    ) : (
+                      <>
+                        <LogOut className="h-5 w-5" />
+                        <span>Cerrar sesión</span>
+                      </>
+                    )}
                   </button>
                 </nav>
               </CardContent>
@@ -182,17 +195,17 @@ export default function ProfilePage({ params }: { params: { tenantId: string } }
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-500 mb-1">Nombre completo</label>
-                      <p className="font-medium">{userData?.name || user.displayName || "No especificado"}</p>
+                      <p className="font-medium">{userData?.name || "No especificado"}</p>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-500 mb-1">Correo electrónico</label>
-                      <p className="font-medium">{userData?.email || user.email}</p>
+                      <p className="font-medium">{userData?.email}</p>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-500 mb-1">Teléfono</label>
-                      <p className="font-medium">{userData?.phone || user.phoneNumber || "No especificado"}</p>
+                      <p className="font-medium">{userData?.phone || "No especificado"}</p>
                     </div>
 
                     <div>

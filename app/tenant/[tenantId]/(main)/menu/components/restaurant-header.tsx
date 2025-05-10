@@ -34,7 +34,7 @@ export function RestaurantHeader({
   const { user, signOut, loading } = useAuth()
 
   // Verificar si el usuario es admin (basado en el email o algún claim)
-  const isAdmin = user?.email?.includes("admin") || false // Esto debe ser reemplazado con tu lógica real
+  const isAdmin = user?.email?.includes("admin") || false
 
   useEffect(() => {
     if (restaurantConfig?.hours) {
@@ -60,7 +60,9 @@ export function RestaurantHeader({
   const handleLogout = async () => {
     try {
       await signOut()
-      router.push("/menu")
+      setShowAdminDialog(false)
+      // Recargar la página después de cerrar sesión
+      window.location.reload()
     } catch (error) {
       console.error("Error al cerrar sesión:", error)
     }
@@ -191,8 +193,8 @@ export function RestaurantHeader({
           <DialogHeader>
             <DialogTitle>Sesión de administrador activa</DialogTitle>
             <DialogDescription>
-              Actualmente estás logueado como administrador. Para acceder como cliente, primero debes cerrar tu sesión
-              de administrador.
+              Actualmente estás logueado como administrador ({user?.email}). Para acceder como cliente, primero debes
+              cerrar tu sesión de administrador.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex flex-col sm:flex-row gap-2">

@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Eye, EyeOff, ArrowLeft, AlertCircle } from "lucide-react"
+import { Eye, EyeOff, ArrowLeft, AlertCircle, LogOut, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -25,14 +25,23 @@ export default function LoginPage({ params }: { params: { tenantId: string } }) 
   const [rememberMe, setRememberMe] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { user, loading } = useAuth()
+  const { user, signOut, loading } = useAuth()
 
-  // Redirigir si ya está autenticado
+  // Verificar si el usuario es admin (basado en el email o algún claim)
+  const isAdmin = user?.email?.includes("admin") || false
+
+  // Manejar el estado de autenticación
   useEffect(() => {
-    if (user && !loading) {
-      router.push("/menu/profile")
+    if (!loading && user) {
+      if (isAdmin) {
+        // No redirigir automáticamente si es admin, mostrar mensaje
+        console.log("Usuario admin detectado:", user.email)
+      } else {
+        // Si es un cliente normal, redirigir al perfil
+        router.push("/menu/profile")
+      }
     }
-  }, [user, loading, router])
+  }, [user, loading, router, isAdmin])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -90,6 +99,29 @@ export default function LoginPage({ params }: { params: { tenantId: string } }) 
     }
   }
 
+  const handleLogout = async () => {
+    try {
+      setIsLoading(true)
+      await signOut()
+      // Recargar la página después de cerrar sesión
+      window.location.reload()
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error)
+      setError("Error al cerrar sesión")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Si está cargando, mostrar spinner
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -98,6 +130,41 @@ export default function LoginPage({ params }: { params: { tenantId: string } }) 
             <ArrowLeft className="h-4 w-4 mr-2" />
             Volver al menú
           </Button>
+
+          {/* Mostrar alerta si el usuario es admin */}
+          {user && isAdmin && (
+            <Card className="mb-4 border-yellow-200 bg-yellow-50">
+              <CardContent className="p-4">
+                <div className="flex flex-col space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <AlertCircle className="h-5 w-5 text-yellow-600" />
+                    <h3 className="font-medium text-yellow-800">Sesión de administrador activa</h3>
+                  </div>
+                  <p className="text-yellow-700 text-sm">
+                    Actualmente estás logueado como administrador ({user.email}). Para acceder como cliente, primero
+                    debes cerrar tu sesión de administrador.
+                  </p>
+                  <Button
+                    onClick={handleLogout}
+                    className="w-full mt-2 bg-yellow-600 hover:bg-yellow-700"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Cerrando sesión...
+                      </>
+                    ) : (
+                      <>
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Cerrar sesión de administrador
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader className="space-y-1">
@@ -123,7 +190,7 @@ export default function LoginPage({ params }: { params: { tenantId: string } }) 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    disabled={isLoading}
+                    disabled={isLoading || (user && isAdmin)}
                   />
                 </div>
 
@@ -143,13 +210,13 @@ export default function LoginPage({ params }: { params: { tenantId: string } }) 
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      disabled={isLoading}
+                      disabled={isLoading || (user && isAdmin)}
                     />
                     <button
                       type="button"
                       className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
                       onClick={() => setShowPassword(!showPassword)}
-                      disabled={isLoading}
+                      disabled={isLoading || (user && isAdmin)}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -161,14 +228,14 @@ export default function LoginPage({ params }: { params: { tenantId: string } }) 
                     id="remember"
                     checked={rememberMe}
                     onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-                    disabled={isLoading}
+                    disabled={isLoading || (user && isAdmin)}
                   />
                   <Label htmlFor="remember" className="text-sm">
                     Recordarme
                   </Label>
                 </div>
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button type="submit" className="w-full" disabled={isLoading || (user && isAdmin)}>
                   {isLoading ? "Iniciando sesión..." : "Iniciar sesión"}
                 </Button>
               </form>
@@ -188,7 +255,12 @@ export default function LoginPage({ params }: { params: { tenantId: string } }) 
               </div>
 
               <div className="grid grid-cols-2 gap-4 mt-6">
-                <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading}>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleGoogleSignIn}
+                  disabled={isLoading || (user && isAdmin)}
+                >
                   <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
                     <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
                       <path
@@ -212,7 +284,12 @@ export default function LoginPage({ params }: { params: { tenantId: string } }) 
                   Google
                 </Button>
 
-                <Button variant="outline" className="w-full" onClick={handleFacebookSignIn} disabled={isLoading}>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleFacebookSignIn}
+                  disabled={isLoading || (user && isAdmin)}
+                >
                   <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
                     <path
                       d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"
