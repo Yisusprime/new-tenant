@@ -10,25 +10,25 @@ export function MobileNavigation() {
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 shadow-lg">
       <div className="flex items-center justify-around h-14">
-        <Link href="/menu" className="flex flex-col items-center justify-center">
+        <Link href="#" className="flex flex-col items-center justify-center">
           <Home className="h-5 w-5 text-gray-500" />
           <span className="text-xs mt-1 text-gray-500">Inicio</span>
         </Link>
 
-        <Link href="/menu/search" className="flex flex-col items-center justify-center">
+        <Link href="#" className="flex flex-col items-center justify-center">
           <Search className="h-5 w-5 text-gray-500" />
           <span className="text-xs mt-1 text-gray-500">Buscar</span>
         </Link>
 
         {/* Botón central con signo + */}
-        <Link href="/menu/order" className="flex flex-col items-center justify-center">
+        <Link href="#" className="flex flex-col items-center justify-center">
           <div className="bg-primary rounded-full w-12 h-12 flex items-center justify-center -mt-5">
             <Plus className="h-6 w-6 text-white" />
           </div>
           <span className="text-xs mt-1 text-gray-500">Ordenar</span>
         </Link>
 
-        <Link href="/menu/cart" className="flex flex-col items-center justify-center">
+        <Link href="#" className="flex flex-col items-center justify-center">
           <div className="relative">
             <ShoppingBag className="h-5 w-5 text-gray-500" />
             {cartCount > 0 && (
@@ -40,7 +40,7 @@ export function MobileNavigation() {
           <span className="text-xs mt-1 text-gray-500">Carrito</span>
         </Link>
 
-        <Link href="/menu/profile" className="flex flex-col items-center justify-center">
+        <Link href="#" className="flex flex-col items-center justify-center">
           <User className="h-5 w-5 text-gray-500" />
           <span className="text-xs mt-1 text-gray-500">Perfil</span>
         </Link>

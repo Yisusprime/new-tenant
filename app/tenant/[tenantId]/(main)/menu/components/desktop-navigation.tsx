@@ -17,7 +17,7 @@ export function DesktopNavigation() {
         <div className="flex items-center justify-between h-16">
           {/* Logo y menú izquierdo */}
           <div className="flex items-center">
-            <Link href="/menu" className="flex items-center mr-8">
+            <Link href="#" className="flex items-center mr-8">
               <div className="relative w-8 h-8 mr-2">
                 <Image src="/restaurant-logo.png" alt="Logo" fill className="object-contain" />
               </div>
@@ -25,16 +25,16 @@ export function DesktopNavigation() {
             </Link>
 
             <nav className="hidden lg:flex space-x-6">
-              <Link href="/menu" className="text-gray-700 hover:text-primary font-medium">
+              <Link href="#" className="text-gray-700 hover:text-primary font-medium">
                 Menú
               </Link>
-              <Link href="/menu/promotions" className="text-gray-700 hover:text-primary">
+              <Link href="#" className="text-gray-700 hover:text-primary">
                 Promociones
               </Link>
-              <Link href="/menu/locations" className="text-gray-700 hover:text-primary">
+              <Link href="#" className="text-gray-700 hover:text-primary">
                 Ubicaciones
               </Link>
-              <Link href="/menu/about" className="text-gray-700 hover:text-primary">
+              <Link href="#" className="text-gray-700 hover:text-primary">
                 Sobre nosotros
               </Link>
             </nav>
@@ -50,16 +50,16 @@ export function DesktopNavigation() {
               </SheetTrigger>
               <SheetContent side="left">
                 <nav className="flex flex-col space-y-4 mt-8">
-                  <Link href="/menu" className="text-lg font-medium">
+                  <Link href="#" className="text-lg font-medium">
                     Menú
                   </Link>
-                  <Link href="/menu/promotions" className="text-lg">
+                  <Link href="#" className="text-lg">
                     Promociones
                   </Link>
-                  <Link href="/menu/locations" className="text-lg">
+                  <Link href="#" className="text-lg">
                     Ubicaciones
                   </Link>
-                  <Link href="/menu/about" className="text-lg">
+                  <Link href="#" className="text-lg">
                     Sobre nosotros
                   </Link>
                 </nav>
@@ -96,10 +96,8 @@ export function DesktopNavigation() {
             </Button>
 
             {/* Usuario */}
-            <Button variant="ghost" size="icon" asChild>
-              <Link href="/menu/profile">
-                <User className="h-5 w-5" />
-              </Link>
+            <Button variant="ghost" size="icon">
+              <User className="h-5 w-5" />
             </Button>
 
             {/* Botón de pedido */}
