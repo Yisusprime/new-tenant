@@ -2,10 +2,14 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Home, Search, ShoppingBag, User, Plus } from "lucide-react"
+import { useAuth } from "@/lib/context/auth-context"
 
 export function MobileNavigation() {
   const [cartCount, setCartCount] = useState(3) // Simulación de productos en el carrito
+  const router = useRouter()
+  const { user } = useAuth()
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 shadow-lg">
@@ -40,10 +44,18 @@ export function MobileNavigation() {
           <span className="text-xs mt-1 text-gray-500">Carrito</span>
         </Link>
 
-        <Link href="#" className="flex flex-col items-center justify-center">
+        <div
+          onClick={() => {
+            const path = user
+              ? `/tenant/${window.location.pathname.split("/")[2]}/menu/profile`
+              : `/tenant/${window.location.pathname.split("/")[2]}/menu/login`
+            router.push(path)
+          }}
+          className="flex flex-col items-center justify-center cursor-pointer"
+        >
           <User className="h-5 w-5 text-gray-500" />
           <span className="text-xs mt-1 text-gray-500">Perfil</span>
-        </Link>
+        </div>
       </div>
     </div>
   )

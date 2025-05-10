@@ -2,14 +2,25 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { Search, ShoppingBag, User, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { useAuth } from "@/lib/context/auth-context"
 
 export function DesktopNavigation() {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const router = useRouter()
+  const { user } = useAuth()
+
+  const handleProfileClick = () => {
+    const path = user
+      ? `/tenant/${window.location.pathname.split("/")[2]}/menu/profile`
+      : `/tenant/${window.location.pathname.split("/")[2]}/menu/login`
+    router.push(path)
+  }
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
@@ -96,7 +107,7 @@ export function DesktopNavigation() {
             </Button>
 
             {/* Usuario */}
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" onClick={handleProfileClick}>
               <User className="h-5 w-5" />
             </Button>
 
