@@ -4,7 +4,6 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/lib/context/auth-context"
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth"
 import { auth } from "@/lib/firebase/client"
 import { Button } from "@/components/ui/button"
@@ -22,22 +21,43 @@ export default function MenuLoginPage({
   params: { tenantId: string }
 }) {
   const { tenantId } = params
-  const { user, loading: authLoading } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [loading, setLoading] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
   const router = useRouter()
   const { toast } = useToast()
 
+  // Check if user is already logged in
   useEffect(() => {
-    if (authLoading) return
+    console.log("Login page: Checking auth state")
 
-    // If user is already logged in, redirect to profile
-    if (user) {
-      router.push(`/tenant/${tenantId}/menu/profile`)
+    // Set a timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.log("Login page: Forcing loading state to complete after timeout")
+      setInitialLoading(false)
+    }, 3000)
+
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      console.log("Login page: Auth state changed", user ? "User logged in" : "No user")
+
+      if (user) {
+        // User is signed in, redirect to profile
+        router.push(`/tenant/${tenantId}/menu/profile`)
+      } else {
+        // No user is signed in, show login form
+        setInitialLoading(false)
+      }
+
+      clearTimeout(timeoutId)
+    })
+
+    return () => {
+      clearTimeout(timeoutId)
+      unsubscribe()
     }
-  }, [user, authLoading, tenantId, router])
+  }, [tenantId, router])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,10 +72,12 @@ export default function MenuLoginPage({
 
     try {
       setLoading(true)
+      console.log("Login page: Attempting to sign in with email and password")
       await signInWithEmailAndPassword(auth, email, password)
+      console.log("Login page: Sign in successful")
       router.push(`/tenant/${tenantId}/menu/profile`)
     } catch (error: any) {
-      console.error("Error signing in:", error)
+      console.error("Login page: Error signing in:", error)
 
       let errorMessage = "No se pudo iniciar sesión. Verifica tus credenciales."
       if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password") {
@@ -105,14 +127,16 @@ export default function MenuLoginPage({
 
     try {
       setLoading(true)
+      console.log("Login page: Attempting to create user with email and password")
       await createUserWithEmailAndPassword(auth, email, password)
+      console.log("Login page: User creation successful")
       toast({
         title: "Cuenta creada",
         description: "Tu cuenta ha sido creada exitosamente",
       })
       router.push(`/tenant/${tenantId}/menu/profile`)
     } catch (error: any) {
-      console.error("Error registering:", error)
+      console.error("Login page: Error registering:", error)
 
       let errorMessage = "No se pudo crear la cuenta"
       if (error.code === "auth/email-already-in-use") {
@@ -131,21 +155,20 @@ export default function MenuLoginPage({
     }
   }
 
-  if (authLoading) {
+  if (initialLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="flex justify-center items-center h-screen">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-sm text-gray-500">Cargando...</p>
+          </div>
         </div>
         <div className="md:hidden">
           <MobileNavigation />
         </div>
       </div>
     )
-  }
-
-  if (user) {
-    return null // Router will redirect to profile
   }
 
   return (

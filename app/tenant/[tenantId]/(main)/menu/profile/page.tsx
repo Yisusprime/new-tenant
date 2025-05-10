@@ -4,7 +4,6 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/lib/context/auth-context"
 import { getUserProfile, updateUserProfile, uploadProfileImage, type UserProfile } from "@/lib/services/profile-service"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, Camera, ArrowLeft, LogOut } from "lucide-react"
 import { MobileNavigation } from "../components/mobile-navigation"
+import { auth } from "@/lib/firebase/client"
 
 export default function CustomerProfilePage({
   params,
@@ -23,11 +23,11 @@ export default function CustomerProfilePage({
   params: { tenantId: string }
 }) {
   const { tenantId } = params
-  const { user, signOut, loading: authLoading } = useAuth()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
+  const [user, setUser] = useState(auth.currentUser)
   const router = useRouter()
   const { toast } = useToast()
 
@@ -42,18 +42,37 @@ export default function CustomerProfilePage({
     notifications: true,
   })
 
+  // Check authentication and load profile
   useEffect(() => {
-    if (authLoading) return
+    console.log("Profile page: Checking auth state")
 
-    if (!user) {
-      router.push(`/tenant/${tenantId}/menu/login`)
-      return
-    }
+    // Set a timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.log("Profile page: Forcing loading state to complete after timeout")
+      setLoading(false)
 
-    async function loadProfile() {
+      // If no user after timeout, redirect to login
+      if (!auth.currentUser) {
+        console.log("Profile page: No user after timeout, redirecting to login")
+        router.push(`/tenant/${tenantId}/menu/login`)
+      }
+    }, 3000)
+
+    const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
+      console.log("Profile page: Auth state changed", authUser ? "User logged in" : "No user")
+
+      if (!authUser) {
+        console.log("Profile page: No user, redirecting to login")
+        router.push(`/tenant/${tenantId}/menu/login`)
+        return
+      }
+
+      setUser(authUser)
+
       try {
-        setLoading(true)
-        const userProfile = await getUserProfile(tenantId, user.uid)
+        console.log("Profile page: Loading user profile")
+        const userProfile = await getUserProfile(tenantId, authUser.uid)
+        console.log("Profile page: User profile loaded", userProfile)
 
         if (userProfile) {
           setProfile(userProfile)
@@ -72,12 +91,12 @@ export default function CustomerProfilePage({
           // Initialize with Firebase Auth user data
           setPersonalForm((prev) => ({
             ...prev,
-            displayName: user.displayName || "",
-            phoneNumber: user.phoneNumber || "",
+            displayName: authUser.displayName || "",
+            phoneNumber: authUser.phoneNumber || "",
           }))
         }
       } catch (error) {
-        console.error("Error loading profile:", error)
+        console.error("Profile page: Error loading profile:", error)
         toast({
           title: "Error",
           description: "No se pudo cargar la información del perfil",
@@ -85,11 +104,15 @@ export default function CustomerProfilePage({
         })
       } finally {
         setLoading(false)
+        clearTimeout(timeoutId)
       }
-    }
+    })
 
-    loadProfile()
-  }, [user, authLoading, tenantId, router, toast])
+    return () => {
+      clearTimeout(timeoutId)
+      unsubscribe()
+    }
+  }, [tenantId, router, toast])
 
   const handlePersonalSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -97,12 +120,13 @@ export default function CustomerProfilePage({
 
     try {
       setSaving(true)
-
+      console.log("Profile page: Updating user profile")
       await updateUserProfile(tenantId, user.uid, {
         displayName: personalForm.displayName,
         phoneNumber: personalForm.phoneNumber,
         address: personalForm.address,
       })
+      console.log("Profile page: Profile updated successfully")
 
       toast({
         title: "Perfil actualizado",
@@ -113,7 +137,7 @@ export default function CustomerProfilePage({
       const updatedProfile = await getUserProfile(tenantId, user.uid)
       if (updatedProfile) setProfile(updatedProfile)
     } catch (error) {
-      console.error("Error updating profile:", error)
+      console.error("Profile page: Error updating profile:", error)
       toast({
         title: "Error",
         description: "No se pudo actualizar la información personal",
@@ -130,7 +154,7 @@ export default function CustomerProfilePage({
 
     try {
       setSaving(true)
-
+      console.log("Profile page: Updating user preferences")
       await updateUserProfile(tenantId, user.uid, {
         preferences: {
           notifications: preferencesForm.notifications,
@@ -139,6 +163,7 @@ export default function CustomerProfilePage({
           notifications: preferencesForm.notifications,
         },
       })
+      console.log("Profile page: Preferences updated successfully")
 
       toast({
         title: "Preferencias actualizadas",
@@ -149,7 +174,7 @@ export default function CustomerProfilePage({
       const updatedProfile = await getUserProfile(tenantId, user.uid)
       if (updatedProfile) setProfile(updatedProfile)
     } catch (error) {
-      console.error("Error updating preferences:", error)
+      console.error("Profile page: Error updating preferences:", error)
       toast({
         title: "Error",
         description: "No se pudieron actualizar las preferencias",
@@ -187,8 +212,9 @@ export default function CustomerProfilePage({
 
     try {
       setUploadingImage(true)
-
+      console.log("Profile page: Uploading profile image")
       const photoURL = await uploadProfileImage(tenantId, user.uid, file)
+      console.log("Profile page: Image uploaded successfully")
 
       // Update local profile
       setProfile((prev) => (prev ? { ...prev, photoURL } : null))
@@ -198,7 +224,7 @@ export default function CustomerProfilePage({
         description: "La imagen de perfil se ha actualizado correctamente",
       })
     } catch (error) {
-      console.error("Error uploading image:", error)
+      console.error("Profile page: Error uploading image:", error)
       toast({
         title: "Error",
         description: "No se pudo subir la imagen de perfil",
@@ -213,10 +239,12 @@ export default function CustomerProfilePage({
 
   const handleSignOut = async () => {
     try {
-      await signOut()
+      console.log("Profile page: Signing out")
+      await auth.signOut()
+      console.log("Profile page: Signed out successfully")
       router.push(`/tenant/${tenantId}/menu`)
     } catch (error) {
-      console.error("Error signing out:", error)
+      console.error("Profile page: Error signing out:", error)
       toast({
         title: "Error",
         description: "No se pudo cerrar sesión",
@@ -225,11 +253,14 @@ export default function CustomerProfilePage({
     }
   }
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="flex justify-center items-center h-screen">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-sm text-gray-500">Cargando perfil...</p>
+          </div>
         </div>
         <div className="md:hidden">
           <MobileNavigation />
@@ -239,7 +270,11 @@ export default function CustomerProfilePage({
   }
 
   if (!user) {
-    return null // Router will redirect to login
+    // This should not happen due to the redirect in useEffect
+    // But just in case, we'll handle it here too
+    console.log("Profile page: No user in render, redirecting to login")
+    router.push(`/tenant/${tenantId}/menu/login`)
+    return null
   }
 
   return (

@@ -33,6 +33,7 @@ export const AuthProvider = ({
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Añadir más logs para depuración
     console.log("AuthProvider initialized with tenantId:", tenantId)
 
     // Verificar si ya hay un usuario autenticado
