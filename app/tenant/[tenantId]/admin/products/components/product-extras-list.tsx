@@ -7,8 +7,14 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Input } from "@/components/ui/input"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Edit, MoreVertical, Trash2, Eye, EyeOff, Search, Filter } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Edit, MoreVertical, Trash2, Search, Filter } from "lucide-react"
 import {
   type ProductExtra,
   getProductExtras,
@@ -26,7 +32,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import Image from "next/image"
 
 interface ProductExtrasListProps {
   tenantId: string
@@ -85,21 +90,24 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
 
   // Editar extra
   const handleEdit = (extraId: string) => {
-    router.push(`/admin/products/extras/${extraId}`)
+    router.push(`/tenant/${tenantId}/admin/products/extras/${extraId}`)
   }
 
   // Eliminar extra
-  const handleDelete = async () => {
-    if (!extraToDelete) return
+  const handleDelete = async (extraId: string) => {
+    if (!confirm("¿Estás seguro de que deseas eliminar este extra?")) {
+      return
+    }
 
     try {
-      await deleteProductExtra(tenantId, branchId, extraToDelete)
-      setExtras(extras.filter((e) => e.id !== extraToDelete))
-      setFilteredExtras(filteredExtras.filter((e) => e.id !== extraToDelete))
+      await deleteProductExtra(tenantId, branchId, extraId)
       toast({
         title: "Extra eliminado",
         description: "El extra ha sido eliminado correctamente",
       })
+      const data = await getProductExtras(tenantId, branchId)
+      setExtras(data || [])
+      setFilteredExtras(data || [])
     } catch (error) {
       console.error("Error al eliminar extra:", error)
       toast({
@@ -107,8 +115,6 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
         description: "No se pudo eliminar el extra",
         variant: "destructive",
       })
-    } finally {
-      setExtraToDelete(null)
     }
   }
 
@@ -166,21 +172,23 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
   return (
     <div className="space-y-4">
       {/* Buscador */}
-      <div className="flex flex-col sm:flex-row gap-2 items-center">
-        <div className="relative w-full">
+      <div className="flex flex-col sm:flex-row gap-2 justify-between">
+        <div className="relative flex-1 max-w-md">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
             placeholder="Buscar extras..."
-            className="pl-8 w-full"
+            className="pl-8"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Button variant="outline" className="w-full sm:w-auto">
-          <Filter className="mr-2 h-4 w-4" />
-          Filtros
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="icon" title="Filtrar">
+            <Filter className="h-4 w-4" />
+          </Button>
+          <Button onClick={() => router.push(`/tenant/${tenantId}/admin/products/extras/create`)}>Nuevo Extra</Button>
+        </div>
       </div>
 
       {/* Resultados de búsqueda */}
@@ -193,85 +201,42 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
       )}
 
       {/* Lista de extras en cuadrícula */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {Array.isArray(filteredExtras) &&
           filteredExtras.map((extra) => (
             <Card key={extra.id} className="overflow-hidden h-full">
-              <div className="flex flex-col h-full">
-                <div className="relative h-24 w-full bg-muted">
-                  {extra.imageUrl ? (
-                    <Image
-                      src={extra.imageUrl || "/placeholder.svg"}
-                      alt={extra.name}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-muted-foreground text-xs">Sin imagen</span>
-                    </div>
-                  )}
-                  <div className="absolute top-1 right-1">
-                    <Badge
-                      variant={extra.isActive ? "default" : "secondary"}
-                      className="text-xs px-1.5 py-0 h-5 bg-background/80 backdrop-blur-sm"
-                    >
-                      {extra.isActive ? "Activo" : "Inactivo"}
-                    </Badge>
+              <CardContent className="p-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-medium">{extra.name}</h3>
+                    {extra.description && <p className="text-sm text-muted-foreground">{extra.description}</p>}
+                    <Badge className="mt-2">${extra.price.toFixed(2)}</Badge>
                   </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => router.push(`/tenant/${tenantId}/admin/products/extras/${extra.id}`)}
+                      >
+                        <Edit className="mr-2 h-4 w-4" />
+                        Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => handleDelete(extra.id)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Eliminar
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-
-                <CardContent className="p-3 flex-1 flex flex-col">
-                  <div className="flex justify-between items-start gap-2 mb-1">
-                    <h3 className="font-medium text-sm line-clamp-1" title={extra.name}>
-                      {extra.name}
-                    </h3>
-                    <span className="font-medium text-sm whitespace-nowrap">${extra.price.toFixed(2)}</span>
-                  </div>
-                  {extra.description && (
-                    <p className="text-xs text-muted-foreground line-clamp-2 mb-2" title={extra.description}>
-                      {extra.description}
-                    </p>
-                  )}
-                  <div className="mt-auto flex justify-end">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <MoreVertical className="h-4 w-4" />
-                          <span className="sr-only">Acciones</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEdit(extra.id)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => toggleActive(extra)}>
-                          {extra.isActive ? (
-                            <>
-                              <EyeOff className="mr-2 h-4 w-4" />
-                              Desactivar
-                            </>
-                          ) : (
-                            <>
-                              <Eye className="mr-2 h-4 w-4" />
-                              Activar
-                            </>
-                          )}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => setExtraToDelete(extra.id)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Eliminar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </CardContent>
-              </div>
+              </CardContent>
             </Card>
           ))}
       </div>
@@ -288,7 +253,7 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDelete}
+              onClick={() => handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Eliminar
