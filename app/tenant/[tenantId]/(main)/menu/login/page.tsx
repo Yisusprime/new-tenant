@@ -25,23 +25,27 @@ export default function LoginPage({ params }: { params: { tenantId: string } }) 
   const [rememberMe, setRememberMe] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pageReady, setPageReady] = useState(false)
   const { user, signOut, loading } = useAuth()
 
   // Verificar si el usuario es admin (basado en el email o algún claim)
   const isAdmin = user?.email?.includes("admin") || false
 
-  // Manejar el estado de autenticación
+  // Forzar la finalización de la carga después de un tiempo
   useEffect(() => {
-    if (!loading && user) {
-      if (isAdmin) {
-        // No redirigir automáticamente si es admin, mostrar mensaje
-        console.log("Usuario admin detectado:", user.email)
-      } else {
-        // Si es un cliente normal, redirigir al perfil
-        router.push("/menu/profile")
-      }
+    const timer = setTimeout(() => {
+      setPageReady(true)
+    }, 2000) // 2 segundos máximo de espera
+
+    return () => clearTimeout(timer)
+  }, [])
+
+  // También marcar como listo cuando el estado de autenticación se resuelve
+  useEffect(() => {
+    if (!loading) {
+      setPageReady(true)
     }
-  }, [user, loading, router, isAdmin])
+  }, [loading])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -104,7 +108,7 @@ export default function LoginPage({ params }: { params: { tenantId: string } }) 
       setIsLoading(true)
       await signOut()
       // Recargar la página después de cerrar sesión
-      window.location.reload()
+      window.location.href = "/menu/login"
     } catch (error) {
       console.error("Error al cerrar sesión:", error)
       setError("Error al cerrar sesión")
@@ -113,11 +117,12 @@ export default function LoginPage({ params }: { params: { tenantId: string } }) 
     }
   }
 
-  // Si está cargando, mostrar spinner
-  if (loading) {
+  // Mostrar un estado de carga mientras se verifica la autenticación
+  if (!pageReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+        <p className="text-sm text-gray-500">Cargando...</p>
       </div>
     )
   }
