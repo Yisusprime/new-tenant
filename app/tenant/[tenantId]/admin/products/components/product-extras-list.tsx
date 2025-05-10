@@ -90,7 +90,7 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
 
   // Editar extra
   const handleEdit = (extraId: string) => {
-    router.push(`/tenant/${tenantId}/admin/products/extras/${extraId}`)
+    router.push(`/admin/products/extras/${extraId}`)
   }
 
   // Eliminar extra
@@ -165,9 +165,7 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
     return (
       <div className="text-center py-10 space-y-4">
         <p className="text-muted-foreground">No hay extras disponibles. Crea tu primer extra global.</p>
-        <Button onClick={() => router.push(`/tenant/${tenantId}/admin/products/extras/create`)}>
-          Crear Primer Extra
-        </Button>
+        <Button onClick={() => router.push(`/admin/products/extras/create`)}>Crear Primer Extra</Button>
       </div>
     )
   }
@@ -190,7 +188,7 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
           <Button variant="outline" size="icon" title="Filtrar">
             <Filter className="h-4 w-4" />
           </Button>
-          <Button onClick={() => router.push(`/tenant/${tenantId}/admin/products/extras/create`)}>Nuevo Extra</Button>
+          <Button onClick={() => router.push(`/admin/products/extras/create`)}>Nuevo Extra</Button>
         </div>
       </div>
 
@@ -222,9 +220,7 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => router.push(`/tenant/${tenantId}/admin/products/extras/${extra.id}`)}
-                      >
+                      <DropdownMenuItem onClick={() => router.push(`/admin/products/extras/${extra.id}`)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Editar
                       </DropdownMenuItem>
