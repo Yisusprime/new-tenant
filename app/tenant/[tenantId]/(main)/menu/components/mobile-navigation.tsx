@@ -40,7 +40,7 @@ export function MobileNavigation() {
           <span className="text-xs mt-1 text-gray-500">Carrito</span>
         </Link>
 
-        <Link href="#" className="flex flex-col items-center justify-center">
+        <Link href="./profile" className="flex flex-col items-center justify-center">
           <User className="h-5 w-5 text-gray-500" />
           <span className="text-xs mt-1 text-gray-500">Perfil</span>
         </Link>
