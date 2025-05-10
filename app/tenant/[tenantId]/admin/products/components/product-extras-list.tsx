@@ -166,25 +166,20 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
   return (
     <div className="space-y-4">
       {/* Buscador */}
-      <div className="flex flex-col sm:flex-row gap-2 items-center justify-between">
-        <div className="flex flex-col sm:flex-row gap-2 items-center w-full sm:w-auto">
-          <div className="relative w-full">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Buscar extras..."
-              className="pl-8 w-full"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <Button variant="outline" className="w-full sm:w-auto">
-            <Filter className="mr-2 h-4 w-4" />
-            Filtros
-          </Button>
+      <div className="flex flex-col sm:flex-row gap-2 items-center">
+        <div className="relative w-full">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Buscar extras..."
+            className="pl-8 w-full"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
-        <Button onClick={() => router.push(`/admin/products/extras/create`)} className="w-full sm:w-auto">
-          Crear Nuevo Extra
+        <Button variant="outline" className="w-full sm:w-auto">
+          <Filter className="mr-2 h-4 w-4" />
+          Filtros
         </Button>
       </div>
 
