@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Edit, MoreVertical, Trash2, Search, Filter } from "lucide-react"
+import { Edit, MoreVertical, Trash2, Search, Filter, Plus } from "lucide-react"
 import {
   type ProductExtra,
   getProductExtras,
@@ -32,6 +32,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { ExtraPackages } from "./extra-packages"
+import Image from "next/image"
 
 interface ProductExtrasListProps {
   tenantId: string
@@ -48,27 +50,27 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
   const { toast } = useToast()
 
   // Cargar extras
-  useEffect(() => {
-    const loadExtras = async () => {
-      try {
-        setLoading(true)
-        const data = await getProductExtras(tenantId, branchId)
-        setExtras(data || [])
-        setFilteredExtras(data || [])
-      } catch (error) {
-        console.error("Error al cargar extras:", error)
-        toast({
-          title: "Error",
-          description: "No se pudieron cargar los extras",
-          variant: "destructive",
-        })
-        setExtras([])
-        setFilteredExtras([])
-      } finally {
-        setLoading(false)
-      }
+  const loadExtras = async () => {
+    try {
+      setLoading(true)
+      const data = await getProductExtras(tenantId, branchId)
+      setExtras(data || [])
+      setFilteredExtras(data || [])
+    } catch (error) {
+      console.error("Error al cargar extras:", error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los extras",
+        variant: "destructive",
+      })
+      setExtras([])
+      setFilteredExtras([])
+    } finally {
+      setLoading(false)
     }
+  }
 
+  useEffect(() => {
     if (branchId) {
       loadExtras()
     }
@@ -94,20 +96,17 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
   }
 
   // Eliminar extra
-  const handleDelete = async (extraId: string) => {
-    if (!confirm("¿Estás seguro de que deseas eliminar este extra?")) {
-      return
-    }
+  const handleDelete = async () => {
+    if (!extraToDelete) return
 
     try {
-      await deleteProductExtra(tenantId, branchId, extraId)
+      await deleteProductExtra(tenantId, branchId, extraToDelete)
+      setExtras(extras.filter((e) => e.id !== extraToDelete))
+      setFilteredExtras(filteredExtras.filter((e) => e.id !== extraToDelete))
       toast({
         title: "Extra eliminado",
         description: "El extra ha sido eliminado correctamente",
       })
-      const data = await getProductExtras(tenantId, branchId)
-      setExtras(data || [])
-      setFilteredExtras(data || [])
     } catch (error) {
       console.error("Error al eliminar extra:", error)
       toast({
@@ -115,6 +114,8 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
         description: "No se pudo eliminar el extra",
         variant: "destructive",
       })
+    } finally {
+      setExtraToDelete(null)
     }
   }
 
@@ -165,14 +166,20 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
     return (
       <div className="text-center py-10 space-y-4">
         <p className="text-muted-foreground">No hay extras disponibles. Crea tu primer extra global.</p>
-        <Button onClick={() => router.push(`/admin/products/extras/create`)}>Crear Primer Extra</Button>
+        <div className="flex flex-col sm:flex-row gap-2 justify-center">
+          <Button onClick={() => router.push(`/admin/products/extras/create`)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Crear Extra
+          </Button>
+          <ExtraPackages tenantId={tenantId} branchId={branchId} onComplete={loadExtras} />
+        </div>
       </div>
     )
   }
 
   return (
     <div className="space-y-4">
-      {/* Buscador */}
+      {/* Buscador y botones */}
       <div className="flex flex-col sm:flex-row gap-2 justify-between">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -184,11 +191,15 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="icon" title="Filtrar">
             <Filter className="h-4 w-4" />
           </Button>
-          <Button onClick={() => router.push(`/admin/products/extras/create`)}>Nuevo Extra</Button>
+          <ExtraPackages tenantId={tenantId} branchId={branchId} onComplete={loadExtras} />
+          <Button onClick={() => router.push(`/admin/products/extras/create`)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo Extra
+          </Button>
         </div>
       </div>
 
@@ -208,10 +219,23 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
             <Card key={extra.id} className="overflow-hidden h-full">
               <CardContent className="p-4">
                 <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-medium">{extra.name}</h3>
-                    {extra.description && <p className="text-sm text-muted-foreground">{extra.description}</p>}
-                    <Badge className="mt-2">${extra.price.toFixed(2)}</Badge>
+                  <div className="flex items-center gap-3">
+                    {extra.imageUrl && (
+                      <div className="relative w-10 h-10 flex-shrink-0">
+                        <Image
+                          src={extra.imageUrl || "/placeholder.svg"}
+                          alt={extra.name}
+                          fill
+                          className="object-contain"
+                          sizes="40px"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="font-medium">{extra.name}</h3>
+                      {extra.description && <p className="text-sm text-muted-foreground">{extra.description}</p>}
+                      <Badge className="mt-2">${extra.price.toFixed(2)}</Badge>
+                    </div>
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -226,7 +250,7 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
-                        onClick={() => handleDelete(extra.id)}
+                        onClick={() => setExtraToDelete(extra.id)}
                         className="text-destructive focus:text-destructive"
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
@@ -252,7 +276,7 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => handleDelete}
+              onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Eliminar
