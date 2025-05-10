@@ -14,41 +14,42 @@ import { Loader2, LogOut } from "lucide-react"
 import { DesktopNavigation } from "../components/desktop-navigation"
 import { MobileNavigation } from "../components/mobile-navigation"
 
-export default function ProfilePage({
-  params,
-}: {
-  params: { tenantId: string }
-}) {
-  const { tenantId } = params
+export default function ProfilePage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [tenantId, setTenantId] = useState<string>("")
 
   useEffect(() => {
+    // Obtener el tenantId del hostname
+    const hostname = window.location.hostname
+    const subdomain = hostname.split(".")[0]
+    setTenantId(subdomain)
+
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
       if (currentUser) {
         setUser(currentUser)
         try {
-          const userProfile = await getUserProfile(tenantId, currentUser.uid)
+          const userProfile = await getUserProfile(subdomain, currentUser.uid)
           setProfile(userProfile || { userId: currentUser.uid })
         } catch (error) {
           console.error("Error al cargar el perfil:", error)
         }
       } else {
         // Redirigir al login si no hay usuario autenticado
-        router.push(`/tenant/${tenantId}/menu/login`)
+        router.push(`/menu/login`)
       }
       setLoading(false)
     })
 
     return () => unsubscribe()
-  }, [tenantId, router])
+  }, [router])
 
   const handleSignOut = async () => {
     try {
       await auth.signOut()
-      router.push(`/tenant/${tenantId}/menu`)
+      router.push(`/menu`)
     } catch (error) {
       console.error("Error al cerrar sesión:", error)
     }

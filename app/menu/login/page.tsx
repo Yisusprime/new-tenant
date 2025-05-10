@@ -15,15 +15,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DesktopNavigation } from "../components/desktop-navigation"
 import { MobileNavigation } from "../components/mobile-navigation"
 
-export default function ClientLoginPage({
-  params,
-}: {
-  params: { tenantId: string }
-}) {
-  const { tenantId } = params
+export default function ClientLoginPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [tenantId, setTenantId] = useState<string>("")
   const [loginData, setLoginData] = useState({
     email: "",
     password: "",
@@ -35,16 +31,21 @@ export default function ClientLoginPage({
   })
 
   useEffect(() => {
+    // Obtener el tenantId del hostname
+    const hostname = window.location.hostname
+    const subdomain = hostname.split(".")[0]
+    setTenantId(subdomain)
+
     // Verificar si ya hay un usuario autenticado
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
         // Redirigir al perfil si ya está autenticado
-        router.push(`/tenant/${tenantId}/menu/profile`)
+        router.push(`/menu/profile`)
       }
     })
 
     return () => unsubscribe()
-  }, [tenantId, router])
+  }, [router])
 
   const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -63,7 +64,7 @@ export default function ClientLoginPage({
 
     try {
       await signInWithEmailAndPassword(auth, loginData.email, loginData.password)
-      router.push(`/tenant/${tenantId}/menu/profile`)
+      router.push(`/menu/profile`)
     } catch (err: any) {
       console.error("Error al iniciar sesión:", err)
 
@@ -102,7 +103,7 @@ export default function ClientLoginPage({
 
     try {
       await createUserWithEmailAndPassword(auth, registerData.email, registerData.password)
-      router.push(`/tenant/${tenantId}/menu/profile`)
+      router.push(`/menu/profile`)
     } catch (err: any) {
       console.error("Error al registrarse:", err)
 
