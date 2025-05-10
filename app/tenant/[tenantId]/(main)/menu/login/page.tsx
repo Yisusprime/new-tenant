@@ -14,7 +14,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, ArrowLeft } from "lucide-react"
-import { DesktopNavigation } from "../components/desktop-navigation"
 import { MobileNavigation } from "../components/mobile-navigation"
 
 export default function MenuLoginPage({
@@ -135,8 +134,7 @@ export default function MenuLoginPage({
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <DesktopNavigation />
-        <div className="flex justify-center items-center h-[calc(100vh-64px)]">
+        <div className="flex justify-center items-center h-screen">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
         <div className="md:hidden">
@@ -152,9 +150,7 @@ export default function MenuLoginPage({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <DesktopNavigation />
-
-      <div className="max-w-md mx-auto px-4 py-8 pb-24 md:pb-8">
+      <div className="max-w-md mx-auto px-4 py-8 pb-24 md:pb-8 pt-6">
         <div className="flex items-center mb-6">
           <Button variant="ghost" size="icon" className="mr-2" onClick={() => router.push(`/tenant/${tenantId}/menu`)}>
             <ArrowLeft className="h-5 w-5" />

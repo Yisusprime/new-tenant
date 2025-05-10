@@ -15,7 +15,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, Camera, ArrowLeft, LogOut } from "lucide-react"
-import { DesktopNavigation } from "../components/desktop-navigation"
 import { MobileNavigation } from "../components/mobile-navigation"
 
 export default function CustomerProfilePage({
@@ -229,8 +228,7 @@ export default function CustomerProfilePage({
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <DesktopNavigation />
-        <div className="flex justify-center items-center h-[calc(100vh-64px)]">
+        <div className="flex justify-center items-center h-screen">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
         <div className="md:hidden">
@@ -246,9 +244,7 @@ export default function CustomerProfilePage({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <DesktopNavigation />
-
-      <div className="max-w-4xl mx-auto px-4 py-6 pb-24 md:pb-6">
+      <div className="max-w-4xl mx-auto px-4 py-6 pb-24 md:pb-6 pt-6">
         <div className="flex items-center mb-6">
           <Button variant="ghost" size="icon" className="mr-2" onClick={() => router.push(`/tenant/${tenantId}/menu`)}>
             <ArrowLeft className="h-5 w-5" />

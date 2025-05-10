@@ -46,9 +46,12 @@ export function MobileNavigation() {
 
         <div
           onClick={() => {
-            const path = user
-              ? `/tenant/${window.location.pathname.split("/")[2]}/menu/profile`
-              : `/tenant/${window.location.pathname.split("/")[2]}/menu/login`
+            // Get tenantId from the URL path
+            const pathParts = window.location.pathname.split("/")
+            const tenantIdIndex = pathParts.findIndex((part) => part === "tenant") + 1
+            const tenantId = pathParts[tenantIdIndex]
+
+            const path = user ? `/tenant/${tenantId}/menu/profile` : `/tenant/${tenantId}/menu/login`
             router.push(path)
           }}
           className="flex flex-col items-center justify-center cursor-pointer"
