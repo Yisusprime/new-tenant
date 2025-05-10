@@ -3,17 +3,15 @@
 import { useState, useEffect, useRef } from "react"
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore"
 import { db } from "@/lib/firebase/client"
-import { getAuth, onAuthStateChanged } from "firebase/auth"
 import { getRestaurantConfig } from "@/lib/services/restaurant-config-service"
 import { RestaurantHeader } from "./components/restaurant-header"
 import { MenuCategories } from "./components/menu-categories"
 import { RestaurantInfoModal } from "./components/restaurant-info-modal"
-import { Loader2, User, Package, Search } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { MobileNavigation } from "./components/mobile-navigation"
 import { FeaturedProducts } from "./components/featured-products"
 import { Cart } from "./components/cart"
 import { CartProvider } from "./context/cart-context"
-import { useRouter } from "next/navigation"
 
 export default function MenuPage({
   params,
@@ -21,7 +19,6 @@ export default function MenuPage({
   params: { tenantId: string }
 }) {
   const { tenantId } = params
-  const router = useRouter()
   const [restaurantData, setRestaurantData] = useState<any>(null)
   const [restaurantConfig, setRestaurantConfig] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -31,19 +28,7 @@ export default function MenuPage({
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [branches, setBranches] = useState<any[]>([])
   const [showBranchSelector, setShowBranchSelector] = useState(false)
-  const [user, setUser] = useState<any>(null)
-  const [userLoading, setUserLoading] = useState(true)
   const headerRef = useRef<HTMLDivElement>(null)
-  const auth = getAuth()
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser)
-      setUserLoading(false)
-    })
-
-    return () => unsubscribe()
-  }, [auth])
 
   useEffect(() => {
     async function loadRestaurantData() {
@@ -151,38 +136,6 @@ export default function MenuPage({
     setActiveCategory(categoryId)
   }
 
-  // Función para construir rutas correctamente
-  const buildRoute = (path: string) => {
-    // Si estamos en un subdominio, no necesitamos incluir /tenant/[tenantId]
-    const isSubdomain =
-      typeof window !== "undefined" &&
-      window.location.hostname.includes(".") &&
-      !window.location.hostname.startsWith("www.") &&
-      !window.location.hostname.startsWith("localhost")
-
-    return isSubdomain ? path : `/tenant/${tenantId}${path}`
-  }
-
-  const handleProfileClick = () => {
-    if (user) {
-      router.push(buildRoute("/menu/profile"))
-    } else {
-      router.push(buildRoute("/menu/login"))
-    }
-  }
-
-  const handleOrdersClick = () => {
-    if (user) {
-      router.push(buildRoute("/menu/orders"))
-    } else {
-      router.push(buildRoute("/menu/login?redirect=orders"))
-    }
-  }
-
-  const handleSearchClick = () => {
-    router.push(buildRoute("/menu/search"))
-  }
-
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -260,55 +213,6 @@ export default function MenuPage({
               restaurantConfig={restaurantConfig}
               onInfoClick={() => setInfoModalOpen(true)}
             />
-
-            {/* Botones superiores */}
-            <div className="bg-white p-4 flex justify-end space-x-4 border-b">
-              <button
-                onClick={handleSearchClick}
-                className="flex items-center justify-center p-2 rounded-full hover:bg-gray-100 transition-colors"
-                aria-label="Buscar"
-              >
-                <Search className="h-5 w-5" />
-                <span className="ml-2 hidden sm:inline">Buscar</span>
-              </button>
-
-              <button
-                onClick={handleProfileClick}
-                className="flex items-center justify-center p-2 rounded-full hover:bg-gray-100 transition-colors"
-                aria-label={user ? "Perfil" : "Iniciar sesión"}
-              >
-                {user ? (
-                  <>
-                    {user.photoURL ? (
-                      <img
-                        src={user.photoURL || "/placeholder.svg"}
-                        alt="Foto de perfil"
-                        className="h-5 w-5 rounded-full"
-                      />
-                    ) : (
-                      <User className="h-5 w-5" />
-                    )}
-                    <span className="ml-2 hidden sm:inline">
-                      {user.displayName ? user.displayName.split(" ")[0] : "Perfil"}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <User className="h-5 w-5" />
-                    <span className="ml-2 hidden sm:inline">Login</span>
-                  </>
-                )}
-              </button>
-
-              <button
-                onClick={handleOrdersClick}
-                className="flex items-center justify-center p-2 rounded-full hover:bg-gray-100 transition-colors"
-                aria-label="Mis pedidos"
-              >
-                <Package className="h-5 w-5" />
-                <span className="ml-2 hidden sm:inline">Pedidos</span>
-              </button>
-            </div>
           </div>
 
           {/* Productos destacados */}
