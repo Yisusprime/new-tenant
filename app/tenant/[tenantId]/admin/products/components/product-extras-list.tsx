@@ -163,8 +163,11 @@ export function ProductExtrasList({ tenantId, branchId }: ProductExtrasListProps
   // Si no hay extras
   if (!Array.isArray(extras) || extras.length === 0) {
     return (
-      <div className="text-center py-10">
+      <div className="text-center py-10 space-y-4">
         <p className="text-muted-foreground">No hay extras disponibles. Crea tu primer extra global.</p>
+        <Button onClick={() => router.push(`/tenant/${tenantId}/admin/products/extras/create`)}>
+          Crear Primer Extra
+        </Button>
       </div>
     )
   }
