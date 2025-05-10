@@ -212,7 +212,6 @@ export default function MenuPage({
               restaurantData={restaurantData}
               restaurantConfig={restaurantConfig}
               onInfoClick={() => setInfoModalOpen(true)}
-              params={params}
             />
           </div>
 

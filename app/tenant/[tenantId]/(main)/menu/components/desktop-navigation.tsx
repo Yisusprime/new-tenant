@@ -1,36 +1,110 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
-import { Home, Search, ShoppingBag, User } from "lucide-react"
+import Image from "next/image"
+import { Search, ShoppingBag, User, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useRouter } from "next/navigation"
+import { Input } from "@/components/ui/input"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 
 export function DesktopNavigation() {
-  const router = useRouter()
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
 
   return (
-    <div className="hidden md:flex items-center justify-between px-4 py-2 bg-white shadow-sm">
-      <nav className="flex items-center space-x-4">
-        <Link href="/menu" className="flex items-center text-gray-700 hover:text-gray-900">
-          <Home className="h-4 w-4 mr-1" />
-          Inicio
-        </Link>
-        <Button variant="ghost" size="sm">
-          <Search className="h-4 w-4 mr-2" />
-          Buscar
-        </Button>
-      </nav>
+    <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+      <div className="max-w-7xl mx-auto px-4 md:px-6">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo y menú izquierdo */}
+          <div className="flex items-center">
+            <Link href="#" className="flex items-center mr-8">
+              <div className="relative w-8 h-8 mr-2">
+                <Image src="/restaurant-logo.png" alt="Logo" fill className="object-contain" />
+              </div>
+              <span className="font-bold text-lg">Restaurante</span>
+            </Link>
 
-      <div className="flex items-center space-x-4">
-        <Button variant="outline" size="sm" onClick={() => router.push("/menu/login")}>
-          <User className="h-4 w-4 mr-2" />
-          Login
-        </Button>
-        <Button variant="outline" size="sm">
-          <ShoppingBag className="h-4 w-4 mr-2" />
-          Pedidos
-        </Button>
+            <nav className="hidden lg:flex space-x-6">
+              <Link href="#" className="text-gray-700 hover:text-primary font-medium">
+                Menú
+              </Link>
+              <Link href="#" className="text-gray-700 hover:text-primary">
+                Promociones
+              </Link>
+              <Link href="#" className="text-gray-700 hover:text-primary">
+                Ubicaciones
+              </Link>
+              <Link href="#" className="text-gray-700 hover:text-primary">
+                Sobre nosotros
+              </Link>
+            </nav>
+          </div>
+
+          {/* Menú móvil para tablets */}
+          <div className="lg:hidden">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left">
+                <nav className="flex flex-col space-y-4 mt-8">
+                  <Link href="#" className="text-lg font-medium">
+                    Menú
+                  </Link>
+                  <Link href="#" className="text-lg">
+                    Promociones
+                  </Link>
+                  <Link href="#" className="text-lg">
+                    Ubicaciones
+                  </Link>
+                  <Link href="#" className="text-lg">
+                    Sobre nosotros
+                  </Link>
+                </nav>
+              </SheetContent>
+            </Sheet>
+          </div>
+
+          {/* Acciones de la derecha */}
+          <div className="flex items-center space-x-4">
+            {/* Búsqueda */}
+            {isSearchOpen ? (
+              <div className="relative">
+                <Input
+                  type="search"
+                  placeholder="Buscar..."
+                  className="w-64 pr-8"
+                  autoFocus
+                  onBlur={() => setIsSearchOpen(false)}
+                />
+                <Search className="absolute right-2 top-2.5 h-4 w-4 text-gray-500" />
+              </div>
+            ) : (
+              <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(true)}>
+                <Search className="h-5 w-5" />
+              </Button>
+            )}
+
+            {/* Carrito */}
+            <Button variant="ghost" size="icon" className="relative">
+              <ShoppingBag className="h-5 w-5" />
+              <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                3
+              </span>
+            </Button>
+
+            {/* Usuario */}
+            <Button variant="ghost" size="icon">
+              <User className="h-5 w-5" />
+            </Button>
+
+            {/* Botón de pedido */}
+            <Button className="hidden md:flex">Ordenar ahora</Button>
+          </div>
+        </div>
       </div>
-    </div>
+    </header>
   )
 }
