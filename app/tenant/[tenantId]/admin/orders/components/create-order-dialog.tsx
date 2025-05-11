@@ -71,6 +71,7 @@ export function CreateOrderDialog({
   const [changeAmount, setChangeAmount] = useState(0)
 
   // Estado para la configuración del IVA y moneda
+  const [taxEnabled, setTaxEnabled] = useState(true) // Nuevo estado para saber si el IVA está activado
   const [taxIncluded, setTaxIncluded] = useState(true)
   const [taxRate, setTaxRate] = useState(0.19) // 19% por defecto (Chile)
   const [currencyCode, setCurrencyCode] = useState("CLP") // Peso chileno por defecto
@@ -152,19 +153,21 @@ export function CreateOrderDialog({
       const config = await getRestaurantConfig(tenantId, branchId)
       if (config && config.basicInfo) {
         // Establecer la configuración de IVA
-        const isTaxEnabled = config.basicInfo.taxEnabled !== undefined ? config.basicInfo.taxEnabled : true
+        setTaxEnabled(config.basicInfo.taxEnabled !== undefined ? config.basicInfo.taxEnabled : true)
         setTaxIncluded(config.basicInfo.taxIncluded)
 
-        // Si el IVA está desactivado, establecer la tasa a 0
-        if (!isTaxEnabled) {
-          setTaxRate(0)
-        } else {
-          // Establecer la tasa de IVA (con valor predeterminado de 0.19 si no está definido)
-          setTaxRate(config.basicInfo.taxRate !== undefined ? config.basicInfo.taxRate : 0.19)
-        }
+        // Establecer la tasa de IVA (con valor predeterminado de 0.19 si no está definido)
+        setTaxRate(config.basicInfo.taxRate !== undefined ? config.basicInfo.taxRate : 0.19)
 
         // Establecer el código de moneda (con valor predeterminado de CLP si no está definido)
         setCurrencyCode(config.basicInfo.currencyCode || "CLP")
+
+        console.log("Configuración cargada:", {
+          taxEnabled: config.basicInfo.taxEnabled,
+          taxIncluded: config.basicInfo.taxIncluded,
+          taxRate: config.basicInfo.taxRate,
+          currencyCode: config.basicInfo.currencyCode,
+        })
       }
     } catch (error) {
       console.error("Error al cargar configuración del restaurante:", error)
@@ -236,8 +239,8 @@ export function CreateOrderDialog({
   }
 
   const calculateTaxAmount = () => {
-    // Si el IVA está incluido o está desactivado (taxRate === 0), no se añade al total
-    if (taxIncluded || taxRate === 0) {
+    // Si el IVA está desactivado o está incluido en los precios, no se añade al total
+    if (!taxEnabled || taxIncluded) {
       return 0
     }
     const subtotal = calculateSubtotal()
@@ -341,6 +344,7 @@ export function CreateOrderDialog({
         tax,
         total,
         taxIncluded,
+        taxEnabled, // Añadir esta propiedad para saber si el IVA está activado
       }
 
       // Campos opcionales
@@ -564,6 +568,7 @@ export function CreateOrderDialog({
                 taxAmount={calculateTaxAmount()}
                 taxRate={taxRate}
                 currencyCode={currencyCode}
+                taxEnabled={taxEnabled} // Pasar la propiedad
               />
             </div>
           </div>

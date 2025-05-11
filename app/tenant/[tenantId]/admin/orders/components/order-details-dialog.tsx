@@ -115,6 +115,9 @@ export function OrderDetailsDialog({
     }
   }
 
+  // Verificar si el IVA está activado en el pedido
+  const isTaxEnabled = order.taxEnabled !== undefined ? order.taxEnabled : true
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -221,15 +224,32 @@ export function OrderDetailsDialog({
 
           <div className="py-4">
             <div className="flex justify-between items-center">
-              <span>Subtotal</span>
+              <span>{isTaxEnabled && order.taxIncluded ? "Subtotal (IVA incluido)" : "Subtotal"}</span>
               <span>{formatCurrency(order.subtotal)}</span>
             </div>
-            {order.tax > 0 && (
+
+            {/* Solo mostrar el IVA si está activado Y no está incluido en los precios */}
+            {isTaxEnabled && !order.taxIncluded && order.tax > 0 && (
               <div className="flex justify-between items-center mt-2 text-sm">
                 <span>Impuestos</span>
                 <span>{formatCurrency(order.tax)}</span>
               </div>
             )}
+
+            {order.tip > 0 && (
+              <div className="flex justify-between items-center mt-2 text-sm">
+                <span>Propina</span>
+                <span>{formatCurrency(order.tip)}</span>
+              </div>
+            )}
+
+            {order.coupon && order.coupon.discount > 0 && (
+              <div className="flex justify-between items-center mt-2 text-sm text-green-600">
+                <span>Descuento</span>
+                <span>-{formatCurrency(order.coupon.discount)}</span>
+              </div>
+            )}
+
             <div className="flex justify-between items-center mt-4 font-bold">
               <span>Total</span>
               <span>{formatCurrency(order.total)}</span>

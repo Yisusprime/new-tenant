@@ -23,6 +23,7 @@ interface OrderSummaryProps {
   taxAmount: number
   taxRate: number
   currencyCode: string
+  taxEnabled: boolean // Nueva propiedad para saber si el IVA está activado
 }
 
 export function OrderSummary({
@@ -43,6 +44,7 @@ export function OrderSummary({
   taxAmount,
   taxRate,
   currencyCode,
+  taxEnabled, // Recibimos la propiedad
 }: OrderSummaryProps) {
   const subtotal = calculateSubtotal()
   const total = calculateTotal()
@@ -117,11 +119,12 @@ export function OrderSummary({
             <span>{items.length}</span>
           </div>
           <div className="flex justify-between font-medium">
-            <span>{taxIncluded ? "Subtotal (IVA incluido):" : "Subtotal:"}</span>
+            <span>{taxEnabled && taxIncluded ? "Subtotal (IVA incluido):" : "Subtotal:"}</span>
             <span>{formatMoney(subtotal)}</span>
           </div>
 
-          {!taxIncluded && taxAmount > 0 && (
+          {/* Solo mostrar el IVA si está activado Y no está incluido en los precios */}
+          {taxEnabled && !taxIncluded && taxAmount > 0 && (
             <div className="flex justify-between text-sm">
               <span>IVA ({(taxRate * 100).toFixed(0)}%):</span>
               <span>{formatMoney(taxAmount)}</span>
