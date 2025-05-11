@@ -1,147 +1,179 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { collection, getDocs, query, limit } from "firebase/firestore"
-import { db } from "@/lib/firebase/client"
+import type React from "react"
+
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
 import { useBranch } from "@/lib/context/branch-context"
+import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
+import { SampleDataImporter } from "./components/sample-data-importer"
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
+import { getProducts } from "@/lib/services/product-service"
+import { getCategories } from "@/lib/services/category-service"
+import { Skeleton } from "@/components/ui/skeleton"
+import { ShoppingBag, LayoutGrid, Users, DollarSign } from "lucide-react"
 
-export default function AdminDashboardPage({
-  params,
-}: {
-  params: { tenantId: string }
-}) {
+export default function DashboardPage({ params }: { params: { tenantId: string } }) {
   const { tenantId } = params
   const { currentBranch } = useBranch()
-  const [stats, setStats] = useState({
-    branches: 0,
-    customers: 0,
-  })
   const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
+    totalProducts: 0,
+    totalCategories: 0,
+    featuredProducts: 0,
+  })
+  const [categoryData, setCategoryData] = useState<{ name: string; products: number }[]>([])
 
   useEffect(() => {
-    async function fetchStats() {
-      try {
-        // Contar sucursales
-        const branchesQuery = query(collection(db, `tenants/${tenantId}/branches`), limit(100))
-        const branchesSnapshot = await getDocs(branchesQuery)
-        const branchesCount = branchesSnapshot.size
+    async function loadData() {
+      if (!currentBranch) {
+        setLoading(false)
+        return
+      }
 
-        // Contar clientes
-        const customersQuery = query(collection(db, `tenants/${tenantId}/users`), limit(100))
-        const customersSnapshot = await getDocs(customersQuery)
-        const customersCount = customersSnapshot.size
+      try {
+        setLoading(true)
+
+        // Cargar productos y categorías
+        const products = await getProducts(tenantId, currentBranch.id)
+        const categories = await getCategories(tenantId, currentBranch.id)
+
+        // Calcular estadísticas
+        const featuredProducts = products.filter((p) => p.isFeatured).length
+
+        // Preparar datos para el gráfico
+        const catData = categories.map((category) => {
+          const productsInCategory = products.filter((p) => p.categoryId === category.id).length
+          return {
+            name: category.name,
+            products: productsInCategory,
+          }
+        })
 
         setStats({
-          branches: branchesCount,
-          customers: customersCount,
+          totalProducts: products.length,
+          totalCategories: categories.length,
+          featuredProducts,
         })
+
+        setCategoryData(catData)
       } catch (error) {
-        console.error("Error al cargar estadísticas:", error)
+        console.error("Error al cargar datos del dashboard:", error)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchStats()
-  }, [tenantId])
+    loadData()
+  }, [tenantId, currentBranch])
 
   return (
-    <div>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2 mb-8">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Sucursales</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.branches}</div>
-            <p className="text-xs text-muted-foreground">
-              {currentBranch ? `Sucursal actual: ${currentBranch.name}` : "Ninguna sucursal seleccionada"}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Clientes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.customers}</div>
-            <p className="text-xs text-muted-foreground">+0 nuevos clientes</p>
-          </CardContent>
-        </Card>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
       </div>
 
-      <Tabs defaultValue="overview">
-        <TabsList className="mb-4">
-          <TabsTrigger value="overview">Resumen</TabsTrigger>
-          <TabsTrigger value="branches">Sucursales</TabsTrigger>
-          <TabsTrigger value="customers">Clientes</TabsTrigger>
-        </TabsList>
+      <NoBranchSelectedAlert />
 
-        <TabsContent value="overview">
-          <Card>
-            <CardHeader>
-              <CardTitle>Resumen</CardTitle>
-              <CardDescription>Vista general de tu restaurante</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p>Bienvenido al panel de administración. Aquí podrás gestionar todos los aspectos de tu restaurante.</p>
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <Button asChild variant="outline">
-                  <Link href="/admin/branches">Gestionar Sucursales</Link>
-                </Button>
-                <Button asChild variant="outline">
-                  <Link href="/admin/settings">Configuración</Link>
-                </Button>
-                <Button asChild variant="outline">
-                  <Link href="/" target="_blank" rel="noreferrer">
-                    Ver Sitio Web
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+      {currentBranch && (
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="overview">Resumen</TabsTrigger>
+            <TabsTrigger value="tools">Herramientas</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="branches">
-          <Card>
-            <CardHeader>
-              <CardTitle>Sucursales</CardTitle>
-              <CardDescription>Gestiona las sucursales de tu restaurante</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex justify-end mb-4">
-                <Button asChild>
-                  <Link href="/admin/branches">Gestionar Sucursales</Link>
-                </Button>
-              </div>
-              {stats.branches === 0 ? (
-                <p className="text-center py-8 text-gray-500">No hay sucursales configuradas</p>
-              ) : (
-                <p className="text-center py-8 text-gray-500">
-                  Tienes {stats.branches} sucursal{stats.branches !== 1 ? "es" : ""} configurada
-                  {stats.branches !== 1 ? "s" : ""}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+          <TabsContent value="overview" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <StatsCard
+                title="Productos"
+                value={stats.totalProducts}
+                description="Total de productos"
+                icon={<ShoppingBag className="h-5 w-5 text-blue-600" />}
+                loading={loading}
+              />
+              <StatsCard
+                title="Categorías"
+                value={stats.totalCategories}
+                description="Total de categorías"
+                icon={<LayoutGrid className="h-5 w-5 text-green-600" />}
+                loading={loading}
+              />
+              <StatsCard
+                title="Destacados"
+                value={stats.featuredProducts}
+                description="Productos destacados"
+                icon={<DollarSign className="h-5 w-5 text-yellow-600" />}
+                loading={loading}
+              />
+              <StatsCard
+                title="Clientes"
+                value={0}
+                description="Próximamente"
+                icon={<Users className="h-5 w-5 text-purple-600" />}
+                loading={loading}
+              />
+            </div>
 
-        <TabsContent value="customers">
-          <Card>
-            <CardHeader>
-              <CardTitle>Clientes</CardTitle>
-              <CardDescription>Gestiona tus clientes registrados</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-center py-8 text-gray-500">No hay clientes registrados</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            <Card>
+              <CardHeader>
+                <CardTitle>Productos por Categoría</CardTitle>
+                <CardDescription>Distribución de productos en cada categoría</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <Skeleton className="h-[300px] w-full" />
+                ) : categoryData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={categoryData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 12 }} />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="products" fill="#3b82f6" name="Productos" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex justify-center items-center h-[300px] text-muted-foreground">
+                    No hay datos disponibles
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="tools">
+            <SampleDataImporter tenantId={tenantId} />
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
+  )
+}
+
+function StatsCard({
+  title,
+  value,
+  description,
+  icon,
+  loading,
+}: {
+  title: string
+  value: number
+  description: string
+  icon: React.ReactNode
+  loading: boolean
+}) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        {icon}
+      </CardHeader>
+      <CardContent>
+        {loading ? <Skeleton className="h-8 w-20" /> : <div className="text-2xl font-bold">{value}</div>}
+        <p className="text-xs text-muted-foreground pt-1">{description}</p>
+      </CardContent>
+    </Card>
   )
 }
