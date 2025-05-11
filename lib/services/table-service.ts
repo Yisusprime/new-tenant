@@ -62,7 +62,7 @@ export async function getTable(tenantId: string, branchId: string, tableId: stri
   }
 }
 
-// Función para crear una nueva mesa
+// Modificar la función createTable para eliminar propiedades undefined
 export async function createTable(
   tenantId: string,
   branchId: string,
@@ -76,8 +76,16 @@ export async function createTable(
     const newTableRef = push(tablesRef)
     const tableId = newTableRef.key!
 
+    // Crear un objeto limpio sin propiedades undefined
+    const cleanTableData = { ...tableData }
+
+    // Si location es undefined o vacío, eliminarlo del objeto
+    if (!cleanTableData.location) {
+      delete cleanTableData.location
+    }
+
     const newTable: Omit<Table, "id"> = {
-      ...tableData,
+      ...cleanTableData,
       createdAt: timestamp,
       updatedAt: timestamp,
     }
@@ -95,7 +103,7 @@ export async function createTable(
   }
 }
 
-// Función para actualizar una mesa
+// También modificar la función updateTable para el mismo problema
 export async function updateTable(
   tenantId: string,
   branchId: string,
@@ -114,9 +122,17 @@ export async function updateTable(
 
     const currentTable = snapshot.val()
 
+    // Crear un objeto limpio sin propiedades undefined
+    const cleanTableData = { ...tableData }
+
+    // Si location es undefined o vacío, eliminarlo del objeto
+    if (cleanTableData.location === undefined || cleanTableData.location === "") {
+      delete cleanTableData.location
+    }
+
     // Preparar datos de actualización
     const updatedData = {
-      ...tableData,
+      ...cleanTableData,
       updatedAt: timestamp,
     }
 
