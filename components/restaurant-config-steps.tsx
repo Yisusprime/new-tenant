@@ -4,7 +4,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import {
   Store,
   User,
@@ -18,12 +18,14 @@ import {
   ArrowLeft,
   ArrowRight,
   Save,
+  Table,
 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 import { useBranch } from "@/lib/context/branch-context"
 import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
 import { useToast } from "@/components/ui/use-toast"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface Step {
   id: string
@@ -76,6 +78,13 @@ export function RestaurantConfigSteps({ tenantId, currentStep }: { tenantId: str
       path: `/admin/restaurant/hours`,
       icon: Clock,
       description: "Horarios de apertura y cierre",
+    },
+    {
+      id: "tables",
+      label: "Mesas",
+      path: `/admin/restaurant/tables`,
+      icon: Table,
+      description: "Configuración de mesas disponibles",
     },
     {
       id: "payment",
@@ -197,90 +206,107 @@ export function RestaurantConfigSteps({ tenantId, currentStep }: { tenantId: str
   }
 
   return (
-    <div className="space-y-6">
-      {/* Mostrar alerta si no hay sucursal seleccionada */}
-      <NoBranchSelectedAlert />
-
-      {currentBranch && (
-        <>
-          {/* Tarjeta de progreso */}
-          <Card className="mb-6">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center">
-                {currentStepObj?.icon && <currentStepObj.icon className="mr-2 h-5 w-5" />}
-                {currentStepObj?.label}
-              </CardTitle>
-              <CardDescription>{currentStepObj?.description}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>
-                  Paso {currentIndex + 1} de {steps.length}
-                </span>
-                <span>{calculateProgress()}% completado</span>
+    <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-220px)]">
+      {/* Panel lateral con pasos */}
+      <div className="w-full md:w-64 flex-shrink-0">
+        <Card className="h-full">
+          <CardContent className="p-3 h-full flex flex-col">
+            <div className="mb-3 space-y-1">
+              <div className="flex justify-between text-sm">
+                <span>Progreso</span>
+                <span className="font-medium">{calculateProgress()}%</span>
               </div>
               <Progress value={calculateProgress()} className="h-2" />
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* Navegación de pasos */}
-          <div className="flex flex-wrap gap-2 justify-center mb-6">
-            {steps.map((step, index) => {
-              const isActive = step.id === currentStep
-              const isCompleted = completedSteps.includes(step.id)
+            <ScrollArea className="flex-1 pr-3">
+              <div className="space-y-1">
+                {steps.map((step, index) => {
+                  const isActive = step.id === currentStep
+                  const isCompleted = completedSteps.includes(step.id)
 
-              return (
-                <Button
-                  key={step.id}
-                  variant={isActive ? "default" : isCompleted ? "outline" : "ghost"}
-                  size="sm"
-                  className={cn("flex items-center gap-1 relative", isActive ? "pointer-events-none" : "")}
-                  onClick={() => router.push(step.path)}
-                >
-                  {isCompleted && !isActive && <CheckCircle2 className="h-3 w-3 text-green-500" />}
-                  <step.icon className="h-4 w-4" />
-                  <span className="hidden md:inline">{step.label}</span>
-                  <span className="inline md:hidden">{index + 1}</span>
-                </Button>
-              )
-            })}
-          </div>
-        </>
-      )}
+                  return (
+                    <Button
+                      key={step.id}
+                      variant={isActive ? "default" : isCompleted ? "outline" : "ghost"}
+                      size="sm"
+                      className={cn(
+                        "w-full justify-start text-left h-auto py-2",
+                        isActive ? "pointer-events-none" : "",
+                      )}
+                      onClick={() => router.push(step.path)}
+                    >
+                      <div className="flex items-center w-full">
+                        <div className="flex items-center justify-center w-5 h-5 rounded-full mr-2 text-xs font-medium bg-muted">
+                          {isCompleted ? <CheckCircle2 className="h-3 w-3 text-green-500" /> : index + 1}
+                        </div>
+                        <span className="flex-1 text-sm">{step.label}</span>
+                      </div>
+                    </Button>
+                  )
+                })}
+              </div>
+            </ScrollArea>
 
-      {/* Contenido del paso actual */}
-      <div className="bg-card rounded-lg border p-6 shadow-sm">
-        {/* Aquí va el contenido específico de cada paso */}
-        {/* Este contenido lo proporciona la página que usa este componente */}
-        <div className="min-h-[300px]">{/* Contenido del paso */}</div>
+            <div className="mt-3 pt-3 border-t flex justify-between">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToPreviousStep}
+                disabled={currentStep === steps[0].id || !currentBranch}
+              >
+                <ArrowLeft className="mr-1 h-3 w-3" />
+                Anterior
+              </Button>
+
+              <Button
+                size="sm"
+                onClick={() => {
+                  markStepAsCompleted(currentStep)
+                  goToNextStep()
+                }}
+                disabled={currentStep === steps[steps.length - 1].id || !currentBranch}
+              >
+                Siguiente
+                <ArrowRight className="ml-1 h-3 w-3" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Botones de navegación */}
-      <CardFooter className="flex justify-between pt-6 px-0">
-        <Button variant="outline" onClick={goToPreviousStep} disabled={currentStep === steps[0].id || !currentBranch}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Anterior
-        </Button>
+      {/* Contenido principal */}
+      <div className="flex-1">
+        <Card className="h-full">
+          <CardContent className="p-4 h-full overflow-auto">
+            <div className="flex items-center mb-4">
+              {currentStepObj?.icon && <currentStepObj.icon className="mr-2 h-5 w-5 text-muted-foreground" />}
+              <div>
+                <h2 className="text-lg font-medium">{currentStepObj?.label}</h2>
+                <p className="text-sm text-muted-foreground">{currentStepObj?.description}</p>
+              </div>
+            </div>
 
-        <div className="flex gap-2">
-          <Button variant="default" onClick={() => markStepAsCompleted(currentStep)} disabled={!currentBranch}>
-            <Save className="mr-2 h-4 w-4" />
-            Guardar
-          </Button>
+            <div className="space-y-4">
+              {/* Aquí va el contenido específico de cada paso */}
+              {/* Este contenido lo proporciona la página que usa este componente */}
+              <NoBranchSelectedAlert />
 
-          <Button
-            variant="default"
-            onClick={() => {
-              markStepAsCompleted(currentStep)
-              goToNextStep()
-            }}
-            disabled={currentStep === steps[steps.length - 1].id || !currentBranch}
-          >
-            Siguiente
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        </div>
-      </CardFooter>
+              <div className="min-h-[300px]">
+                {/* Contenido del paso */}
+                {/* Slot para el contenido */}
+              </div>
+
+              <div className="flex justify-end pt-4 border-t">
+                <Button onClick={() => markStepAsCompleted(currentStep)} disabled={!currentBranch} className="ml-auto">
+                  <Save className="mr-2 h-4 w-4" />
+                  Guardar Cambios
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
