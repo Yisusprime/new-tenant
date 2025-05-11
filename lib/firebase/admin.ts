@@ -39,6 +39,7 @@ if (!apps.length) {
 // Exportar servicios
 export const adminAuth = firebaseAdmin.auth()
 export const adminDb = firebaseAdmin.firestore()
+export const db = adminDb // Añadir esta línea para exportar db como alias de adminDb
 export const adminStorage = firebaseAdmin.storage()
 
 export default firebaseAdmin

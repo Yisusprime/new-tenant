@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { AlertCircle } from "lucide-react"
 import Link from "next/link"
 
+// Exportación nombrada para mantener compatibilidad con el código existente
 export function NoBranchSelectedAlert() {
   const { currentBranch, loading, hasActiveBranches } = useBranch()
 
@@ -44,3 +45,6 @@ export function NoBranchSelectedAlert() {
     </Alert>
   )
 }
+
+// También exportamos como default para mayor flexibilidad
+export default NoBranchSelectedAlert
