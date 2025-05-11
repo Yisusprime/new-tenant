@@ -362,3 +362,26 @@ export async function initializeRestaurantConfig(
     throw error
   }
 }
+
+export async function updateRestaurantConfig(
+  tenantId: string,
+  branchId: string,
+  config: RestaurantConfig,
+): Promise<void> {
+  try {
+    if (!branchId) {
+      throw new Error("No se proporcionó ID de sucursal")
+    }
+
+    console.log(`Actualizando configuración para tenant: ${tenantId}, sucursal: ${branchId}`)
+
+    const configRef = doc(db, `tenants/${tenantId}/branches/${branchId}/config`, "restaurant")
+
+    await setDoc(configRef, config, { merge: true })
+
+    console.log(`Configuración actualizada correctamente para sucursal ${branchId}`)
+  } catch (error) {
+    console.error("Error al actualizar configuración del restaurante:", error)
+    throw error
+  }
+}

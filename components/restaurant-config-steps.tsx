@@ -1,41 +1,103 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Store, User, Truck, MapPin, Clock, CreditCard, Globe, CheckCircle2, Loader2 } from "lucide-react"
-import Link from "next/link"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Store,
+  User,
+  Truck,
+  MapPin,
+  Clock,
+  CreditCard,
+  Globe,
+  CheckCircle2,
+  Loader2,
+  ArrowLeft,
+  ArrowRight,
+  Save,
+} from "lucide-react"
+import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 import { useBranch } from "@/lib/context/branch-context"
 import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
+import { useToast } from "@/components/ui/use-toast"
 
 interface Step {
   id: string
   label: string
   path: string
   icon: React.ElementType
+  description: string
 }
 
 export function RestaurantConfigSteps({ tenantId, currentStep }: { tenantId: string; currentStep: string }) {
   const router = useRouter()
-  const pathname = usePathname()
   const [completedSteps, setCompletedSteps] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const { currentBranch } = useBranch()
+  const { toast } = useToast()
 
-  // Definir los pasos de configuración
+  // Definir los pasos de configuración con descripciones
   const steps: Step[] = [
-    { id: "basic", label: "Información Básica", path: `/admin/restaurant/basic`, icon: Store },
-    { id: "contact", label: "Contacto", path: `/admin/restaurant/contact`, icon: User },
-    { id: "service", label: "Métodos de Servicio", path: `/admin/restaurant/service`, icon: Truck },
-    { id: "location", label: "Ubicación", path: `/admin/restaurant/location`, icon: MapPin },
-    { id: "hours", label: "Horarios", path: `/admin/restaurant/hours`, icon: Clock },
-    { id: "payment", label: "Pagos", path: `/admin/restaurant/payment`, icon: CreditCard },
-    { id: "delivery", label: "Delivery", path: `/admin/restaurant/delivery`, icon: Truck },
-    { id: "social", label: "Redes Sociales", path: `/admin/restaurant/social`, icon: Globe },
+    {
+      id: "basic",
+      label: "Información Básica",
+      path: `/admin/restaurant/basic`,
+      icon: Store,
+      description: "Nombre, descripción y logo del restaurante",
+    },
+    {
+      id: "contact",
+      label: "Contacto",
+      path: `/admin/restaurant/contact`,
+      icon: User,
+      description: "Teléfono, email y persona de contacto",
+    },
+    {
+      id: "service",
+      label: "Métodos de Servicio",
+      path: `/admin/restaurant/service`,
+      icon: Truck,
+      description: "Opciones de servicio disponibles",
+    },
+    {
+      id: "location",
+      label: "Ubicación",
+      path: `/admin/restaurant/location`,
+      icon: MapPin,
+      description: "Dirección y ubicación en el mapa",
+    },
+    {
+      id: "hours",
+      label: "Horarios",
+      path: `/admin/restaurant/hours`,
+      icon: Clock,
+      description: "Horarios de apertura y cierre",
+    },
+    {
+      id: "payment",
+      label: "Pagos",
+      path: `/admin/restaurant/payment`,
+      icon: CreditCard,
+      description: "Métodos de pago aceptados",
+    },
+    {
+      id: "delivery",
+      label: "Delivery",
+      path: `/admin/restaurant/delivery`,
+      icon: Truck,
+      description: "Configuración de entrega a domicilio",
+    },
+    {
+      id: "social",
+      label: "Redes Sociales",
+      path: `/admin/restaurant/social`,
+      icon: Globe,
+      description: "Enlaces a redes sociales",
+    },
   ]
 
   // Cargar los pasos completados desde localStorage
@@ -90,6 +152,11 @@ export function RestaurantConfigSteps({ tenantId, currentStep }: { tenantId: str
 
       const branchKey = `${tenantId}_${currentBranch.id}_completedConfigSteps`
       localStorage.setItem(branchKey, JSON.stringify(newCompletedSteps))
+
+      toast({
+        title: "Sección completada",
+        description: "Los cambios han sido guardados correctamente",
+      })
     }
   }
 
@@ -111,6 +178,15 @@ export function RestaurantConfigSteps({ tenantId, currentStep }: { tenantId: str
     }
   }
 
+  // Calcular el progreso
+  const calculateProgress = () => {
+    return Math.round((completedSteps.length / steps.length) * 100)
+  }
+
+  // Obtener el paso actual
+  const currentStepObj = steps.find((step) => step.id === currentStep)
+  const currentIndex = steps.findIndex((step) => step.id === currentStep)
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-20">
@@ -125,52 +201,86 @@ export function RestaurantConfigSteps({ tenantId, currentStep }: { tenantId: str
       {/* Mostrar alerta si no hay sucursal seleccionada */}
       <NoBranchSelectedAlert />
 
-      <Card className="p-4">
-        <div className="flex flex-wrap gap-2 justify-center">
-          {steps.map((step, index) => {
-            const isActive = step.id === currentStep
-            const isCompleted = completedSteps.includes(step.id)
-
-            return (
-              <Link
-                key={step.id}
-                href={step.path}
-                className={cn(
-                  "flex flex-col items-center p-2 rounded-md transition-colors relative min-w-[100px]",
-                  isActive
-                    ? "bg-primary text-primary-foreground"
-                    : isCompleted
-                      ? "bg-green-50 text-green-700 hover:bg-green-100"
-                      : "bg-gray-50 hover:bg-gray-100",
-                )}
-              >
-                {isCompleted && <CheckCircle2 className="absolute top-1 right-1 h-4 w-4 text-green-500" />}
-                <step.icon className={cn("h-6 w-6 mb-1", isActive ? "text-primary-foreground" : "")} />
-                <span className="text-xs text-center">{step.label}</span>
-                <span className="text-xs mt-1">
-                  {index + 1}/{steps.length}
+      {currentBranch && (
+        <>
+          {/* Tarjeta de progreso */}
+          <Card className="mb-6">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center">
+                {currentStepObj?.icon && <currentStepObj.icon className="mr-2 h-5 w-5" />}
+                {currentStepObj?.label}
+              </CardTitle>
+              <CardDescription>{currentStepObj?.description}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <span>
+                  Paso {currentIndex + 1} de {steps.length}
                 </span>
-              </Link>
-            )
-          })}
-        </div>
-      </Card>
+                <span>{calculateProgress()}% completado</span>
+              </div>
+              <Progress value={calculateProgress()} className="h-2" />
+            </CardContent>
+          </Card>
+
+          {/* Navegación de pasos */}
+          <div className="flex flex-wrap gap-2 justify-center mb-6">
+            {steps.map((step, index) => {
+              const isActive = step.id === currentStep
+              const isCompleted = completedSteps.includes(step.id)
+
+              return (
+                <Button
+                  key={step.id}
+                  variant={isActive ? "default" : isCompleted ? "outline" : "ghost"}
+                  size="sm"
+                  className={cn("flex items-center gap-1 relative", isActive ? "pointer-events-none" : "")}
+                  onClick={() => router.push(step.path)}
+                >
+                  {isCompleted && !isActive && <CheckCircle2 className="h-3 w-3 text-green-500" />}
+                  <step.icon className="h-4 w-4" />
+                  <span className="hidden md:inline">{step.label}</span>
+                  <span className="inline md:hidden">{index + 1}</span>
+                </Button>
+              )
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Contenido del paso actual */}
+      <div className="bg-card rounded-lg border p-6 shadow-sm">
+        {/* Aquí va el contenido específico de cada paso */}
+        {/* Este contenido lo proporciona la página que usa este componente */}
+        <div className="min-h-[300px]">{/* Contenido del paso */}</div>
+      </div>
 
       {/* Botones de navegación */}
-      <div className="flex justify-between mt-6">
+      <CardFooter className="flex justify-between pt-6 px-0">
         <Button variant="outline" onClick={goToPreviousStep} disabled={currentStep === steps[0].id || !currentBranch}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
           Anterior
         </Button>
-        <Button
-          onClick={() => {
-            markStepAsCompleted(currentStep)
-            goToNextStep()
-          }}
-          disabled={currentStep === steps[steps.length - 1].id || !currentBranch}
-        >
-          Siguiente
-        </Button>
-      </div>
+
+        <div className="flex gap-2">
+          <Button variant="default" onClick={() => markStepAsCompleted(currentStep)} disabled={!currentBranch}>
+            <Save className="mr-2 h-4 w-4" />
+            Guardar
+          </Button>
+
+          <Button
+            variant="default"
+            onClick={() => {
+              markStepAsCompleted(currentStep)
+              goToNextStep()
+            }}
+            disabled={currentStep === steps[steps.length - 1].id || !currentBranch}
+          >
+            Siguiente
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      </CardFooter>
     </div>
   )
 }
