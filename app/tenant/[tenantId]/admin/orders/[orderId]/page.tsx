@@ -20,11 +20,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { ArrowLeft, Loader2, Printer } from "lucide-react"
+import { ArrowLeft, Loader2, Printer, Utensils } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PrintTicketDialog } from "@/components/print-ticket-dialog"
+import { PrintCommandDialog } from "@/components/print-command-dialog"
 import { usePrintTicket } from "@/lib/hooks/use-print-ticket"
 
 export default function OrderDetailsPage({ params }: { params: { tenantId: string; orderId: string } }) {
@@ -35,7 +36,8 @@ export default function OrderDetailsPage({ params }: { params: { tenantId: strin
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const { isPrintDialogOpen, setIsPrintDialogOpen, restaurantInfo } = usePrintTicket(tenantId, currentBranch?.id || "")
+  const { isPrintDialogOpen, setIsPrintDialogOpen, isCommandDialogOpen, setIsCommandDialogOpen, restaurantInfo } =
+    usePrintTicket(tenantId, currentBranch?.id || "")
 
   useEffect(() => {
     if (currentBranch) {
@@ -348,10 +350,24 @@ export default function OrderDetailsPage({ params }: { params: { tenantId: strin
                 {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Eliminar Pedido
               </Button>
-              <Button variant="outline" onClick={() => setIsPrintDialogOpen(true)}>
-                <Printer className="mr-2 h-4 w-4" />
-                Imprimir Ticket
-              </Button>
+              <div className="flex gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setIsPrintDialogOpen(true)}
+                  title="Imprimir Ticket"
+                >
+                  <Printer className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setIsCommandDialogOpen(true)}
+                  title="Imprimir Comanda"
+                >
+                  <Utensils className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
@@ -410,6 +426,13 @@ export default function OrderDetailsPage({ params }: { params: { tenantId: strin
         restaurantAddress={restaurantInfo.address}
         restaurantPhone={restaurantInfo.phone}
         restaurantLogo={restaurantInfo.logo}
+      />
+
+      <PrintCommandDialog
+        order={order}
+        open={isCommandDialogOpen}
+        onOpenChange={setIsCommandDialogOpen}
+        restaurantName={restaurantInfo.name}
       />
     </div>
   )

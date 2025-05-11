@@ -6,12 +6,18 @@ import type { Order } from "@/lib/types/order"
 
 export function usePrintTicket(tenantId: string, branchId: string) {
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false)
+  const [isCommandDialogOpen, setIsCommandDialogOpen] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const { config } = useRestaurantConfig(tenantId, branchId)
 
   const openPrintDialog = (order: Order) => {
     setSelectedOrder(order)
     setIsPrintDialogOpen(true)
+  }
+
+  const openCommandDialog = (order: Order) => {
+    setSelectedOrder(order)
+    setIsCommandDialogOpen(true)
   }
 
   const getRestaurantInfo = () => {
@@ -37,8 +43,11 @@ export function usePrintTicket(tenantId: string, branchId: string) {
   return {
     isPrintDialogOpen,
     setIsPrintDialogOpen,
+    isCommandDialogOpen,
+    setIsCommandDialogOpen,
     selectedOrder,
     openPrintDialog,
+    openCommandDialog,
     restaurantInfo: getRestaurantInfo(),
   }
 }
