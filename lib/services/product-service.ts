@@ -466,19 +466,3 @@ export async function getProductsBySubcategory(
     throw error
   }
 }
-
-// Añadir la exportación de productService como una exportación nombrada al final del archivo
-export const productService = {
-  getProducts,
-  getProduct,
-  createProduct,
-  updateProduct,
-  deleteProduct,
-  getProductExtras,
-  getProductExtra,
-  createProductExtra,
-  updateProductExtra,
-  deleteProductExtra,
-  getProductsByCategory,
-  getProductsBySubcategory,
-}
