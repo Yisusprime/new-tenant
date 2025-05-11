@@ -54,6 +54,11 @@ export function OrderSummary({
     return formatCurrency(amount, currencyCode)
   }
 
+  // Verificación adicional para debugging
+  console.log("OrderSummary - taxEnabled:", taxEnabled)
+  console.log("OrderSummary - taxIncluded:", taxIncluded)
+  console.log("OrderSummary - taxAmount:", taxAmount)
+
   return (
     <Card className="w-full">
       <CardHeader>
@@ -124,7 +129,7 @@ export function OrderSummary({
           </div>
 
           {/* Solo mostrar el IVA si está activado Y no está incluido en los precios */}
-          {taxEnabled && !taxIncluded && taxAmount > 0 && (
+          {taxEnabled === true && !taxIncluded && (
             <div className="flex justify-between text-sm">
               <span>IVA ({(taxRate * 100).toFixed(0)}%):</span>
               <span>{formatMoney(taxAmount)}</span>

@@ -33,6 +33,7 @@ export interface Order {
   tax: number
   total: number
   taxIncluded: boolean
+  taxEnabled?: boolean // Añadido para saber si el IVA está activado
   customerName?: string
   customerPhone?: string
   customerEmail?: string
@@ -69,6 +70,7 @@ export interface OrderFormData {
   tax?: number
   total?: number
   taxIncluded?: boolean
+  taxEnabled?: boolean // Añadido para saber si el IVA está activado
   tip?: number
   coupon?: {
     code: string

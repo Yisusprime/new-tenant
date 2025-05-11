@@ -302,7 +302,7 @@ export async function initializeRestaurantConfig(
         name: restaurantName,
         shortDescription: "",
         localId: tenantId,
-        taxEnabled: true, // IVA activado por defecto
+        taxEnabled: false, // IVA desactivado por defecto
         taxIncluded: true, // IVA incluido en los precios por defecto
         currencyCode: "CLP", // Peso chileno por defecto
         taxRate: 0.19, // 19% por defecto (Chile)
