@@ -466,3 +466,18 @@ export async function getProductsBySubcategory(
     throw error
   }
 }
+
+export const ProductService = {
+  getProducts,
+  getProduct,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  getProductExtras,
+  getProductExtra,
+  createProductExtra,
+  updateProductExtra,
+  deleteProductExtra,
+  getProductsByCategory,
+  getProductsBySubcategory,
+}
