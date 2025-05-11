@@ -30,6 +30,7 @@ import {
   Table,
   ChevronLeft,
   ChevronRight,
+  DollarSign,
 } from "lucide-react"
 import Link from "next/link"
 import { BranchProvider, useBranch } from "@/lib/context/branch-context"
@@ -263,6 +264,7 @@ function AdminLayoutContent({
     { path: "/dashboard", label: "Dashboard", icon: Home },
     { type: "separator", label: "Gestión" },
     { path: "/orders", label: "Pedidos", icon: ShoppingBag },
+    { path: "/cashier", label: "Caja", icon: DollarSign },
     { path: "/products", label: "Productos", icon: Store },
     { path: "/categories", label: "Categorías", icon: FolderTree },
     { path: "/branches", label: "Sucursales", icon: MapPin },

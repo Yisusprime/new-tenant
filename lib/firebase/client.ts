@@ -1,8 +1,8 @@
 import { initializeApp, getApps, getApp } from "firebase/app"
 import { getAuth } from "firebase/auth"
 import { getFirestore } from "firebase/firestore"
-import { getDatabase } from "firebase/database"
 import { getStorage } from "firebase/storage"
+import { getDatabase } from "firebase/database"
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -14,13 +14,13 @@ const firebaseConfig = {
   databaseURL: `https://${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}-default-rtdb.firebaseio.com`,
 }
 
-// Initialize Firebase
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig)
+// Inicializar Firebase
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp()
 
-// Initialize Firebase services
-const auth = getAuth(app)
-const db = getFirestore(app)
-const realtimeDb = getDatabase(app)
-const storage = getStorage(app)
+// Exportar servicios
+export const auth = getAuth(app)
+export const db = getFirestore(app)
+export const storage = getStorage(app)
+export const realtimeDb = getDatabase(app)
 
-export { auth, db, realtimeDb, storage }
+export default app
