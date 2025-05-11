@@ -3,14 +3,16 @@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface OrderTabsProps {
+  tenantId: string
+  branchId: string
   activeTab: string
-  onTabChange: (value: string) => void
+  onTabChange: (tab: string) => void
 }
 
-export function OrderTabs({ activeTab, onTabChange }: OrderTabsProps) {
+export function OrderTabs({ tenantId, branchId, activeTab, onTabChange }: OrderTabsProps) {
   return (
-    <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-      <TabsList className="grid grid-cols-4 w-full md:w-auto">
+    <Tabs defaultValue={activeTab} onValueChange={onTabChange} className="w-full">
+      <TabsList className="grid grid-cols-4 mb-4">
         <TabsTrigger value="all">Todos</TabsTrigger>
         <TabsTrigger value="dine_in">Mesas</TabsTrigger>
         <TabsTrigger value="takeaway">Para llevar</TabsTrigger>

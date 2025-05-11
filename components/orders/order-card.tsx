@@ -3,10 +3,9 @@
 import { useState } from "react"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import type { Order, OrderStatus } from "@/lib/types/order"
+import { type Order, type OrderStatus, updateOrderStatus } from "@/lib/services/order-service"
 import { OrderStatusBadge } from "./order-status-badge"
 import { OrderTypeBadge } from "./order-type-badge"
-import { updateOrderStatus } from "@/lib/services/order-service"
 import { toast } from "@/hooks/use-toast"
 import { Loader2, MoreHorizontal } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -80,14 +79,19 @@ export function OrderCard({ order, tenantId, branchId, onStatusUpdate }: OrderCa
   }
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return new Intl.DateTimeFormat("es", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(date)
+    try {
+      const date = new Date(dateString)
+      return new Intl.DateTimeFormat("es", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(date)
+    } catch (error) {
+      console.error("Error formatting date:", error)
+      return "Fecha desconocida"
+    }
   }
 
   const nextStatuses = getNextStatuses()
@@ -131,13 +135,13 @@ export function OrderCard({ order, tenantId, branchId, onStatusUpdate }: OrderCa
           <div>
             <div className="font-medium mb-1">Productos:</div>
             <ul className="space-y-1 text-sm">
-              {order.items.map((item) => (
-                <li key={item.id} className="flex justify-between">
+              {order.items.map((item, index) => (
+                <li key={item.id || index} className="flex justify-between">
                   <span>
                     {item.quantity}x {item.productName}
                     {item.notes && <span className="text-xs text-muted-foreground block">{item.notes}</span>}
                   </span>
-                  <span>${item.subtotal.toFixed(2)}</span>
+                  <span>${(item.subtotal || item.price * item.quantity).toFixed(2)}</span>
                 </li>
               ))}
             </ul>
@@ -146,11 +150,11 @@ export function OrderCard({ order, tenantId, branchId, onStatusUpdate }: OrderCa
           <div className="border-t pt-2">
             <div className="flex justify-between text-sm">
               <span>Subtotal:</span>
-              <span>${order.subtotal.toFixed(2)}</span>
+              <span>${(order.subtotal || 0).toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span>Impuestos:</span>
-              <span>${order.tax.toFixed(2)}</span>
+              <span>${(order.tax || 0).toFixed(2)}</span>
             </div>
             {order.deliveryFee !== undefined && (
               <div className="flex justify-between text-sm">
