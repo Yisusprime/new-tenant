@@ -78,7 +78,7 @@ export function CreateOrderDialog({
   const [deliveryCity, setDeliveryCity] = useState("")
   const [deliveryZipCode, setDeliveryZipCode] = useState("")
   const [deliveryNotes, setDeliveryNotes] = useState("")
-  const [paymentMethod, setPaymentMethod] = useState("")
+  const [paymentMethod, setPaymentMethod] = useState("cash") // Cambia de "" a "cash"
   const [productSelectorOpen, setProductSelectorOpen] = useState(false)
 
   // Estados para propinas y cupones
@@ -102,6 +102,8 @@ export function CreateOrderDialog({
       if (selectedTable) {
         setOrderType("table")
         setSelectedTableId(selectedTable.id)
+        // Establecer un método de pago por defecto para evitar el error de Select.Item
+        setPaymentMethod("cash")
       }
     }
   }, [open, tenantId, branchId, selectedTable])
@@ -344,7 +346,7 @@ export function CreateOrderDialog({
     setDeliveryCity("")
     setDeliveryZipCode("")
     setDeliveryNotes("")
-    setPaymentMethod("")
+    setPaymentMethod("cash")
     setTipAmount(0)
     setTipPercentage(0)
     setCouponCode("")
