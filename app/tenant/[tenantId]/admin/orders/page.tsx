@@ -123,18 +123,18 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
     })
   }
 
-  const handleTestSound = async () => {
-    const success = await playNotificationSound()
+  const handleTestSound = () => {
+    const success = playNotificationSound()
     if (success) {
       toast({
-        title: "Sonido reproducido",
-        description: "El sonido de notificación se ha reproducido correctamente",
+        title: "Reproduciendo sonido",
+        description: "Si no escuchas nada, verifica el volumen de tu dispositivo",
         variant: "default",
       })
     } else {
       toast({
         title: "Error al reproducir sonido",
-        description: "Intenta hacer clic en alguna parte de la página primero o recarga la página",
+        description: "El sonido no está disponible o no se ha cargado correctamente",
         variant: "destructive",
       })
     }
@@ -179,14 +179,6 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
               Reintentar
             </Button>
           </AlertDescription>
-        </Alert>
-      )}
-
-      {!soundLoaded && !soundError && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Cargando sonido</AlertTitle>
-          <AlertDescription>El sonido de notificación se está cargando...</AlertDescription>
         </Alert>
       )}
 
