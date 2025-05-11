@@ -120,7 +120,17 @@ export function TablesList({ tables, orders, tenantId, branchId, onCreateOrder, 
                   <Button
                     variant="default"
                     className="w-full"
-                    onClick={() => onCreateOrder(table)}
+                    onClick={() => {
+                      // Verificar que la mesa tenga un ID válido
+                      if (table && table.id) {
+                        onCreateOrder(table)
+                      } else {
+                        console.error("Error: Mesa sin ID válido", table)
+                        alert(
+                          "Error: No se puede crear un pedido para esta mesa. Por favor, recargue la página e intente nuevamente.",
+                        )
+                      }
+                    }}
                     disabled={table.status === "maintenance"}
                   >
                     <Plus className="h-4 w-4 mr-2" />

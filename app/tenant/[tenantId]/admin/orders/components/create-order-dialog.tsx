@@ -91,6 +91,14 @@ export function CreateOrderDialog({
   const [currentStep, setCurrentStep] = useState(1)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  // Asegurarnos de que selectedTableId nunca sea una cadena vacía
+  useEffect(() => {
+    if (selectedTableId === "") {
+      console.warn("selectedTableId es una cadena vacía, estableciendo a null")
+      setSelectedTableId("no-selection")
+    }
+  }, [selectedTableId])
+
   // Cargar datos al abrir el diálogo
   useEffect(() => {
     if (open) {
@@ -99,11 +107,14 @@ export function CreateOrderDialog({
       loadTables()
 
       // Si hay una mesa seleccionada, establecer el tipo de pedido a "table"
-      if (selectedTable) {
+      if (selectedTable && selectedTable.id) {
         setOrderType("table")
         setSelectedTableId(selectedTable.id)
         // Establecer un método de pago por defecto para evitar el error de Select.Item
         setPaymentMethod("cash")
+        console.log("Mesa seleccionada:", selectedTable)
+      } else if (selectedTable) {
+        console.error("Error: Mesa seleccionada sin ID", selectedTable)
       }
     }
   }, [open, tenantId, branchId, selectedTable])
@@ -419,22 +430,33 @@ export function CreateOrderDialog({
               <Home className="w-4 h-4 mr-2" />
               Mesa <span className="text-red-500 ml-1">*</span>
             </Label>
-            <Select value={selectedTableId} onValueChange={setSelectedTableId}>
+            <Select
+              value={selectedTableId || "no-selection"}
+              onValueChange={(value) => {
+                console.log("Mesa seleccionada:", value)
+                setSelectedTableId(value)
+              }}
+            >
               <SelectTrigger id="tableId" className={errors.tableId ? "border-red-500" : ""}>
                 <SelectValue placeholder="Seleccionar mesa" />
               </SelectTrigger>
               <SelectContent>
                 {tables.length === 0 ? (
-                  <SelectItem value="" disabled>
+                  <SelectItem value="no-tables" disabled>
                     No hay mesas disponibles
                   </SelectItem>
                 ) : (
-                  tables.map((table) => (
-                    <SelectItem key={table.id} value={table.id}>
-                      Mesa {table.number} ({table.capacity} personas)
-                    </SelectItem>
-                  ))
+                  tables
+                    .filter((table) => !!table.id)
+                    .map((table) => (
+                      <SelectItem key={table.id} value={table.id}>
+                        Mesa {table.number} ({table.capacity} personas)
+                      </SelectItem>
+                    ))
                 )}
+                <SelectItem value="no-selection" disabled className="hidden">
+                  Seleccionar mesa
+                </SelectItem>
               </SelectContent>
             </Select>
             {errors.tableId && <p className="text-red-500 text-sm">{errors.tableId}</p>}

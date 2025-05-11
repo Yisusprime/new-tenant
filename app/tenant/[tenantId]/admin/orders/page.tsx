@@ -106,6 +106,19 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
     setCreateDialogOpen(true)
   }
 
+  // Función para crear un pedido desde una mesa específica
+  const handleCreateTableOrder = (table: Table) => {
+    // Verificar que la mesa tenga un ID válido
+    if (!table || !table.id) {
+      console.error("Error: Intento de crear pedido con mesa inválida", table)
+      return
+    }
+
+    console.log("Creando pedido para mesa:", table)
+    setSelectedTable(table)
+    setCreateDialogOpen(true)
+  }
+
   const handleToggleNotifications = () => {
     const isEnabled = toggleNotifications()
     setNotificationsOn(isEnabled)
@@ -188,7 +201,7 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
                     orders={tableOrders}
                     tenantId={tenantId}
                     branchId={currentBranch.id}
-                    onCreateOrder={handleCreateOrderForTable}
+                    onCreateOrder={handleCreateTableOrder}
                     onStatusChange={handleStatusChange}
                   />
                 )}
