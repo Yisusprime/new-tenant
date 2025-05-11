@@ -28,6 +28,8 @@ import {
   FolderTree,
   ShoppingBag,
   Table,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import Link from "next/link"
 import { BranchProvider, useBranch } from "@/lib/context/branch-context"
@@ -127,9 +129,28 @@ function AdminLayoutContent({
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
   const [tenantData, setTenantData] = useState<any>(null)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    // En el cliente, verificar localStorage y tamaño de pantalla
+    if (typeof window !== "undefined") {
+      // Si es móvil, iniciar cerrado
+      if (window.innerWidth < 768) return false
+      // Si hay preferencia guardada, usarla
+      const saved = localStorage.getItem("sidebarOpen")
+      return saved !== null ? saved === "true" : true
+    }
+    return true
+  })
   const [configOpen, setConfigOpen] = useState(false)
   const [restaurantConfigOpen, setRestaurantConfigOpen] = useState(false)
+
+  // Función para actualizar el estado del sidebar
+  const toggleSidebar = () => {
+    const newState = !sidebarOpen
+    setSidebarOpen(newState)
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sidebarOpen", String(newState))
+    }
+  }
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -159,6 +180,30 @@ function AdminLayoutContent({
 
     return () => unsubscribe()
   }, [tenantId])
+
+  useEffect(() => {
+    // Cerrar sidebar automáticamente en móvil cuando cambia la ruta
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setSidebarOpen(false)
+    }
+  }, [pathname])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Solo en móvil
+      if (typeof window !== "undefined" && window.innerWidth < 768 && sidebarOpen) {
+        const sidebar = document.getElementById("admin-sidebar")
+        if (sidebar && !sidebar.contains(event.target as Node)) {
+          setSidebarOpen(false)
+        }
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [sidebarOpen])
 
   const handleLogout = async () => {
     try {
@@ -247,12 +292,20 @@ function AdminLayoutContent({
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${
+        id="admin-sidebar"
+        className={`fixed inset-y-0 left-0 z-50 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } md:relative md:translate-x-0`}
+        } md:relative md:translate-x-0 ${sidebarOpen ? "w-64" : "w-20"}`}
       >
         <div className="flex items-center justify-between h-16 px-4 border-b">
-          <div className="font-bold text-xl truncate">{tenantData?.name || tenantId}</div>
+          <div className={`font-bold text-xl truncate ${!sidebarOpen && "md:hidden"}`}>
+            {tenantData?.name || tenantId}
+          </div>
+          {!sidebarOpen && (
+            <div className="hidden md:flex justify-center w-full">
+              <span className="font-bold text-xl">{(tenantData?.name || tenantId).charAt(0)}</span>
+            </div>
+          )}
           <button
             onClick={() => setSidebarOpen(false)}
             className="p-1 rounded-md hover:bg-gray-200 md:hidden"
@@ -282,16 +335,17 @@ function AdminLayoutContent({
                     className={`flex items-center px-4 py-2 rounded-md transition-colors ${
                       isActive(item.path) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
                     }`}
+                    title={item.label}
                   >
-                    <item.icon className="mr-3 h-5 w-5" />
-                    {item.label}
+                    <item.icon className={`${sidebarOpen ? "mr-3" : "mx-auto"} h-5 w-5`} />
+                    {sidebarOpen && <span>{item.label}</span>}
                   </Link>
                 </li>
               )
             })}
 
             {/* Menú desplegable de configuración de usuario */}
-            <li>
+            <li className={!sidebarOpen ? "md:hidden" : ""}>
               <Collapsible
                 open={configOpen || isGroupActive(["/settings"])}
                 onOpenChange={setConfigOpen}
@@ -331,7 +385,7 @@ function AdminLayoutContent({
             </li>
 
             {/* Menú desplegable de configuración del restaurante */}
-            <li>
+            <li className={!sidebarOpen ? "md:hidden" : ""}>
               <Collapsible
                 open={restaurantConfigOpen || isGroupActive(["/restaurant"])}
                 onOpenChange={setRestaurantConfigOpen}
@@ -371,26 +425,67 @@ function AdminLayoutContent({
                 </CollapsibleContent>
               </Collapsible>
             </li>
+
+            {!sidebarOpen && (
+              <li className="hidden md:block">
+                <Link
+                  href={`/admin/settings/profile`}
+                  className={`flex items-center justify-center px-4 py-2 rounded-md transition-colors ${
+                    isGroupActive(["/settings"]) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
+                  }`}
+                  title="Configuración"
+                >
+                  <Settings className="h-5 w-5" />
+                </Link>
+              </li>
+            )}
+
+            {!sidebarOpen && (
+              <li className="hidden md:block">
+                <Link
+                  href={`/admin/restaurant/basic`}
+                  className={`flex items-center justify-center px-4 py-2 rounded-md transition-colors ${
+                    isGroupActive(["/restaurant"]) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
+                  }`}
+                  title="Restaurante"
+                >
+                  <Store className="h-5 w-5" />
+                </Link>
+              </li>
+            )}
           </ul>
         </nav>
 
         <div className="absolute bottom-0 w-full p-4 border-t bg-white">
-          <div className="flex items-center mb-4">
-            <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center mr-2">
-              {user?.email?.charAt(0).toUpperCase() || "U"}
-            </div>
-            <div className="truncate">
-              <div className="font-medium truncate">{user?.email}</div>
-              <div className="text-xs text-gray-500 flex items-center gap-2">
-                <span>Administrador</span>
-                <PlanBadge />
+          {sidebarOpen ? (
+            <>
+              <div className="flex items-center mb-4">
+                <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center mr-2">
+                  {user?.email?.charAt(0).toUpperCase() || "U"}
+                </div>
+                <div className="truncate">
+                  <div className="font-medium truncate">{user?.email}</div>
+                  <div className="text-xs text-gray-500 flex items-center gap-2">
+                    <span>Administrador</span>
+                    <PlanBadge />
+                  </div>
+                </div>
               </div>
+              <Button variant="outline" className="w-full flex items-center justify-center" onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Cerrar Sesión
+              </Button>
+            </>
+          ) : (
+            <div className="flex flex-col items-center">
+              <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center mb-2">
+                {user?.email?.charAt(0).toUpperCase() || "U"}
+              </div>
+              <Button variant="outline" size="icon" className="w-10 h-10" onClick={handleLogout} title="Cerrar Sesión">
+                <LogOut className="h-4 w-4" />
+              </Button>
             </div>
-          </div>
-          <Button variant="outline" className="w-full flex items-center justify-center" onClick={handleLogout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Cerrar Sesión
-          </Button>
+          )}
         </div>
       </div>
 
@@ -403,6 +498,13 @@ function AdminLayoutContent({
             aria-label="Abrir menú"
           >
             <Menu size={24} />
+          </button>
+          <button
+            onClick={toggleSidebar}
+            className="p-1 mr-4 rounded-md hover:bg-gray-200 hidden md:flex"
+            aria-label={sidebarOpen ? "Contraer menú" : "Expandir menú"}
+          >
+            {sidebarOpen ? <ChevronLeft size={24} /> : <ChevronRight size={24} />}
           </button>
           <h1 className="text-xl font-semibold">Panel de Administración</h1>
           <div className="ml-auto">
