@@ -17,9 +17,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "@/components/ui/use-toast"
 import { useOrderNotifications } from "@/lib/hooks/use-order-notifications"
 import { VisualNotification } from "@/components/visual-notification"
-import { CashRegisterProvider } from "@/lib/context/cash-register-context"
-import { CashRegisterStatus } from "@/components/cash-register-status"
-import { NoCashRegisterAlert } from "@/components/no-cash-register-alert"
 
 export default function OrdersPage({ params }: { params: { tenantId: string } }) {
   const { tenantId } = params
@@ -60,19 +57,19 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
       console.log("Cargando mesas...")
       const tablesData = await getTables(tenantId, currentBranch.id)
       console.log("Mesas cargadas:", tablesData)
-      setTables(tablesData || []) // Aseguramos que siempre sea un array
+      setTables(tablesData)
 
       // Luego cargar pedidos
       console.log("Cargando pedidos...")
       const allOrders = await getOrders(tenantId, currentBranch.id)
       console.log("Pedidos cargados:", allOrders)
-      setOrders(allOrders || []) // Aseguramos que siempre sea un array
+      setOrders(allOrders)
 
       const tableOrdersData = await getOrdersByType(tenantId, currentBranch.id, "table")
-      setTableOrders(tableOrdersData || []) // Aseguramos que siempre sea un array
+      setTableOrders(tableOrdersData)
 
       const deliveryOrdersData = await getOrdersByType(tenantId, currentBranch.id, "delivery")
-      setDeliveryOrders(deliveryOrdersData || []) // Aseguramos que siempre sea un array
+      setDeliveryOrders(deliveryOrdersData)
     } catch (error) {
       console.error("Error al cargar datos:", error)
       toast({
@@ -80,11 +77,6 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
         description: "No se pudieron cargar los datos",
         variant: "destructive",
       })
-      // Inicializar con arrays vacíos en caso de error
-      setTables([])
-      setOrders([])
-      setTableOrders([])
-      setDeliveryOrders([])
     } finally {
       setLoading(false)
     }
@@ -187,13 +179,7 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
       <NoBranchSelectedAlert />
 
       {currentBranch && (
-        <CashRegisterProvider tenantId={tenantId} branchId={currentBranch.id}>
-          <div className="mb-4">
-            <CashRegisterStatus tenantId={tenantId} branchId={currentBranch.id} />
-          </div>
-
-          <NoCashRegisterAlert tenantId={tenantId} branchId={currentBranch.id} />
-
+        <>
           <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
             <TabsList>
               <TabsTrigger value="all">Todos los Pedidos</TabsTrigger>
@@ -272,7 +258,7 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
             onOrderCreated={handleOrderCreated}
             selectedTable={selectedTable}
           />
-        </CashRegisterProvider>
+        </>
       )}
     </div>
   )

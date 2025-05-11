@@ -1,279 +1,638 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { OrderTypesStep } from "./order-type-step"
+import type { OrderFormData, OrderItem, OrderType } from "@/lib/types/order"
+import type { Table } from "@/lib/services/table-service"
+import { createOrder } from "@/lib/services/order-service"
+import { getTables } from "@/lib/services/table-service"
+import { getProducts } from "@/lib/services/product-service"
+import { getProductExtras } from "@/lib/services/product-service"
+import { getRestaurantConfig } from "@/lib/services/restaurant-config-service"
+import type { Product, ProductExtra } from "@/lib/types/product"
+import { ArrowLeft, ArrowRight, Loader2, Save } from "lucide-react"
+import { ProductSelector } from "./product-selector"
+import { OrderTypeStep } from "./order-type-step"
 import { CustomerInfoStep } from "./customer-info-step"
 import { ProductsStep } from "./products-step"
 import { PaymentStep } from "./payment-step"
 import { OrderSummary } from "./order-summary"
-import { createOrder } from "@/lib/services/order-service"
-import { useToast } from "@/hooks/use-toast"
-import { useRouter } from "next/navigation"
-import { useBranch } from "@/lib/context/branch-context"
-import { useCashRegister } from "@/lib/context/cash-register-context"
-import { AlertCircle } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { OpenCashRegisterDialog } from "@/components/open-cash-register-dialog"
-import type { OrderFormData, OrderType } from "@/lib/types/order"
-import { getRestaurantConfig } from "@/lib/services/restaurant-config-service"
+
+interface CreateOrderDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  tenantId: string
+  branchId: string
+  onOrderCreated: () => void
+  selectedTable?: Table | null
+}
 
 export function CreateOrderDialog({
   open,
   onOpenChange,
   tenantId,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  tenantId: string
-}) {
-  const { toast } = useToast()
-  const router = useRouter()
-  const { currentBranch } = useBranch()
-  const { isOpen: isCashRegisterOpen } = useCashRegister()
-  const [openCashRegisterDialog, setOpenCashRegisterDialog] = useState(false)
-  const [activeTab, setActiveTab] = useState("type")
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [taxConfig, setTaxConfig] = useState({
-    taxIncluded: false,
-    taxRate: 0.19,
-    taxEnabled: true,
-  })
+  branchId,
+  onOrderCreated,
+  selectedTable,
+}: CreateOrderDialogProps) {
+  // Estados para los datos del pedido
+  const [loading, setLoading] = useState(false)
+  const [products, setProducts] = useState<Product[]>([])
+  const [extras, setExtras] = useState<ProductExtra[]>([])
+  const [tables, setTables] = useState<Table[]>([])
+  const [orderType, setOrderType] = useState<OrderType>("local")
+  const [items, setItems] = useState<OrderItem[]>([])
+  const [customerName, setCustomerName] = useState("")
+  const [customerPhone, setCustomerPhone] = useState("")
+  const [customerEmail, setCustomerEmail] = useState("")
+  const [selectedTableId, setSelectedTableId] = useState<string>("")
+  const [deliveryStreet, setDeliveryStreet] = useState("")
+  const [deliveryNumber, setDeliveryNumber] = useState("")
+  const [deliveryCity, setDeliveryCity] = useState("")
+  const [deliveryZipCode, setDeliveryZipCode] = useState("")
+  const [deliveryNotes, setDeliveryNotes] = useState("")
+  const [paymentMethod, setPaymentMethod] = useState("cash")
+  const [productSelectorOpen, setProductSelectorOpen] = useState(false)
 
-  // Estado del formulario
-  const [formData, setFormData] = useState<OrderFormData>({
-    type: "local",
-    items: [],
-    taxIncluded: false,
-    taxEnabled: true,
-  })
+  // Estados para propinas y cupones
+  const [tipAmount, setTipAmount] = useState(0)
+  const [tipPercentage, setTipPercentage] = useState(0)
+  const [couponCode, setCouponCode] = useState("")
+  const [couponDiscount, setCouponDiscount] = useState(0)
+  const [cashAmount, setCashAmount] = useState("")
+  const [changeAmount, setChangeAmount] = useState(0)
 
-  // Cargar la configuración de impuestos
+  // Estado para la configuración del IVA y moneda
+  const [taxEnabled, setTaxEnabled] = useState(false) // Por defecto, desactivado hasta que se cargue la configuración
+  const [taxIncluded, setTaxIncluded] = useState(true)
+  const [taxRate, setTaxRate] = useState(0.19) // 19% por defecto (Chile)
+  const [currencyCode, setCurrencyCode] = useState("CLP") // Peso chileno por defecto
+
+  // Estados para el wizard
+  const [currentStep, setCurrentStep] = useState(1)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Asegurarnos de que selectedTableId nunca sea una cadena vacía
   useEffect(() => {
-    async function loadTaxConfig() {
-      if (currentBranch) {
-        try {
-          const config = await getRestaurantConfig(tenantId, currentBranch.id)
-          if (config && config.basicInfo) {
-            setTaxConfig({
-              taxIncluded: config.basicInfo.taxIncluded || false,
-              taxRate: config.basicInfo.taxRate || 0.19,
-              taxEnabled:
-                config.basicInfo.taxEnabled !== undefined ? config.basicInfo.taxEnabled : config.basicInfo.taxRate > 0,
-            })
+    if (selectedTableId === "") {
+      console.warn("selectedTableId es una cadena vacía, estableciendo a null")
+      setSelectedTableId("no-selection")
+    }
+  }, [selectedTableId])
 
-            // Actualizar el formData con la configuración de impuestos
-            setFormData((prev) => ({
-              ...prev,
-              taxIncluded: config.basicInfo.taxIncluded || false,
-              taxEnabled:
-                config.basicInfo.taxEnabled !== undefined ? config.basicInfo.taxEnabled : config.basicInfo.taxRate > 0,
-            }))
+  // Cargar datos al abrir el diálogo
+  useEffect(() => {
+    if (open) {
+      loadProducts()
+      loadExtras()
+      loadTables()
+      loadRestaurantConfig()
+
+      // Si hay una mesa seleccionada, establecer el tipo de pedido a "table"
+      if (selectedTable && selectedTable.id) {
+        setOrderType("table")
+        setSelectedTableId(selectedTable.id)
+        // Establecer un método de pago por defecto para evitar el error de Select.Item
+        setPaymentMethod("cash")
+        console.log("Mesa seleccionada:", selectedTable)
+      } else if (selectedTable) {
+        console.error("Error: Mesa seleccionada sin ID", selectedTable)
+      }
+    }
+  }, [open, tenantId, branchId, selectedTable])
+
+  // Calcular el cambio cuando se modifica el monto en efectivo
+  useEffect(() => {
+    if (paymentMethod === "cash" && cashAmount) {
+      const cashValue = Number.parseFloat(cashAmount) || 0
+      const totalValue = calculateTotal()
+      setChangeAmount(Math.max(0, cashValue - totalValue))
+    } else {
+      setChangeAmount(0)
+    }
+  }, [cashAmount, paymentMethod, items, tipAmount, couponDiscount, taxIncluded])
+
+  const loadProducts = async () => {
+    try {
+      const productsData = await getProducts(tenantId, branchId)
+      setProducts(productsData.filter((p) => p.isActive))
+    } catch (error) {
+      console.error("Error al cargar productos:", error)
+    }
+  }
+
+  const loadExtras = async () => {
+    try {
+      const extrasData = await getProductExtras(tenantId, branchId)
+      setExtras(extrasData.filter((e) => e.isActive))
+    } catch (error) {
+      console.error("Error al cargar extras:", error)
+    }
+  }
+
+  const loadTables = async () => {
+    try {
+      const tablesData = await getTables(tenantId, branchId)
+      // Filtrar solo mesas activas y disponibles
+      setTables(tablesData.filter((t) => t.isActive && (t.status === "available" || t.status === "reserved")))
+    } catch (error) {
+      console.error("Error al cargar mesas:", error)
+    }
+  }
+
+  const loadRestaurantConfig = async () => {
+    try {
+      const config = await getRestaurantConfig(tenantId, branchId)
+      if (config && config.basicInfo) {
+        // Establecer la configuración de IVA
+        // Determinar si el IVA está activado basado en taxRate > 0
+        const isTaxEnabled =
+          config.basicInfo.taxEnabled !== undefined ? config.basicInfo.taxEnabled : config.basicInfo.taxRate > 0
+
+        setTaxEnabled(isTaxEnabled)
+        setTaxIncluded(config.basicInfo.taxIncluded)
+
+        // Establecer la tasa de IVA (con valor predeterminado de 0.19 si no está definido)
+        setTaxRate(config.basicInfo.taxRate !== undefined ? config.basicInfo.taxRate : 0.19)
+
+        // Establecer el código de moneda (con valor predeterminado de CLP si no está definido)
+        setCurrencyCode(config.basicInfo.currencyCode || "CLP")
+
+        console.log("Configuración cargada:", {
+          taxEnabled: isTaxEnabled,
+          taxIncluded: config.basicInfo.taxIncluded,
+          taxRate: config.basicInfo.taxRate,
+          currencyCode: config.basicInfo.currencyCode,
+        })
+      } else {
+        // Si no hay configuración, establecer valores por defecto
+        setTaxEnabled(false)
+        console.log("No se encontró configuración, usando valores por defecto. IVA desactivado.")
+      }
+    } catch (error) {
+      console.error("Error al cargar configuración del restaurante:", error)
+      // En caso de error, desactivar el IVA por seguridad
+      setTaxEnabled(false)
+    }
+  }
+
+  // Funciones para manejar productos
+  const handleAddProduct = (product: Product, quantity = 1, selectedExtras: ProductExtra[] = []) => {
+    const extrasTotal = selectedExtras.reduce((sum, extra) => sum + extra.price, 0)
+    const itemSubtotal = (product.price + extrasTotal) * quantity
+
+    const newItem: OrderItem = {
+      id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      productId: product.id,
+      name: product.name,
+      price: product.price,
+      quantity,
+      extras: selectedExtras.map((extra) => ({
+        id: extra.id,
+        name: extra.name,
+        price: extra.price,
+      })),
+      subtotal: itemSubtotal,
+    }
+
+    setItems([...items, newItem])
+    setProductSelectorOpen(false)
+  }
+
+  const handleRemoveItem = (itemId: string) => {
+    setItems(items.filter((item) => item.id !== itemId))
+  }
+
+  const handleUpdateItemQuantity = (itemId: string, quantity: number) => {
+    if (quantity < 1) return
+
+    setItems(
+      items.map((item) => {
+        if (item.id === itemId) {
+          const extrasTotal = item.extras ? item.extras.reduce((sum, extra) => sum + extra.price, 0) : 0
+          return {
+            ...item,
+            quantity,
+            subtotal: (item.price + extrasTotal) * quantity,
           }
-        } catch (error) {
-          console.error("Error al cargar la configuración de impuestos:", error)
+        }
+        return item
+      }),
+    )
+  }
+
+  // Funciones para propinas
+  const handleTipPercentageChange = (percentage: number) => {
+    setTipPercentage(percentage)
+    const subtotal = calculateSubtotal()
+    setTipAmount(Math.round(subtotal * (percentage / 100)))
+  }
+
+  const handleCustomTipChange = (value: string) => {
+    const amount = Number.parseFloat(value) || 0
+    setTipAmount(amount)
+    const subtotal = calculateSubtotal()
+    setTipPercentage(subtotal > 0 ? Math.round((amount / subtotal) * 100) : 0)
+  }
+
+  // Funciones para cálculos
+  const calculateSubtotal = () => {
+    return items.reduce((sum, item) => sum + item.subtotal, 0)
+  }
+
+  const calculateTaxAmount = () => {
+    // Verificación explícita: si taxEnabled es false, siempre retornar 0
+    if (taxEnabled === false) {
+      return 0
+    }
+
+    // Si el IVA está incluido en los precios, no se añade al total
+    if (taxIncluded) {
+      return 0
+    }
+
+    const subtotal = calculateSubtotal()
+    return Math.round(subtotal * taxRate)
+  }
+
+  const calculateTotal = () => {
+    const subtotal = calculateSubtotal()
+    const tax = calculateTaxAmount()
+    return subtotal + tax + tipAmount - couponDiscount
+  }
+
+  // Validación por pasos
+  const validateStep = (step: number): boolean => {
+    const newErrors: Record<string, string> = {}
+
+    if (step === 1) {
+      if (!orderType) {
+        newErrors.orderType = "Debe seleccionar un tipo de pedido"
+      }
+
+      if (orderType === "table" && !selectedTableId) {
+        newErrors.tableId = "Debe seleccionar una mesa"
+      }
+
+      if (orderType === "delivery") {
+        if (!deliveryStreet.trim()) {
+          newErrors.deliveryStreet = "La calle es obligatoria"
+        }
+        if (!deliveryNumber.trim()) {
+          newErrors.deliveryNumber = "El número es obligatorio"
+        }
+        if (!deliveryCity.trim()) {
+          newErrors.deliveryCity = "La ciudad es obligatoria"
         }
       }
     }
 
-    loadTaxConfig()
-  }, [tenantId, currentBranch])
-
-  // Función para actualizar el tipo de pedido
-  const handleTypeChange = (type: OrderType) => {
-    setFormData((prev) => ({
-      ...prev,
-      type,
-      // Limpiar campos específicos al cambiar el tipo
-      tableId: type === "table" ? prev.tableId : undefined,
-      tableNumber: type === "table" ? prev.tableNumber : undefined,
-      deliveryAddress: type === "delivery" ? prev.deliveryAddress : undefined,
-    }))
-    setActiveTab("customer")
-  }
-
-  // Función para actualizar la información del cliente
-  const handleCustomerInfoChange = (customerInfo: Partial<OrderFormData>) => {
-    setFormData((prev) => ({
-      ...prev,
-      ...customerInfo,
-    }))
-    setActiveTab("products")
-  }
-
-  // Función para actualizar los productos
-  const handleProductsChange = (items: OrderFormData["items"]) => {
-    setFormData((prev) => ({
-      ...prev,
-      items,
-    }))
-    setActiveTab("payment")
-  }
-
-  // Función para actualizar la información de pago
-  const handlePaymentChange = (paymentInfo: Partial<OrderFormData>) => {
-    setFormData((prev) => ({
-      ...prev,
-      ...paymentInfo,
-    }))
-    handleSubmit()
-  }
-
-  // Función para enviar el formulario
-  const handleSubmit = async () => {
-    if (!currentBranch) {
-      toast({
-        title: "Error",
-        description: "No hay una sucursal seleccionada",
-        variant: "destructive",
-      })
-      return
+    if (step === 2) {
+      if (items.length === 0) {
+        newErrors.items = "Debe agregar al menos un producto al pedido"
+      }
     }
 
-    if (!isCashRegisterOpen) {
-      toast({
-        title: "Error",
-        description: "No hay una caja abierta. Debes abrir la caja para crear pedidos.",
-        variant: "destructive",
-      })
-      setOpenCashRegisterDialog(true)
+    if (step === 3) {
+      // Solo validamos el nombre como obligatorio
+      if (!customerName.trim()) {
+        newErrors.customerName = "El nombre del cliente es obligatorio"
+      }
+
+      // Validamos teléfono solo si es delivery
+      if (orderType === "delivery" && !customerPhone.trim()) {
+        newErrors.customerPhone = "El teléfono del cliente es obligatorio para delivery"
+      }
+    }
+
+    if (step === 4) {
+      if (!paymentMethod) {
+        newErrors.paymentMethod = "Debe seleccionar un método de pago"
+      }
+
+      // Validar monto en efectivo si el método es cash
+      if (paymentMethod === "cash" && Number.parseFloat(cashAmount || "0") < calculateTotal()) {
+        newErrors.cashAmount = "El monto en efectivo debe ser igual o mayor al total"
+      }
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const goToNextStep = () => {
+    if (validateStep(currentStep)) {
+      setCurrentStep(currentStep + 1)
+    }
+  }
+
+  const goToPreviousStep = () => {
+    setCurrentStep(currentStep - 1)
+  }
+
+  // Envío del formulario
+  const handleSubmit = async () => {
+    if (!validateStep(4)) {
       return
     }
 
     try {
-      setIsSubmitting(true)
-      const order = await createOrder(tenantId, currentBranch.id, formData)
+      setLoading(true)
 
-      toast({
-        title: "Pedido creado",
-        description: `El pedido #${order.orderNumber} ha sido creado exitosamente`,
-      })
+      const subtotal = calculateSubtotal()
+      const tax = calculateTaxAmount()
+      const total = calculateTotal()
 
-      // Cerrar el diálogo y redirigir a la página de pedidos
-      onOpenChange(false)
-      router.refresh()
+      const orderData: OrderFormData = {
+        type: orderType,
+        items,
+        customerName: customerName.trim(),
+        paymentMethod,
+        subtotal,
+        tax,
+        total,
+        taxIncluded,
+        taxEnabled, // Añadir esta propiedad para saber si el IVA está activado
+      }
+
+      // Campos opcionales
+      if (customerPhone.trim()) {
+        orderData.customerPhone = customerPhone.trim()
+      }
+
+      if (customerEmail.trim()) {
+        orderData.customerEmail = customerEmail.trim()
+      }
+
+      // Campos específicos según el tipo de pedido
+      if (orderType === "table") {
+        const selectedTable = tables.find((t) => t.id === selectedTableId)
+        orderData.tableId = selectedTableId
+        if (selectedTable) {
+          orderData.tableNumber = selectedTable.number
+        }
+      } else if (orderType === "delivery") {
+        orderData.deliveryAddress = {
+          street: deliveryStreet.trim(),
+          number: deliveryNumber.trim(),
+          city: deliveryCity.trim(),
+        }
+
+        if (deliveryZipCode.trim()) {
+          orderData.deliveryAddress.zipCode = deliveryZipCode.trim()
+        }
+
+        if (deliveryNotes.trim()) {
+          orderData.deliveryAddress.notes = deliveryNotes.trim()
+        }
+      }
+
+      // Propina y cupón
+      if (tipAmount > 0) {
+        orderData.tip = tipAmount
+      }
+
+      if (couponCode.trim() && couponDiscount > 0) {
+        orderData.coupon = {
+          code: couponCode.trim(),
+          discount: couponDiscount,
+        }
+      }
+
+      // Información de pago en efectivo
+      if (paymentMethod === "cash" && Number.parseFloat(cashAmount) > 0) {
+        orderData.cashDetails = {
+          amountReceived: Number.parseFloat(cashAmount),
+          change: changeAmount,
+        }
+      }
+
+      await createOrder(tenantId, branchId, orderData)
+      resetForm()
+      onOrderCreated()
     } catch (error) {
-      console.error("Error al crear el pedido:", error)
-      toast({
-        title: "Error",
-        description: "Ocurrió un error al crear el pedido",
-        variant: "destructive",
-      })
+      console.error("Error al crear pedido:", error)
+      alert("Error al crear el pedido. Inténtelo de nuevo.")
     } finally {
-      setIsSubmitting(false)
+      setLoading(false)
     }
   }
 
-  // Reiniciar el formulario al abrir el diálogo
-  useEffect(() => {
-    if (open) {
-      setActiveTab("type")
-      setFormData({
-        type: "local",
-        items: [],
-        taxIncluded: taxConfig.taxIncluded,
-        taxEnabled: taxConfig.taxEnabled,
-      })
+  const resetForm = () => {
+    setOrderType("local")
+    setItems([])
+    setCustomerName("")
+    setCustomerPhone("")
+    setCustomerEmail("")
+    setSelectedTableId("")
+    setDeliveryStreet("")
+    setDeliveryNumber("")
+    setDeliveryCity("")
+    setDeliveryZipCode("")
+    setDeliveryNotes("")
+    setPaymentMethod("cash")
+    setTipAmount(0)
+    setTipPercentage(0)
+    setCouponCode("")
+    setCouponDiscount(0)
+    setCashAmount("")
+    setChangeAmount(0)
+    setCurrentStep(1)
+    setErrors({})
+  }
+
+  // Renderizado de los pasos
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <OrderTypeStep
+            orderType={orderType}
+            setOrderType={setOrderType}
+            selectedTableId={selectedTableId}
+            setSelectedTableId={setSelectedTableId}
+            tables={tables}
+            deliveryStreet={deliveryStreet}
+            setDeliveryStreet={setDeliveryStreet}
+            deliveryNumber={deliveryNumber}
+            setDeliveryNumber={setDeliveryNumber}
+            deliveryCity={deliveryCity}
+            setDeliveryCity={setDeliveryCity}
+            deliveryZipCode={deliveryZipCode}
+            setDeliveryZipCode={setDeliveryZipCode}
+            deliveryNotes={deliveryNotes}
+            setDeliveryNotes={setDeliveryNotes}
+            errors={errors}
+          />
+        )
+      case 2:
+        return (
+          <ProductsStep
+            items={items}
+            setItems={setItems}
+            setProductSelectorOpen={setProductSelectorOpen}
+            handleRemoveItem={handleRemoveItem}
+            handleUpdateItemQuantity={handleUpdateItemQuantity}
+            errors={errors}
+            currencyCode={currencyCode}
+          />
+        )
+      case 3:
+        return (
+          <CustomerInfoStep
+            orderType={orderType}
+            customerName={customerName}
+            setCustomerName={setCustomerName}
+            customerPhone={customerPhone}
+            setCustomerPhone={setCustomerPhone}
+            customerEmail={customerEmail}
+            setCustomerEmail={setCustomerEmail}
+            errors={errors}
+          />
+        )
+      case 4:
+        return (
+          <PaymentStep
+            paymentMethod={paymentMethod}
+            setPaymentMethod={setPaymentMethod}
+            tipAmount={tipAmount}
+            setTipAmount={setTipAmount}
+            tipPercentage={tipPercentage}
+            setTipPercentage={setTipPercentage}
+            couponCode={couponCode}
+            setCouponCode={setCouponCode}
+            couponDiscount={couponDiscount}
+            setCouponDiscount={setCouponDiscount}
+            cashAmount={cashAmount}
+            setCashAmount={setCashAmount}
+            changeAmount={changeAmount}
+            calculateTotal={calculateTotal}
+            handleTipPercentageChange={handleTipPercentageChange}
+            handleCustomTipChange={handleCustomTipChange}
+            errors={errors}
+            currencyCode={currencyCode}
+          />
+        )
+      default:
+        return null
     }
-  }, [open, taxConfig])
+  }
+
+  // Renderizado de la barra de progreso
+  const renderProgressBar = () => {
+    return (
+      <div className="w-full mb-6">
+        <div className="flex justify-between mb-2">
+          <div className="text-xs">Paso {currentStep} de 4</div>
+          <div className="text-xs font-medium">
+            {currentStep === 1 && "Tipo de Pedido"}
+            {currentStep === 2 && "Productos"}
+            {currentStep === 3 && "Cliente"}
+            {currentStep === 4 && "Pago"}
+          </div>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-2.5">
+          <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${(currentStep / 4) * 100}%` }}></div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog
+        open={open}
+        onOpenChange={(newOpen) => {
+          if (!newOpen) resetForm()
+          onOpenChange(newOpen)
+        }}
+      >
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Nuevo Pedido</DialogTitle>
+            <DialogTitle>Crear Nuevo Pedido</DialogTitle>
+            <DialogDescription>Completa la información para crear un nuevo pedido.</DialogDescription>
           </DialogHeader>
 
-          {!isCashRegisterOpen && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Caja cerrada</AlertTitle>
-              <AlertDescription className="flex items-center justify-between">
-                <span>Debes abrir la caja para poder crear nuevos pedidos.</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setOpenCashRegisterDialog(true)}
-                  className="ml-4 bg-white hover:bg-gray-100"
-                >
-                  Abrir Caja
-                </Button>
-              </AlertDescription>
-            </Alert>
-          )}
+          {renderProgressBar()}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-2">
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid grid-cols-4 mb-4">
-                  <TabsTrigger value="type">Tipo</TabsTrigger>
-                  <TabsTrigger value="customer">Cliente</TabsTrigger>
-                  <TabsTrigger value="products">Productos</TabsTrigger>
-                  <TabsTrigger value="payment">Pago</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="type">
-                  <OrderTypesStep
-                    selectedType={formData.type}
-                    onTypeChange={handleTypeChange}
-                    tenantId={tenantId}
-                    branchId={currentBranch?.id || ""}
-                  />
-                </TabsContent>
-
-                <TabsContent value="customer">
-                  <CustomerInfoStep
-                    formData={formData}
-                    onChange={handleCustomerInfoChange}
-                    onBack={() => setActiveTab("type")}
-                    tenantId={tenantId}
-                    branchId={currentBranch?.id || ""}
-                  />
-                </TabsContent>
-
-                <TabsContent value="products">
-                  <ProductsStep
-                    items={formData.items}
-                    onChange={handleProductsChange}
-                    onBack={() => setActiveTab("customer")}
-                    tenantId={tenantId}
-                    branchId={currentBranch?.id || ""}
-                  />
-                </TabsContent>
-
-                <TabsContent value="payment">
-                  <PaymentStep
-                    formData={formData}
-                    onChange={handlePaymentChange}
-                    onBack={() => setActiveTab("products")}
-                    isSubmitting={isSubmitting}
-                    taxConfig={taxConfig}
-                  />
-                </TabsContent>
-              </Tabs>
-            </div>
-
-            <div>
-              <OrderSummary formData={formData} taxConfig={taxConfig} />
+            <div className="md:col-span-2">{renderStepContent()}</div>
+            <div className="md:col-span-1">
+              <OrderSummary
+                orderType={orderType}
+                items={items}
+                customerName={customerName}
+                paymentMethod={paymentMethod}
+                selectedTableId={selectedTableId}
+                tables={tables}
+                cashAmount={cashAmount}
+                changeAmount={changeAmount}
+                tipAmount={tipAmount}
+                tipPercentage={tipPercentage}
+                couponDiscount={couponDiscount}
+                calculateSubtotal={calculateSubtotal}
+                calculateTotal={calculateTotal}
+                taxIncluded={taxIncluded}
+                taxAmount={calculateTaxAmount()}
+                taxRate={taxRate}
+                currencyCode={currencyCode}
+                taxEnabled={taxEnabled} // Pasar la propiedad
+              />
             </div>
           </div>
+
+          <DialogFooter className="flex justify-between">
+            <div>
+              {currentStep > 1 && (
+                <Button type="button" variant="outline" onClick={goToPreviousStep}>
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Anterior
+                </Button>
+              )}
+            </div>
+            <div>
+              {currentStep < 4 ? (
+                <Button type="button" onClick={goToNextStep}>
+                  Siguiente
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              ) : (
+                <Button onClick={handleSubmit} disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creando...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      Crear Pedido
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <OpenCashRegisterDialog
+      <ProductSelector
+        open={productSelectorOpen}
+        onOpenChange={setProductSelectorOpen}
+        products={products}
+        extras={extras}
+        onAddProduct={handleAddProduct}
         tenantId={tenantId}
-        branchId={currentBranch?.id || ""}
-        open={openCashRegisterDialog}
-        onOpenChange={(open) => {
-          setOpenCashRegisterDialog(open)
-          // Si se cierra el diálogo y la caja está abierta, actualizar la página
-          if (!open && isCashRegisterOpen) {
-            router.refresh()
-          }
-        }}
+        branchId={branchId}
+        currencyCode={currencyCode}
       />
     </>
   )
