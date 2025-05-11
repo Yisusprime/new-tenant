@@ -1,70 +1,62 @@
 "use client"
 
-import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useCashRegister } from "@/lib/context/cash-register-context"
-import { OpenCashRegisterDialog } from "./open-cash-register-dialog"
-import { CloseCashRegisterDialog } from "./close-cash-register-dialog"
-import { DollarSign, Lock, Unlock } from "lucide-react"
+import { formatCurrency } from "@/lib/utils"
+import { CircleDollarSign, Lock, Unlock } from "lucide-react"
 
 export function CashRegisterStatus({
   tenantId,
   branchId,
+  onOpenDialog,
+  onCloseDialog,
 }: {
   tenantId: string
   branchId: string
+  onOpenDialog?: () => void
+  onCloseDialog?: () => void
 }) {
-  const { isOpen, loading } = useCashRegister()
-  const [openDialogOpen, setOpenDialogOpen] = useState(false)
-  const [closeDialogOpen, setCloseDialogOpen] = useState(false)
+  const { isOpen, currentCashRegister, isLoading } = useCashRegister()
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="flex items-center h-9 px-4 py-2 text-sm bg-gray-100 text-gray-500 rounded-md animate-pulse">
-        Cargando...
+      <div className="flex items-center space-x-2 text-gray-500">
+        <CircleDollarSign className="h-5 w-5" />
+        <span>Cargando estado de caja...</span>
       </div>
     )
   }
 
-  if (isOpen) {
+  if (isOpen && currentCashRegister) {
     return (
-      <div className="flex items-center gap-2">
-        <div className="flex items-center h-9 px-4 py-2 text-sm bg-green-100 text-green-700 rounded-md">
-          <Unlock className="h-4 w-4 mr-2" />
-          Caja Abierta
+      <div className="flex items-center">
+        <div className="mr-4 flex items-center text-green-600">
+          <Unlock className="h-5 w-5 mr-1" />
+          <span className="font-medium">Caja Abierta</span>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setCloseDialogOpen(true)}>
-          <Lock className="h-4 w-4 mr-2" />
-          Cerrar Caja
-        </Button>
-
-        <CloseCashRegisterDialog
-          tenantId={tenantId}
-          branchId={branchId}
-          open={closeDialogOpen}
-          onOpenChange={setCloseDialogOpen}
-        />
+        <div className="text-sm text-gray-600 mr-4">
+          Monto inicial: {formatCurrency(currentCashRegister.initialAmount)}
+        </div>
+        {onCloseDialog && (
+          <Button size="sm" variant="outline" onClick={onCloseDialog}>
+            Cerrar Caja
+          </Button>
+        )}
       </div>
     )
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex items-center h-9 px-4 py-2 text-sm bg-yellow-100 text-yellow-700 rounded-md">
-        <Lock className="h-4 w-4 mr-2" />
-        Caja Cerrada
+    <div className="flex items-center">
+      <div className="mr-4 flex items-center text-red-600">
+        <Lock className="h-5 w-5 mr-1" />
+        <span className="font-medium">Caja Cerrada</span>
       </div>
-      <Button variant="outline" size="sm" onClick={() => setOpenDialogOpen(true)}>
-        <DollarSign className="h-4 w-4 mr-2" />
-        Abrir Caja
-      </Button>
-
-      <OpenCashRegisterDialog
-        tenantId={tenantId}
-        branchId={branchId}
-        open={openDialogOpen}
-        onOpenChange={setOpenDialogOpen}
-      />
+      {onOpenDialog && (
+        <Button size="sm" variant="outline" onClick={onOpenDialog}>
+          Abrir Caja
+        </Button>
+      )}
     </div>
   )
 }

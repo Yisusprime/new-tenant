@@ -1,16 +1,14 @@
 "use client"
 
-import type React from "react"
-import { createContext, useContext, useState, useEffect } from "react"
-import { getCurrentCashRegister } from "@/lib/services/cash-register-service"
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { getCurrentCashRegister, hasCashRegisterOpen } from "@/lib/services/cash-register-service"
 import type { CashRegister } from "@/lib/types/cash-register"
-import { useAuth } from "./auth-context"
 
 interface CashRegisterContextType {
   currentCashRegister: CashRegister | null
   isOpen: boolean
-  loading: boolean
-  error: string | null
+  isLoading: boolean
+  error: Error | null
   refreshCashRegister: () => Promise<void>
 }
 
@@ -21,45 +19,49 @@ export function CashRegisterProvider({
   tenantId,
   branchId,
 }: {
-  children: React.ReactNode
+  children: ReactNode
   tenantId: string
-  branchId?: string
+  branchId: string
 }) {
   const [currentCashRegister, setCurrentCashRegister] = useState<CashRegister | null>(null)
   const [isOpen, setIsOpen] = useState<boolean>(false)
-  const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string | null>(null)
-  const { user } = useAuth()
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [error, setError] = useState<Error | null>(null)
 
-  const fetchCashRegister = async () => {
-    if (!branchId) {
-      setLoading(false)
-      return
-    }
-
+  const loadCashRegister = async () => {
     try {
-      setLoading(true)
+      setIsLoading(true)
       setError(null)
 
-      // Verificar si hay una caja abierta
-      const cashRegister = await getCurrentCashRegister(tenantId, branchId)
-      setCurrentCashRegister(cashRegister)
-      setIsOpen(cashRegister !== null)
+      // Primero verificamos si hay una caja abierta
+      const hasOpenRegister = await hasCashRegisterOpen(tenantId, branchId)
+      setIsOpen(hasOpenRegister)
+
+      if (hasOpenRegister) {
+        // Si hay una caja abierta, la obtenemos
+        const register = await getCurrentCashRegister(tenantId, branchId)
+        setCurrentCashRegister(register)
+      } else {
+        setCurrentCashRegister(null)
+      }
     } catch (err) {
       console.error("Error al cargar la caja:", err)
-      setError("Error al cargar la información de la caja")
+      setError(err instanceof Error ? err : new Error("Error desconocido al cargar la caja"))
+      // No cambiamos el estado de isOpen o currentCashRegister en caso de error
     } finally {
-      setLoading(false)
+      setIsLoading(false)
     }
   }
 
-  // Cargar la caja al montar el componente o cuando cambia la sucursal
+  // Cargar la caja al montar el componente o cuando cambia el tenant o branch
   useEffect(() => {
-    fetchCashRegister()
-  }, [tenantId, branchId, user])
+    if (tenantId && branchId) {
+      loadCashRegister()
+    }
+  }, [tenantId, branchId])
 
   const refreshCashRegister = async () => {
-    await fetchCashRegister()
+    await loadCashRegister()
   }
 
   return (
@@ -67,7 +69,7 @@ export function CashRegisterProvider({
       value={{
         currentCashRegister,
         isOpen,
-        loading,
+        isLoading,
         error,
         refreshCashRegister,
       }}

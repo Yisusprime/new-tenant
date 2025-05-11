@@ -8,21 +8,18 @@ import {
   updateDoc,
   query,
   where,
-  orderBy,
-  limit,
   Timestamp,
   serverTimestamp,
 } from "firebase/firestore"
 import type { CashRegister } from "@/lib/types/cash-register"
 
-// Obtener la caja actual (abierta)
+// Obtener la caja actual (abierta) - Versión modificada sin índices compuestos
 export async function getCurrentCashRegister(tenantId: string, branchId: string): Promise<CashRegister | null> {
   try {
+    // Consulta simple: solo filtrar por status sin ordenar
     const q = query(
       collection(db, `tenants/${tenantId}/branches/${branchId}/cashRegisters`),
       where("status", "==", "open"),
-      orderBy("openedAt", "desc"),
-      limit(1),
     )
 
     const snapshot = await getDocs(q)
@@ -31,11 +28,21 @@ export async function getCurrentCashRegister(tenantId: string, branchId: string)
       return null
     }
 
-    const doc = snapshot.docs[0]
-    return {
+    // Si hay múltiples cajas abiertas (no debería ocurrir), ordenamos en el cliente
+    const openRegisters = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
-    } as CashRegister
+    })) as CashRegister[]
+
+    // Ordenar por openedAt en el cliente (más reciente primero)
+    openRegisters.sort((a, b) => {
+      const dateA = a.openedAt instanceof Timestamp ? a.openedAt.toDate().getTime() : new Date(a.openedAt).getTime()
+      const dateB = b.openedAt instanceof Timestamp ? b.openedAt.toDate().getTime() : new Date(b.openedAt).getTime()
+      return dateB - dateA
+    })
+
+    // Devolver la caja más reciente
+    return openRegisters[0]
   } catch (error) {
     console.error("Error al obtener la caja actual:", error)
     throw error
@@ -66,20 +73,27 @@ export async function getCashRegisterById(
   }
 }
 
-// Obtener historial de cajas
+// Obtener historial de cajas - Versión modificada sin índices compuestos
 export async function getCashRegisterHistory(tenantId: string, branchId: string): Promise<CashRegister[]> {
   try {
-    const q = query(
-      collection(db, `tenants/${tenantId}/branches/${branchId}/cashRegisters`),
-      orderBy("openedAt", "desc"),
-    )
+    // Consulta simple sin ordenar
+    const q = query(collection(db, `tenants/${tenantId}/branches/${branchId}/cashRegisters`))
 
     const snapshot = await getDocs(q)
 
-    return snapshot.docs.map((doc) => ({
+    const registers = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     })) as CashRegister[]
+
+    // Ordenar por openedAt en el cliente (más reciente primero)
+    registers.sort((a, b) => {
+      const dateA = a.openedAt instanceof Timestamp ? a.openedAt.toDate().getTime() : new Date(a.openedAt).getTime()
+      const dateB = b.openedAt instanceof Timestamp ? b.openedAt.toDate().getTime() : new Date(b.openedAt).getTime()
+      return dateB - dateA
+    })
+
+    return registers
   } catch (error) {
     console.error("Error al obtener el historial de cajas:", error)
     throw error
@@ -109,6 +123,13 @@ export async function openCashRegister(
       openedAt: serverTimestamp(),
       status: "open",
       notes: data.notes || "",
+      summary: {
+        totalOrders: 0,
+        totalSales: 0,
+        totalCash: 0,
+        totalCard: 0,
+        totalOtherMethods: 0,
+      },
     }
 
     const docRef = await addDoc(
@@ -145,6 +166,7 @@ export async function closeCashRegister(
     const updateData = {
       finalAmount: data.finalAmount,
       expectedAmount: data.expectedAmount,
+      difference: data.finalAmount - data.expectedAmount,
       closedBy: data.closedBy,
       closedAt: serverTimestamp(),
       status: "closed",
@@ -179,4 +201,15 @@ export async function hasCashRegisterOpen(tenantId: string, branchId: string): P
     console.error("Error al verificar si hay una caja abierta:", error)
     throw error
   }
+}
+
+// Función para obtener pedidos por caja registradora
+export async function getOrdersByCashRegister(
+  tenantId: string,
+  branchId: string,
+  cashRegisterId: string,
+): Promise<any[]> {
+  // Esta función se implementará cuando sea necesario
+  // Por ahora, devolvemos un array vacío
+  return []
 }

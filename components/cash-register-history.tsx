@@ -1,58 +1,77 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { getCashRegisterHistory } from "@/lib/services/cash-register-service"
+import { formatCurrency, formatDateTime } from "@/lib/utils"
 import type { CashRegister } from "@/lib/types/cash-register"
-import { formatCurrency } from "@/lib/utils"
-import Link from "next/link"
-import { Eye } from "lucide-react"
+import { Clock } from "lucide-react"
 
-export function CashRegisterHistory({
-  tenantId,
-  branchId,
-}: {
-  tenantId: string
-  branchId: string
-}) {
-  const [history, setHistory] = useState<CashRegister[]>([])
+export function CashRegisterHistory({ tenantId, branchId }: { tenantId: string; branchId: string }) {
+  const [cashRegisters, setCashRegisters] = useState<CashRegister[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+  const router = useRouter()
 
   useEffect(() => {
-    const loadHistory = async () => {
+    async function loadCashRegisters() {
       try {
         setLoading(true)
-        const historyData = await getCashRegisterHistory(tenantId, branchId)
-        setHistory(historyData || [])
-      } catch (error) {
-        console.error("Error al cargar historial:", error)
-        setHistory([])
+        setError(null)
+        const registers = await getCashRegisterHistory(tenantId, branchId)
+        setCashRegisters(registers)
+      } catch (err) {
+        console.error("Error al cargar el historial de cajas:", err)
+        setError(err instanceof Error ? err : new Error("Error desconocido al cargar el historial"))
       } finally {
         setLoading(false)
       }
     }
 
-    loadHistory()
+    loadCashRegisters()
   }, [tenantId, branchId])
+
+  const handleViewDetails = (cashRegisterId: string) => {
+    router.push(`/tenant/${tenantId}/admin/cash-register/${cashRegisterId}`)
+  }
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Historial de Cajas</CardTitle>
+          <CardDescription>Cargando historial...</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </CardContent>
+      </Card>
     )
   }
 
-  if (history.length === 0) {
+  if (error) {
     return (
-      <div className="text-center py-8">
-        <h3 className="text-lg font-medium">No hay historial de cajas</h3>
-        <p className="text-muted-foreground">Aún no se ha registrado ninguna caja</p>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Error</CardTitle>
+          <CardDescription>Ocurrió un error al cargar el historial de cajas</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-red-500">{error.message}</p>
+          <Button className="mt-4" variant="outline" onClick={() => window.location.reload()}>
+            Reintentar
+          </Button>
+        </CardContent>
+      </Card>
     )
   }
 
@@ -60,63 +79,68 @@ export function CashRegisterHistory({
     <Card>
       <CardHeader>
         <CardTitle>Historial de Cajas</CardTitle>
+        <CardDescription>Registro de aperturas y cierres de caja</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left py-2 px-4">Fecha</th>
-                <th className="text-left py-2 px-4">Abierta por</th>
-                <th className="text-right py-2 px-4">Monto Inicial</th>
-                <th className="text-right py-2 px-4">Monto Final</th>
-                <th className="text-right py-2 px-4">Diferencia</th>
-                <th className="text-center py-2 px-4">Estado</th>
-                <th className="text-center py-2 px-4">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {history.map((register) => (
-                <tr key={register.id} className="border-b hover:bg-gray-50">
-                  <td className="py-2 px-4">
-                    {register.openedAt ? new Date(register.openedAt).toLocaleDateString() : "N/A"}
-                  </td>
-                  <td className="py-2 px-4">{register.openedBy || "N/A"}</td>
-                  <td className="py-2 px-4 text-right">{formatCurrency(register.initialAmount || 0)}</td>
-                  <td className="py-2 px-4 text-right">{formatCurrency(register.finalAmount || 0)}</td>
-                  <td className="py-2 px-4 text-right">
-                    {register.finalAmount !== undefined && register.expectedAmount !== undefined ? (
+        {cashRegisters.length > 0 ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Fecha</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Ventas</TableHead>
+                <TableHead>Diferencia</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {cashRegisters.map((register) => (
+                <TableRow key={register.id}>
+                  <TableCell>
+                    <div className="font-medium">{formatDateTime(register.openedAt, "short")}</div>
+                    <div className="text-xs text-gray-500 flex items-center">
+                      <Clock className="h-3 w-3 mr-1" />
+                      {register.status === "open"
+                        ? "En curso"
+                        : register.closedAt
+                          ? formatDateTime(register.closedAt, "time")
+                          : "N/A"}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={register.status === "open" ? "outline" : "secondary"}>
+                      {register.status === "open" ? "Abierta" : "Cerrada"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {formatCurrency(register.summary?.totalSales || 0)}
+                    <div className="text-xs text-gray-500">{register.summary?.totalOrders || 0} pedidos</div>
+                  </TableCell>
+                  <TableCell>
+                    {register.status === "closed" && register.difference !== undefined ? (
                       <span
-                        className={register.finalAmount < register.expectedAmount ? "text-red-600" : "text-green-600"}
+                        className={
+                          register.difference < 0 ? "text-red-600" : register.difference > 0 ? "text-green-600" : ""
+                        }
                       >
-                        {formatCurrency(register.finalAmount - register.expectedAmount)}
+                        {register.difference === 0 ? "Sin diferencia" : formatCurrency(register.difference)}
                       </span>
                     ) : (
                       "N/A"
                     )}
-                  </td>
-                  <td className="py-2 px-4 text-center">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs ${
-                        register.status === "open" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {register.status === "open" ? "Abierta" : "Cerrada"}
-                    </span>
-                  </td>
-                  <td className="py-2 px-4 text-center">
-                    <Button asChild size="sm" variant="ghost">
-                      <Link href={`/admin/cash-register/${register.id}`}>
-                        <Eye className="h-4 w-4 mr-1" />
-                        Ver
-                      </Link>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="sm" onClick={() => handleViewDetails(register.id)}>
+                      Ver Detalles
                     </Button>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        ) : (
+          <div className="text-center py-6 text-gray-500">No hay registros de cajas anteriores</div>
+        )}
       </CardContent>
     </Card>
   )
