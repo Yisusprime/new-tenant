@@ -1,153 +1,174 @@
-import { db } from "@/lib/firebase/admin"
-import type { Order, OrderFormData, OrderStatus, OrderType } from "@/lib/types/order"
-import { Timestamp } from "firebase-admin/firestore"
+import { ref, get, set, update, remove, push, query, orderByChild, equalTo } from "firebase/database"
+import { realtimeDb } from "@/lib/firebase/client"
+
+export type OrderType = "dine_in" | "takeaway" | "delivery"
+
+export type OrderStatus =
+  | "new"
+  | "received"
+  | "preparing"
+  | "ready"
+  | "in_transit"
+  | "delivered"
+  | "completed"
+  | "cancelled"
+
+export interface OrderItem {
+  productId: string
+  productName: string
+  quantity: number
+  price: number
+  notes?: string
+  extras?: {
+    id: string
+    name: string
+    price: number
+  }[]
+}
+
+export interface OrderCustomer {
+  name: string
+  phone?: string
+  email?: string
+  address?: string
+}
+
+export interface Order {
+  id: string
+  orderNumber: string
+  type: OrderType
+  status: OrderStatus
+  items: OrderItem[]
+  customer: OrderCustomer
+  tableNumber?: string
+  total: number
+  paymentMethod: string
+  notes?: string
+  createdAt: string
+  updatedAt: string
+  branchId: string
+}
+
+export interface CreateOrderData {
+  type: OrderType
+  items: OrderItem[]
+  customer: OrderCustomer
+  tableNumber?: string
+  paymentMethod: string
+  notes?: string
+  branchId: string
+}
+
+// Función para generar un número de pedido único
+function generateOrderNumber(): string {
+  const date = new Date()
+  const year = date.getFullYear().toString().slice(-2)
+  const month = (date.getMonth() + 1).toString().padStart(2, "0")
+  const day = date.getDate().toString().padStart(2, "0")
+  const random = Math.floor(Math.random() * 10000)
+    .toString()
+    .padStart(4, "0")
+  return `${year}${month}${day}-${random}`
+}
 
 // Función para obtener todos los pedidos de una sucursal
 export async function getOrders(tenantId: string, branchId: string): Promise<Order[]> {
   try {
-    const ordersSnapshot = await db
-      .collection("tenants")
-      .doc(tenantId)
-      .collection("branches")
-      .doc(branchId)
-      .collection("orders")
-      .orderBy("createdAt", "desc")
-      .get()
+    const ordersRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/orders`)
+    const snapshot = await get(ordersRef)
 
-    return ordersSnapshot.docs.map((doc) => {
-      const data = doc.data()
-      return {
-        id: doc.id,
-        ...data,
-        createdAt: data.createdAt.toDate().toISOString(),
-        updatedAt: data.updatedAt.toDate().toISOString(),
-      } as Order
-    })
+    if (!snapshot.exists()) {
+      return []
+    }
+
+    const ordersData = snapshot.val()
+
+    // Convertir el objeto a un array
+    const orders = Object.entries(ordersData).map(([id, data]) => ({
+      id,
+      ...(data as any),
+    })) as Order[]
+
+    // Ordenar por fecha de creación (más reciente primero)
+    return orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   } catch (error) {
-    console.error("Error fetching orders:", error)
-    throw new Error("Failed to fetch orders")
+    console.error("Error al obtener pedidos:", error)
+    throw error
   }
 }
 
 // Función para obtener pedidos por tipo
 export async function getOrdersByType(tenantId: string, branchId: string, type: OrderType): Promise<Order[]> {
   try {
-    const ordersSnapshot = await db
-      .collection("tenants")
-      .doc(tenantId)
-      .collection("branches")
-      .doc(branchId)
-      .collection("orders")
-      .where("type", "==", type)
-      .orderBy("createdAt", "desc")
-      .get()
+    const ordersRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/orders`)
+    const ordersQuery = query(ordersRef, orderByChild("type"), equalTo(type))
+    const snapshot = await get(ordersQuery)
 
-    return ordersSnapshot.docs.map((doc) => {
-      const data = doc.data()
-      return {
-        id: doc.id,
-        ...data,
-        createdAt: data.createdAt.toDate().toISOString(),
-        updatedAt: data.updatedAt.toDate().toISOString(),
-      } as Order
-    })
+    if (!snapshot.exists()) {
+      return []
+    }
+
+    const ordersData = snapshot.val()
+
+    // Convertir el objeto a un array
+    const orders = Object.entries(ordersData).map(([id, data]) => ({
+      id,
+      ...(data as any),
+    })) as Order[]
+
+    // Ordenar por fecha de creación (más reciente primero)
+    return orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   } catch (error) {
-    console.error(`Error fetching ${type} orders:`, error)
-    throw new Error(`Failed to fetch ${type} orders`)
+    console.error(`Error al obtener pedidos de tipo ${type}:`, error)
+    throw error
   }
 }
 
-// Función para obtener pedidos recientes
-export async function getRecentOrders(tenantId: string, branchId: string, limit = 5): Promise<Order[]> {
+// Función para obtener un pedido específico
+export async function getOrder(tenantId: string, branchId: string, orderId: string): Promise<Order | null> {
   try {
-    const ordersSnapshot = await db
-      .collection("tenants")
-      .doc(tenantId)
-      .collection("branches")
-      .doc(branchId)
-      .collection("orders")
-      .orderBy("createdAt", "desc")
-      .limit(limit)
-      .get()
+    const orderRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/orders/${orderId}`)
+    const snapshot = await get(orderRef)
 
-    return ordersSnapshot.docs.map((doc) => {
-      const data = doc.data()
-      return {
-        id: doc.id,
-        ...data,
-        createdAt: data.createdAt.toDate().toISOString(),
-        updatedAt: data.updatedAt.toDate().toISOString(),
-      } as Order
-    })
+    if (!snapshot.exists()) {
+      return null
+    }
+
+    return {
+      id: orderId,
+      ...snapshot.val(),
+    } as Order
   } catch (error) {
-    console.error("Error fetching recent orders:", error)
-    throw new Error("Failed to fetch recent orders")
+    console.error("Error al obtener pedido:", error)
+    throw error
   }
 }
 
 // Función para crear un nuevo pedido
-export async function createOrder(tenantId: string, branchId: string, orderData: OrderFormData): Promise<string> {
+export async function createOrder(tenantId: string, branchId: string, orderData: Omit<Order, "id">): Promise<Order> {
   try {
-    // Calcular subtotal
-    const subtotal = orderData.items.reduce((total, item) => {
-      return total + item.price * item.quantity
-    }, 0)
+    const timestamp = new Date().toISOString()
+    const ordersRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/orders`)
 
-    // Calcular impuestos (10% por defecto)
-    const tax = subtotal * 0.1
+    // Generar un nuevo ID para el pedido
+    const newOrderRef = push(ordersRef)
+    const orderId = newOrderRef.key!
 
-    // Calcular tarifa de entrega si es delivery
-    const deliveryFee = orderData.type === "delivery" ? 5 : 0
-
-    // Calcular total
-    const total = subtotal + tax + deliveryFee
-
-    // Generar número de orden (timestamp + 4 dígitos aleatorios)
-    const timestamp = Date.now()
-    const randomDigits = Math.floor(1000 + Math.random() * 9000)
-    const orderNumber = `${timestamp.toString().slice(-6)}${randomDigits}`
-
-    // Crear objeto de pedido
-    const newOrder: Omit<Order, "id"> = {
-      orderNumber,
-      type: orderData.type,
-      status: "new",
-      items: orderData.items.map((item) => ({
-        id: crypto.randomUUID(),
-        ...item,
-        subtotal: item.price * item.quantity,
-      })),
-      subtotal,
-      tax,
-      deliveryFee: orderData.type === "delivery" ? deliveryFee : undefined,
-      total,
-      tableNumber: orderData.tableNumber,
-      customer: orderData.customer,
-      paymentMethod: orderData.paymentMethod,
-      paymentStatus: "pending",
-      notes: orderData.notes,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      branchId,
+    const newOrder = {
+      id: orderId,
+      orderNumber: generateOrderNumber(),
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      ...orderData,
     }
 
-    // Guardar en Firestore
-    const orderRef = await db
-      .collection("tenants")
-      .doc(tenantId)
-      .collection("branches")
-      .doc(branchId)
-      .collection("orders")
-      .add({
-        ...newOrder,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-      })
+    // Guardar el pedido en Realtime Database
+    await set(newOrderRef, newOrder)
 
-    return orderRef.id
+    return newOrder as Order
   } catch (error) {
-    console.error("Error creating order:", error)
-    throw new Error("Failed to create order")
+    console.error("Error al crear pedido:", error)
+    throw error
   }
 }
 
@@ -159,26 +180,81 @@ export async function updateOrderStatus(
   status: OrderStatus,
 ): Promise<void> {
   try {
-    await db
-      .collection("tenants")
-      .doc(tenantId)
-      .collection("branches")
-      .doc(branchId)
-      .collection("orders")
-      .doc(orderId)
-      .update({
-        status,
-        updatedAt: Timestamp.now(),
-      })
+    const timestamp = new Date().toISOString()
+    const orderRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/orders/${orderId}`)
+
+    // Actualizar el estado y la fecha de actualización
+    await update(orderRef, {
+      status,
+      updatedAt: timestamp,
+    })
   } catch (error) {
-    console.error("Error updating order status:", error)
-    throw new Error("Failed to update order status")
+    console.error("Error al actualizar estado del pedido:", error)
+    throw error
   }
 }
 
-// Función para obtener mesas disponibles
+// Función para eliminar un pedido
+export async function deleteOrder(tenantId: string, branchId: string, orderId: string): Promise<void> {
+  try {
+    const orderRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/orders/${orderId}`)
+    await remove(orderRef)
+  } catch (error) {
+    console.error("Error al eliminar pedido:", error)
+    throw error
+  }
+}
+
+// Función para obtener los pedidos recientes (últimos 5)
+export async function getRecentOrders(tenantId: string, branchId: string, limit = 5): Promise<Order[]> {
+  try {
+    const orders = await getOrders(tenantId, branchId)
+    return orders.slice(0, limit)
+  } catch (error) {
+    console.error("Error al obtener pedidos recientes:", error)
+    throw error
+  }
+}
+
+// Función para obtener pedidos por estado
+export async function getOrdersByStatus(tenantId: string, branchId: string, status: OrderStatus): Promise<Order[]> {
+  try {
+    const ordersRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/orders`)
+    const ordersQuery = query(ordersRef, orderByChild("status"), equalTo(status))
+    const snapshot = await get(ordersQuery)
+
+    if (!snapshot.exists()) {
+      return []
+    }
+
+    const ordersData = snapshot.val()
+
+    // Convertir el objeto a un array
+    const orders = Object.entries(ordersData).map(([id, data]) => ({
+      id,
+      ...(data as any),
+    })) as Order[]
+
+    // Ordenar por fecha de creación (más reciente primero)
+    return orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  } catch (error) {
+    console.error(`Error al obtener pedidos con estado ${status}:`, error)
+    throw error
+  }
+}
+
+// Función para obtener pedidos activos (no completados ni cancelados)
+export async function getActiveOrders(tenantId: string, branchId: string): Promise<Order[]> {
+  try {
+    const orders = await getOrders(tenantId, branchId)
+    return orders.filter((order) => order.status !== "completed" && order.status !== "cancelled")
+  } catch (error) {
+    console.error("Error al obtener pedidos activos:", error)
+    throw error
+  }
+}
+
 export async function getAvailableTables(tenantId: string, branchId: string): Promise<string[]> {
-  // Simulación de mesas disponibles
-  // En una implementación real, esto debería verificar qué mesas están ocupadas
+  // This is a mock implementation. Replace with actual logic to fetch available tables.
   return ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
 }
