@@ -1,290 +1,269 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useOrders } from "@/lib/hooks/use-orders"
-import { OrderList } from "./components/order-list"
-import { TableManagement } from "./components/table-management"
-import { OrderDetails } from "./components/order-details"
-import { CreateOrderForm } from "./components/create-order-form"
-import type { Order, OrderStatus } from "@/lib/types/order"
-import { Button } from "@/components/ui/button"
+import { useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useToast } from "@/hooks/use-toast"
-import { Plus, RefreshCw } from "lucide-react"
-import { useBranch } from "@/lib/context/branch-context"
+import { useOrders } from "@/lib/hooks/use-orders"
+import { OrderType } from "@/lib/types/order"
 import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
+import { useBranch } from "@/lib/context/branch-context"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle, Loader2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
-export default function OrdersPage({ params }: { params: { tenantId: string } }) {
-  const { tenantId } = params
+export default function OrdersPage() {
   const { currentBranch } = useBranch()
-  const { toast } = useToast()
-
-  const {
-    orders,
-    tables,
-    loading,
-    error,
-    fetchOrders,
-    fetchOrdersByType,
-    fetchOrderById,
-    createOrder,
-    updateOrderStatus,
-    updateOrder,
-    deleteOrder,
-    fetchAvailableTables,
-    createTable,
-    updateTable,
-    deleteTable,
-  } = useOrders(tenantId)
-
+  const { orders, loading, error, loadAllOrders, loadOrdersByType } = useOrders()
   const [activeTab, setActiveTab] = useState("all")
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
-  const [isOrderDetailsOpen, setIsOrderDetailsOpen] = useState(false)
-  const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false)
-  const [availableTables, setAvailableTables] = useState([])
-  const [occupiedTableIds, setOccupiedTableIds] = useState<string[]>([])
-
-  // Cargar pedidos según la pestaña activa
-  useEffect(() => {
-    if (!currentBranch) return
-
-    const loadOrders = async () => {
-      if (activeTab === "all") {
-        await fetchOrders()
-      } else if (activeTab === "tables") {
-        await fetchOrdersByType("table")
-      } else if (activeTab === "delivery") {
-        await fetchOrdersByType("delivery")
-      } else if (activeTab === "dine_in") {
-        await fetchOrdersByType("dine_in")
-      } else if (activeTab === "takeaway") {
-        await fetchOrdersByType("takeaway")
-      }
-    }
-
-    loadOrders()
-  }, [activeTab, currentBranch, fetchOrders, fetchOrdersByType])
-
-  // Obtener mesas ocupadas
-  useEffect(() => {
-    if (!currentBranch) return
-
-    const getOccupiedTables = () => {
-      const tableOrders = orders.filter(
-        (order) => order.type === "table" && ["pending", "preparing", "ready"].includes(order.status),
-      )
-
-      const tableIds = tableOrders.map((order) => order.tableInfo?.id).filter(Boolean) as string[]
-
-      setOccupiedTableIds(tableIds)
-    }
-
-    getOccupiedTables()
-  }, [orders, currentBranch])
-
-  // Cargar mesas disponibles al abrir el formulario de creación
-  useEffect(() => {
-    if (isCreateOrderOpen && currentBranch) {
-      const loadAvailableTables = async () => {
-        try {
-          const tables = await fetchAvailableTables()
-          setAvailableTables(tables)
-        } catch (error) {
-          console.error("Error loading available tables:", error)
-        }
-      }
-
-      loadAvailableTables()
-    }
-  }, [isCreateOrderOpen, currentBranch, fetchAvailableTables])
-
-  const handleViewOrder = async (orderId: string) => {
-    try {
-      const order = await fetchOrderById(orderId)
-      if (order) {
-        setSelectedOrder(order)
-        setIsOrderDetailsOpen(true)
-      }
-    } catch (error) {
-      console.error("Error fetching order details:", error)
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los detalles del pedido.",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleEditOrder = (orderId: string) => {
-    // Implementar edición de pedido
-    toast({
-      title: "Función no implementada",
-      description: "La edición de pedidos se implementará próximamente.",
-    })
-  }
-
-  const handleDeleteOrder = async (orderId: string) => {
-    if (confirm("¿Estás seguro de que deseas eliminar este pedido? Esta acción no se puede deshacer.")) {
-      try {
-        await deleteOrder(orderId)
-        toast({
-          title: "Pedido eliminado",
-          description: "El pedido ha sido eliminado exitosamente.",
-        })
-      } catch (error) {
-        console.error("Error deleting order:", error)
-        toast({
-          title: "Error",
-          description: "No se pudo eliminar el pedido.",
-          variant: "destructive",
-        })
-      }
-    }
-  }
-
-  const handleUpdateStatus = async (orderId: string, status: OrderStatus) => {
-    try {
-      await updateOrderStatus(orderId, status)
-      toast({
-        title: "Estado actualizado",
-        description: "El estado del pedido ha sido actualizado exitosamente.",
-      })
-    } catch (error) {
-      console.error("Error updating order status:", error)
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar el estado del pedido.",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleCreateOrder = async (order: Omit<Order, "id" | "createdAt" | "updatedAt">) => {
-    try {
-      const orderId = await createOrder(order)
-      toast({
-        title: "Pedido creado",
-        description: "El pedido ha sido creado exitosamente.",
-      })
-      return orderId
-    } catch (error) {
-      console.error("Error creating order:", error)
-      toast({
-        title: "Error",
-        description: "No se pudo crear el pedido.",
-        variant: "destructive",
-      })
-      throw error
-    }
-  }
 
   if (!currentBranch) {
     return <NoBranchSelectedAlert />
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Gestión de Pedidos</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => fetchOrders()}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Actualizar
-          </Button>
-          <Button onClick={() => setIsCreateOrderOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo Pedido
-          </Button>
-        </div>
-      </div>
+  const handleTabChange = (value: string) => {
+    setActiveTab(value)
 
-      <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-5 w-full max-w-md">
-          <TabsTrigger value="all">Todos</TabsTrigger>
-          <TabsTrigger value="dine_in">Local</TabsTrigger>
-          <TabsTrigger value="takeaway">Para llevar</TabsTrigger>
-          <TabsTrigger value="tables">Mesas</TabsTrigger>
+    if (value === "all") {
+      loadAllOrders()
+    } else if (value === "dine_in") {
+      loadOrdersByType(OrderType.DINE_IN)
+    } else if (value === "takeout") {
+      loadOrdersByType(OrderType.TAKEOUT)
+    } else if (value === "delivery") {
+      loadOrdersByType(OrderType.DELIVERY)
+    }
+  }
+
+  return (
+    <div className="container mx-auto py-6">
+      <h1 className="text-3xl font-bold mb-6">Gestión de Pedidos</h1>
+
+      {error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription className="flex flex-col gap-2">
+            <p>{error}</p>
+            <Button variant="outline" size="sm" onClick={() => handleTabChange(activeTab)} className="self-start">
+              Reintentar
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Tabs defaultValue="all" onValueChange={handleTabChange}>
+        <TabsList className="mb-6">
+          <TabsTrigger value="all">Todos los Pedidos</TabsTrigger>
+          <TabsTrigger value="dine_in">Mesas</TabsTrigger>
+          <TabsTrigger value="takeout">Para Llevar</TabsTrigger>
           <TabsTrigger value="delivery">Delivery</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="all" className="mt-6">
-          <OrderList
-            orders={orders}
-            onViewOrder={handleViewOrder}
-            onEditOrder={handleEditOrder}
-            onDeleteOrder={handleDeleteOrder}
-            onUpdateStatus={handleUpdateStatus}
-          />
+        <TabsContent value="all" className="space-y-4">
+          {loading ? (
+            <div className="flex justify-center items-center h-40">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : orders.length === 0 ? (
+            <div className="text-center p-8 border rounded-lg">
+              <p className="text-lg text-muted-foreground">No hay pedidos disponibles</p>
+              <p className="text-sm text-muted-foreground mt-2">Crea un nuevo pedido para comenzar</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {orders.map((order) => (
+                <div key={order.id} className="p-4 border rounded-lg flex justify-between items-center">
+                  <div>
+                    <p className="font-medium">Pedido #{order.orderNumber}</p>
+                    <p className="text-sm text-muted-foreground">{new Date(order.createdAt).toLocaleString()}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">${order.total.toFixed(2)}</span>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${
+                        order.status === "pending"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : order.status === "in_progress"
+                            ? "bg-blue-100 text-blue-800"
+                            : order.status === "ready"
+                              ? "bg-purple-100 text-purple-800"
+                              : order.status === "completed"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {order.status === "pending"
+                        ? "Pendiente"
+                        : order.status === "in_progress"
+                          ? "En Proceso"
+                          : order.status === "ready"
+                            ? "Listo"
+                            : order.status === "completed"
+                              ? "Completado"
+                              : "Cancelado"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
-        <TabsContent value="dine_in" className="mt-6">
-          <OrderList
-            orders={orders}
-            onViewOrder={handleViewOrder}
-            onEditOrder={handleEditOrder}
-            onDeleteOrder={handleDeleteOrder}
-            onUpdateStatus={handleUpdateStatus}
-          />
+        <TabsContent value="dine_in" className="space-y-4">
+          {loading ? (
+            <div className="flex justify-center items-center h-40">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : orders.length === 0 ? (
+            <div className="text-center p-8 border rounded-lg">
+              <p className="text-lg text-muted-foreground">No hay pedidos de mesa disponibles</p>
+              <p className="text-sm text-muted-foreground mt-2">Crea un nuevo pedido de mesa para comenzar</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {orders.map((order) => (
+                <div key={order.id} className="p-4 border rounded-lg flex justify-between items-center">
+                  <div>
+                    <p className="font-medium">
+                      Mesa #{order.tableNumber} - Pedido #{order.orderNumber}
+                    </p>
+                    <p className="text-sm text-muted-foreground">{new Date(order.createdAt).toLocaleString()}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">${order.total.toFixed(2)}</span>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${
+                        order.status === "pending"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : order.status === "in_progress"
+                            ? "bg-blue-100 text-blue-800"
+                            : order.status === "ready"
+                              ? "bg-purple-100 text-purple-800"
+                              : order.status === "completed"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {order.status === "pending"
+                        ? "Pendiente"
+                        : order.status === "in_progress"
+                          ? "En Proceso"
+                          : order.status === "ready"
+                            ? "Listo"
+                            : order.status === "completed"
+                              ? "Completado"
+                              : "Cancelado"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
-        <TabsContent value="takeaway" className="mt-6">
-          <OrderList
-            orders={orders}
-            onViewOrder={handleViewOrder}
-            onEditOrder={handleEditOrder}
-            onDeleteOrder={handleDeleteOrder}
-            onUpdateStatus={handleUpdateStatus}
-          />
+        <TabsContent value="takeout" className="space-y-4">
+          {loading ? (
+            <div className="flex justify-center items-center h-40">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : orders.length === 0 ? (
+            <div className="text-center p-8 border rounded-lg">
+              <p className="text-lg text-muted-foreground">No hay pedidos para llevar disponibles</p>
+              <p className="text-sm text-muted-foreground mt-2">Crea un nuevo pedido para llevar para comenzar</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {orders.map((order) => (
+                <div key={order.id} className="p-4 border rounded-lg flex justify-between items-center">
+                  <div>
+                    <p className="font-medium">Para Llevar - Pedido #{order.orderNumber}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {order.customer?.name} - {new Date(order.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">${order.total.toFixed(2)}</span>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${
+                        order.status === "pending"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : order.status === "in_progress"
+                            ? "bg-blue-100 text-blue-800"
+                            : order.status === "ready"
+                              ? "bg-purple-100 text-purple-800"
+                              : order.status === "completed"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {order.status === "pending"
+                        ? "Pendiente"
+                        : order.status === "in_progress"
+                          ? "En Proceso"
+                          : order.status === "ready"
+                            ? "Listo"
+                            : order.status === "completed"
+                              ? "Completado"
+                              : "Cancelado"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
-        <TabsContent value="tables" className="mt-6">
-          <div className="space-y-8">
-            <OrderList
-              orders={orders}
-              onViewOrder={handleViewOrder}
-              onEditOrder={handleEditOrder}
-              onDeleteOrder={handleDeleteOrder}
-              onUpdateStatus={handleUpdateStatus}
-            />
-
-            <TableManagement
-              tables={tables}
-              onCreateTable={createTable}
-              onUpdateTable={updateTable}
-              onDeleteTable={deleteTable}
-              occupiedTableIds={occupiedTableIds}
-            />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="delivery" className="mt-6">
-          <OrderList
-            orders={orders}
-            onViewOrder={handleViewOrder}
-            onEditOrder={handleEditOrder}
-            onDeleteOrder={handleDeleteOrder}
-            onUpdateStatus={handleUpdateStatus}
-          />
+        <TabsContent value="delivery" className="space-y-4">
+          {loading ? (
+            <div className="flex justify-center items-center h-40">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : orders.length === 0 ? (
+            <div className="text-center p-8 border rounded-lg">
+              <p className="text-lg text-muted-foreground">No hay pedidos de delivery disponibles</p>
+              <p className="text-sm text-muted-foreground mt-2">Crea un nuevo pedido de delivery para comenzar</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {orders.map((order) => (
+                <div key={order.id} className="p-4 border rounded-lg flex justify-between items-center">
+                  <div>
+                    <p className="font-medium">Delivery - Pedido #{order.orderNumber}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {order.customer?.name} - {new Date(order.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">${order.total.toFixed(2)}</span>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${
+                        order.status === "pending"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : order.status === "in_progress"
+                            ? "bg-blue-100 text-blue-800"
+                            : order.status === "ready"
+                              ? "bg-purple-100 text-purple-800"
+                              : order.status === "completed"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {order.status === "pending"
+                        ? "Pendiente"
+                        : order.status === "in_progress"
+                          ? "En Proceso"
+                          : order.status === "ready"
+                            ? "Listo"
+                            : order.status === "completed"
+                              ? "Completado"
+                              : "Cancelado"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
-
-      {/* Modal de detalles del pedido */}
-      <OrderDetails
-        order={selectedOrder}
-        isOpen={isOrderDetailsOpen}
-        onClose={() => setIsOrderDetailsOpen(false)}
-        onUpdateStatus={handleUpdateStatus}
-      />
-
-      {/* Formulario de creación de pedido */}
-      <CreateOrderForm
-        isOpen={isCreateOrderOpen}
-        onClose={() => setIsCreateOrderOpen(false)}
-        onCreateOrder={handleCreateOrder}
-        availableTables={availableTables}
-        tenantId={tenantId}
-        branchId={currentBranch.id}
-      />
     </div>
   )
 }

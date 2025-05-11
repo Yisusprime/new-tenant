@@ -1,239 +1,252 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { OrderService } from "@/lib/services/order-service"
-import type { Order, OrderStatus, OrderSummary, OrderType, TableInfo } from "@/lib/types/order"
+import { useParams } from "next/navigation"
 import { useBranch } from "@/lib/context/branch-context"
+import { OrderService } from "../services/order-service"
+import { OrderStatus, OrderType } from "../types/order"
 
-export function useOrders(tenantId: string) {
-  const { currentBranch } = useBranch()
-  const [orders, setOrders] = useState<OrderSummary[]>([])
-  const [tables, setTables] = useState<TableInfo[]>([])
-  const [loading, setLoading] = useState(true)
+export const useOrders = () => {
+  const params = useParams()
+  const tenantId = params.tenantId as string
+  const { currentBranch: selectedBranch } = useBranch()
+
+  const [orders, setOrders] = useState<any[]>([])
+  const [tables, setTables] = useState<any[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
 
-  const orderService = currentBranch ? new OrderService(tenantId, currentBranch.id) : null
-
-  const fetchOrders = useCallback(async () => {
-    if (!orderService) return
+  // Función para cargar todos los pedidos
+  const loadAllOrders = useCallback(async () => {
+    if (!selectedBranch) return
 
     setLoading(true)
+    setError(null)
+
     try {
-      const fetchedOrders = await orderService.getOrders()
-      setOrders(fetchedOrders)
-      setError(null)
-    } catch (err) {
-      console.error("Error fetching orders:", err)
-      setError("Error al cargar los pedidos")
+      const allOrders = await OrderService.getAllOrders(tenantId, selectedBranch.id)
+      setOrders(allOrders)
+    } catch (err: any) {
+      console.error("Error al cargar pedidos:", err)
+      setError(err.message || "Error al cargar pedidos")
     } finally {
       setLoading(false)
     }
-  }, [orderService])
+  }, [tenantId, selectedBranch])
 
-  const fetchOrdersByType = useCallback(
+  // Función para cargar pedidos por tipo
+  const loadOrdersByType = useCallback(
     async (type: OrderType) => {
-      if (!orderService) return
+      if (!selectedBranch) return
 
       setLoading(true)
+      setError(null)
+
       try {
-        const fetchedOrders = await orderService.getOrdersByType(type)
-        setOrders(fetchedOrders)
-        setError(null)
-      } catch (err) {
-        console.error(`Error fetching orders of type ${type}:`, err)
-        setError(`Error al cargar los pedidos de tipo ${type}`)
+        const filteredOrders = await OrderService.getOrdersByType(tenantId, selectedBranch.id, type)
+        setOrders(filteredOrders)
+      } catch (err: any) {
+        console.error(`Error al cargar pedidos de tipo ${type}:`, err)
+        setError(err.message || `Error al cargar pedidos de tipo ${type}`)
+        // Si hay un error de índice, cargar todos los pedidos y filtrar en el cliente
+        if (err.message?.includes("index")) {
+          try {
+            const allOrders = await OrderService.getAllOrders(tenantId, selectedBranch.id)
+            const filteredOrders = allOrders.filter((order) => order.type === type)
+            setOrders(filteredOrders)
+            setError(null)
+          } catch (fallbackErr: any) {
+            setError(fallbackErr.message || "Error al cargar pedidos")
+          }
+        }
       } finally {
         setLoading(false)
       }
     },
-    [orderService],
+    [tenantId, selectedBranch],
   )
 
-  const fetchOrdersByStatus = useCallback(
-    async (status: OrderStatus) => {
-      if (!orderService) return
+  // Función para cargar mesas
+  const loadTables = useCallback(async () => {
+    if (!selectedBranch) return
 
-      setLoading(true)
-      try {
-        const fetchedOrders = await orderService.getOrdersByStatus(status)
-        setOrders(fetchedOrders)
-        setError(null)
-      } catch (err) {
-        console.error(`Error fetching orders with status ${status}:`, err)
-        setError(`Error al cargar los pedidos con estado ${status}`)
-      } finally {
-        setLoading(false)
-      }
-    },
-    [orderService],
-  )
+    setLoading(true)
 
-  const fetchOrderById = useCallback(
-    async (orderId: string) => {
-      if (!orderService) return null
+    try {
+      const allTables = await OrderService.getTables(tenantId, selectedBranch.id)
+      setTables(allTables)
+    } catch (err: any) {
+      console.error("Error al cargar mesas:", err)
+      setError(err.message || "Error al cargar mesas")
+    } finally {
+      setLoading(false)
+    }
+  }, [tenantId, selectedBranch])
 
-      try {
-        return await orderService.getOrderById(orderId)
-      } catch (err) {
-        console.error(`Error fetching order ${orderId}:`, err)
-        throw err
-      }
-    },
-    [orderService],
-  )
-
+  // Función para crear un pedido
   const createOrder = useCallback(
-    async (order: Omit<Order, "id" | "createdAt" | "updatedAt">) => {
-      if (!orderService) return null
+    async (orderData: any) => {
+      if (!selectedBranch) throw new Error("No hay sucursal seleccionada")
 
       try {
-        const orderId = await orderService.createOrder(order)
-        fetchOrders() // Refresh orders after creating a new one
-        return orderId
-      } catch (err) {
-        console.error("Error creating order:", err)
+        const newOrder = await OrderService.createOrder(tenantId, selectedBranch.id, orderData)
+
+        // Si el pedido es para mesa, actualizar el estado de la mesa
+        if (orderData.type === OrderType.DINE_IN && orderData.tableId) {
+          await OrderService.updateTable(tenantId, selectedBranch.id, orderData.tableId, {
+            isOccupied: true,
+            currentOrderId: newOrder.id,
+          })
+        }
+
+        // Recargar pedidos después de crear uno nuevo
+        await loadAllOrders()
+
+        return newOrder
+      } catch (err: any) {
+        console.error("Error al crear pedido:", err)
         throw err
       }
     },
-    [orderService, fetchOrders],
+    [tenantId, selectedBranch, loadAllOrders],
   )
 
+  // Función para actualizar el estado de un pedido
   const updateOrderStatus = useCallback(
-    async (orderId: string, status: OrderStatus) => {
-      if (!orderService) return
+    async (orderId: string, status: OrderStatus, orderData?: any) => {
+      if (!selectedBranch) throw new Error("No hay sucursal seleccionada")
 
       try {
-        await orderService.updateOrderStatus(orderId, status)
-        fetchOrders() // Refresh orders after updating
-      } catch (err) {
-        console.error(`Error updating order ${orderId} status:`, err)
+        await OrderService.updateOrderStatus(tenantId, selectedBranch.id, orderId, status)
+
+        // Si el pedido se completa o cancela y es de mesa, liberar la mesa
+        if (
+          (status === OrderStatus.COMPLETED || status === OrderStatus.CANCELLED) &&
+          orderData?.type === OrderType.DINE_IN &&
+          orderData?.tableId
+        ) {
+          await OrderService.updateTable(tenantId, selectedBranch.id, orderData.tableId, {
+            isOccupied: false,
+            currentOrderId: null,
+          })
+        }
+
+        // Recargar pedidos después de actualizar
+        await loadAllOrders()
+
+        return true
+      } catch (err: any) {
+        console.error("Error al actualizar estado del pedido:", err)
         throw err
       }
     },
-    [orderService, fetchOrders],
+    [tenantId, selectedBranch, loadAllOrders],
   )
 
-  const updateOrder = useCallback(
-    async (orderId: string, updates: Partial<Order>) => {
-      if (!orderService) return
-
-      try {
-        await orderService.updateOrder(orderId, updates)
-        fetchOrders() // Refresh orders after updating
-      } catch (err) {
-        console.error(`Error updating order ${orderId}:`, err)
-        throw err
-      }
-    },
-    [orderService, fetchOrders],
-  )
-
+  // Función para eliminar un pedido
   const deleteOrder = useCallback(
-    async (orderId: string) => {
-      if (!orderService) return
+    async (orderId: string, orderData?: any) => {
+      if (!selectedBranch) throw new Error("No hay sucursal seleccionada")
 
       try {
-        await orderService.deleteOrder(orderId)
-        fetchOrders() // Refresh orders after deleting
-      } catch (err) {
-        console.error(`Error deleting order ${orderId}:`, err)
+        await OrderService.deleteOrder(tenantId, selectedBranch.id, orderId)
+
+        // Si el pedido es de mesa, liberar la mesa
+        if (orderData?.type === OrderType.DINE_IN && orderData?.tableId) {
+          await OrderService.updateTable(tenantId, selectedBranch.id, orderData.tableId, {
+            isOccupied: false,
+            currentOrderId: null,
+          })
+        }
+
+        // Recargar pedidos después de eliminar
+        await loadAllOrders()
+
+        return true
+      } catch (err: any) {
+        console.error("Error al eliminar pedido:", err)
         throw err
       }
     },
-    [orderService, fetchOrders],
+    [tenantId, selectedBranch, loadAllOrders],
   )
 
-  const fetchTables = useCallback(async () => {
-    if (!orderService) return
-
-    try {
-      const fetchedTables = await orderService.getAllTables()
-      setTables(fetchedTables)
-    } catch (err) {
-      console.error("Error fetching tables:", err)
-      throw err
-    }
-  }, [orderService])
-
-  const fetchAvailableTables = useCallback(async () => {
-    if (!orderService) return []
-
-    try {
-      return await orderService.getAvailableTables()
-    } catch (err) {
-      console.error("Error fetching available tables:", err)
-      throw err
-    }
-  }, [orderService])
-
+  // Funciones para gestión de mesas
   const createTable = useCallback(
-    async (table: Omit<TableInfo, "id">) => {
-      if (!orderService) return null
+    async (tableData: any) => {
+      if (!selectedBranch) throw new Error("No hay sucursal seleccionada")
 
       try {
-        const tableId = await orderService.createTable(table)
-        fetchTables() // Refresh tables after creating a new one
-        return tableId
-      } catch (err) {
-        console.error("Error creating table:", err)
+        const newTable = await OrderService.createTable(tenantId, selectedBranch.id, tableData)
+
+        // Recargar mesas después de crear una nueva
+        await loadTables()
+
+        return newTable
+      } catch (err: any) {
+        console.error("Error al crear mesa:", err)
         throw err
       }
     },
-    [orderService, fetchTables],
+    [tenantId, selectedBranch, loadTables],
   )
 
   const updateTable = useCallback(
-    async (tableId: string, updates: Partial<TableInfo>) => {
-      if (!orderService) return
+    async (tableId: string, tableData: any) => {
+      if (!selectedBranch) throw new Error("No hay sucursal seleccionada")
 
       try {
-        await orderService.updateTable(tableId, updates)
-        fetchTables() // Refresh tables after updating
-      } catch (err) {
-        console.error(`Error updating table ${tableId}:`, err)
+        await OrderService.updateTable(tenantId, selectedBranch.id, tableId, tableData)
+
+        // Recargar mesas después de actualizar
+        await loadTables()
+
+        return true
+      } catch (err: any) {
+        console.error("Error al actualizar mesa:", err)
         throw err
       }
     },
-    [orderService, fetchTables],
+    [tenantId, selectedBranch, loadTables],
   )
 
   const deleteTable = useCallback(
     async (tableId: string) => {
-      if (!orderService) return
+      if (!selectedBranch) throw new Error("No hay sucursal seleccionada")
 
       try {
-        await orderService.deleteTable(tableId)
-        fetchTables() // Refresh tables after deleting
-      } catch (err) {
-        console.error(`Error deleting table ${tableId}:`, err)
+        await OrderService.deleteTable(tenantId, selectedBranch.id, tableId)
+
+        // Recargar mesas después de eliminar
+        await loadTables()
+
+        return true
+      } catch (err: any) {
+        console.error("Error al eliminar mesa:", err)
         throw err
       }
     },
-    [orderService, fetchTables],
+    [tenantId, selectedBranch, loadTables],
   )
 
+  // Cargar pedidos inicialmente cuando cambia la sucursal
   useEffect(() => {
-    if (currentBranch) {
-      fetchOrders()
-      fetchTables()
+    if (selectedBranch) {
+      loadAllOrders()
     }
-  }, [currentBranch, fetchOrders, fetchTables])
+  }, [selectedBranch, loadAllOrders])
 
   return {
     orders,
     tables,
     loading,
     error,
-    fetchOrders,
-    fetchOrdersByType,
-    fetchOrdersByStatus,
-    fetchOrderById,
+    loadAllOrders,
+    loadOrdersByType,
+    loadTables,
     createOrder,
     updateOrderStatus,
-    updateOrder,
     deleteOrder,
-    fetchTables,
-    fetchAvailableTables,
     createTable,
     updateTable,
     deleteTable,

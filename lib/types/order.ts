@@ -1,27 +1,17 @@
-export type OrderStatus =
-  | "pending" // Pendiente
-  | "preparing" // En preparación
-  | "ready" // Listo para entrega
-  | "delivered" // Entregado
-  | "completed" // Completado
-  | "cancelled" // Cancelado
+export enum OrderStatus {
+  PENDING = "pending",
+  IN_PROGRESS = "in_progress",
+  READY = "ready",
+  COMPLETED = "completed",
+  CANCELLED = "cancelled",
+}
 
-export type OrderType =
-  | "dine_in" // Para comer en el local
-  | "takeaway" // Para llevar
-  | "table" // Mesa
-  | "delivery" // Entrega a domicilio
-
-export type PaymentStatus =
-  | "pending" // Pendiente de pago
-  | "paid" // Pagado
-  | "refunded" // Reembolsado
-
-export type PaymentMethod =
-  | "cash" // Efectivo
-  | "card" // Tarjeta
-  | "transfer" // Transferencia
-  | "other" // Otro
+export enum OrderType {
+  DINE_IN = "dine_in",
+  TAKEOUT = "takeout",
+  DELIVERY = "delivery",
+  PICKUP = "pickup",
+}
 
 export interface OrderItem {
   id: string
@@ -29,64 +19,60 @@ export interface OrderItem {
   name: string
   price: number
   quantity: number
+  options?: {
+    id: string
+    name: string
+    price: number
+  }[]
   notes?: string
-  extras?: OrderItemExtra[]
   subtotal: number
-}
-
-export interface OrderItemExtra {
-  id: string
-  name: string
-  price: number
-  quantity: number
-}
-
-export interface OrderCustomer {
-  id?: string
-  name: string
-  phone?: string
-  email?: string
-  address?: OrderAddress
-}
-
-export interface OrderAddress {
-  street: string
-  number?: string
-  apartment?: string
-  city: string
-  state?: string
-  zipCode?: string
-  instructions?: string
 }
 
 export interface TableInfo {
   id: string
-  name: string
+  number: number
   capacity: number
+  isOccupied: boolean
+  currentOrderId?: string | null
+  location?: string
+  createdAt?: Date
+  updatedAt?: Date
+}
+
+export interface DeliveryInfo {
+  address: string
+  city: string
+  zipCode: string
+  phone: string
+  notes?: string
+  deliveryFee?: number
+}
+
+export interface CustomerInfo {
+  name: string
+  phone?: string
+  email?: string
+  userId?: string
 }
 
 export interface Order {
   id: string
-  tenantId: string
-  branchId: string
   orderNumber: string
   type: OrderType
   status: OrderStatus
   items: OrderItem[]
   subtotal: number
   tax: number
-  deliveryFee?: number
-  discount?: number
   total: number
-  customer: OrderCustomer
-  paymentStatus: PaymentStatus
-  paymentMethod?: PaymentMethod
+  customer?: CustomerInfo
+  tableId?: string
+  tableNumber?: number
+  deliveryInfo?: DeliveryInfo
+  paymentMethod?: string
+  paymentStatus?: "pending" | "paid" | "failed"
   notes?: string
-  tableInfo?: TableInfo
   createdAt: Date
   updatedAt: Date
-  estimatedDeliveryTime?: Date
-  completedAt?: Date
 }
 
 export interface OrderSummary {
@@ -95,7 +81,7 @@ export interface OrderSummary {
   type: OrderType
   status: OrderStatus
   total: number
-  customerName: string
+  customer?: CustomerInfo
+  tableNumber?: number
   createdAt: Date
-  tableInfo?: TableInfo
 }
