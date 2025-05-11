@@ -12,14 +12,23 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
   const notificationsEnabled = useRef<boolean>(true)
 
   useEffect(() => {
-    // Inicializar el sonido
+    // Inicializar el sonido con la ruta correcta
     if (typeof window !== "undefined") {
       notificationSound.current = new Audio("/sounds/new-order.mp3")
+
+      // Precargar el audio para evitar problemas de reproducción
+      notificationSound.current.load()
+
+      // Agregar listener para detectar errores de carga
+      notificationSound.current.addEventListener("error", (e) => {
+        console.error("Error al cargar el sonido:", e)
+      })
     }
 
     return () => {
       // Limpiar el sonido al desmontar
       if (notificationSound.current) {
+        notificationSound.current.pause()
         notificationSound.current = null
       }
     }
@@ -50,8 +59,15 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
 
         // Reproducir sonido si las notificaciones están habilitadas
         if (notificationsEnabled.current && notificationSound.current) {
+          // Reiniciar el audio antes de reproducirlo
+          notificationSound.current.currentTime = 0
+
+          // Intentar reproducir con mejor manejo de errores
           notificationSound.current.play().catch((err) => {
             console.error("Error al reproducir sonido:", err)
+
+            // Intentar cargar nuevamente el audio
+            notificationSound.current?.load()
           })
         }
       }
