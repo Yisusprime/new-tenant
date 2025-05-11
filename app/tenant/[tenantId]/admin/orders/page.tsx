@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useBranch } from "@/lib/context/branch-context"
 import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
 import { Button } from "@/components/ui/button"
-import { Plus, RefreshCw, Bell, BellOff, Volume2, VolumeX } from "lucide-react"
+import { Plus, RefreshCw, Bell, BellOff, Volume2 } from "lucide-react"
 import { getOrders, getOrdersByType } from "@/lib/services/order-service"
 import { getTables } from "@/lib/services/table-service"
 import type { Order } from "@/lib/types/order"
@@ -18,6 +18,7 @@ import { toast } from "@/components/ui/use-toast"
 import { useOrderNotifications } from "@/lib/hooks/use-order-notifications"
 import { NotificationSoundTester } from "@/components/notification-sound-tester"
 import { AudioPermissionDialog } from "@/components/audio-permission-dialog"
+import { VisualNotification } from "@/components/visual-notification"
 
 export default function OrdersPage({ params }: { params: { tenantId: string } }) {
   const { tenantId } = params
@@ -33,8 +34,18 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
   const [notificationsOn, setNotificationsOn] = useState(true)
 
   // Usar el hook de notificaciones
-  const { newOrder, toggleNotifications, notificationsEnabled, permissionGranted, grantPermission, denyPermission } =
-    useOrderNotifications(tenantId, currentBranch?.id || null)
+  const {
+    newOrder,
+    toggleNotifications,
+    notificationsEnabled,
+    notificationType,
+    setAudioNotifications,
+    setVisualNotifications,
+    disableNotifications,
+    showVisualNotification,
+    notificationMessage,
+    hideVisualNotification,
+  } = useOrderNotifications(tenantId, currentBranch?.id || null)
 
   const loadOrders = async () => {
     if (!currentBranch) return
@@ -129,30 +140,41 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
     })
   }
 
-  // Función para solicitar permisos de audio nuevamente
-  const requestAudioPermission = () => {
+  // Función para solicitar permisos de notificación nuevamente
+  const requestNotificationPermission = () => {
     // Eliminar la preferencia guardada
-    localStorage.removeItem("audioNotificationsPermission")
+    localStorage.removeItem("notificationsPermission")
     // Recargar la página para mostrar el diálogo de nuevo
     window.location.reload()
   }
 
   return (
     <div className="space-y-6">
-      {/* Diálogo de permiso de audio */}
-      <AudioPermissionDialog onPermissionGranted={grantPermission} onPermissionDenied={denyPermission} />
+      {/* Diálogo de permiso de notificaciones */}
+      <AudioPermissionDialog
+        onPermissionGranted={setAudioNotifications}
+        onPermissionDenied={disableNotifications}
+        onVisualOnly={setVisualNotifications}
+      />
+
+      {/* Componente de notificación visual */}
+      <VisualNotification
+        show={showVisualNotification}
+        message={notificationMessage}
+        onClose={hideVisualNotification}
+      />
 
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Gestor de Pedidos</h1>
         <div className="flex gap-2">
-          {permissionGranted === false && (
+          {notificationType === "none" && (
             <Button
               variant="outline"
               size="sm"
-              onClick={requestAudioPermission}
-              title="Habilitar notificaciones de audio"
+              onClick={requestNotificationPermission}
+              title="Configurar notificaciones"
             >
-              <Volume2 className="h-4 w-4" />
+              <Bell className="h-4 w-4" />
             </Button>
           )}
           <Button
@@ -180,31 +202,34 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
 
       {currentBranch && (
         <>
-          {/* Mostrar estado de las notificaciones de audio */}
-          {permissionGranted !== null && (
+          {/* Mostrar estado de las notificaciones */}
+          {notificationType !== "none" && (
             <div
-              className={`p-3 rounded-md ${permissionGranted ? "bg-green-50 border border-green-200" : "bg-yellow-50 border border-yellow-200"}`}
+              className={`p-3 rounded-md ${
+                notificationType === "audio"
+                  ? "bg-green-50 border border-green-200"
+                  : "bg-blue-50 border border-blue-200"
+              }`}
             >
               <div className="flex items-center">
-                {permissionGranted ? (
+                {notificationType === "audio" ? (
                   <>
                     <Volume2 className="h-5 w-5 text-green-500 mr-2" />
                     <span className="text-sm text-green-700">
-                      Notificaciones de audio habilitadas. Recibirás alertas sonoras cuando lleguen nuevos pedidos.
+                      Notificaciones con sonido habilitadas. Recibirás alertas sonoras cuando lleguen nuevos pedidos.
                     </span>
                   </>
                 ) : (
                   <>
-                    <VolumeX className="h-5 w-5 text-yellow-500 mr-2" />
-                    <span className="text-sm text-yellow-700">
-                      Notificaciones de audio deshabilitadas. No recibirás alertas sonoras cuando lleguen nuevos
-                      pedidos.
+                    <Bell className="h-5 w-5 text-blue-500 mr-2" />
+                    <span className="text-sm text-blue-700">
+                      Notificaciones visuales habilitadas. Recibirás alertas visuales cuando lleguen nuevos pedidos.
                     </span>
-                    <Button variant="link" size="sm" onClick={requestAudioPermission} className="ml-2 text-yellow-700">
-                      Habilitar
-                    </Button>
                   </>
                 )}
+                <Button variant="link" size="sm" onClick={requestNotificationPermission} className="ml-2">
+                  Cambiar
+                </Button>
               </div>
             </div>
           )}
@@ -227,7 +252,7 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
                   </div>
                 ) : (
                   <>
-                    {permissionGranted && (
+                    {notificationType === "audio" && (
                       <NotificationSoundTester tenantId={tenantId} branchId={currentBranch?.id || ""} />
                     )}
                     <OrdersList

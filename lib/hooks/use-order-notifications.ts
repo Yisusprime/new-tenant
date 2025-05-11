@@ -11,22 +11,26 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
   const notificationSound = useRef<HTMLAudioElement | null>(null)
   const audioLoaded = useRef<boolean>(false)
   const notificationsEnabled = useRef<boolean>(true)
-  const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null)
+  const [notificationType, setNotificationType] = useState<"audio" | "visual" | "none">("none")
+  const [showVisualNotification, setShowVisualNotification] = useState(false)
+  const [notificationMessage, setNotificationMessage] = useState("")
 
-  // Verificar si ya se ha otorgado permiso
+  // Verificar el tipo de notificación configurado
   useEffect(() => {
-    const storedPermission = localStorage.getItem("audioNotificationsPermission")
-    if (storedPermission === "granted") {
-      setPermissionGranted(true)
-    } else if (storedPermission === "denied") {
-      setPermissionGranted(false)
+    const storedPermission = localStorage.getItem("notificationsPermission")
+    if (storedPermission === "audio") {
+      setNotificationType("audio")
+    } else if (storedPermission === "visual") {
+      setNotificationType("visual")
+    } else {
+      setNotificationType("none")
     }
   }, [])
 
   // Función para crear y configurar el elemento de audio
   const setupAudio = () => {
     if (typeof window === "undefined") return
-    if (!permissionGranted) return
+    if (notificationType !== "audio") return
 
     try {
       // Crear un nuevo elemento de audio
@@ -62,9 +66,9 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
     }
   }
 
-  // Configurar el audio cuando se otorga permiso
+  // Configurar el audio cuando se establece el tipo de notificación
   useEffect(() => {
-    if (permissionGranted) {
+    if (notificationType === "audio") {
       setupAudio()
     }
 
@@ -76,11 +80,11 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
       }
       audioLoaded.current = false
     }
-  }, [permissionGranted])
+  }, [notificationType])
 
   // Función para reproducir el sonido
   const playNotificationSound = () => {
-    if (!notificationSound.current || !permissionGranted) return
+    if (!notificationSound.current || notificationType !== "audio") return
 
     try {
       // Reiniciar el audio
@@ -99,8 +103,14 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
     }
   }
 
+  // Función para mostrar notificación visual
+  const showNotification = (order: Order) => {
+    setNotificationMessage(`Pedido #${order.orderNumber} recibido`)
+    setShowVisualNotification(true)
+  }
+
   useEffect(() => {
-    if (!tenantId || !branchId || permissionGranted === null) return
+    if (!tenantId || !branchId || notificationType === "none") return
 
     const ordersRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/orders`)
 
@@ -122,9 +132,14 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
       if (isRecent) {
         setNewOrder(order)
 
-        // Reproducir sonido si las notificaciones están habilitadas y se ha otorgado permiso
-        if (notificationsEnabled.current && permissionGranted) {
-          playNotificationSound()
+        // Notificar según el tipo configurado
+        if (notificationsEnabled.current) {
+          if (notificationType === "audio") {
+            playNotificationSound()
+          }
+          if (notificationType === "visual") {
+            showNotification(order)
+          }
         }
       }
     })
@@ -147,7 +162,7 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
       off(ordersRef, "child_added", newOrderHandler)
       off(ordersRef, "child_changed", updatedOrderHandler)
     }
-  }, [tenantId, branchId, permissionGranted])
+  }, [tenantId, branchId, notificationType])
 
   const toggleNotifications = () => {
     notificationsEnabled.current = !notificationsEnabled.current
@@ -156,8 +171,8 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
 
   // Función para probar el sonido (útil para depuración)
   const testSound = () => {
-    if (!permissionGranted) {
-      console.log("No se ha otorgado permiso para reproducir audio")
+    if (notificationType !== "audio") {
+      console.log("No se ha configurado notificación de audio")
       return false
     }
 
@@ -166,14 +181,19 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
   }
 
   // Funciones para manejar permisos
-  const grantPermission = () => {
-    setPermissionGranted(true)
-    localStorage.setItem("audioNotificationsPermission", "granted")
+  const setAudioNotifications = () => {
+    setNotificationType("audio")
+    localStorage.setItem("notificationsPermission", "audio")
   }
 
-  const denyPermission = () => {
-    setPermissionGranted(false)
-    localStorage.setItem("audioNotificationsPermission", "denied")
+  const setVisualNotifications = () => {
+    setNotificationType("visual")
+    localStorage.setItem("notificationsPermission", "visual")
+  }
+
+  const disableNotifications = () => {
+    setNotificationType("none")
+    localStorage.setItem("notificationsPermission", "denied")
   }
 
   return {
@@ -182,8 +202,12 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
     notificationsEnabled: () => notificationsEnabled.current,
     toggleNotifications,
     testSound,
-    permissionGranted,
-    grantPermission,
-    denyPermission,
+    notificationType,
+    setAudioNotifications,
+    setVisualNotifications,
+    disableNotifications,
+    showVisualNotification,
+    notificationMessage,
+    hideVisualNotification: () => setShowVisualNotification(false),
   }
 }
