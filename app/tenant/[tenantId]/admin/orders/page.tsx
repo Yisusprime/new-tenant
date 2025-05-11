@@ -16,6 +16,8 @@ import { TablesList } from "./components/tables-list"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "@/components/ui/use-toast"
 import { useOrderNotifications } from "@/lib/hooks/use-order-notifications"
+// Importar el componente de prueba de sonido
+import { NotificationSoundTester } from "@/components/notification-sound-tester"
 
 export default function OrdersPage({ params }: { params: { tenantId: string } }) {
   const { tenantId } = params
@@ -176,12 +178,15 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
                     <Skeleton className="h-48 w-full" />
                   </div>
                 ) : (
-                  <OrdersList
-                    orders={orders}
-                    tenantId={tenantId}
-                    branchId={currentBranch.id}
-                    onStatusChange={handleStatusChange}
-                  />
+                  <>
+                    <NotificationSoundTester tenantId={tenantId} branchId={currentBranch?.id || ""} />
+                    <OrdersList
+                      orders={orders}
+                      tenantId={tenantId}
+                      branchId={currentBranch.id}
+                      onStatusChange={handleStatusChange}
+                    />
+                  </>
                 )}
               </div>
             </TabsContent>
