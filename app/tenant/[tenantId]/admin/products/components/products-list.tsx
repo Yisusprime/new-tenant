@@ -244,7 +244,7 @@ export function ProductsList({ tenantId, branchId }: ProductsListProps) {
           <Button variant="outline" size="icon" title="Filtrar">
             <Filter className="h-4 w-4" />
           </Button>
-          <Button onClick={() => router.push(`/tenant/${tenantId}/admin/products/create`)}>Nuevo Producto</Button>
+          <Button onClick={() => router.push(`/admin/products/create`)}>Nuevo Producto</Button>
         </div>
       </div>
 
@@ -302,7 +302,7 @@ export function ProductsList({ tenantId, branchId }: ProductsListProps) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => router.push(`/tenant/${tenantId}/admin/products/${product.id}`)}>
+                      <DropdownMenuItem onClick={() => router.push(`/admin/products/${product.id}`)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Editar
                       </DropdownMenuItem>
