@@ -25,6 +25,7 @@ export default function RestaurantTablesPage({
   const [newTable, setNewTable] = useState({
     number: "",
     capacity: 4,
+    location: "",
     isActive: true,
   })
 
@@ -69,7 +70,9 @@ export default function RestaurantTablesPage({
       await createTable(tenantId, currentBranch.id, {
         number: newTable.number,
         capacity: newTable.capacity,
+        location: newTable.location.trim() || undefined,
         isActive: newTable.isActive,
+        status: "available",
       })
 
       toast({
@@ -81,6 +84,7 @@ export default function RestaurantTablesPage({
       setNewTable({
         number: "",
         capacity: 4,
+        location: "",
         isActive: true,
       })
 
@@ -158,9 +162,9 @@ export default function RestaurantTablesPage({
 
   return (
     <RestaurantConfigSteps tenantId={tenantId} currentStep="tables">
-      <div className="max-w-md space-y-6">
+      <div className="max-w-3xl space-y-6">
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="tableNumber">Número de Mesa *</Label>
               <Input
@@ -182,6 +186,16 @@ export default function RestaurantTablesPage({
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="location">Ubicación (opcional)</Label>
+              <Input
+                id="location"
+                value={newTable.location}
+                onChange={(e) => setNewTable({ ...newTable, location: e.target.value })}
+                placeholder="Ej: Terraza, Interior, Ventana"
+              />
+            </div>
+
             <div className="space-y-2 flex items-end">
               <Button onClick={handleAddTable} className="w-full">
                 <Plus className="h-4 w-4 mr-2" />
@@ -197,6 +211,7 @@ export default function RestaurantTablesPage({
                   <TableRow>
                     <TableHead>Mesa</TableHead>
                     <TableHead>Capacidad</TableHead>
+                    <TableHead>Ubicación</TableHead>
                     <TableHead>Activa</TableHead>
                     <TableHead className="w-[100px]">Acciones</TableHead>
                   </TableRow>
@@ -206,6 +221,7 @@ export default function RestaurantTablesPage({
                     <TableRow key={table.id}>
                       <TableCell className="font-medium">{table.number}</TableCell>
                       <TableCell>{table.capacity} personas</TableCell>
+                      <TableCell>{table.location || "-"}</TableCell>
                       <TableCell>
                         <Switch
                           checked={table.isActive}
