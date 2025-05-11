@@ -130,6 +130,27 @@ function AdminLayoutContent({
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [configOpen, setConfigOpen] = useState(false)
   const [restaurantConfigOpen, setRestaurantConfigOpen] = useState(false)
+  const [manuallyToggled, setManuallyToggled] = useState(false)
+
+  // Verificar si la ruta actual debe ocultar automáticamente el sidebar
+  const shouldAutoHideSidebar = () => {
+    return pathname.includes("/admin/orders") || pathname.includes("/admin/restaurant")
+  }
+
+  // Efecto para ocultar automáticamente el sidebar en rutas específicas
+  useEffect(() => {
+    if (shouldAutoHideSidebar() && !manuallyToggled) {
+      setSidebarOpen(false)
+    } else if (!shouldAutoHideSidebar() && !manuallyToggled) {
+      setSidebarOpen(true)
+    }
+  }, [pathname, manuallyToggled])
+
+  // Función para alternar manualmente el sidebar
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen)
+    setManuallyToggled(true)
+  }
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -253,11 +274,7 @@ function AdminLayoutContent({
       >
         <div className="flex items-center justify-between h-16 px-4 border-b">
           <div className="font-bold text-xl truncate">{tenantData?.name || tenantId}</div>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="p-1 rounded-md hover:bg-gray-200 md:hidden"
-            aria-label="Cerrar menú"
-          >
+          <button onClick={toggleSidebar} className="p-1 rounded-md hover:bg-gray-200" aria-label="Cerrar menú">
             <X size={20} />
           </button>
         </div>
@@ -397,13 +414,11 @@ function AdminLayoutContent({
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-white shadow-sm h-16 flex items-center px-4">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-1 mr-4 rounded-md hover:bg-gray-200 md:hidden"
-            aria-label="Abrir menú"
-          >
-            <Menu size={24} />
-          </button>
+          {!sidebarOpen && (
+            <button onClick={toggleSidebar} className="p-1 mr-4 rounded-md hover:bg-gray-200" aria-label="Abrir menú">
+              <Menu size={24} />
+            </button>
+          )}
           <h1 className="text-xl font-semibold">Panel de Administración</h1>
           <div className="ml-auto">
             <BranchSelector />
