@@ -10,45 +10,67 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
   const [updatedOrder, setUpdatedOrder] = useState<Order | null>(null)
   const notificationSound = useRef<HTMLAudioElement | null>(null)
   const notificationsEnabled = useRef<boolean>(true)
-  const soundLoaded = useRef<boolean>(false)
+  const [soundLoaded, setSoundLoaded] = useState<boolean>(false)
+  const [soundError, setSoundError] = useState<string | null>(null)
 
-  useEffect(() => {
-    // Inicializar el sonido
-    if (typeof window !== "undefined") {
-      try {
-        // Crear el elemento de audio
-        const audio = new Audio("/sounds/new-order.mp3")
+  // Función para intentar cargar el sonido con diferentes rutas
+  const loadSound = () => {
+    if (typeof window === "undefined") return
 
-        // Configurar el manejo de errores
-        audio.onerror = (e) => {
-          console.error("Error al cargar el sonido:", e)
-        }
+    // Lista de posibles rutas para el archivo de sonido
+    const possiblePaths = ["/sounds/notification.mp3", "/notification.mp3", "/sounds/new-order.mp3", "/new-order.mp3"]
 
-        // Configurar el evento de carga
-        audio.oncanplaythrough = () => {
-          console.log("Sonido cargado correctamente")
-          soundLoaded.current = true
-        }
-
-        // Precargar el audio
-        audio.load()
-
-        // Guardar la referencia
-        notificationSound.current = audio
-      } catch (error) {
-        console.error("Error al inicializar el sonido:", error)
+    // Intentar cargar el sonido desde cada ruta
+    const tryLoadSound = (paths: string[], index = 0) => {
+      if (index >= paths.length) {
+        console.error("No se pudo cargar el sonido desde ninguna ruta")
+        setSoundError("No se pudo cargar el sonido desde ninguna ruta")
+        return
       }
+
+      const path = paths[index]
+      console.log(`Intentando cargar sonido desde: ${path}`)
+
+      const audio = new Audio(path)
+
+      // Manejar evento de carga exitosa
+      audio.oncanplaythrough = () => {
+        console.log(`Sonido cargado exitosamente desde: ${path}`)
+        notificationSound.current = audio
+        setSoundLoaded(true)
+        setSoundError(null)
+      }
+
+      // Manejar error de carga
+      audio.onerror = (e) => {
+        console.error(`Error al cargar sonido desde ${path}:`, e)
+
+        // Intentar con la siguiente ruta
+        tryLoadSound(paths, index + 1)
+      }
+
+      // Iniciar carga
+      audio.load()
     }
+
+    // Comenzar a intentar cargar el sonido
+    tryLoadSound(possiblePaths)
+  }
+
+  // Cargar el sonido al montar el componente
+  useEffect(() => {
+    loadSound()
 
     return () => {
       // Limpiar el sonido al desmontar
       if (notificationSound.current) {
         notificationSound.current = null
-        soundLoaded.current = false
+        setSoundLoaded(false)
       }
     }
   }, [])
 
+  // Escuchar nuevos pedidos
   useEffect(() => {
     if (!tenantId || !branchId) return
 
@@ -73,7 +95,7 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
         setNewOrder(order)
 
         // Reproducir sonido si las notificaciones están habilitadas
-        if (notificationsEnabled.current && notificationSound.current) {
+        if (notificationsEnabled.current && soundLoaded && notificationSound.current) {
           try {
             // Reiniciar el audio para asegurar que se reproduzca desde el principio
             notificationSound.current.currentTime = 0
@@ -93,8 +115,6 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
                   // Si el error es por interacción del usuario, intentar reproducir después
                   if (err.name === "NotAllowedError") {
                     console.log("La reproducción automática está bloqueada. Se requiere interacción del usuario.")
-
-                    // Podríamos mostrar un mensaje al usuario aquí
                   }
                 })
             }
@@ -123,26 +143,45 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
       off(ordersRef, "child_added", newOrderHandler)
       off(ordersRef, "child_changed", updatedOrderHandler)
     }
-  }, [tenantId, branchId])
+  }, [tenantId, branchId, soundLoaded])
 
-  // Función para reproducir el sonido manualmente (útil para probar o para reproducir después de interacción)
+  // Función para reproducir el sonido manualmente
   const playNotificationSound = () => {
-    if (notificationSound.current) {
+    if (!soundLoaded || !notificationSound.current) {
+      console.log("El sonido no está cargado, intentando cargar...")
+      loadSound()
+      return Promise.resolve(false)
+    }
+
+    try {
       notificationSound.current.currentTime = 0
       return notificationSound.current
         .play()
-        .then(() => true)
+        .then(() => {
+          console.log("Sonido reproducido manualmente con éxito")
+          return true
+        })
         .catch((err) => {
           console.error("Error al reproducir sonido manualmente:", err)
           return false
         })
+    } catch (err) {
+      console.error("Error al intentar reproducir sonido:", err)
+      return Promise.resolve(false)
     }
-    return Promise.resolve(false)
   }
 
+  // Función para alternar notificaciones
   const toggleNotifications = () => {
     notificationsEnabled.current = !notificationsEnabled.current
     return notificationsEnabled.current
+  }
+
+  // Función para recargar el sonido
+  const reloadSound = () => {
+    setSoundLoaded(false)
+    setSoundError(null)
+    loadSound()
   }
 
   return {
@@ -151,6 +190,8 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
     notificationsEnabled: () => notificationsEnabled.current,
     toggleNotifications,
     playNotificationSound,
-    soundLoaded: () => soundLoaded.current,
+    soundLoaded,
+    soundError,
+    reloadSound,
   }
 }
