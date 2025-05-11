@@ -25,6 +25,8 @@ import { formatCurrency } from "@/lib/utils"
 import {
   ArrowLeft,
   ArrowRight,
+  ChevronDown,
+  ChevronUp,
   CreditCard,
   Home,
   Loader2,
@@ -44,6 +46,7 @@ import { ProductSelector } from "./product-selector"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
 interface CreateOrderDialogProps {
   open: boolean
@@ -78,7 +81,7 @@ export function CreateOrderDialog({
   const [deliveryCity, setDeliveryCity] = useState("")
   const [deliveryZipCode, setDeliveryZipCode] = useState("")
   const [deliveryNotes, setDeliveryNotes] = useState("")
-  const [paymentMethod, setPaymentMethod] = useState("cash") // Cambia de "" a "cash"
+  const [paymentMethod, setPaymentMethod] = useState("cash")
   const [productSelectorOpen, setProductSelectorOpen] = useState(false)
 
   // Estados para propinas y cupones
@@ -86,6 +89,13 @@ export function CreateOrderDialog({
   const [tipPercentage, setTipPercentage] = useState(0)
   const [couponCode, setCouponCode] = useState("")
   const [couponDiscount, setCouponDiscount] = useState(0)
+
+  // Estados para campos adicionales
+  const [showOptionalFields, setShowOptionalFields] = useState(false)
+  const [showTipOptions, setShowTipOptions] = useState(false)
+  const [showCouponOptions, setShowCouponOptions] = useState(false)
+  const [cashAmount, setCashAmount] = useState("")
+  const [changeAmount, setChangeAmount] = useState(0)
 
   // Estados para el wizard
   const [currentStep, setCurrentStep] = useState(1)
@@ -118,6 +128,17 @@ export function CreateOrderDialog({
       }
     }
   }, [open, tenantId, branchId, selectedTable])
+
+  // Calcular el cambio cuando se modifica el monto en efectivo
+  useEffect(() => {
+    if (paymentMethod === "cash" && cashAmount) {
+      const cashValue = Number.parseFloat(cashAmount) || 0
+      const totalValue = calculateTotal()
+      setChangeAmount(Math.max(0, cashValue - totalValue))
+    } else {
+      setChangeAmount(0)
+    }
+  }, [cashAmount, paymentMethod, items, tipAmount, couponDiscount])
 
   const loadProducts = async () => {
     try {
@@ -243,17 +264,25 @@ export function CreateOrderDialog({
     }
 
     if (step === 2) {
+      // Solo validamos el nombre como obligatorio
       if (!customerName.trim()) {
         newErrors.customerName = "El nombre del cliente es obligatorio"
       }
-      if (!customerPhone.trim()) {
-        newErrors.customerPhone = "El teléfono del cliente es obligatorio"
+
+      // Validamos teléfono solo si es delivery o si se mostró el campo opcional
+      if ((orderType === "delivery" || showOptionalFields) && !customerPhone.trim()) {
+        newErrors.customerPhone = "El teléfono del cliente es obligatorio para delivery"
       }
     }
 
     if (step === 3) {
       if (!paymentMethod) {
         newErrors.paymentMethod = "Debe seleccionar un método de pago"
+      }
+
+      // Validar monto en efectivo si el método es cash
+      if (paymentMethod === "cash" && Number.parseFloat(cashAmount || "0") < calculateTotal()) {
+        newErrors.cashAmount = "El monto en efectivo debe ser igual o mayor al total"
       }
     }
 
@@ -290,11 +319,14 @@ export function CreateOrderDialog({
         type: orderType,
         items,
         customerName: customerName.trim(),
-        customerPhone: customerPhone.trim(),
         paymentMethod,
       }
 
       // Campos opcionales
+      if (customerPhone.trim()) {
+        orderData.customerPhone = customerPhone.trim()
+      }
+
       if (customerEmail.trim()) {
         orderData.customerEmail = customerEmail.trim()
       }
@@ -334,6 +366,14 @@ export function CreateOrderDialog({
         }
       }
 
+      // Información de pago en efectivo
+      if (paymentMethod === "cash" && Number.parseFloat(cashAmount) > 0) {
+        orderData.cashDetails = {
+          amountReceived: Number.parseFloat(cashAmount),
+          change: changeAmount,
+        }
+      }
+
       await createOrder(tenantId, branchId, orderData)
       resetForm()
       onOrderCreated()
@@ -362,6 +402,11 @@ export function CreateOrderDialog({
     setTipPercentage(0)
     setCouponCode("")
     setCouponDiscount(0)
+    setCashAmount("")
+    setChangeAmount(0)
+    setShowOptionalFields(false)
+    setShowTipOptions(false)
+    setShowCouponOptions(false)
     setCurrentStep(1)
     setErrors({})
   }
@@ -539,6 +584,9 @@ export function CreateOrderDialog({
   }
 
   const renderCustomerInfoStep = () => {
+    // Determinar qué campos son obligatorios según el tipo de pedido
+    const isPhoneRequired = orderType === "delivery"
+
     return (
       <div className="space-y-6">
         <h3 className="font-medium flex items-center">
@@ -559,31 +607,54 @@ export function CreateOrderDialog({
             />
             {errors.customerName && <p className="text-red-500 text-sm">{errors.customerName}</p>}
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="customerPhone" className="flex items-center">
-              Teléfono <span className="text-red-500 ml-1">*</span>
-            </Label>
-            <Input
-              id="customerPhone"
-              value={customerPhone}
-              onChange={(e) => setCustomerPhone(e.target.value)}
-              placeholder="Ej: +54 11 1234-5678"
-              className={errors.customerPhone ? "border-red-500" : ""}
-            />
-            {errors.customerPhone && <p className="text-red-500 text-sm">{errors.customerPhone}</p>}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="customerEmail">
-              Email <span className="text-gray-500 text-xs">(Opcional)</span>
-            </Label>
-            <Input
-              id="customerEmail"
-              type="email"
-              value={customerEmail}
-              onChange={(e) => setCustomerEmail(e.target.value)}
-              placeholder="Ej: cliente@ejemplo.com"
-            />
-          </div>
+
+          {/* Campos opcionales colapsables */}
+          <Collapsible
+            open={showOptionalFields || isPhoneRequired}
+            onOpenChange={setShowOptionalFields}
+            className="border rounded-md p-2"
+          >
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium">
+                {isPhoneRequired ? "Información adicional" : "Información adicional (opcional)"}
+              </h4>
+              {!isPhoneRequired && (
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="p-0 h-8 w-8">
+                    {showOptionalFields ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </Button>
+                </CollapsibleTrigger>
+              )}
+            </div>
+
+            <CollapsibleContent className="pt-2 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="customerPhone" className="flex items-center">
+                  Teléfono {isPhoneRequired && <span className="text-red-500 ml-1">*</span>}
+                </Label>
+                <Input
+                  id="customerPhone"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  placeholder="Ej: +54 11 1234-5678"
+                  className={errors.customerPhone ? "border-red-500" : ""}
+                />
+                {errors.customerPhone && <p className="text-red-500 text-sm">{errors.customerPhone}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="customerEmail">
+                  Email <span className="text-gray-500 text-xs">(Opcional)</span>
+                </Label>
+                <Input
+                  id="customerEmail"
+                  type="email"
+                  value={customerEmail}
+                  onChange={(e) => setCustomerEmail(e.target.value)}
+                  placeholder="Ej: cliente@ejemplo.com"
+                />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
       </div>
     )
@@ -611,98 +682,153 @@ export function CreateOrderDialog({
             </Select>
             {errors.paymentMethod && <p className="text-red-500 text-sm">{errors.paymentMethod}</p>}
           </div>
-        </div>
 
-        <Separator />
+          {/* Campos específicos para pago en efectivo */}
+          {paymentMethod === "cash" && (
+            <div className="space-y-4 border rounded-md p-3 bg-gray-50">
+              <div className="space-y-2">
+                <Label htmlFor="cashAmount" className="flex items-center">
+                  Monto recibido <span className="text-red-500 ml-1">*</span>
+                </Label>
+                <Input
+                  id="cashAmount"
+                  type="number"
+                  min={calculateTotal()}
+                  step="0.01"
+                  value={cashAmount}
+                  onChange={(e) => setCashAmount(e.target.value)}
+                  placeholder={`Mínimo ${formatCurrency(calculateTotal())}`}
+                  className={errors.cashAmount ? "border-red-500" : ""}
+                />
+                {errors.cashAmount && <p className="text-red-500 text-sm">{errors.cashAmount}</p>}
+              </div>
 
-        <div className="space-y-4">
-          <h3 className="font-medium flex items-center">
-            <Percent className="w-4 h-4 mr-2" />
-            Propina <span className="text-gray-500 text-xs">(Opcional)</span>
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant={tipPercentage === 0 ? "default" : "outline"}
-              size="sm"
-              onClick={() => handleTipPercentageChange(0)}
-            >
-              Sin propina
-            </Button>
-            <Button
-              type="button"
-              variant={tipPercentage === 10 ? "default" : "outline"}
-              size="sm"
-              onClick={() => handleTipPercentageChange(10)}
-            >
-              10%
-            </Button>
-            <Button
-              type="button"
-              variant={tipPercentage === 15 ? "default" : "outline"}
-              size="sm"
-              onClick={() => handleTipPercentageChange(15)}
-            >
-              15%
-            </Button>
-            <Button
-              type="button"
-              variant={tipPercentage === 20 ? "default" : "outline"}
-              size="sm"
-              onClick={() => handleTipPercentageChange(20)}
-            >
-              20%
-            </Button>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Label htmlFor="customTip">Monto personalizado:</Label>
-            <Input
-              id="customTip"
-              type="number"
-              min="0"
-              step="0.01"
-              value={tipAmount.toString()}
-              onChange={(e) => handleCustomTipChange(e.target.value)}
-              className="w-24"
-            />
-          </div>
-        </div>
-
-        <Separator />
-
-        <div className="space-y-4">
-          <h3 className="font-medium flex items-center">
-            <Tag className="w-4 h-4 mr-2" />
-            Cupón de Descuento <span className="text-gray-500 text-xs">(Opcional)</span>
-          </h3>
-          <div className="flex items-center space-x-2">
-            <Input
-              id="couponCode"
-              value={couponCode}
-              onChange={(e) => setCouponCode(e.target.value)}
-              placeholder="Código de cupón"
-              className="flex-1"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                // Aquí iría la lógica para validar el cupón
-                // Por ahora, simplemente aplicamos un descuento fijo de ejemplo
-                if (couponCode.trim()) {
-                  setCouponDiscount(500) // $500 de descuento
-                }
-              }}
-            >
-              Aplicar
-            </Button>
-          </div>
-          {couponDiscount > 0 && (
-            <div className="flex items-center justify-between text-sm">
-              <span>Descuento aplicado:</span>
-              <span className="font-medium text-green-600">-{formatCurrency(couponDiscount)}</span>
+              <div className="flex justify-between items-center font-medium">
+                <span>Cambio a devolver:</span>
+                <span className={changeAmount > 0 ? "text-green-600" : ""}>{formatCurrency(changeAmount)}</span>
+              </div>
             </div>
           )}
+        </div>
+
+        <div className="flex space-x-2">
+          {/* Botón de propina */}
+          <div className="flex-1">
+            <Collapsible open={showTipOptions} onOpenChange={setShowTipOptions} className="border rounded-md">
+              <CollapsibleTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-between"
+                  onClick={() => setShowTipOptions(!showTipOptions)}
+                >
+                  <div className="flex items-center">
+                    <Percent className="h-4 w-4 mr-2" />
+                    Propina
+                  </div>
+                  {tipAmount > 0 && <Badge variant="secondary">{formatCurrency(tipAmount)}</Badge>}
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="p-3 space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant={tipPercentage === 0 ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleTipPercentageChange(0)}
+                  >
+                    Sin propina
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={tipPercentage === 10 ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleTipPercentageChange(10)}
+                  >
+                    10%
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={tipPercentage === 15 ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleTipPercentageChange(15)}
+                  >
+                    15%
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={tipPercentage === 20 ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleTipPercentageChange(20)}
+                  >
+                    20%
+                  </Button>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="customTip">Monto:</Label>
+                  <Input
+                    id="customTip"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={tipAmount.toString()}
+                    onChange={(e) => handleCustomTipChange(e.target.value)}
+                    className="w-24"
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+
+          {/* Botón de cupón */}
+          <div className="flex-1">
+            <Collapsible open={showCouponOptions} onOpenChange={setShowCouponOptions} className="border rounded-md">
+              <CollapsibleTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-between"
+                  onClick={() => setShowCouponOptions(!showCouponOptions)}
+                >
+                  <div className="flex items-center">
+                    <Tag className="h-4 w-4 mr-2" />
+                    Cupón
+                  </div>
+                  {couponDiscount > 0 && <Badge variant="secondary">-{formatCurrency(couponDiscount)}</Badge>}
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="p-3 space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Input
+                    id="couponCode"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value)}
+                    placeholder="Código de cupón"
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      // Aquí iría la lógica para validar el cupón
+                      // Por ahora, simplemente aplicamos un descuento fijo de ejemplo
+                      if (couponCode.trim()) {
+                        setCouponDiscount(500) // $500 de descuento
+                      }
+                    }}
+                  >
+                    Aplicar
+                  </Button>
+                </div>
+                {couponDiscount > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Descuento aplicado:</span>
+                    <span className="font-medium text-green-600">-{formatCurrency(couponDiscount)}</span>
+                  </div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
         </div>
       </div>
     )
@@ -829,6 +955,19 @@ export function CreateOrderDialog({
                   {paymentMethod === "app" && "App de Pago"}
                 </span>
               </div>
+            )}
+
+            {paymentMethod === "cash" && Number.parseFloat(cashAmount) > 0 && (
+              <>
+                <div className="flex justify-between text-sm">
+                  <span>Monto recibido:</span>
+                  <span>{formatCurrency(Number.parseFloat(cashAmount))}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Cambio:</span>
+                  <span>{formatCurrency(changeAmount)}</span>
+                </div>
+              </>
             )}
           </div>
 
