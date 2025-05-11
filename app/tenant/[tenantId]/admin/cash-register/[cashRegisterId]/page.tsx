@@ -1,18 +1,17 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Separator } from "@/components/ui/separator"
-import { useBranch } from "@/lib/context/branch-context"
-import { getCashRegister } from "@/lib/services/cash-register-service"
-import { formatCurrency, formatDateTime } from "@/lib/utils"
+import { getCashRegisterById } from "@/lib/services/cash-register-service"
+import { getOrdersByCashRegister } from "@/lib/services/order-service"
 import type { CashRegister } from "@/lib/types/cash-register"
-import { ArrowLeft, CalendarRange, Clock, DollarSign, FileText, Printer, User } from "lucide-react"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
+import type { Order } from "@/lib/types/order"
+import { formatCurrency } from "@/lib/utils"
+import { ArrowLeft, Printer } from "lucide-react"
+import Link from "next/link"
+import { useBranch } from "@/lib/context/branch-context"
 
 export default function CashRegisterDetailsPage({
   params,
@@ -22,287 +21,310 @@ export default function CashRegisterDetailsPage({
   const { tenantId, cashRegisterId } = params
   const { currentBranch } = useBranch()
   const [cashRegister, setCashRegister] = useState<CashRegister | null>(null)
+  const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
-  const router = useRouter()
 
   useEffect(() => {
-    async function loadCashRegister() {
-      if (!currentBranch) {
-        setLoading(false)
-        return
-      }
+    const loadData = async () => {
+      if (!currentBranch) return
 
       try {
         setLoading(true)
-        const register = await getCashRegister(tenantId, currentBranch.id, cashRegisterId)
-        setCashRegister(register)
+
+        // Cargar datos de la caja
+        const cashRegisterData = await getCashRegisterById(tenantId, currentBranch.id, cashRegisterId)
+        setCashRegister(cashRegisterData)
+
+        // Cargar pedidos asociados a esta caja
+        if (cashRegisterData) {
+          const ordersData = await getOrdersByCashRegister(tenantId, currentBranch.id, cashRegisterId)
+          setOrders(ordersData || [])
+        }
       } catch (error) {
-        console.error("Error al cargar los detalles de la caja:", error)
+        console.error("Error al cargar datos:", error)
       } finally {
         setLoading(false)
       }
     }
 
-    loadCashRegister()
-  }, [tenantId, currentBranch, cashRegisterId])
-
-  const handleBack = () => {
-    router.back()
-  }
+    if (currentBranch) {
+      loadData()
+    }
+  }, [tenantId, cashRegisterId, currentBranch])
 
   const handlePrint = () => {
     window.print()
   }
 
-  // Colores para los gráficos
-  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"]
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-10 w-24" />
+        </div>
+        <Skeleton className="h-64 w-full" />
+      </div>
+    )
+  }
+
+  if (!cashRegister) {
+    return (
+      <div className="text-center py-8">
+        <h3 className="text-lg font-medium">Caja no encontrada</h3>
+        <p className="text-muted-foreground">La caja solicitada no existe o no tienes permisos para verla</p>
+        <Button asChild className="mt-4">
+          <Link href="/admin/cash-register">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Volver
+          </Link>
+        </Button>
+      </div>
+    )
+  }
+
+  // Calcular estadísticas
+  const totalSales = orders.reduce((sum, order) => sum + (order.total || 0), 0)
+  const totalOrders = orders.length
+  const cashPayments = orders
+    .filter((order) => order.paymentMethod === "cash")
+    .reduce((sum, order) => sum + (order.total || 0), 0)
+  const cardPayments = orders
+    .filter((order) => order.paymentMethod === "card")
+    .reduce((sum, order) => sum + (order.total || 0), 0)
+  const otherPayments = orders
+    .filter((order) => order.paymentMethod !== "cash" && order.paymentMethod !== "card")
+    .reduce((sum, order) => sum + (order.total || 0), 0)
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center space-x-2">
-          <Button variant="ghost" size="icon" onClick={handleBack}>
-            <ArrowLeft className="h-5 w-5" />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href="/admin/cash-register">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Volver
+            </Link>
           </Button>
           <h1 className="text-2xl font-bold">Detalles de Caja</h1>
         </div>
         <Button variant="outline" size="sm" onClick={handlePrint}>
           <Printer className="h-4 w-4 mr-2" />
-          Imprimir Reporte
+          Imprimir
         </Button>
       </div>
 
-      {loading ? (
-        <div className="space-y-4">
-          <Skeleton className="h-40 w-full" />
-          <div className="grid gap-4 md:grid-cols-2">
-            <Skeleton className="h-60 w-full" />
-            <Skeleton className="h-60 w-full" />
-          </div>
-        </div>
-      ) : cashRegister ? (
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle>Caja #{cashRegisterId.slice(0, 6)}</CardTitle>
-                  <CardDescription>
-                    {cashRegister.status === "open" ? "Caja actualmente abierta" : "Caja cerrada"}
-                  </CardDescription>
-                </div>
-                <Badge variant={cashRegister.status === "open" ? "outline" : "secondary"} className="ml-auto">
+      <Card>
+        <CardHeader>
+          <CardTitle>Información General</CardTitle>
+          <CardDescription>Detalles de la caja</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Estado:</span>
+                <span className={`font-medium ${cashRegister.status === "open" ? "text-green-600" : "text-gray-600"}`}>
                   {cashRegister.status === "open" ? "Abierta" : "Cerrada"}
-                </Badge>
+                </span>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                <div className="flex flex-col">
-                  <span className="text-sm text-gray-500 flex items-center mb-1">
-                    <CalendarRange className="h-4 w-4 mr-1" />
-                    Apertura
-                  </span>
-                  <span className="font-medium">{formatDateTime(cashRegister.openedAt)}</span>
-                </div>
-
-                {cashRegister.closedAt && (
-                  <div className="flex flex-col">
-                    <span className="text-sm text-gray-500 flex items-center mb-1">
-                      <Clock className="h-4 w-4 mr-1" />
-                      Cierre
-                    </span>
-                    <span className="font-medium">{formatDateTime(cashRegister.closedAt)}</span>
-                  </div>
-                )}
-
-                <div className="flex flex-col">
-                  <span className="text-sm text-gray-500 flex items-center mb-1">
-                    <User className="h-4 w-4 mr-1" />
-                    Abierta por
-                  </span>
-                  <span className="font-medium">{cashRegister.openedBy}</span>
-                </div>
-
-                {cashRegister.closedBy && (
-                  <div className="flex flex-col">
-                    <span className="text-sm text-gray-500 flex items-center mb-1">
-                      <User className="h-4 w-4 mr-1" />
-                      Cerrada por
-                    </span>
-                    <span className="font-medium">{cashRegister.closedBy}</span>
-                  </div>
-                )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Abierta por:</span>
+                <span className="font-medium">{cashRegister.openedBy || "N/A"}</span>
               </div>
-
-              <Separator className="my-6" />
-
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                <div className="flex flex-col">
-                  <span className="text-sm text-gray-500">Monto Inicial</span>
-                  <span className="text-xl font-bold">{formatCurrency(cashRegister.initialAmount)}</span>
-                </div>
-
-                {cashRegister.status === "closed" && (
-                  <>
-                    <div className="flex flex-col">
-                      <span className="text-sm text-gray-500">Monto Final</span>
-                      <span className="text-xl font-bold">{formatCurrency(cashRegister.finalAmount || 0)}</span>
-                    </div>
-
-                    <div className="flex flex-col">
-                      <span className="text-sm text-gray-500">Monto Esperado</span>
-                      <span className="text-xl font-bold">{formatCurrency(cashRegister.expectedAmount || 0)}</span>
-                    </div>
-
-                    <div className="flex flex-col">
-                      <span className="text-sm text-gray-500">Diferencia</span>
-                      <span
-                        className={`text-xl font-bold ${
-                          (cashRegister.difference || 0) < 0
-                            ? "text-red-600"
-                            : (cashRegister.difference || 0) > 0
-                              ? "text-green-600"
-                              : ""
-                        }`}
-                      >
-                        {formatCurrency(cashRegister.difference || 0)}
-                      </span>
-                    </div>
-                  </>
-                )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Fecha de apertura:</span>
+                <span className="font-medium">
+                  {cashRegister.openedAt ? new Date(cashRegister.openedAt).toLocaleString() : "N/A"}
+                </span>
               </div>
-
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Monto inicial:</span>
+                <span className="font-medium">{formatCurrency(cashRegister.initialAmount || 0)}</span>
+              </div>
               {cashRegister.notes && (
-                <div className="mt-6">
-                  <h3 className="text-sm font-medium mb-2">Notas:</h3>
-                  <p className="text-sm bg-gray-50 p-3 rounded-md">{cashRegister.notes}</p>
+                <div className="pt-2">
+                  <span className="text-muted-foreground">Notas de apertura:</span>
+                  <p className="mt-1 text-sm border p-2 rounded-md">{cashRegister.notes}</p>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Resumen de Ventas</CardTitle>
-                <CardDescription>Desglose de ventas durante el periodo</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-lg">
-                    <DollarSign className="h-8 w-8 text-green-500 mb-2" />
-                    <p className="text-sm text-gray-500">Total Ventas</p>
-                    <p className="text-xl font-bold">{formatCurrency(cashRegister.summary?.totalSales || 0)}</p>
-                  </div>
-                  <div className="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-lg">
-                    <FileText className="h-8 w-8 text-blue-500 mb-2" />
-                    <p className="text-sm text-gray-500">Pedidos</p>
-                    <p className="text-xl font-bold">{cashRegister.summary?.totalOrders || 0}</p>
-                  </div>
-                </div>
-
-                <h3 className="text-sm font-medium mb-2">Desglose por Método de Pago</h3>
-                <dl className="space-y-2">
+            <div className="space-y-2">
+              {cashRegister.status === "closed" && (
+                <>
                   <div className="flex justify-between">
-                    <dt>Efectivo:</dt>
-                    <dd className="font-medium">{formatCurrency(cashRegister.summary?.totalCash || 0)}</dd>
+                    <span className="text-muted-foreground">Cerrada por:</span>
+                    <span className="font-medium">{cashRegister.closedBy || "N/A"}</span>
                   </div>
                   <div className="flex justify-between">
-                    <dt>Tarjeta:</dt>
-                    <dd className="font-medium">{formatCurrency(cashRegister.summary?.totalCard || 0)}</dd>
+                    <span className="text-muted-foreground">Fecha de cierre:</span>
+                    <span className="font-medium">
+                      {cashRegister.closedAt ? new Date(cashRegister.closedAt).toLocaleString() : "N/A"}
+                    </span>
                   </div>
                   <div className="flex justify-between">
-                    <dt>Otros métodos:</dt>
-                    <dd className="font-medium">{formatCurrency(cashRegister.summary?.totalOtherMethods || 0)}</dd>
+                    <span className="text-muted-foreground">Monto final:</span>
+                    <span className="font-medium">{formatCurrency(cashRegister.finalAmount || 0)}</span>
                   </div>
-                  <Separator />
                   <div className="flex justify-between">
-                    <dt>Impuestos:</dt>
-                    <dd className="font-medium">{formatCurrency(cashRegister.summary?.totalTaxes || 0)}</dd>
+                    <span className="text-muted-foreground">Monto esperado:</span>
+                    <span className="font-medium">{formatCurrency(cashRegister.expectedAmount || 0)}</span>
                   </div>
-                </dl>
-
-                {cashRegister.summary?.paymentMethods && cashRegister.summary.paymentMethods.length > 0 && (
-                  <div className="mt-6">
-                    <h3 className="text-sm font-medium mb-4">Distribución por Método de Pago</h3>
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={cashRegister.summary.paymentMethods}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            outerRadius={80}
-                            fill="#8884d8"
-                            dataKey="amount"
-                            nameKey="method"
-                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                          >
-                            {cashRegister.summary.paymentMethods.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip formatter={(value: any) => formatCurrency(value as number)} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Diferencia:</span>
+                    <span
+                      className={`font-medium ${
+                        (cashRegister.finalAmount || 0) < (cashRegister.expectedAmount || 0)
+                          ? "text-red-600"
+                          : (cashRegister.finalAmount || 0) > (cashRegister.expectedAmount || 0)
+                            ? "text-green-600"
+                            : ""
+                      }`}
+                    >
+                      {formatCurrency((cashRegister.finalAmount || 0) - (cashRegister.expectedAmount || 0))}
+                    </span>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Análisis de Ventas</CardTitle>
-                <CardDescription>Distribución de ventas por hora</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {cashRegister.summary?.salesByHour && cashRegister.summary.salesByHour.length > 0 ? (
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={cashRegister.summary.salesByHour}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="hour" />
-                        <YAxis tickFormatter={(value) => `${value}`} />
-                        <Tooltip formatter={(value: any) => formatCurrency(value as number)} />
-                        <Bar dataKey="amount" fill="#3b82f6" name="Ventas" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-64 text-gray-500">
-                    No hay datos de ventas por hora disponibles
-                  </div>
-                )}
-
-                {cashRegister.summary?.ordersByStatus &&
-                  Object.keys(cashRegister.summary.ordersByStatus).length > 0 && (
-                    <div className="mt-6">
-                      <h3 className="text-sm font-medium mb-2">Pedidos por Estado</h3>
-                      <dl className="space-y-2">
-                        {Object.entries(cashRegister.summary.ordersByStatus).map(([status, count]) => (
-                          <div key={status} className="flex justify-between">
-                            <dt className="capitalize">{status}:</dt>
-                            <dd className="font-medium">{count}</dd>
-                          </div>
-                        ))}
-                      </dl>
+                  {cashRegister.closingNotes && (
+                    <div className="pt-2">
+                      <span className="text-muted-foreground">Notas de cierre:</span>
+                      <p className="mt-1 text-sm border p-2 rounded-md">{cashRegister.closingNotes}</p>
                     </div>
                   )}
-              </CardContent>
-            </Card>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-8">
-            <p className="text-gray-500 mb-4">No se encontró la información de la caja</p>
-            <Button onClick={handleBack}>Volver</Button>
-          </CardContent>
-        </Card>
-      )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Resumen de Ventas</CardTitle>
+          <CardDescription>Estadísticas de ventas para esta caja</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-gray-50 p-4 rounded-md">
+              <div className="text-sm text-gray-500">Ventas Totales</div>
+              <div className="text-2xl font-bold mt-1">{formatCurrency(totalSales)}</div>
+              <div className="text-xs text-gray-500 mt-1">{totalOrders} pedidos</div>
+            </div>
+
+            <div className="bg-gray-50 p-4 rounded-md">
+              <div className="text-sm text-gray-500">Pagos en Efectivo</div>
+              <div className="text-2xl font-bold mt-1">{formatCurrency(cashPayments)}</div>
+              <div className="text-xs text-gray-500 mt-1">
+                {orders.filter((order) => order.paymentMethod === "cash").length} pedidos
+              </div>
+            </div>
+
+            <div className="bg-gray-50 p-4 rounded-md">
+              <div className="text-sm text-gray-500">Pagos con Tarjeta</div>
+              <div className="text-2xl font-bold mt-1">{formatCurrency(cardPayments)}</div>
+              <div className="text-xs text-gray-500 mt-1">
+                {orders.filter((order) => order.paymentMethod === "card").length} pedidos
+              </div>
+            </div>
+
+            <div className="bg-gray-50 p-4 rounded-md">
+              <div className="text-sm text-gray-500">Otros Pagos</div>
+              <div className="text-2xl font-bold mt-1">{formatCurrency(otherPayments)}</div>
+              <div className="text-xs text-gray-500 mt-1">
+                {orders.filter((order) => order.paymentMethod !== "cash" && order.paymentMethod !== "card").length}{" "}
+                pedidos
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Pedidos</CardTitle>
+          <CardDescription>Lista de pedidos realizados durante esta caja</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {orders.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">No hay pedidos registrados para esta caja</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-4">Nº</th>
+                    <th className="text-left py-2 px-4">Fecha</th>
+                    <th className="text-left py-2 px-4">Cliente</th>
+                    <th className="text-left py-2 px-4">Tipo</th>
+                    <th className="text-right py-2 px-4">Total</th>
+                    <th className="text-center py-2 px-4">Método de Pago</th>
+                    <th className="text-center py-2 px-4">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.map((order) => (
+                    <tr key={order.id} className="border-b hover:bg-gray-50">
+                      <td className="py-2 px-4">{order.orderNumber}</td>
+                      <td className="py-2 px-4">
+                        {order.createdAt ? new Date(order.createdAt).toLocaleString() : "N/A"}
+                      </td>
+                      <td className="py-2 px-4">{order.customerName || "N/A"}</td>
+                      <td className="py-2 px-4">
+                        {order.orderType === "delivery"
+                          ? "Delivery"
+                          : order.orderType === "table"
+                            ? "Mesa"
+                            : "Mostrador"}
+                      </td>
+                      <td className="py-2 px-4 text-right">{formatCurrency(order.total || 0)}</td>
+                      <td className="py-2 px-4 text-center">
+                        <span className="px-2 py-1 rounded-full text-xs bg-gray-100">
+                          {order.paymentMethod === "cash"
+                            ? "Efectivo"
+                            : order.paymentMethod === "card"
+                              ? "Tarjeta"
+                              : order.paymentMethod || "N/A"}
+                        </span>
+                      </td>
+                      <td className="py-2 px-4 text-center">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs ${
+                            order.status === "pending"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : order.status === "preparing"
+                                ? "bg-blue-100 text-blue-800"
+                                : order.status === "ready"
+                                  ? "bg-green-100 text-green-800"
+                                  : order.status === "completed"
+                                    ? "bg-purple-100 text-purple-800"
+                                    : order.status === "cancelled"
+                                      ? "bg-red-100 text-red-800"
+                                      : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {order.status === "pending"
+                            ? "Pendiente"
+                            : order.status === "preparing"
+                              ? "En Preparación"
+                              : order.status === "ready"
+                                ? "Listo"
+                                : order.status === "completed"
+                                  ? "Completado"
+                                  : order.status === "cancelled"
+                                    ? "Cancelado"
+                                    : order.status || "N/A"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

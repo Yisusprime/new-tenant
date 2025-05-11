@@ -5,70 +5,66 @@ import { Button } from "@/components/ui/button"
 import { useCashRegister } from "@/lib/context/cash-register-context"
 import { OpenCashRegisterDialog } from "./open-cash-register-dialog"
 import { CloseCashRegisterDialog } from "./close-cash-register-dialog"
-import { CheckCircle2, XCircle } from "lucide-react"
-import { formatDateTime } from "@/lib/utils"
-import { Skeleton } from "@/components/ui/skeleton"
-import { useRouter } from "next/navigation"
-import type { CashRegister } from "@/lib/types/cash-register"
+import { DollarSign, Lock, Unlock } from "lucide-react"
 
-interface CashRegisterStatusProps {
+export function CashRegisterStatus({
+  tenantId,
+  branchId,
+}: {
   tenantId: string
   branchId: string
-}
-
-export function CashRegisterStatus({ tenantId, branchId }: CashRegisterStatusProps) {
-  const { currentCashRegister, isOpen, loading } = useCashRegister()
-  const [openDialog, setOpenDialog] = useState(false)
-  const [closeDialog, setCloseDialog] = useState(false)
-  const router = useRouter()
-
-  const handleCloseCashRegisterSuccess = (cashRegister: CashRegister) => {
-    // Redirigir a la página de detalles de la caja cerrada
-    router.push(`/tenant/${tenantId}/admin/cash-register/${cashRegister.id}`)
-  }
+}) {
+  const { isOpen, loading } = useCashRegister()
+  const [openDialogOpen, setOpenDialogOpen] = useState(false)
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false)
 
   if (loading) {
     return (
-      <div className="flex items-center space-x-2">
-        <Skeleton className="h-4 w-4 rounded-full" />
-        <Skeleton className="h-4 w-24" />
+      <div className="flex items-center h-9 px-4 py-2 text-sm bg-gray-100 text-gray-500 rounded-md animate-pulse">
+        Cargando...
+      </div>
+    )
+  }
+
+  if (isOpen) {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="flex items-center h-9 px-4 py-2 text-sm bg-green-100 text-green-700 rounded-md">
+          <Unlock className="h-4 w-4 mr-2" />
+          Caja Abierta
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setCloseDialogOpen(true)}>
+          <Lock className="h-4 w-4 mr-2" />
+          Cerrar Caja
+        </Button>
+
+        <CloseCashRegisterDialog
+          tenantId={tenantId}
+          branchId={branchId}
+          open={closeDialogOpen}
+          onOpenChange={setCloseDialogOpen}
+        />
       </div>
     )
   }
 
   return (
-    <>
-      <div className="flex items-center space-x-2">
-        {isOpen ? (
-          <>
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
-            <span className="text-sm font-medium">
-              Caja abierta ({formatDateTime(currentCashRegister?.openedAt || "")})
-            </span>
-            <Button variant="outline" size="sm" onClick={() => setCloseDialog(true)}>
-              Cerrar Caja
-            </Button>
-          </>
-        ) : (
-          <>
-            <XCircle className="h-4 w-4 text-red-500" />
-            <span className="text-sm font-medium">Caja cerrada</span>
-            <Button variant="outline" size="sm" onClick={() => setOpenDialog(true)}>
-              Abrir Caja
-            </Button>
-          </>
-        )}
+    <div className="flex items-center gap-2">
+      <div className="flex items-center h-9 px-4 py-2 text-sm bg-yellow-100 text-yellow-700 rounded-md">
+        <Lock className="h-4 w-4 mr-2" />
+        Caja Cerrada
       </div>
+      <Button variant="outline" size="sm" onClick={() => setOpenDialogOpen(true)}>
+        <DollarSign className="h-4 w-4 mr-2" />
+        Abrir Caja
+      </Button>
 
-      <OpenCashRegisterDialog tenantId={tenantId} branchId={branchId} open={openDialog} onOpenChange={setOpenDialog} />
-
-      <CloseCashRegisterDialog
+      <OpenCashRegisterDialog
         tenantId={tenantId}
         branchId={branchId}
-        open={closeDialog}
-        onOpenChange={setCloseDialog}
-        onSuccess={handleCloseCashRegisterSuccess}
+        open={openDialogOpen}
+        onOpenChange={setOpenDialogOpen}
       />
-    </>
+    </div>
   )
 }

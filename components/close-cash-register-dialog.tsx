@@ -1,9 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
+import { useState, useEffect } from "react"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -12,97 +10,110 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { toast } from "@/components/ui/use-toast"
 import { closeCashRegister } from "@/lib/services/cash-register-service"
-import { useToast } from "@/hooks/use-toast"
+import { getOrdersByCashRegister } from "@/lib/services/order-service"
 import { useAuth } from "@/lib/context/auth-context"
 import { useCashRegister } from "@/lib/context/cash-register-context"
 import { formatCurrency } from "@/lib/utils"
-import type { CashRegister } from "@/lib/types/cash-register"
-
-const formSchema = z.object({
-  finalAmount: z.coerce.number().min(0, "El monto final no puede ser negativo"),
-  notes: z.string().optional(),
-})
-
-type FormData = z.infer<typeof formSchema>
-
-interface CloseCashRegisterDialogProps {
-  tenantId: string
-  branchId: string
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSuccess?: (cashRegister: CashRegister) => void
-}
 
 export function CloseCashRegisterDialog({
   tenantId,
   branchId,
   open,
   onOpenChange,
-  onSuccess,
-}: CloseCashRegisterDialogProps) {
-  const { toast } = useToast()
+}: {
+  tenantId: string
+  branchId: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const { user } = useAuth()
   const { currentCashRegister, refreshCashRegister } = useCashRegister()
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [finalAmount, setFinalAmount] = useState<string>("0")
+  const [expectedAmount, setExpectedAmount] = useState<number>(0)
+  const [difference, setDifference] = useState<number>(0)
+  const [notes, setNotes] = useState<string>("")
+  const [loading, setLoading] = useState<boolean>(false)
 
-  const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      finalAmount: currentCashRegister?.initialAmount || 0,
-      notes: "",
-    },
-  })
+  // Calcular el monto esperado cuando se abre el diálogo
+  useEffect(() => {
+    const calculateExpectedAmount = async () => {
+      if (!currentCashRegister) return
 
-  // Actualizar el valor inicial cuando cambia el currentCashRegister
-  useState(() => {
-    if (currentCashRegister) {
-      form.setValue("finalAmount", currentCashRegister.initialAmount)
+      try {
+        // Obtener todos los pedidos asociados a esta caja
+        const orders = await getOrdersByCashRegister(tenantId, branchId, currentCashRegister.id)
+
+        // Calcular el total de pagos en efectivo
+        const cashPayments = orders
+          .filter((order) => order.paymentMethod === "cash")
+          .reduce((sum, order) => sum + (order.total || 0), 0)
+
+        // El monto esperado es el monto inicial más los pagos en efectivo
+        const expected = (currentCashRegister.initialAmount || 0) + cashPayments
+        setExpectedAmount(expected)
+        setFinalAmount(expected.toString())
+      } catch (error) {
+        console.error("Error al calcular el monto esperado:", error)
+      }
     }
-  })
 
-  const onSubmit = async (data: FormData) => {
-    if (!user) {
+    if (open) {
+      calculateExpectedAmount()
+    }
+  }, [open, currentCashRegister, tenantId, branchId])
+
+  // Calcular la diferencia cuando cambia el monto final
+  useEffect(() => {
+    const final = Number.parseFloat(finalAmount)
+    if (!isNaN(final)) {
+      setDifference(final - expectedAmount)
+    } else {
+      setDifference(0)
+    }
+  }, [finalAmount, expectedAmount])
+
+  const handleCloseCashRegister = async () => {
+    if (!user || !currentCashRegister) {
       toast({
         title: "Error",
-        description: "Debes iniciar sesión para realizar esta acción",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (!currentCashRegister) {
-      toast({
-        title: "Error",
-        description: "No hay una caja abierta para cerrar",
+        description: "No se puede cerrar la caja",
         variant: "destructive",
       })
       return
     }
 
     try {
-      setIsSubmitting(true)
-      const closedCashRegister = await closeCashRegister(tenantId, branchId, currentCashRegister.id, user.uid, {
-        finalAmount: data.finalAmount,
-        notes: data.notes,
+      setLoading(true)
+
+      const amount = Number.parseFloat(finalAmount)
+      if (isNaN(amount) || amount < 0) {
+        toast({
+          title: "Error",
+          description: "El monto final debe ser un número válido",
+          variant: "destructive",
+        })
+        return
+      }
+
+      await closeCashRegister(tenantId, branchId, currentCashRegister.id, {
+        finalAmount: amount,
+        expectedAmount,
+        closedBy: user.email || "Usuario desconocido",
+        notes,
       })
 
       toast({
         title: "Caja cerrada",
-        description: "La caja ha sido cerrada correctamente",
+        description: `Caja cerrada con un monto final de ${formatCurrency(amount)}`,
       })
 
-      // Actualizar el contexto de la caja
+      // Actualizar el estado de la caja
       await refreshCashRegister()
-
-      // Llamar al callback de éxito si existe
-      if (onSuccess) {
-        onSuccess(closedCashRegister)
-      }
 
       // Cerrar el diálogo
       onOpenChange(false)
@@ -110,11 +121,11 @@ export function CloseCashRegisterDialog({
       console.error("Error al cerrar la caja:", error)
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Error al cerrar la caja",
+        description: "No se pudo cerrar la caja",
         variant: "destructive",
       })
     } finally {
-      setIsSubmitting(false)
+      setLoading(false)
     }
   }
 
@@ -123,70 +134,80 @@ export function CloseCashRegisterDialog({
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Cerrar Caja</DialogTitle>
-          <DialogDescription>Ingresa el monto final con el que se cierra la caja.</DialogDescription>
+          <DialogDescription>Ingresa el monto final con el que cierras el día.</DialogDescription>
         </DialogHeader>
-
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {currentCashRegister && (
-              <div className="grid grid-cols-2 gap-4 py-2">
-                <div>
-                  <p className="text-sm font-medium">Monto Inicial:</p>
-                  <p className="text-lg font-semibold">{formatCurrency(currentCashRegister.initialAmount)}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium">Ventas en Efectivo:</p>
-                  <p className="text-lg font-semibold">{formatCurrency(currentCashRegister.summary?.totalCash || 0)}</p>
-                </div>
-              </div>
-            )}
-
-            <FormField
-              control={form.control}
-              name="finalAmount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Monto Final en Caja</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      placeholder="0.00"
-                      {...field}
-                      onChange={(e) => {
-                        const value = e.target.value
-                        field.onChange(value === "" ? 0 : Number.parseFloat(value))
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="expectedAmount" className="text-right">
+              Monto Esperado
+            </Label>
+            <div className="col-span-3">
+              <Input
+                id="expectedAmount"
+                type="text"
+                value={formatCurrency(expectedAmount)}
+                disabled
+                className="col-span-3 bg-gray-100"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="finalAmount" className="text-right">
+              Monto Final
+            </Label>
+            <div className="col-span-3">
+              <Input
+                id="finalAmount"
+                type="number"
+                min="0"
+                step="0.01"
+                value={finalAmount}
+                onChange={(e) => setFinalAmount(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="difference" className="text-right">
+              Diferencia
+            </Label>
+            <div className="col-span-3">
+              <Input
+                id="difference"
+                type="text"
+                value={formatCurrency(difference)}
+                disabled
+                className={`col-span-3 ${
+                  difference < 0
+                    ? "bg-red-100 text-red-800"
+                    : difference > 0
+                      ? "bg-green-100 text-green-800"
+                      : "bg-gray-100"
+                }`}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="notes" className="text-right">
+              Notas
+            </Label>
+            <Textarea
+              id="notes"
+              placeholder="Notas adicionales sobre el cierre de caja"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="col-span-3"
             />
-
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notas (opcional)</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Notas adicionales sobre el cierre de caja" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Cerrando..." : "Cerrar Caja"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button onClick={handleCloseCashRegister} disabled={loading}>
+            {loading ? "Cerrando..." : "Cerrar Caja"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

@@ -1,24 +1,15 @@
 export interface CashRegister {
   id: string
-  branchId: string
-  openedAt: string
-  closedAt?: string
   initialAmount: number
   finalAmount?: number
   expectedAmount?: number
-  difference?: number
-  status: "open" | "closed"
   openedBy: string
+  openedAt: Date
   closedBy?: string
+  closedAt?: Date
+  status: "open" | "closed"
   notes?: string
-  summary?: {
-    totalOrders: number
-    totalSales: number
-    totalCash: number
-    totalCard: number
-    totalOtherMethods: number
-    totalTaxes: number
-  }
+  closingNotes?: string
 }
 
 export interface CashRegisterFormData {

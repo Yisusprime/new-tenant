@@ -2,6 +2,7 @@ import { ref, get, set, update, remove, push } from "firebase/database"
 import { realtimeDb } from "@/lib/firebase/client"
 import { getRestaurantConfig } from "@/lib/services/restaurant-config-service"
 import type { Order, OrderFormData, OrderStatus, OrderType } from "@/lib/types/order"
+import { collection, query, where, orderBy, getDocs, getFirestore } from "firebase/firestore"
 
 // Función para generar un número de pedido único
 function generateOrderNumber(): string {
@@ -322,6 +323,32 @@ export async function deleteOrder(tenantId: string, branchId: string, orderId: s
     await remove(orderRef)
   } catch (error) {
     console.error("Error al eliminar pedido:", error)
+    throw error
+  }
+}
+
+// Obtener pedidos por caja
+export async function getOrdersByCashRegister(
+  tenantId: string,
+  branchId: string,
+  cashRegisterId: string,
+): Promise<Order[]> {
+  try {
+    const db = getFirestore()
+    const q = query(
+      collection(db, `tenants/${tenantId}/branches/${branchId}/orders`),
+      where("cashRegisterId", "==", cashRegisterId),
+      orderBy("createdAt", "desc"),
+    )
+
+    const snapshot = await getDocs(q)
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Order[]
+  } catch (error) {
+    console.error("Error al obtener pedidos por caja:", error)
     throw error
   }
 }
