@@ -1,4 +1,4 @@
-import { ref, get, set, update, remove, push } from "firebase/database"
+import { ref, get, set, update, remove, push, query, orderByChild, equalTo } from "firebase/database"
 import { realtimeDb } from "@/lib/firebase/client"
 import type { Order, OrderFormData, OrderStatus, OrderType } from "@/lib/types/order"
 
@@ -40,10 +40,53 @@ export async function getOrders(tenantId: string, branchId: string): Promise<Ord
 // Función para obtener pedidos por tipo
 export async function getOrdersByType(tenantId: string, branchId: string, type: OrderType): Promise<Order[]> {
   try {
-    const orders = await getOrders(tenantId, branchId)
-    return orders.filter((order) => order.type === type)
+    const ordersRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/orders`)
+    const ordersQuery = query(ordersRef, orderByChild("type"), equalTo(type))
+    const snapshot = await get(ordersQuery)
+
+    if (!snapshot.exists()) {
+      return []
+    }
+
+    const ordersData = snapshot.val()
+
+    // Convertir el objeto a un array
+    const orders = Object.entries(ordersData).map(([id, data]) => ({
+      id,
+      ...(data as any),
+    })) as Order[]
+
+    // Ordenar por fecha de creación (más reciente primero)
+    return orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   } catch (error) {
     console.error(`Error al obtener pedidos de tipo ${type}:`, error)
+    throw error
+  }
+}
+
+// Función para obtener pedidos por mesa
+export async function getOrdersByTable(tenantId: string, branchId: string, tableId: string): Promise<Order[]> {
+  try {
+    const ordersRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/orders`)
+    const ordersQuery = query(ordersRef, orderByChild("tableId"), equalTo(tableId))
+    const snapshot = await get(ordersQuery)
+
+    if (!snapshot.exists()) {
+      return []
+    }
+
+    const ordersData = snapshot.val()
+
+    // Convertir el objeto a un array
+    const orders = Object.entries(ordersData).map(([id, data]) => ({
+      id,
+      ...(data as any),
+    })) as Order[]
+
+    // Ordenar por fecha de creación (más reciente primero)
+    return orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  } catch (error) {
+    console.error(`Error al obtener pedidos de la mesa ${tableId}:`, error)
     throw error
   }
 }
@@ -51,8 +94,24 @@ export async function getOrdersByType(tenantId: string, branchId: string, type: 
 // Función para obtener pedidos por estado
 export async function getOrdersByStatus(tenantId: string, branchId: string, status: OrderStatus): Promise<Order[]> {
   try {
-    const orders = await getOrders(tenantId, branchId)
-    return orders.filter((order) => order.status === status)
+    const ordersRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/orders`)
+    const ordersQuery = query(ordersRef, orderByChild("status"), equalTo(status))
+    const snapshot = await get(ordersQuery)
+
+    if (!snapshot.exists()) {
+      return []
+    }
+
+    const ordersData = snapshot.val()
+
+    // Convertir el objeto a un array
+    const orders = Object.entries(ordersData).map(([id, data]) => ({
+      id,
+      ...(data as any),
+    })) as Order[]
+
+    // Ordenar por fecha de creación (más reciente primero)
+    return orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   } catch (error) {
     console.error(`Error al obtener pedidos con estado ${status}:`, error)
     throw error
@@ -105,6 +164,7 @@ export async function createOrder(tenantId: string, branchId: string, orderData:
       customerName: orderData.customerName,
       customerPhone: orderData.customerPhone,
       customerEmail: orderData.customerEmail,
+      tableId: orderData.tableId,
       tableNumber: orderData.tableNumber,
       deliveryAddress: orderData.deliveryAddress,
       paymentMethod: orderData.paymentMethod,
@@ -115,6 +175,15 @@ export async function createOrder(tenantId: string, branchId: string, orderData:
 
     // Guardar el pedido en Realtime Database
     await set(newOrderRef, newOrder)
+
+    // Si es un pedido de mesa, actualizar el estado de la mesa a ocupada
+    if (orderData.type === "table" && orderData.tableId) {
+      const tableRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/tables/${orderData.tableId}`)
+      await update(tableRef, {
+        status: "occupied",
+        updatedAt: timestamp,
+      })
+    }
 
     return {
       id: orderId,
@@ -143,7 +212,7 @@ export async function updateOrderStatus(
       throw new Error("El pedido no existe")
     }
 
-    const currentOrder = snapshot.val()
+    const currentOrder = snapshot.val() as Order
 
     // Preparar datos de actualización
     const updatedData: any = {
@@ -154,6 +223,15 @@ export async function updateOrderStatus(
     // Si el estado es 'delivered' o 'cancelled', añadir completedAt
     if (status === "delivered" || status === "cancelled") {
       updatedData.completedAt = timestamp
+
+      // Si es un pedido de mesa y está completado o cancelado, liberar la mesa
+      if (currentOrder.type === "table" && currentOrder.tableId) {
+        const tableRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/tables/${currentOrder.tableId}`)
+        await update(tableRef, {
+          status: "available",
+          updatedAt: timestamp,
+        })
+      }
     }
 
     // Actualizar el pedido en Realtime Database
@@ -216,6 +294,17 @@ export async function deleteOrder(tenantId: string, branchId: string, orderId: s
     const snapshot = await get(orderRef)
     if (!snapshot.exists()) {
       throw new Error("El pedido no existe")
+    }
+
+    const order = snapshot.val() as Order
+
+    // Si es un pedido de mesa, liberar la mesa
+    if (order.type === "table" && order.tableId) {
+      const tableRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/tables/${order.tableId}`)
+      await update(tableRef, {
+        status: "available",
+        updatedAt: new Date().toISOString(),
+      })
     }
 
     // Eliminar el pedido de Realtime Database

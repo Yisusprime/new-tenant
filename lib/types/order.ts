@@ -28,7 +28,8 @@ export interface Order {
   customerName?: string
   customerPhone?: string
   customerEmail?: string
-  tableNumber?: string
+  tableId?: string // ID de la mesa
+  tableNumber?: string // Número de la mesa (para mostrar)
   deliveryAddress?: {
     street: string
     number: string
@@ -49,7 +50,8 @@ export interface OrderFormData {
   customerName?: string
   customerPhone?: string
   customerEmail?: string
-  tableNumber?: string
+  tableId?: string // ID de la mesa
+  tableNumber?: string // Número de la mesa (para mostrar)
   deliveryAddress?: {
     street: string
     number: string

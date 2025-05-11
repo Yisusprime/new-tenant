@@ -8,9 +8,12 @@ import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
 import { Button } from "@/components/ui/button"
 import { Plus, RefreshCw } from "lucide-react"
 import { getOrders, getOrdersByType } from "@/lib/services/order-service"
+import { getTables } from "@/lib/services/table-service"
 import type { Order } from "@/lib/types/order"
+import type { Table } from "@/lib/services/table-service"
 import { OrdersList } from "./components/orders-list"
 import { CreateOrderDialog } from "./components/create-order-dialog"
+import { TablesList } from "./components/tables-list"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export default function OrdersPage({ params }: { params: { tenantId: string } }) {
@@ -20,8 +23,10 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
   const [orders, setOrders] = useState<Order[]>([])
   const [tableOrders, setTableOrders] = useState<Order[]>([])
   const [deliveryOrders, setDeliveryOrders] = useState<Order[]>([])
+  const [tables, setTables] = useState<Table[]>([])
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("all")
+  const [selectedTable, setSelectedTable] = useState<Table | null>(null)
 
   const loadOrders = async () => {
     if (!currentBranch) return
@@ -36,8 +41,11 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
 
       const deliveryOrdersData = await getOrdersByType(tenantId, currentBranch.id, "delivery")
       setDeliveryOrders(deliveryOrdersData)
+
+      const tablesData = await getTables(tenantId, currentBranch.id)
+      setTables(tablesData)
     } catch (error) {
-      console.error("Error al cargar pedidos:", error)
+      console.error("Error al cargar datos:", error)
     } finally {
       setLoading(false)
     }
@@ -50,10 +58,16 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
   const handleOrderCreated = () => {
     loadOrders()
     setCreateDialogOpen(false)
+    setSelectedTable(null)
   }
 
   const handleStatusChange = () => {
     loadOrders()
+  }
+
+  const handleCreateOrderForTable = (table: Table) => {
+    setSelectedTable(table)
+    setCreateDialogOpen(true)
   }
 
   return (
@@ -113,20 +127,23 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
             <TabsContent value="tables" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Pedidos de Mesas</CardTitle>
-                  <CardDescription>Gestiona los pedidos de mesas en la sucursal {currentBranch.name}</CardDescription>
+                  <CardTitle>Mesas</CardTitle>
+                  <CardDescription>Gestiona los pedidos por mesa en la sucursal {currentBranch.name}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {loading ? (
-                    <div className="space-y-2">
-                      <Skeleton className="h-12 w-full" />
-                      <Skeleton className="h-12 w-full" />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <Skeleton className="h-40 w-full" />
+                      <Skeleton className="h-40 w-full" />
+                      <Skeleton className="h-40 w-full" />
                     </div>
                   ) : (
-                    <OrdersList
+                    <TablesList
+                      tables={tables}
                       orders={tableOrders}
                       tenantId={tenantId}
                       branchId={currentBranch.id}
+                      onCreateOrder={handleCreateOrderForTable}
                       onStatusChange={handleStatusChange}
                     />
                   )}
@@ -167,6 +184,7 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
             tenantId={tenantId}
             branchId={currentBranch.id}
             onOrderCreated={handleOrderCreated}
+            selectedTable={selectedTable}
           />
         </>
       )}

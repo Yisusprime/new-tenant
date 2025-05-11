@@ -15,7 +15,9 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { OrderFormData, OrderItem, OrderType } from "@/lib/types/order"
+import type { Table } from "@/lib/services/table-service"
 import { createOrder } from "@/lib/services/order-service"
+import { getTables } from "@/lib/services/table-service"
 import { getProducts } from "@/lib/services/product-service"
 import { getProductExtras } from "@/lib/services/product-service"
 import type { Product, ProductExtra } from "@/lib/types/product"
@@ -30,18 +32,27 @@ interface CreateOrderDialogProps {
   tenantId: string
   branchId: string
   onOrderCreated: () => void
+  selectedTable?: Table | null
 }
 
-export function CreateOrderDialog({ open, onOpenChange, tenantId, branchId, onOrderCreated }: CreateOrderDialogProps) {
+export function CreateOrderDialog({
+  open,
+  onOpenChange,
+  tenantId,
+  branchId,
+  onOrderCreated,
+  selectedTable,
+}: CreateOrderDialogProps) {
   const [loading, setLoading] = useState(false)
   const [products, setProducts] = useState<Product[]>([])
   const [extras, setExtras] = useState<ProductExtra[]>([])
+  const [tables, setTables] = useState<Table[]>([])
   const [orderType, setOrderType] = useState<OrderType>("local")
   const [items, setItems] = useState<OrderItem[]>([])
   const [customerName, setCustomerName] = useState("")
   const [customerPhone, setCustomerPhone] = useState("")
   const [customerEmail, setCustomerEmail] = useState("")
-  const [tableNumber, setTableNumber] = useState("")
+  const [selectedTableId, setSelectedTableId] = useState<string>("")
   const [deliveryStreet, setDeliveryStreet] = useState("")
   const [deliveryNumber, setDeliveryNumber] = useState("")
   const [deliveryCity, setDeliveryCity] = useState("")
@@ -49,13 +60,22 @@ export function CreateOrderDialog({ open, onOpenChange, tenantId, branchId, onOr
   const [deliveryNotes, setDeliveryNotes] = useState("")
   const [paymentMethod, setPaymentMethod] = useState("")
   const [productSelectorOpen, setProductSelectorOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState("items")
 
   useEffect(() => {
     if (open) {
       loadProducts()
       loadExtras()
+      loadTables()
+
+      // Si hay una mesa seleccionada, establecer el tipo de pedido a "table"
+      if (selectedTable) {
+        setOrderType("table")
+        setSelectedTableId(selectedTable.id)
+        setActiveTab("items") // Ir directamente a la pestaña de artículos
+      }
     }
-  }, [open, tenantId, branchId])
+  }, [open, tenantId, branchId, selectedTable])
 
   const loadProducts = async () => {
     try {
@@ -72,6 +92,16 @@ export function CreateOrderDialog({ open, onOpenChange, tenantId, branchId, onOr
       setExtras(extrasData.filter((e) => e.isActive))
     } catch (error) {
       console.error("Error al cargar extras:", error)
+    }
+  }
+
+  const loadTables = async () => {
+    try {
+      const tablesData = await getTables(tenantId, branchId)
+      // Filtrar solo mesas activas y disponibles
+      setTables(tablesData.filter((t) => t.isActive && (t.status === "available" || t.status === "reserved")))
+    } catch (error) {
+      console.error("Error al cargar mesas:", error)
     }
   }
 
@@ -138,7 +168,13 @@ export function CreateOrderDialog({ open, onOpenChange, tenantId, branchId, onOr
       }
 
       if (orderType === "table") {
-        orderData.tableNumber = tableNumber
+        if (!selectedTableId) {
+          alert("Debe seleccionar una mesa para el pedido")
+          return
+        }
+        const selectedTable = tables.find((t) => t.id === selectedTableId)
+        orderData.tableId = selectedTableId
+        orderData.tableNumber = selectedTable?.number
       } else if (orderType === "delivery") {
         orderData.deliveryAddress = {
           street: deliveryStreet,
@@ -166,7 +202,7 @@ export function CreateOrderDialog({ open, onOpenChange, tenantId, branchId, onOr
     setCustomerName("")
     setCustomerPhone("")
     setCustomerEmail("")
-    setTableNumber("")
+    setSelectedTableId("")
     setDeliveryStreet("")
     setDeliveryNumber("")
     setDeliveryCity("")
@@ -194,7 +230,7 @@ export function CreateOrderDialog({ open, onOpenChange, tenantId, branchId, onOr
             <DialogDescription>Completa la información para crear un nuevo pedido.</DialogDescription>
           </DialogHeader>
 
-          <Tabs defaultValue="items" className="mt-4">
+          <Tabs defaultValue="items" value={activeTab} onValueChange={setActiveTab} className="mt-4">
             <TabsList className="grid grid-cols-3">
               <TabsTrigger value="items">Artículos</TabsTrigger>
               <TabsTrigger value="type">Tipo de Pedido</TabsTrigger>
@@ -299,13 +335,25 @@ export function CreateOrderDialog({ open, onOpenChange, tenantId, branchId, onOr
 
                 {orderType === "table" && (
                   <div className="space-y-2">
-                    <Label htmlFor="tableNumber">Número de Mesa</Label>
-                    <Input
-                      id="tableNumber"
-                      value={tableNumber}
-                      onChange={(e) => setTableNumber(e.target.value)}
-                      placeholder="Ej: 5"
-                    />
+                    <Label htmlFor="tableId">Seleccionar Mesa</Label>
+                    <Select value={selectedTableId} onValueChange={setSelectedTableId}>
+                      <SelectTrigger id="tableId">
+                        <SelectValue placeholder="Seleccionar mesa" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {tables.length === 0 ? (
+                          <SelectItem value="" disabled>
+                            No hay mesas disponibles
+                          </SelectItem>
+                        ) : (
+                          tables.map((table) => (
+                            <SelectItem key={table.id} value={table.id}>
+                              Mesa {table.number} ({table.capacity} personas)
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
 
