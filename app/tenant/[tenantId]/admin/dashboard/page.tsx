@@ -13,6 +13,7 @@ import { getProducts } from "@/lib/services/product-service"
 import { getCategories } from "@/lib/services/category-service"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ShoppingBag, LayoutGrid, Users, DollarSign } from "lucide-react"
+import { RecentOrdersSummary } from "@/components/orders/recent-orders-summary"
 
 export default function DashboardPage({ params }: { params: { tenantId: string } }) {
   const { tenantId } = params
@@ -113,6 +114,10 @@ export default function DashboardPage({ params }: { params: { tenantId: string }
                 icon={<Users className="h-5 w-5 text-purple-600" />}
                 loading={loading}
               />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <RecentOrdersSummary tenantId={tenantId} branchId={currentBranch.id} />
             </div>
 
             <Card>
