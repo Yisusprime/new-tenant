@@ -18,21 +18,21 @@ const sampleCategories = [
   {
     name: "Platos Principales",
     description: "Nuestros platos principales más populares",
-    imageUrl: "https://img.icons8.com/color/96/000000/dinner.png",
+    imageUrl: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=800&auto=format&fit=crop",
     order: 1,
     isActive: true,
   },
   {
     name: "Bebidas",
     description: "Refrescantes bebidas para acompañar tu comida",
-    imageUrl: "https://img.icons8.com/color/96/000000/cocktail.png",
+    imageUrl: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?q=80&w=800&auto=format&fit=crop",
     order: 2,
     isActive: true,
   },
   {
     name: "Postres",
     description: "Deliciosos postres para terminar tu comida",
-    imageUrl: "https://img.icons8.com/color/96/000000/cake.png",
+    imageUrl: "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?q=80&w=800&auto=format&fit=crop",
     order: 3,
     isActive: true,
   },
@@ -46,7 +46,7 @@ const sampleProducts = [
     description: "Deliciosa hamburguesa con carne de res, lechuga, tomate, cebolla y queso cheddar",
     price: 8.99,
     categoryName: "Platos Principales",
-    imageUrl: "https://img.icons8.com/color/96/000000/hamburger.png",
+    imageUrl: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=800&auto=format&fit=crop",
     isActive: true,
     isFeatured: true,
   },
@@ -55,7 +55,7 @@ const sampleProducts = [
     description: "Pizza tradicional con salsa de tomate, mozzarella fresca y albahaca",
     price: 10.99,
     categoryName: "Platos Principales",
-    imageUrl: "https://img.icons8.com/color/96/000000/pizza.png",
+    imageUrl: "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?q=80&w=800&auto=format&fit=crop",
     isActive: true,
     isFeatured: true,
   },
@@ -64,7 +64,7 @@ const sampleProducts = [
     description: "Lechuga romana, crutones, queso parmesano y aderezo césar",
     price: 7.5,
     categoryName: "Platos Principales",
-    imageUrl: "https://img.icons8.com/color/96/000000/salad.png",
+    imageUrl: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=800&auto=format&fit=crop",
     isActive: true,
     isFeatured: false,
   },
@@ -73,7 +73,7 @@ const sampleProducts = [
     description: "Espaguetis con salsa cremosa, panceta, huevo y queso parmesano",
     price: 9.99,
     categoryName: "Platos Principales",
-    imageUrl: "https://img.icons8.com/color/96/000000/spaghetti.png",
+    imageUrl: "https://images.unsplash.com/photo-1608219992759-8d74ed8d76eb?q=80&w=800&auto=format&fit=crop",
     isActive: true,
     isFeatured: false,
   },
@@ -82,7 +82,7 @@ const sampleProducts = [
     description: "Tres tacos de pollo con guacamole, pico de gallo y crema agria",
     price: 8.5,
     categoryName: "Platos Principales",
-    imageUrl: "https://img.icons8.com/color/96/000000/taco.png",
+    imageUrl: "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?q=80&w=800&auto=format&fit=crop",
     isActive: true,
     isFeatured: true,
   },
@@ -91,7 +91,7 @@ const sampleProducts = [
     description: "Triple sándwich con pollo, tocino, lechuga, tomate y mayonesa",
     price: 7.99,
     categoryName: "Platos Principales",
-    imageUrl: "https://img.icons8.com/color/96/000000/sandwich.png",
+    imageUrl: "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?q=80&w=800&auto=format&fit=crop",
     isActive: true,
     isFeatured: false,
   },
@@ -100,7 +100,7 @@ const sampleProducts = [
     description: "Burrito grande con carne de res, frijoles, arroz, queso y pico de gallo",
     price: 9.5,
     categoryName: "Platos Principales",
-    imageUrl: "https://img.icons8.com/color/96/000000/burrito.png",
+    imageUrl: "https://images.unsplash.com/photo-1584031036380-3fb6f2d51880?q=80&w=800&auto=format&fit=crop",
     isActive: true,
     isFeatured: false,
   },
@@ -109,7 +109,7 @@ const sampleProducts = [
     description: "Pechuga de pollo a la parrilla con verduras asadas y puré de papas",
     price: 11.99,
     categoryName: "Platos Principales",
-    imageUrl: "https://img.icons8.com/color/96/000000/chicken.png",
+    imageUrl: "https://images.unsplash.com/photo-1532550907401-a500c9a57435?q=80&w=800&auto=format&fit=crop",
     isActive: true,
     isFeatured: true,
   },
@@ -120,7 +120,7 @@ const sampleProducts = [
     description: "Refresco de cola clásico, frío y refrescante",
     price: 2.5,
     categoryName: "Bebidas",
-    imageUrl: "https://img.icons8.com/color/96/000000/cola.png",
+    imageUrl: "https://images.unsplash.com/photo-1581636625402-29b2a704ef13?q=80&w=800&auto=format&fit=crop",
     isActive: true,
     isFeatured: false,
   },
@@ -129,7 +129,7 @@ const sampleProducts = [
     description: "Limonada fresca hecha con limones recién exprimidos y azúcar",
     price: 3.5,
     categoryName: "Bebidas",
-    imageUrl: "https://img.icons8.com/color/96/000000/lemonade.png",
+    imageUrl: "https://images.unsplash.com/photo-1621263764928-df1444c5e859?q=80&w=800&auto=format&fit=crop",
     isActive: true,
     isFeatured: true,
   },
@@ -138,7 +138,7 @@ const sampleProducts = [
     description: "Café recién hecho, fuerte y aromático",
     price: 2.99,
     categoryName: "Bebidas",
-    imageUrl: "https://img.icons8.com/color/96/000000/coffee.png",
+    imageUrl: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?q=80&w=800&auto=format&fit=crop",
     isActive: true,
     isFeatured: false,
   },
@@ -147,7 +147,7 @@ const sampleProducts = [
     description: "Té negro helado con limón y menta",
     price: 2.75,
     categoryName: "Bebidas",
-    imageUrl: "https://img.icons8.com/color/96/000000/iced-tea.png",
+    imageUrl: "https://images.unsplash.com/photo-1556679343-c1306ee31eba?q=80&w=800&auto=format&fit=crop",
     isActive: true,
     isFeatured: false,
   },
@@ -156,7 +156,7 @@ const sampleProducts = [
     description: "Batido cremoso de fresas frescas con leche y helado de vainilla",
     price: 4.99,
     categoryName: "Bebidas",
-    imageUrl: "https://img.icons8.com/color/96/000000/milkshake.png",
+    imageUrl: "https://images.unsplash.com/photo-1553787499-6f9133860278?q=80&w=800&auto=format&fit=crop",
     isActive: true,
     isFeatured: true,
   },
@@ -165,7 +165,7 @@ const sampleProducts = [
     description: "Agua mineral con o sin gas",
     price: 1.99,
     categoryName: "Bebidas",
-    imageUrl: "https://img.icons8.com/color/96/000000/water.png",
+    imageUrl: "https://images.unsplash.com/photo-1564419320461-6870880221ad?q=80&w=800&auto=format&fit=crop",
     isActive: true,
     isFeatured: false,
   },
@@ -176,7 +176,7 @@ const sampleProducts = [
     description: "Deliciosa tarta de chocolate con ganache y frutos rojos",
     price: 5.99,
     categoryName: "Postres",
-    imageUrl: "https://img.icons8.com/color/96/000000/chocolate-cake.png",
+    imageUrl: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?q=80&w=800&auto=format&fit=crop",
     isActive: true,
     isFeatured: true,
   },
@@ -185,7 +185,7 @@ const sampleProducts = [
     description: "Cremoso helado de vainilla con sirope de chocolate",
     price: 3.99,
     categoryName: "Postres",
-    imageUrl: "https://img.icons8.com/color/96/000000/ice-cream-cone.png",
+    imageUrl: "https://images.unsplash.com/photo-1563805042-7684c019e1cb?q=80&w=800&auto=format&fit=crop",
     isActive: true,
     isFeatured: false,
   },
@@ -194,7 +194,7 @@ const sampleProducts = [
     description: "Cheesecake cremoso con base de galleta y cobertura de frutos rojos",
     price: 5.5,
     categoryName: "Postres",
-    imageUrl: "https://img.icons8.com/color/96/000000/cheesecake.png",
+    imageUrl: "https://images.unsplash.com/photo-1533134242443-d4fd215305ad?q=80&w=800&auto=format&fit=crop",
     isActive: true,
     isFeatured: true,
   },
@@ -203,7 +203,7 @@ const sampleProducts = [
     description: "Brownie caliente de chocolate con helado de vainilla y nueces",
     price: 6.5,
     categoryName: "Postres",
-    imageUrl: "https://img.icons8.com/color/96/000000/brownie.png",
+    imageUrl: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?q=80&w=800&auto=format&fit=crop",
     isActive: true,
     isFeatured: false,
   },
@@ -212,7 +212,7 @@ const sampleProducts = [
     description: "Flan casero con salsa de caramelo",
     price: 4.5,
     categoryName: "Postres",
-    imageUrl: "https://img.icons8.com/color/96/000000/creme-caramel.png",
+    imageUrl: "https://images.unsplash.com/photo-1488477181946-6428a0291777?q=80&w=800&auto=format&fit=crop",
     isActive: true,
     isFeatured: false,
   },
@@ -221,7 +221,7 @@ const sampleProducts = [
     description: "Postre italiano clásico con café, mascarpone y cacao",
     price: 5.99,
     categoryName: "Postres",
-    imageUrl: "https://img.icons8.com/color/96/000000/tiramisu.png",
+    imageUrl: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?q=80&w=800&auto=format&fit=crop",
     isActive: true,
     isFeatured: true,
   },
@@ -396,12 +396,21 @@ export function SampleDataImporter({ tenantId }: { tenantId: string }) {
                   onCheckedChange={() => toggleCategory(category.name)}
                   disabled={importing}
                 />
-                <div className="grid gap-1.5">
+                <div className="grid gap-1.5 w-full">
                   <Label htmlFor={`category-${category.name}`} className="font-medium">
                     {category.name}
                   </Label>
-                  <div className="flex items-center gap-2">
-                    <img src={category.imageUrl || "/placeholder.svg"} alt={category.name} className="w-8 h-8" />
+                  <div className="flex flex-col gap-2">
+                    <div className="w-full h-24 rounded-md overflow-hidden">
+                      <img
+                        src={category.imageUrl || "/placeholder.svg"}
+                        alt={category.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = "/diverse-food-spread.png"
+                        }}
+                      />
+                    </div>
                     <Badge variant="outline">{getProductCountForCategory(category.name)} productos</Badge>
                   </div>
                 </div>
