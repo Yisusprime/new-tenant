@@ -1,0 +1,31 @@
+@media print {
+  /* Ocultar elementos que no deben imprimirse */
+  header,
+  footer,
+  nav,
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Asegurar que el ticket se imprima correctamente */
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: white;
+  }
+
+  /* Estilos específicos para el ticket */
+  .print-ticket {
+    width: 80mm; /* Ancho estándar para tickets de punto de venta */
+    margin: 0 auto;
+    padding: 5mm;
+    font-size: 10pt;
+    line-height: 1.2;
+  }
+
+  /* Evitar saltos de página dentro de elementos importantes */
+  .print-item {
+    page-break-inside: avoid;
+  }
+}

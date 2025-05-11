@@ -20,10 +20,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft, Loader2, Printer } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PrintTicketDialog } from "@/components/print-ticket-dialog"
+import { usePrintTicket } from "@/lib/hooks/use-print-ticket"
 
 export default function OrderDetailsPage({ params }: { params: { tenantId: string; orderId: string } }) {
   const { tenantId, orderId } = params
@@ -33,6 +35,7 @@ export default function OrderDetailsPage({ params }: { params: { tenantId: strin
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const { isPrintDialogOpen, setIsPrintDialogOpen, restaurantInfo } = usePrintTicket(tenantId, currentBranch?.id || "")
 
   useEffect(() => {
     if (currentBranch) {
@@ -190,6 +193,9 @@ export default function OrderDetailsPage({ params }: { params: { tenantId: strin
     )
   }
 
+  // Verificar si el IVA está activado en el pedido
+  const isTaxEnabled = order.taxEnabled !== undefined ? order.taxEnabled : true
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -302,13 +308,32 @@ export default function OrderDetailsPage({ params }: { params: { tenantId: strin
 
           <div>
             <div className="flex justify-between items-center">
-              <span>Subtotal</span>
+              <span>{isTaxEnabled && order.taxIncluded ? "Subtotal (IVA incluido)" : "Subtotal"}</span>
               <span>{formatCurrency(order.subtotal)}</span>
             </div>
-            <div className="flex justify-between items-center mt-2">
-              <span>Impuestos</span>
-              <span>{formatCurrency(order.tax)}</span>
-            </div>
+
+            {/* Solo mostrar el IVA si está activado Y no está incluido en los precios */}
+            {isTaxEnabled && !order.taxIncluded && order.tax > 0 && (
+              <div className="flex justify-between items-center mt-2">
+                <span>Impuestos</span>
+                <span>{formatCurrency(order.tax)}</span>
+              </div>
+            )}
+
+            {order.tip > 0 && (
+              <div className="flex justify-between items-center mt-2">
+                <span>Propina</span>
+                <span>{formatCurrency(order.tip)}</span>
+              </div>
+            )}
+
+            {order.coupon && order.coupon.discount > 0 && (
+              <div className="flex justify-between items-center mt-2 text-green-600">
+                <span>Descuento</span>
+                <span>-{formatCurrency(order.coupon.discount)}</span>
+              </div>
+            )}
+
             <div className="flex justify-between items-center mt-4 font-bold">
               <span>Total</span>
               <span>{formatCurrency(order.total)}</span>
@@ -318,10 +343,16 @@ export default function OrderDetailsPage({ params }: { params: { tenantId: strin
           <Separator />
 
           <div className="flex flex-col sm:flex-row justify-between gap-4">
-            <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)} disabled={actionLoading}>
-              {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Eliminar Pedido
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)} disabled={actionLoading}>
+                {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Eliminar Pedido
+              </Button>
+              <Button variant="outline" onClick={() => setIsPrintDialogOpen(true)}>
+                <Printer className="mr-2 h-4 w-4" />
+                Imprimir Ticket
+              </Button>
+            </div>
             <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
@@ -370,6 +401,16 @@ export default function OrderDetailsPage({ params }: { params: { tenantId: strin
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PrintTicketDialog
+        order={order}
+        open={isPrintDialogOpen}
+        onOpenChange={setIsPrintDialogOpen}
+        restaurantName={restaurantInfo.name}
+        restaurantAddress={restaurantInfo.address}
+        restaurantPhone={restaurantInfo.phone}
+        restaurantLogo={restaurantInfo.logo}
+      />
     </div>
   )
 }

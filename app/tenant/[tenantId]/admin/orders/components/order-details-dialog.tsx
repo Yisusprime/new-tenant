@@ -27,6 +27,9 @@ import {
 } from "@/components/ui/alert-dialog"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { Printer } from "lucide-react"
+import { PrintTicketDialog } from "@/components/print-ticket-dialog"
+import { usePrintTicket } from "@/lib/hooks/use-print-ticket"
 
 interface OrderDetailsDialogProps {
   order: Order
@@ -47,6 +50,7 @@ export function OrderDetailsDialog({
 }: OrderDetailsDialogProps) {
   const [loading, setLoading] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const { isPrintDialogOpen, setIsPrintDialogOpen, restaurantInfo } = usePrintTicket(tenantId, branchId)
 
   const handleStatusChange = async (status: OrderStatus) => {
     try {
@@ -257,9 +261,15 @@ export function OrderDetailsDialog({
           </div>
 
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)} disabled={loading}>
-              Eliminar Pedido
-            </Button>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)} disabled={loading}>
+                Eliminar Pedido
+              </Button>
+              <Button variant="outline" onClick={() => setIsPrintDialogOpen(true)}>
+                <Printer className="mr-2 h-4 w-4" />
+                Imprimir Ticket
+              </Button>
+            </div>
             <div className="flex gap-2">
               <Button
                 variant="outline"
@@ -307,6 +317,16 @@ export function OrderDetailsDialog({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PrintTicketDialog
+        order={order}
+        open={isPrintDialogOpen}
+        onOpenChange={setIsPrintDialogOpen}
+        restaurantName={restaurantInfo.name}
+        restaurantAddress={restaurantInfo.address}
+        restaurantPhone={restaurantInfo.phone}
+        restaurantLogo={restaurantInfo.logo}
+      />
     </>
   )
 }
