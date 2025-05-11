@@ -161,11 +161,13 @@ export function CreateOrderDialog({
       const orderData: OrderFormData = {
         type: orderType,
         items,
-        customerName: customerName || undefined,
-        customerPhone: customerPhone || undefined,
-        customerEmail: customerEmail || undefined,
-        paymentMethod: paymentMethod || undefined,
       }
+
+      // Solo agregar propiedades si tienen valor
+      if (customerName.trim()) orderData.customerName = customerName.trim()
+      if (customerPhone.trim()) orderData.customerPhone = customerPhone.trim()
+      if (customerEmail.trim()) orderData.customerEmail = customerEmail.trim()
+      if (paymentMethod) orderData.paymentMethod = paymentMethod
 
       if (orderType === "table") {
         if (!selectedTableId) {
@@ -174,14 +176,18 @@ export function CreateOrderDialog({
         }
         const selectedTable = tables.find((t) => t.id === selectedTableId)
         orderData.tableId = selectedTableId
-        orderData.tableNumber = selectedTable?.number
+        if (selectedTable) orderData.tableNumber = selectedTable.number
       } else if (orderType === "delivery") {
-        orderData.deliveryAddress = {
-          street: deliveryStreet,
-          number: deliveryNumber,
-          city: deliveryCity,
-          zipCode: deliveryZipCode || undefined,
-          notes: deliveryNotes || undefined,
+        // Solo crear el objeto deliveryAddress si hay al menos una propiedad con valor
+        if (deliveryStreet.trim() || deliveryNumber.trim() || deliveryCity.trim()) {
+          orderData.deliveryAddress = {
+            street: deliveryStreet.trim(),
+            number: deliveryNumber.trim(),
+            city: deliveryCity.trim(),
+          }
+
+          if (deliveryZipCode.trim()) orderData.deliveryAddress.zipCode = deliveryZipCode.trim()
+          if (deliveryNotes.trim()) orderData.deliveryAddress.notes = deliveryNotes.trim()
         }
       }
 

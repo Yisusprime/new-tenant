@@ -1,4 +1,4 @@
-import { ref, get, set, update, remove, push, query, orderByChild, equalTo } from "firebase/database"
+import { ref, get, set, update, remove, push } from "firebase/database"
 import { realtimeDb } from "@/lib/firebase/client"
 import type { Order, OrderFormData, OrderStatus, OrderType } from "@/lib/types/order"
 
@@ -9,6 +9,23 @@ function generateOrderNumber(): string {
     .toString()
     .padStart(3, "0")
   return `#${timestamp}${random}`
+}
+
+// Función para eliminar propiedades undefined de un objeto
+function removeUndefined(obj: any): any {
+  const result: any = {}
+  Object.entries(obj).forEach(([key, value]) => {
+    // Si el valor es undefined, no lo incluimos
+    if (value === undefined) return
+
+    // Si el valor es un objeto (pero no null ni array), procesarlo recursivamente
+    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+      result[key] = removeUndefined(value)
+    } else {
+      result[key] = value
+    }
+  })
+  return result
 }
 
 // Función para obtener todos los pedidos de una sucursal
@@ -37,81 +54,36 @@ export async function getOrders(tenantId: string, branchId: string): Promise<Ord
   }
 }
 
-// Función para obtener pedidos por tipo
+// Función para obtener pedidos por tipo (filtrado en el cliente)
 export async function getOrdersByType(tenantId: string, branchId: string, type: OrderType): Promise<Order[]> {
   try {
-    const ordersRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/orders`)
-    const ordersQuery = query(ordersRef, orderByChild("type"), equalTo(type))
-    const snapshot = await get(ordersQuery)
-
-    if (!snapshot.exists()) {
-      return []
-    }
-
-    const ordersData = snapshot.val()
-
-    // Convertir el objeto a un array
-    const orders = Object.entries(ordersData).map(([id, data]) => ({
-      id,
-      ...(data as any),
-    })) as Order[]
-
-    // Ordenar por fecha de creación (más reciente primero)
-    return orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    // Obtenemos todos los pedidos y filtramos en el cliente
+    const allOrders = await getOrders(tenantId, branchId)
+    return allOrders.filter((order) => order.type === type)
   } catch (error) {
     console.error(`Error al obtener pedidos de tipo ${type}:`, error)
     throw error
   }
 }
 
-// Función para obtener pedidos por mesa
+// Función para obtener pedidos por mesa (filtrado en el cliente)
 export async function getOrdersByTable(tenantId: string, branchId: string, tableId: string): Promise<Order[]> {
   try {
-    const ordersRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/orders`)
-    const ordersQuery = query(ordersRef, orderByChild("tableId"), equalTo(tableId))
-    const snapshot = await get(ordersQuery)
-
-    if (!snapshot.exists()) {
-      return []
-    }
-
-    const ordersData = snapshot.val()
-
-    // Convertir el objeto a un array
-    const orders = Object.entries(ordersData).map(([id, data]) => ({
-      id,
-      ...(data as any),
-    })) as Order[]
-
-    // Ordenar por fecha de creación (más reciente primero)
-    return orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    // Obtenemos todos los pedidos y filtramos en el cliente
+    const allOrders = await getOrders(tenantId, branchId)
+    return allOrders.filter((order) => order.tableId === tableId)
   } catch (error) {
     console.error(`Error al obtener pedidos de la mesa ${tableId}:`, error)
     throw error
   }
 }
 
-// Función para obtener pedidos por estado
+// Función para obtener pedidos por estado (filtrado en el cliente)
 export async function getOrdersByStatus(tenantId: string, branchId: string, status: OrderStatus): Promise<Order[]> {
   try {
-    const ordersRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/orders`)
-    const ordersQuery = query(ordersRef, orderByChild("status"), equalTo(status))
-    const snapshot = await get(ordersQuery)
-
-    if (!snapshot.exists()) {
-      return []
-    }
-
-    const ordersData = snapshot.val()
-
-    // Convertir el objeto a un array
-    const orders = Object.entries(ordersData).map(([id, data]) => ({
-      id,
-      ...(data as any),
-    })) as Order[]
-
-    // Ordenar por fecha de creación (más reciente primero)
-    return orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    // Obtenemos todos los pedidos y filtramos en el cliente
+    const allOrders = await getOrders(tenantId, branchId)
+    return allOrders.filter((order) => order.status === status)
   } catch (error) {
     console.error(`Error al obtener pedidos con estado ${status}:`, error)
     throw error
@@ -153,7 +125,8 @@ export async function createOrder(tenantId: string, branchId: string, orderData:
     const tax = subtotal * 0.1 // 10% de impuesto (ajustar según necesidades)
     const total = subtotal + tax
 
-    const newOrder: Omit<Order, "id"> = {
+    // Crear el objeto de pedido con valores por defecto
+    const newOrderWithUndefined: Omit<Order, "id"> = {
       orderNumber: generateOrderNumber(),
       type: orderData.type,
       status: "pending",
@@ -161,17 +134,20 @@ export async function createOrder(tenantId: string, branchId: string, orderData:
       subtotal,
       tax,
       total,
-      customerName: orderData.customerName,
-      customerPhone: orderData.customerPhone,
-      customerEmail: orderData.customerEmail,
-      tableId: orderData.tableId,
-      tableNumber: orderData.tableNumber,
-      deliveryAddress: orderData.deliveryAddress,
-      paymentMethod: orderData.paymentMethod,
+      customerName: orderData.customerName || null,
+      customerPhone: orderData.customerPhone || null,
+      customerEmail: orderData.customerEmail || null,
+      tableId: orderData.tableId || null,
+      tableNumber: orderData.tableNumber || null,
+      deliveryAddress: orderData.deliveryAddress || null,
+      paymentMethod: orderData.paymentMethod || null,
       paymentStatus: "pending",
       createdAt: timestamp,
       updatedAt: timestamp,
     }
+
+    // Eliminar propiedades con valor undefined
+    const newOrder = removeUndefined(newOrderWithUndefined)
 
     // Guardar el pedido en Realtime Database
     await set(newOrderRef, newOrder)
