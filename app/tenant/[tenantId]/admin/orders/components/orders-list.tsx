@@ -6,12 +6,13 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { ChevronDown, Clock, Eye, User, MapPin, CreditCard } from "lucide-react"
+import { ChevronDown, Clock, Eye, User, MapPin, CreditCard, Timer } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { updateOrderStatus } from "@/lib/services/order-service"
 import { OrderDetailsDialog } from "./order-details-dialog"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { OrderTimer } from "./order-timer"
 
 interface OrdersListProps {
   orders: Order[]
@@ -79,6 +80,16 @@ export function OrdersList({ orders, tenantId, branchId, onStatusChange }: Order
     }
   }
 
+  // Determinar qué fecha usar para el temporizador según el estado
+  const getTimerStartTime = (order: Order) => {
+    // Si está en preparación, usar la fecha de actualización (cuando cambió a preparación)
+    if (order.status === "preparing") {
+      return order.updatedAt
+    }
+    // Para otros estados, usar la fecha de creación
+    return order.createdAt
+  }
+
   if (orders.length === 0) {
     return <div className="text-center py-8 text-gray-500">No hay pedidos disponibles</div>
   }
@@ -93,9 +104,15 @@ export function OrdersList({ orders, tenantId, branchId, onStatusChange }: Order
                 <CardTitle className="text-lg">Pedido #{order.orderNumber}</CardTitle>
                 {getOrderTypeBadge(order.type)}
               </div>
-              <div className="text-sm text-muted-foreground flex items-center mt-1">
-                <Clock className="h-4 w-4 mr-1" />
-                {formatDate(order.createdAt)}
+              <div className="flex justify-between items-center mt-1">
+                <div className="text-sm text-muted-foreground flex items-center">
+                  <Clock className="h-4 w-4 mr-1" />
+                  {formatDate(order.createdAt)}
+                </div>
+                <div className="flex items-center">
+                  <Timer className="h-4 w-4 mr-1" />
+                  <OrderTimer startTime={getTimerStartTime(order)} status={order.status} />
+                </div>
               </div>
             </CardHeader>
             <CardContent className="pb-2">

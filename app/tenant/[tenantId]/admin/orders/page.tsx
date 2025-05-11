@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useBranch } from "@/lib/context/branch-context"
 import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
 import { Button } from "@/components/ui/button"
-import { Plus, RefreshCw } from "lucide-react"
+import { Plus, RefreshCw, Bell, BellOff } from "lucide-react"
 import { getOrders, getOrdersByType } from "@/lib/services/order-service"
 import { getTables } from "@/lib/services/table-service"
 import type { Order } from "@/lib/types/order"
@@ -15,6 +15,7 @@ import { CreateOrderDialog } from "./components/create-order-dialog"
 import { TablesList } from "./components/tables-list"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "@/components/ui/use-toast"
+import { useOrderNotifications } from "@/lib/hooks/use-order-notifications"
 
 export default function OrdersPage({ params }: { params: { tenantId: string } }) {
   const { tenantId } = params
@@ -27,6 +28,13 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("all")
   const [selectedTable, setSelectedTable] = useState<Table | null>(null)
+  const [notificationsOn, setNotificationsOn] = useState(true)
+
+  // Usar el hook de notificaciones
+  const { newOrder, toggleNotifications, notificationsEnabled } = useOrderNotifications(
+    tenantId,
+    currentBranch?.id || null,
+  )
 
   const loadOrders = async () => {
     if (!currentBranch) return
@@ -69,6 +77,20 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
     }
   }, [tenantId, currentBranch])
 
+  // Efecto para mostrar notificación cuando llega un nuevo pedido
+  useEffect(() => {
+    if (newOrder) {
+      toast({
+        title: "¡Nuevo pedido!",
+        description: `Pedido #${newOrder.orderNumber} recibido`,
+        variant: "default",
+      })
+
+      // Actualizar la lista de pedidos
+      loadOrders()
+    }
+  }, [newOrder])
+
   const handleOrderCreated = () => {
     loadOrders()
     setCreateDialogOpen(false)
@@ -84,11 +106,29 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
     setCreateDialogOpen(true)
   }
 
+  const handleToggleNotifications = () => {
+    const isEnabled = toggleNotifications()
+    setNotificationsOn(isEnabled)
+    toast({
+      title: isEnabled ? "Notificaciones activadas" : "Notificaciones desactivadas",
+      description: isEnabled ? "Recibirás alertas de nuevos pedidos" : "No recibirás alertas de nuevos pedidos",
+      variant: "default",
+    })
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Gestor de Pedidos</h1>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleToggleNotifications}
+            title={notificationsOn ? "Desactivar notificaciones" : "Activar notificaciones"}
+          >
+            {notificationsOn ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+          </Button>
           <Button variant="outline" size="sm" onClick={loadOrders}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Actualizar
