@@ -1,37 +1,45 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { OrderTabs } from "@/components/orders/order-tabs"
-import { useBranch } from "@/lib/context/branch-context"
+import { useState } from "react"
+import { useBranch } from "@/lib/hooks/use-branch"
 import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
-import { Skeleton } from "@/components/ui/skeleton"
+import { OrderTabs } from "@/components/orders/order-tabs"
+import { OrderList } from "@/components/orders/order-list"
+import { NewOrderButton } from "@/components/orders/new-order-button"
 
-export default function OrdersPage({ params }: { params: { tenantId: string } }) {
-  const { tenantId } = params
-  const { currentBranch, loading } = useBranch()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  if (!mounted || loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-10 w-full" />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-          {[...Array(6)].map((_, index) => (
-            <Skeleton key={index} className="h-[200px] w-full" />
-          ))}
-        </div>
-      </div>
-    )
+interface OrdersPageProps {
+  params: {
+    tenantId: string
   }
+}
 
-  if (!currentBranch) {
+export default function OrdersPage({ params }: OrdersPageProps) {
+  const { tenantId } = params
+  const { selectedBranch } = useBranch()
+  const [activeTab, setActiveTab] = useState("all")
+
+  if (!selectedBranch) {
     return <NoBranchSelectedAlert />
   }
 
-  return <OrderTabs tenantId={tenantId} branchId={currentBranch.id} />
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-2xl font-bold">Pedidos</h1>
+        <NewOrderButton
+          tenantId={tenantId}
+          branchId={selectedBranch.id}
+          onOrderCreated={() => {
+            // Refrescar la lista de pedidos
+          }}
+        />
+      </div>
+
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <OrderTabs activeTab={activeTab} onTabChange={setActiveTab} />
+      </div>
+
+      <OrderList tenantId={tenantId} branchId={selectedBranch.id} activeTab={activeTab} />
+    </div>
+  )
 }

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { PlusCircle } from "lucide-react"
-import { NewOrderModal } from "./new-order-modal"
+import { NewOrderDrawer } from "./new-order-drawer"
 
 interface NewOrderButtonProps {
   tenantId: string
@@ -17,11 +17,11 @@ export function NewOrderButton({ tenantId, branchId, onOrderCreated }: NewOrderB
   return (
     <>
       <Button onClick={() => setIsModalOpen(true)}>
-        <PlusCircle className="h-4 w-4 mr-2" />
+        <PlusCircle className="mr-2 h-4 w-4" />
         Nuevo Pedido
       </Button>
 
-      <NewOrderModal
+      <NewOrderDrawer
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         tenantId={tenantId}

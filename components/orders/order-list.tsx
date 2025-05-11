@@ -1,34 +1,35 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import type { Order, OrderType } from "@/lib/types/order"
-import { getOrders } from "@/lib/services/order-service"
 import { OrderCard } from "./order-card"
-import { Skeleton } from "@/components/ui/skeleton"
-import { AlertCircle } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { getOrders, getOrdersByType } from "@/lib/services/order-service"
+import { Loader2 } from "lucide-react"
 
 interface OrderListProps {
   tenantId: string
   branchId: string
-  type?: OrderType
-  refreshTrigger?: number
+  activeTab: string
 }
 
-export function OrderList({ tenantId, branchId, type, refreshTrigger = 0 }: OrderListProps) {
+export function OrderList({ tenantId, branchId, activeTab }: OrderListProps) {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
   const fetchOrders = async () => {
     try {
       setLoading(true)
-      setError(null)
-      const fetchedOrders = await getOrders(tenantId, branchId, type)
+      let fetchedOrders: Order[]
+
+      if (activeTab === "all") {
+        fetchedOrders = await getOrders(tenantId, branchId)
+      } else {
+        fetchedOrders = await getOrdersByType(tenantId, branchId, activeTab as OrderType)
+      }
+
       setOrders(fetchedOrders)
-    } catch (err) {
-      console.error("Error fetching orders:", err)
-      setError("No se pudieron cargar los pedidos. Por favor, intenta de nuevo.")
+    } catch (error) {
+      console.error("Error fetching orders:", error)
     } finally {
       setLoading(false)
     }
@@ -36,49 +37,20 @@ export function OrderList({ tenantId, branchId, type, refreshTrigger = 0 }: Orde
 
   useEffect(() => {
     fetchOrders()
-  }, [tenantId, branchId, type, refreshTrigger])
+  }, [tenantId, branchId, activeTab])
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {[...Array(6)].map((_, index) => (
-          <div key={index} className="space-y-3">
-            <Skeleton className="h-[200px] w-full rounded-lg" />
-          </div>
-        ))}
+      <div className="flex justify-center items-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
     )
   }
 
   if (orders.length === 0) {
     return (
       <div className="text-center py-12">
-        <div className="text-gray-400 mb-4">
-          <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-            />
-          </svg>
-        </div>
-        <h3 className="text-lg font-medium text-gray-900">No hay pedidos</h3>
-        <p className="mt-1 text-sm text-gray-500">
-          {type
-            ? `No hay pedidos de tipo ${type === "dine_in" ? "Mesa" : type === "takeaway" ? "Para llevar" : "Delivery"}.`
-            : "No hay pedidos disponibles."}
-        </p>
+        <p className="text-muted-foreground">No hay pedidos para mostrar</p>
       </div>
     )
   }
@@ -86,7 +58,7 @@ export function OrderList({ tenantId, branchId, type, refreshTrigger = 0 }: Orde
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {orders.map((order) => (
-        <OrderCard key={order.id} order={order} tenantId={tenantId} onStatusChange={fetchOrders} />
+        <OrderCard key={order.id} order={order} tenantId={tenantId} branchId={branchId} onStatusUpdate={fetchOrders} />
       ))}
     </div>
   )

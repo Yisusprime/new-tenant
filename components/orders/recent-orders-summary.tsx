@@ -2,15 +2,13 @@
 
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { getOrders } from "@/lib/services/order-service"
 import type { Order } from "@/lib/types/order"
-import { Skeleton } from "@/components/ui/skeleton"
+import { getRecentOrders } from "@/lib/services/order-service"
+import { Loader2 } from "lucide-react"
 import { OrderStatusBadge } from "./order-status-badge"
-import { formatDistanceToNow } from "date-fns"
-import { es } from "date-fns/locale"
-import Link from "next/link"
+import { OrderTypeBadge } from "./order-type-badge"
 import { Button } from "@/components/ui/button"
-import { ExternalLink } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 interface RecentOrdersSummaryProps {
   tenantId: string
@@ -20,13 +18,14 @@ interface RecentOrdersSummaryProps {
 export function RecentOrdersSummary({ tenantId, branchId }: RecentOrdersSummaryProps) {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
     const fetchRecentOrders = async () => {
       try {
         setLoading(true)
-        const fetchedOrders = await getOrders(tenantId, branchId)
-        setOrders(fetchedOrders.slice(0, 5)) // Get only the 5 most recent orders
+        const recentOrders = await getRecentOrders(tenantId, branchId)
+        setOrders(recentOrders)
       } catch (error) {
         console.error("Error fetching recent orders:", error)
       } finally {
@@ -34,62 +33,59 @@ export function RecentOrdersSummary({ tenantId, branchId }: RecentOrdersSummaryP
       }
     }
 
-    if (branchId) {
-      fetchRecentOrders()
-    }
+    fetchRecentOrders()
   }, [tenantId, branchId])
 
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Pedidos Recientes</CardTitle>
-          <CardDescription>Los últimos pedidos recibidos</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {[...Array(5)].map((_, index) => (
-              <Skeleton key={index} className="h-12 w-full" />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    )
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return new Intl.DateTimeFormat("es", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date)
   }
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <div>
-          <CardTitle>Pedidos Recientes</CardTitle>
-          <CardDescription>Los últimos pedidos recibidos</CardDescription>
-        </div>
-        <Button variant="outline" size="sm" asChild>
-          <Link href={`/tenant/${tenantId}/admin/orders`}>
-            <ExternalLink className="h-4 w-4 mr-2" />
-            Ver todos
-          </Link>
-        </Button>
+      <CardHeader>
+        <CardTitle>Pedidos Recientes</CardTitle>
+        <CardDescription>Los últimos pedidos recibidos</CardDescription>
       </CardHeader>
       <CardContent>
-        {orders.length === 0 ? (
-          <div className="text-center py-6 text-muted-foreground">No hay pedidos recientes</div>
+        {loading ? (
+          <div className="flex justify-center items-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">No hay pedidos recientes</p>
+          </div>
         ) : (
           <div className="space-y-4">
-            {orders.map((order) => (
-              <div key={order.id} className="flex items-center justify-between">
-                <div>
-                  <div className="font-medium">Pedido #{order.orderNumber}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true, locale: es })}
+            <div className="space-y-2">
+              {orders.map((order) => (
+                <div
+                  key={order.id}
+                  className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="font-medium">#{order.orderNumber}</div>
+                    <div className="text-sm text-muted-foreground">{formatDate(order.createdAt)}</div>
+                    <OrderTypeBadge type={order.type} />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="font-medium">${order.total.toFixed(2)}</div>
+                    <OrderStatusBadge status={order.status} />
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="text-sm font-medium">${order.total.toFixed(2)}</div>
-                  <OrderStatusBadge status={order.status} />
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => router.push(`/tenant/${tenantId}/admin/orders`)}
+            >
+              Ver todos los pedidos
+            </Button>
           </div>
         )}
       </CardContent>

@@ -41,4 +41,6 @@ export const adminAuth = firebaseAdmin.auth()
 export const adminDb = firebaseAdmin.firestore()
 export const adminStorage = firebaseAdmin.storage()
 
+export const db = adminDb
+
 export default firebaseAdmin

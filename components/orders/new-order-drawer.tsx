@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
 import { Loader2, Minus, Plus, Trash2 } from "lucide-react"
 
-interface NewOrderModalProps {
+interface NewOrderDrawerProps {
   isOpen: boolean
   onClose: () => void
   tenantId: string
@@ -24,7 +24,7 @@ interface NewOrderModalProps {
   onOrderCreated: () => void
 }
 
-export function NewOrderModal({ isOpen, onClose, tenantId, branchId, onOrderCreated }: NewOrderModalProps) {
+export function NewOrderDrawer({ isOpen, onClose, tenantId, branchId, onOrderCreated }: NewOrderDrawerProps) {
   const [formData, setFormData] = useState<OrderFormData>({
     type: "dine_in",
     items: [],
@@ -175,11 +175,11 @@ export function NewOrderModal({ isOpen, onClose, tenantId, branchId, onOrderCrea
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Nuevo Pedido</DialogTitle>
-        </DialogHeader>
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent side="left" className="w-full sm:w-[540px] md:w-[640px] overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Nuevo Pedido</SheetTitle>
+        </SheetHeader>
 
         {loading ? (
           <div className="flex justify-center items-center py-8">
@@ -500,7 +500,7 @@ export function NewOrderModal({ isOpen, onClose, tenantId, branchId, onOrderCrea
               </TabsContent>
             </Tabs>
 
-            <DialogFooter className="mt-4">
+            <SheetFooter className="mt-4">
               <Button variant="outline" onClick={onClose}>
                 Cancelar
               </Button>
@@ -514,10 +514,10 @@ export function NewOrderModal({ isOpen, onClose, tenantId, branchId, onOrderCrea
                   "Crear Pedido"
                 )}
               </Button>
-            </DialogFooter>
+            </SheetFooter>
           </>
         )}
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   )
 }

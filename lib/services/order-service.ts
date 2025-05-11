@@ -1,103 +1,122 @@
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  getDocs,
-  doc,
-  getDoc,
-  addDoc,
-  updateDoc,
-  serverTimestamp,
-} from "firebase/firestore"
-import { db } from "@/lib/firebase/client"
+import { db } from "@/lib/firebase/admin"
 import type { Order, OrderFormData, OrderStatus, OrderType } from "@/lib/types/order"
+import { Timestamp } from "firebase-admin/firestore"
 
-export const getOrders = async (tenantId: string, branchId: string, type?: OrderType): Promise<Order[]> => {
+// Función para obtener todos los pedidos de una sucursal
+export async function getOrders(tenantId: string, branchId: string): Promise<Order[]> {
   try {
-    let ordersQuery = query(
-      collection(db, `tenants/${tenantId}/branches/${branchId}/orders`),
-      orderBy("createdAt", "desc"),
-    )
+    const ordersSnapshot = await db
+      .collection("tenants")
+      .doc(tenantId)
+      .collection("branches")
+      .doc(branchId)
+      .collection("orders")
+      .orderBy("createdAt", "desc")
+      .get()
 
-    if (type) {
-      ordersQuery = query(
-        collection(db, `tenants/${tenantId}/branches/${branchId}/orders`),
-        where("type", "==", type),
-        orderBy("createdAt", "desc"),
-      )
-    }
-
-    const snapshot = await getDocs(ordersQuery)
-
-    return snapshot.docs.map((doc) => {
+    return ordersSnapshot.docs.map((doc) => {
       const data = doc.data()
       return {
         id: doc.id,
         ...data,
-        createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+        createdAt: data.createdAt.toDate().toISOString(),
+        updatedAt: data.updatedAt.toDate().toISOString(),
       } as Order
     })
   } catch (error) {
     console.error("Error fetching orders:", error)
-    throw error
+    throw new Error("Failed to fetch orders")
   }
 }
 
-export const getOrderById = async (tenantId: string, branchId: string, orderId: string): Promise<Order | null> => {
+// Función para obtener pedidos por tipo
+export async function getOrdersByType(tenantId: string, branchId: string, type: OrderType): Promise<Order[]> {
   try {
-    const orderDoc = await getDoc(doc(db, `tenants/${tenantId}/branches/${branchId}/orders`, orderId))
+    const ordersSnapshot = await db
+      .collection("tenants")
+      .doc(tenantId)
+      .collection("branches")
+      .doc(branchId)
+      .collection("orders")
+      .where("type", "==", type)
+      .orderBy("createdAt", "desc")
+      .get()
 
-    if (!orderDoc.exists()) {
-      return null
-    }
-
-    const data = orderDoc.data()
-    return {
-      id: orderDoc.id,
-      ...data,
-      createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-      updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-    } as Order
-  } catch (error) {
-    console.error("Error fetching order:", error)
-    throw error
-  }
-}
-
-export const createOrder = async (tenantId: string, branchId: string, orderData: OrderFormData): Promise<string> => {
-  try {
-    // Calculate subtotals for each item
-    const items = orderData.items.map((item) => {
-      const extrasTotal = item.extras?.reduce((sum, extra) => sum + extra.price, 0) || 0
-      const subtotal = item.price * item.quantity + extrasTotal * item.quantity
-
+    return ordersSnapshot.docs.map((doc) => {
+      const data = doc.data()
       return {
-        ...item,
-        id: Math.random().toString(36).substring(2, 15),
-        subtotal,
-      }
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt.toDate().toISOString(),
+        updatedAt: data.updatedAt.toDate().toISOString(),
+      } as Order
     })
+  } catch (error) {
+    console.error(`Error fetching ${type} orders:`, error)
+    throw new Error(`Failed to fetch ${type} orders`)
+  }
+}
 
-    // Calculate order totals
-    const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0)
-    const tax = subtotal * 0.1 // Assuming 10% tax
-    const deliveryFee = orderData.type === "delivery" ? 5 : 0 // Example delivery fee
+// Función para obtener pedidos recientes
+export async function getRecentOrders(tenantId: string, branchId: string, limit = 5): Promise<Order[]> {
+  try {
+    const ordersSnapshot = await db
+      .collection("tenants")
+      .doc(tenantId)
+      .collection("branches")
+      .doc(branchId)
+      .collection("orders")
+      .orderBy("createdAt", "desc")
+      .limit(limit)
+      .get()
+
+    return ordersSnapshot.docs.map((doc) => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt.toDate().toISOString(),
+        updatedAt: data.updatedAt.toDate().toISOString(),
+      } as Order
+    })
+  } catch (error) {
+    console.error("Error fetching recent orders:", error)
+    throw new Error("Failed to fetch recent orders")
+  }
+}
+
+// Función para crear un nuevo pedido
+export async function createOrder(tenantId: string, branchId: string, orderData: OrderFormData): Promise<string> {
+  try {
+    // Calcular subtotal
+    const subtotal = orderData.items.reduce((total, item) => {
+      return total + item.price * item.quantity
+    }, 0)
+
+    // Calcular impuestos (10% por defecto)
+    const tax = subtotal * 0.1
+
+    // Calcular tarifa de entrega si es delivery
+    const deliveryFee = orderData.type === "delivery" ? 5 : 0
+
+    // Calcular total
     const total = subtotal + tax + deliveryFee
 
-    // Generate order number (simple implementation)
+    // Generar número de orden (timestamp + 4 dígitos aleatorios)
     const timestamp = Date.now()
-    const randomDigits = Math.floor(Math.random() * 1000)
-      .toString()
-      .padStart(3, "0")
-    const orderNumber = `ORD-${timestamp.toString().slice(-6)}-${randomDigits}`
+    const randomDigits = Math.floor(1000 + Math.random() * 9000)
+    const orderNumber = `${timestamp.toString().slice(-6)}${randomDigits}`
 
-    const newOrder = {
+    // Crear objeto de pedido
+    const newOrder: Omit<Order, "id"> = {
       orderNumber,
       type: orderData.type,
-      status: "new" as OrderStatus,
-      items,
+      status: "new",
+      items: orderData.items.map((item) => ({
+        id: crypto.randomUUID(),
+        ...item,
+        subtotal: item.price * item.quantity,
+      })),
       subtotal,
       tax,
       deliveryFee: orderData.type === "delivery" ? deliveryFee : undefined,
@@ -107,65 +126,59 @@ export const createOrder = async (tenantId: string, branchId: string, orderData:
       paymentMethod: orderData.paymentMethod,
       paymentStatus: "pending",
       notes: orderData.notes,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       branchId,
     }
 
-    const docRef = await addDoc(collection(db, `tenants/${tenantId}/branches/${branchId}/orders`), newOrder)
-    return docRef.id
+    // Guardar en Firestore
+    const orderRef = await db
+      .collection("tenants")
+      .doc(tenantId)
+      .collection("branches")
+      .doc(branchId)
+      .collection("orders")
+      .add({
+        ...newOrder,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      })
+
+    return orderRef.id
   } catch (error) {
     console.error("Error creating order:", error)
-    throw error
+    throw new Error("Failed to create order")
   }
 }
 
-export const updateOrderStatus = async (
+// Función para actualizar el estado de un pedido
+export async function updateOrderStatus(
   tenantId: string,
   branchId: string,
   orderId: string,
   status: OrderStatus,
-): Promise<void> => {
+): Promise<void> {
   try {
-    const orderRef = doc(db, `tenants/${tenantId}/branches/${branchId}/orders`, orderId)
-
-    await updateDoc(orderRef, {
-      status,
-      updatedAt: serverTimestamp(),
-    })
+    await db
+      .collection("tenants")
+      .doc(tenantId)
+      .collection("branches")
+      .doc(branchId)
+      .collection("orders")
+      .doc(orderId)
+      .update({
+        status,
+        updatedAt: Timestamp.now(),
+      })
   } catch (error) {
     console.error("Error updating order status:", error)
-    throw error
+    throw new Error("Failed to update order status")
   }
 }
 
-export const getAvailableTables = async (tenantId: string, branchId: string): Promise<string[]> => {
-  // This would typically fetch from your database
-  // For now, returning a static list of tables
+// Función para obtener mesas disponibles
+export async function getAvailableTables(tenantId: string, branchId: string): Promise<string[]> {
+  // Simulación de mesas disponibles
+  // En una implementación real, esto debería verificar qué mesas están ocupadas
   return ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
-}
-
-export const getOrderStatusOptions = (type: OrderType): OrderStatus[] => {
-  const commonStatuses: OrderStatus[] = ["new", "received", "preparing", "ready", "completed", "cancelled"]
-
-  if (type === "delivery") {
-    return [...commonStatuses, "in_transit", "delivered"]
-  }
-
-  return commonStatuses
-}
-
-export const getNextStatus = (currentStatus: OrderStatus, type: OrderType): OrderStatus | null => {
-  const statusFlow: Record<OrderStatus, OrderStatus> = {
-    new: "received",
-    received: "preparing",
-    preparing: "ready",
-    ready: type === "delivery" ? "in_transit" : "completed",
-    in_transit: "delivered",
-    delivered: "completed",
-    completed: "completed", // Terminal state
-    cancelled: "cancelled", // Terminal state
-  }
-
-  return statusFlow[currentStatus] || null
 }
