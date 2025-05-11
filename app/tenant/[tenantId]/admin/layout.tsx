@@ -26,6 +26,8 @@ import {
   CreditCardIcon as PaymentIcon,
   Globe,
   FolderTree,
+  ShoppingBag,
+  Table,
 } from "lucide-react"
 import Link from "next/link"
 import { BranchProvider, useBranch } from "@/lib/context/branch-context"
@@ -34,6 +36,7 @@ import { BranchAlertModal } from "@/components/branch-alert-modal"
 import { PlanProvider, usePlan } from "@/lib/context/plan-context"
 import { AuthProvider } from "@/lib/context/auth-context"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Separator } from "@/components/ui/separator"
 
 // Componente para el selector de sucursales
 function BranchSelector() {
@@ -210,26 +213,31 @@ function AdminLayoutContent({
     )
   }
 
-  // Menú principal
+  // Menú principal reorganizado
   const menuItems = [
     { path: "/dashboard", label: "Dashboard", icon: Home },
-    { path: "/branches", label: "Sucursales", icon: MapPin },
+    { type: "separator", label: "Gestión" },
+    { path: "/orders", label: "Pedidos", icon: ShoppingBag },
     { path: "/products", label: "Productos", icon: Store },
     { path: "/categories", label: "Categorías", icon: FolderTree },
+    { path: "/branches", label: "Sucursales", icon: MapPin },
+    { type: "separator", label: "Configuración" },
     { path: "/plans", label: "Planes", icon: CreditCard },
+    { type: "separator", label: "Herramientas" },
     { path: "/debug", label: "Depuración", icon: AlertCircle },
   ]
 
   // Submenú de configuración de usuario
   const configItems = [{ path: "/settings/profile", label: "Perfil", icon: User }]
 
-  // Submenú de configuración del restaurante
+  // Submenú de configuración del restaurante reorganizado
   const restaurantConfigItems = [
     { path: "/restaurant/basic", label: "Información Básica", icon: Store },
     { path: "/restaurant/contact", label: "Contacto", icon: User },
-    { path: "/restaurant/service", label: "Métodos de Servicio", icon: Truck },
     { path: "/restaurant/location", label: "Ubicación", icon: MapPin },
     { path: "/restaurant/hours", label: "Horarios", icon: Clock },
+    { path: "/restaurant/tables", label: "Mesas", icon: Table },
+    { path: "/restaurant/service", label: "Métodos de Servicio", icon: Truck },
     { path: "/restaurant/payment", label: "Pagos", icon: PaymentIcon },
     { path: "/restaurant/delivery", label: "Delivery", icon: Truck },
     { path: "/restaurant/social", label: "Redes Sociales", icon: Globe },
@@ -254,21 +262,33 @@ function AdminLayoutContent({
           </button>
         </div>
 
-        <nav className="mt-4 px-2">
+        <nav className="mt-4 px-2 overflow-y-auto" style={{ maxHeight: "calc(100vh - 180px)" }}>
           <ul className="space-y-1">
-            {menuItems.map((item) => (
-              <li key={item.path}>
-                <Link
-                  href={`/admin${item.path}`}
-                  className={`flex items-center px-4 py-2 rounded-md transition-colors ${
-                    isActive(item.path) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
-                  }`}
-                >
-                  <item.icon className="mr-3 h-5 w-5" />
-                  {item.label}
-                </Link>
-              </li>
-            ))}
+            {menuItems.map((item, index) => {
+              if (item.type === "separator") {
+                return (
+                  <li key={`sep-${index}`} className="pt-2 pb-1">
+                    <div className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      {item.label}
+                    </div>
+                    <Separator className="my-1" />
+                  </li>
+                )
+              }
+              return (
+                <li key={item.path}>
+                  <Link
+                    href={`/admin${item.path}`}
+                    className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+                      isActive(item.path) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
+                    }`}
+                  >
+                    <item.icon className="mr-3 h-5 w-5" />
+                    {item.label}
+                  </Link>
+                </li>
+              )
+            })}
 
             {/* Menú desplegable de configuración de usuario */}
             <li>
@@ -354,7 +374,7 @@ function AdminLayoutContent({
           </ul>
         </nav>
 
-        <div className="absolute bottom-0 w-full p-4 border-t">
+        <div className="absolute bottom-0 w-full p-4 border-t bg-white">
           <div className="flex items-center mb-4">
             <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center mr-2">
               {user?.email?.charAt(0).toUpperCase() || "U"}
