@@ -15,6 +15,7 @@ import { OrdersList } from "./components/orders-list"
 import { CreateOrderDialog } from "./components/create-order-dialog"
 import { TablesList } from "./components/tables-list"
 import { Skeleton } from "@/components/ui/skeleton"
+import { toast } from "@/components/ui/use-toast"
 
 export default function OrdersPage({ params }: { params: { tenantId: string } }) {
   const { tenantId } = params
@@ -33,7 +34,17 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
 
     try {
       setLoading(true)
+
+      // Cargar mesas primero
+      console.log("Cargando mesas...")
+      const tablesData = await getTables(tenantId, currentBranch.id)
+      console.log("Mesas cargadas:", tablesData)
+      setTables(tablesData)
+
+      // Luego cargar pedidos
+      console.log("Cargando pedidos...")
       const allOrders = await getOrders(tenantId, currentBranch.id)
+      console.log("Pedidos cargados:", allOrders)
       setOrders(allOrders)
 
       const tableOrdersData = await getOrdersByType(tenantId, currentBranch.id, "table")
@@ -41,18 +52,22 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
 
       const deliveryOrdersData = await getOrdersByType(tenantId, currentBranch.id, "delivery")
       setDeliveryOrders(deliveryOrdersData)
-
-      const tablesData = await getTables(tenantId, currentBranch.id)
-      setTables(tablesData)
     } catch (error) {
       console.error("Error al cargar datos:", error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los datos",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    loadOrders()
+    if (currentBranch) {
+      loadOrders()
+    }
   }, [tenantId, currentBranch])
 
   const handleOrderCreated = () => {

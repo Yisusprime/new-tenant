@@ -24,6 +24,10 @@ export function TablesList({ tables, orders, tenantId, branchId, onCreateOrder, 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
 
+  // Función para depuración
+  console.log("Tables received:", tables)
+  console.log("Orders received:", orders)
+
   const getTableOrders = (tableId: string) => {
     return orders.filter((order) => order.tableId === tableId)
   }

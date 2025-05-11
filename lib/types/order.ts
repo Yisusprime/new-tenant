@@ -12,8 +12,15 @@ export interface OrderItem {
     name: string
     price: number
   }[]
-  notes?: string
   subtotal: number
+}
+
+export interface DeliveryAddress {
+  street: string
+  number: string
+  city: string
+  zipCode?: string
+  notes?: string
 }
 
 export interface Order {
@@ -28,17 +35,11 @@ export interface Order {
   customerName?: string
   customerPhone?: string
   customerEmail?: string
-  tableId?: string // ID de la mesa
-  tableNumber?: string // Número de la mesa (para mostrar)
-  deliveryAddress?: {
-    street: string
-    number: string
-    city: string
-    zipCode?: string
-    notes?: string
-  }
+  tableId?: string // ID de la mesa (para pedidos de mesa)
+  tableNumber?: string // Número de mesa (para pedidos de mesa)
+  deliveryAddress?: DeliveryAddress // Dirección de entrega (para pedidos de delivery)
   paymentMethod?: string
-  paymentStatus?: "pending" | "paid" | "failed"
+  paymentStatus: "pending" | "paid" | "failed"
   createdAt: string
   updatedAt: string
   completedAt?: string
@@ -50,14 +51,8 @@ export interface OrderFormData {
   customerName?: string
   customerPhone?: string
   customerEmail?: string
-  tableId?: string // ID de la mesa
-  tableNumber?: string // Número de la mesa (para mostrar)
-  deliveryAddress?: {
-    street: string
-    number: string
-    city: string
-    zipCode?: string
-    notes?: string
-  }
+  tableId?: string // ID de la mesa (para pedidos de mesa)
+  tableNumber?: string // Número de mesa (para pedidos de mesa)
+  deliveryAddress?: DeliveryAddress // Dirección de entrega (para pedidos de delivery)
   paymentMethod?: string
 }
