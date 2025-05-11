@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useBranch } from "@/lib/context/branch-context"
 import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
 import { Button } from "@/components/ui/button"
@@ -115,81 +114,65 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
             </TabsList>
 
             <TabsContent value="all" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Todos los Pedidos</CardTitle>
-                  <CardDescription>Gestiona todos los pedidos de la sucursal {currentBranch.name}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {loading ? (
-                    <div className="space-y-2">
-                      <Skeleton className="h-12 w-full" />
-                      <Skeleton className="h-12 w-full" />
-                      <Skeleton className="h-12 w-full" />
-                    </div>
-                  ) : (
-                    <OrdersList
-                      orders={orders}
-                      tenantId={tenantId}
-                      branchId={currentBranch.id}
-                      onStatusChange={handleStatusChange}
-                    />
-                  )}
-                </CardContent>
-              </Card>
+              <div>
+                <h2 className="text-lg font-medium mb-4">Todos los Pedidos</h2>
+                {loading ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <Skeleton className="h-48 w-full" />
+                    <Skeleton className="h-48 w-full" />
+                    <Skeleton className="h-48 w-full" />
+                  </div>
+                ) : (
+                  <OrdersList
+                    orders={orders}
+                    tenantId={tenantId}
+                    branchId={currentBranch.id}
+                    onStatusChange={handleStatusChange}
+                  />
+                )}
+              </div>
             </TabsContent>
 
             <TabsContent value="tables" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Mesas</CardTitle>
-                  <CardDescription>Gestiona los pedidos por mesa en la sucursal {currentBranch.name}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {loading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <Skeleton className="h-40 w-full" />
-                      <Skeleton className="h-40 w-full" />
-                      <Skeleton className="h-40 w-full" />
-                    </div>
-                  ) : (
-                    <TablesList
-                      tables={tables}
-                      orders={tableOrders}
-                      tenantId={tenantId}
-                      branchId={currentBranch.id}
-                      onCreateOrder={handleCreateOrderForTable}
-                      onStatusChange={handleStatusChange}
-                    />
-                  )}
-                </CardContent>
-              </Card>
+              <div>
+                <h2 className="text-lg font-medium mb-4">Mesas</h2>
+                {loading ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Skeleton className="h-40 w-full" />
+                    <Skeleton className="h-40 w-full" />
+                    <Skeleton className="h-40 w-full" />
+                  </div>
+                ) : (
+                  <TablesList
+                    tables={tables}
+                    orders={tableOrders}
+                    tenantId={tenantId}
+                    branchId={currentBranch.id}
+                    onCreateOrder={handleCreateOrderForTable}
+                    onStatusChange={handleStatusChange}
+                  />
+                )}
+              </div>
             </TabsContent>
 
             <TabsContent value="delivery" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Pedidos de Delivery</CardTitle>
-                  <CardDescription>
-                    Gestiona los pedidos de delivery en la sucursal {currentBranch.name}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {loading ? (
-                    <div className="space-y-2">
-                      <Skeleton className="h-12 w-full" />
-                      <Skeleton className="h-12 w-full" />
-                    </div>
-                  ) : (
-                    <OrdersList
-                      orders={deliveryOrders}
-                      tenantId={tenantId}
-                      branchId={currentBranch.id}
-                      onStatusChange={handleStatusChange}
-                    />
-                  )}
-                </CardContent>
-              </Card>
+              <div>
+                <h2 className="text-lg font-medium mb-4">Pedidos de Delivery</h2>
+                {loading ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <Skeleton className="h-48 w-full" />
+                    <Skeleton className="h-48 w-full" />
+                    <Skeleton className="h-48 w-full" />
+                  </div>
+                ) : (
+                  <OrdersList
+                    orders={deliveryOrders}
+                    tenantId={tenantId}
+                    branchId={currentBranch.id}
+                    onStatusChange={handleStatusChange}
+                  />
+                )}
+              </div>
             </TabsContent>
           </Tabs>
 

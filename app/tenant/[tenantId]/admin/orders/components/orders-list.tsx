@@ -4,12 +4,14 @@ import { useState } from "react"
 import type { Order, OrderStatus } from "@/lib/types/order"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ChevronDown, Eye } from "lucide-react"
+import { ChevronDown, Clock, Eye, User, MapPin, CreditCard } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { updateOrderStatus } from "@/lib/services/order-service"
 import { OrderDetailsDialog } from "./order-details-dialog"
+import { format } from "date-fns"
+import { es } from "date-fns/locale"
 
 interface OrdersListProps {
   orders: Order[]
@@ -69,66 +71,97 @@ export function OrdersList({ orders, tenantId, branchId, onStatusChange }: Order
     )
   }
 
+  const formatDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), "dd MMM yyyy, HH:mm", { locale: es })
+    } catch (error) {
+      return dateString
+    }
+  }
+
   if (orders.length === 0) {
     return <div className="text-center py-8 text-gray-500">No hay pedidos disponibles</div>
   }
 
   return (
     <div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Número</TableHead>
-            <TableHead>Tipo</TableHead>
-            <TableHead>Cliente</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead className="text-right">Total</TableHead>
-            <TableHead className="text-right">Acciones</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {orders.map((order) => (
-            <TableRow key={order.id}>
-              <TableCell className="font-medium">{order.orderNumber}</TableCell>
-              <TableCell>{getOrderTypeBadge(order.type)}</TableCell>
-              <TableCell>
-                {order.customerName || (order.type === "table" ? `Mesa ${order.tableNumber}` : "Cliente")}
-              </TableCell>
-              <TableCell>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-8 p-0">
-                      {getStatusBadge(order.status)}
-                      <ChevronDown className="ml-2 h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    <DropdownMenuItem onClick={() => handleStatusChange(order.id, "pending")}>
-                      Pendiente
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleStatusChange(order.id, "preparing")}>
-                      En preparación
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleStatusChange(order.id, "ready")}>Listo</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleStatusChange(order.id, "delivered")}>
-                      Entregado
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleStatusChange(order.id, "cancelled")}>
-                      Cancelado
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-              <TableCell className="text-right">{formatCurrency(order.total)}</TableCell>
-              <TableCell className="text-right">
-                <Button variant="ghost" size="icon" onClick={() => handleViewDetails(order)}>
-                  <Eye className="h-4 w-4" />
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {orders.map((order) => (
+          <Card key={order.id} className="overflow-hidden">
+            <CardHeader className="pb-2">
+              <div className="flex justify-between items-start">
+                <CardTitle className="text-lg">Pedido #{order.orderNumber}</CardTitle>
+                {getOrderTypeBadge(order.type)}
+              </div>
+              <div className="text-sm text-muted-foreground flex items-center mt-1">
+                <Clock className="h-4 w-4 mr-1" />
+                {formatDate(order.createdAt)}
+              </div>
+            </CardHeader>
+            <CardContent className="pb-2">
+              <div className="space-y-2">
+                <div className="flex items-start gap-2">
+                  <User className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">
+                      {order.customerName || (order.type === "table" ? `Mesa ${order.tableNumber}` : "Cliente")}
+                    </p>
+                    {order.customerPhone && <p className="text-xs text-muted-foreground">{order.customerPhone}</p>}
+                  </div>
+                </div>
+
+                {order.type === "delivery" && order.deliveryAddress && (
+                  <div className="flex items-start gap-2">
+                    <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                    <div className="flex-1">
+                      <p className="text-xs text-muted-foreground">
+                        {order.deliveryAddress.street} {order.deliveryAddress.number}, {order.deliveryAddress.city}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-start gap-2">
+                  <CreditCard className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{formatCurrency(order.total)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {order.paymentMethod || "Método no especificado"} · {order.items.length} artículos
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-between pt-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8">
+                    {getStatusBadge(order.status)}
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={() => handleStatusChange(order.id, "pending")}>Pendiente</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleStatusChange(order.id, "preparing")}>
+                    En preparación
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleStatusChange(order.id, "ready")}>Listo</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleStatusChange(order.id, "delivered")}>
+                    Entregado
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleStatusChange(order.id, "cancelled")}>
+                    Cancelado
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button variant="ghost" size="sm" onClick={() => handleViewDetails(order)}>
+                <Eye className="h-4 w-4 mr-2" />
+                Detalles
+              </Button>
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
 
       {selectedOrder && (
         <OrderDetailsDialog
