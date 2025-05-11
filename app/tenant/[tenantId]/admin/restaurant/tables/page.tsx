@@ -1,50 +1,47 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useBranch } from "@/lib/context/branch-context"
-import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
+import { RestaurantConfigSteps } from "@/components/restaurant-config-steps"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useToast } from "@/components/ui/use-toast"
+import { Loader2, Plus, Trash, TableIcon } from "lucide-react"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Switch } from "@/components/ui/switch"
-import { type Table, getTables, createTable, updateTable, deleteTable } from "@/lib/services/table-service"
-import { Loader2, Plus, Pencil, Trash2, Check, X } from "lucide-react"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
-import { toast } from "@/components/ui/use-toast"
+import { useBranch } from "@/lib/context/branch-context"
+import { getTables, createTable, updateTable, deleteTable } from "@/lib/services/table-service"
 
-export default function TablesPage({ params }: { params: { tenantId: string } }) {
+export default function RestaurantTablesPage({
+  params,
+}: {
+  params: { tenantId: string }
+}) {
   const { tenantId } = params
+  const { toast } = useToast()
   const { currentBranch } = useBranch()
   const [loading, setLoading] = useState(true)
-  const [tables, setTables] = useState<Table[]>([])
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [isEditing, setIsEditing] = useState(false)
-  const [currentTable, setCurrentTable] = useState<Table | null>(null)
-  const [tableNumber, setTableNumber] = useState("")
-  const [tableCapacity, setTableCapacity] = useState("2")
-  const [tableLocation, setTableLocation] = useState("")
-  const [tableStatus, setTableStatus] = useState<"available" | "maintenance">("available")
-  const [tableActive, setTableActive] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
+  const [tables, setTables] = useState<any[]>([])
+  const [newTable, setNewTable] = useState({
+    number: "",
+    capacity: 4,
+    isActive: true,
+  })
+
+  useEffect(() => {
+    loadTables()
+  }, [currentBranch])
 
   const loadTables = async () => {
-    if (!currentBranch) return
+    if (!currentBranch) {
+      setLoading(false)
+      return
+    }
 
     try {
       setLoading(true)
       const tablesData = await getTables(tenantId, currentBranch.id)
-      setTables(tablesData)
+      setTables(tablesData || [])
     } catch (error) {
       console.error("Error al cargar mesas:", error)
       toast({
@@ -57,34 +54,9 @@ export default function TablesPage({ params }: { params: { tenantId: string } })
     }
   }
 
-  useEffect(() => {
-    loadTables()
-  }, [tenantId, currentBranch])
-
-  const handleOpenDialog = (table?: Table) => {
-    if (table) {
-      setIsEditing(true)
-      setCurrentTable(table)
-      setTableNumber(table.number)
-      setTableCapacity(table.capacity.toString())
-      setTableLocation(table.location || "")
-      setTableStatus(table.status === "occupied" || table.status === "reserved" ? "available" : table.status)
-      setTableActive(table.isActive)
-    } else {
-      setIsEditing(false)
-      setCurrentTable(null)
-      setTableNumber("")
-      setTableCapacity("2")
-      setTableLocation("")
-      setTableStatus("available")
-      setTableActive(true)
-    }
-    setIsDialogOpen(true)
-  }
-
-  const handleSubmit = async () => {
+  const handleAddTable = async () => {
     if (!currentBranch) return
-    if (!tableNumber.trim()) {
+    if (!newTable.number.trim()) {
       toast({
         title: "Error",
         description: "El número de mesa es obligatorio",
@@ -94,55 +66,76 @@ export default function TablesPage({ params }: { params: { tenantId: string } })
     }
 
     try {
-      setSubmitting(true)
+      await createTable(tenantId, currentBranch.id, {
+        number: newTable.number,
+        capacity: newTable.capacity,
+        isActive: newTable.isActive,
+      })
 
-      const tableData = {
-        number: tableNumber.trim(),
-        capacity: Number.parseInt(tableCapacity) || 2,
-        location: tableLocation.trim() || undefined,
-        status: tableStatus,
-        isActive: tableActive,
-      }
+      toast({
+        title: "Mesa creada",
+        description: "La mesa se ha creado correctamente",
+      })
 
-      if (isEditing && currentTable) {
-        await updateTable(tenantId, currentBranch.id, currentTable.id, tableData)
-        toast({
-          title: "Mesa actualizada",
-          description: `La mesa ${tableNumber} ha sido actualizada correctamente`,
-        })
-      } else {
-        await createTable(tenantId, currentBranch.id, tableData as any)
-        toast({
-          title: "Mesa creada",
-          description: `La mesa ${tableNumber} ha sido creada correctamente`,
-        })
-      }
+      // Limpiar el formulario
+      setNewTable({
+        number: "",
+        capacity: 4,
+        isActive: true,
+      })
 
-      setIsDialogOpen(false)
+      // Recargar las mesas
       loadTables()
     } catch (error) {
-      console.error("Error al guardar mesa:", error)
+      console.error("Error al crear mesa:", error)
       toast({
         title: "Error",
-        description: "No se pudo guardar la mesa",
+        description: "No se pudo crear la mesa",
         variant: "destructive",
       })
-    } finally {
-      setSubmitting(false)
     }
   }
 
-  const handleDelete = async (table: Table) => {
+  const handleToggleActive = async (tableId: string, isActive: boolean) => {
     if (!currentBranch) return
-    if (!confirm(`¿Estás seguro de eliminar la mesa ${table.number}?`)) return
 
     try {
-      await deleteTable(tenantId, currentBranch.id, table.id)
+      await updateTable(tenantId, currentBranch.id, tableId, { isActive })
+
+      // Actualizar la lista local
+      setTables(tables.map((table) => (table.id === tableId ? { ...table, isActive } : table)))
+
+      toast({
+        title: isActive ? "Mesa activada" : "Mesa desactivada",
+        description: `La mesa ha sido ${isActive ? "activada" : "desactivada"} correctamente`,
+      })
+    } catch (error) {
+      console.error("Error al actualizar mesa:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar la mesa",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteTable = async (tableId: string) => {
+    if (!currentBranch) return
+
+    if (!confirm("¿Estás seguro de que deseas eliminar esta mesa?")) {
+      return
+    }
+
+    try {
+      await deleteTable(tenantId, currentBranch.id, tableId)
+
+      // Actualizar la lista local
+      setTables(tables.filter((table) => table.id !== tableId))
+
       toast({
         title: "Mesa eliminada",
-        description: `La mesa ${table.number} ha sido eliminada correctamente`,
+        description: "La mesa ha sido eliminada correctamente",
       })
-      loadTables()
     } catch (error) {
       console.error("Error al eliminar mesa:", error)
       toast({
@@ -153,178 +146,98 @@ export default function TablesPage({ params }: { params: { tenantId: string } })
     }
   }
 
-  const getStatusBadge = (status: string) => {
-    const statusMap: Record<string, { label: string; variant: "default" | "outline" | "secondary" | "destructive" }> = {
-      available: { label: "Disponible", variant: "default" },
-      occupied: { label: "Ocupada", variant: "destructive" },
-      reserved: { label: "Reservada", variant: "secondary" },
-      maintenance: { label: "Mantenimiento", variant: "outline" },
-    }
-    const statusInfo = statusMap[status] || { label: status, variant: "default" }
-    return <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
+  if (loading && !tables.length) {
+    return (
+      <RestaurantConfigSteps tenantId={tenantId} currentStep="tables">
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </RestaurantConfigSteps>
+    )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Configuración de Mesas</h1>
-        <Button onClick={() => handleOpenDialog()} disabled={!currentBranch}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nueva Mesa
-        </Button>
-      </div>
-
-      <NoBranchSelectedAlert />
-
-      {currentBranch && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Mesas</CardTitle>
-            <CardDescription>Administra las mesas de tu restaurante</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-              </div>
-            ) : tables.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500 mb-4">No hay mesas configuradas</p>
-                <Button onClick={() => handleOpenDialog()}>Crear Mesa</Button>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-3 px-4">Mesa</th>
-                      <th className="text-left py-3 px-4">Capacidad</th>
-                      <th className="text-left py-3 px-4">Ubicación</th>
-                      <th className="text-left py-3 px-4">Estado</th>
-                      <th className="text-left py-3 px-4">Activa</th>
-                      <th className="text-right py-3 px-4">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tables.map((table) => (
-                      <tr key={table.id} className="border-b hover:bg-gray-50">
-                        <td className="py-3 px-4">{table.number}</td>
-                        <td className="py-3 px-4">{table.capacity} personas</td>
-                        <td className="py-3 px-4">{table.location || "-"}</td>
-                        <td className="py-3 px-4">{getStatusBadge(table.status)}</td>
-                        <td className="py-3 px-4">
-                          {table.isActive ? (
-                            <Check className="h-5 w-5 text-green-500" />
-                          ) : (
-                            <X className="h-5 w-5 text-red-500" />
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => handleOpenDialog(table)}
-                              title="Editar"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => handleDelete(table)}
-                              className="text-red-500 hover:text-red-700"
-                              title="Eliminar"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{isEditing ? "Editar Mesa" : "Nueva Mesa"}</DialogTitle>
-            <DialogDescription>
-              {isEditing
-                ? "Modifica la información de la mesa seleccionada"
-                : "Completa la información para crear una nueva mesa"}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
+    <RestaurantConfigSteps tenantId={tenantId} currentStep="tables">
+      <div className="max-w-md space-y-6">
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <div className="space-y-2">
-              <Label htmlFor="tableNumber">Número de Mesa</Label>
+              <Label htmlFor="tableNumber">Número de Mesa *</Label>
               <Input
                 id="tableNumber"
-                value={tableNumber}
-                onChange={(e) => setTableNumber(e.target.value)}
-                placeholder="Ej: 1, 2A, VIP"
+                value={newTable.number}
+                onChange={(e) => setNewTable({ ...newTable, number: e.target.value })}
+                placeholder="Ej: 1, A1, Mesa VIP"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="tableCapacity">Capacidad (personas)</Label>
+              <Label htmlFor="capacity">Capacidad</Label>
               <Input
-                id="tableCapacity"
+                id="capacity"
                 type="number"
                 min="1"
-                value={tableCapacity}
-                onChange={(e) => setTableCapacity(e.target.value)}
+                value={newTable.capacity}
+                onChange={(e) => setNewTable({ ...newTable, capacity: Number.parseInt(e.target.value) })}
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="tableLocation">Ubicación (opcional)</Label>
-              <Input
-                id="tableLocation"
-                value={tableLocation}
-                onChange={(e) => setTableLocation(e.target.value)}
-                placeholder="Ej: Terraza, Interior, Ventana"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="tableStatus">Estado</Label>
-              <Select value={tableStatus} onValueChange={(value) => setTableStatus(value as any)}>
-                <SelectTrigger id="tableStatus">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="available">Disponible</SelectItem>
-                  <SelectItem value="maintenance">Mantenimiento</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Switch id="tableActive" checked={tableActive} onCheckedChange={setTableActive} />
-              <Label htmlFor="tableActive">Mesa activa</Label>
+            <div className="space-y-2 flex items-end">
+              <Button onClick={handleAddTable} className="w-full">
+                <Plus className="h-4 w-4 mr-2" />
+                Añadir Mesa
+              </Button>
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={submitting}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSubmit} disabled={submitting}>
-              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEditing ? "Actualizar" : "Crear"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+          {tables.length > 0 ? (
+            <div className="border rounded-md overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Mesa</TableHead>
+                    <TableHead>Capacidad</TableHead>
+                    <TableHead>Activa</TableHead>
+                    <TableHead className="w-[100px]">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {tables.map((table) => (
+                    <TableRow key={table.id}>
+                      <TableCell className="font-medium">{table.number}</TableCell>
+                      <TableCell>{table.capacity} personas</TableCell>
+                      <TableCell>
+                        <Switch
+                          checked={table.isActive}
+                          onCheckedChange={(checked) => handleToggleActive(table.id, checked)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteTable(table.id)}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="text-center py-8 border rounded-md bg-muted/20">
+              <TableIcon className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+              <h3 className="text-lg font-medium">No hay mesas configuradas</h3>
+              <p className="text-sm text-muted-foreground">
+                Añade mesas para que tus clientes puedan hacer pedidos en el local.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </RestaurantConfigSteps>
   )
 }

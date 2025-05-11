@@ -8,9 +8,8 @@ import { RestaurantConfigSteps } from "@/components/restaurant-config-steps"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, CreditCard, Plus, Trash } from "lucide-react"
+import { Loader2, Plus, Trash } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useRestaurantConfig } from "@/hooks/use-restaurant-config"
 import { useBranch } from "@/lib/context/branch-context"
@@ -116,43 +115,32 @@ export default function RestaurantPaymentMethodsPage({
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <RestaurantConfigSteps tenantId={tenantId} currentStep="payment">
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </RestaurantConfigSteps>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Métodos de Pago</h1>
-      </div>
+    <RestaurantConfigSteps tenantId={tenantId} currentStep="payment">
+      <div className="max-w-md space-y-6">
+        <form id="payment-methods-form" onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Nuevo método de pago"
+                value={newMethod}
+                onChange={(e) => setNewMethod(e.target.value)}
+              />
+              <Button type="button" onClick={addPaymentMethod}>
+                <Plus className="h-4 w-4 mr-2" />
+                Añadir
+              </Button>
+            </div>
 
-      <RestaurantConfigSteps tenantId={tenantId} currentStep="payment" />
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <CreditCard className="mr-2 h-5 w-5" />
-            Métodos de Pago Aceptados
-          </CardTitle>
-          <CardDescription>Configura las formas de pago que aceptas en tu restaurante</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form id="payment-methods-form" onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-4">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Nuevo método de pago"
-                  value={newMethod}
-                  onChange={(e) => setNewMethod(e.target.value)}
-                />
-                <Button type="button" onClick={addPaymentMethod}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Añadir
-                </Button>
-              </div>
-
+            <div className="border rounded-md overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -183,15 +171,14 @@ export default function RestaurantPaymentMethodsPage({
                 </TableBody>
               </Table>
             </div>
-          </form>
-        </CardContent>
-        <CardFooter className="flex justify-end">
-          <Button type="submit" form="payment-methods-form" disabled={saving}>
+          </div>
+
+          <Button type="submit" disabled={saving} className="w-full">
             {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
             Guardar Métodos de Pago
           </Button>
-        </CardFooter>
-      </Card>
-    </div>
+        </form>
+      </div>
+    </RestaurantConfigSteps>
   )
 }

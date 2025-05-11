@@ -8,9 +8,8 @@ import { RestaurantConfigSteps } from "@/components/restaurant-config-steps"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, Clock } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useRestaurantConfig } from "@/hooks/use-restaurant-config"
 import { useBranch } from "@/lib/context/branch-context"
@@ -20,9 +19,6 @@ export default function RestaurantHoursPage({
 }: {
   params: { tenantId: string }
 }) {
-  // Actualizar para usar el hook useRestaurantConfig en lugar de la implementación manual
-
-  // Reemplazar el código dentro de la función RestaurantHoursPage con:
   const { tenantId } = params
   const [saving, setSaving] = useState(false)
   const { toast } = useToast()
@@ -84,37 +80,26 @@ export default function RestaurantHoursPage({
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <RestaurantConfigSteps tenantId={tenantId} currentStep="hours">
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </RestaurantConfigSteps>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Horarios de Atención</h1>
-      </div>
-
-      <RestaurantConfigSteps tenantId={tenantId} currentStep="hours" />
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Clock className="mr-2 h-5 w-5" />
-            Horarios de Funcionamiento
-          </CardTitle>
-          <CardDescription>Configura los días y horas en que tu restaurante está abierto</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form id="hours-form" onSubmit={handleSubmit} className="space-y-6">
+    <RestaurantConfigSteps tenantId={tenantId} currentStep="hours">
+      <div className="max-w-md space-y-6">
+        <form id="hours-form" onSubmit={handleSubmit} className="space-y-6">
+          <div className="border rounded-md overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Día</TableHead>
                   <TableHead>Abierto</TableHead>
-                  <TableHead>Hora de Apertura</TableHead>
-                  <TableHead>Hora de Cierre</TableHead>
+                  <TableHead>Apertura</TableHead>
+                  <TableHead>Cierre</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -133,7 +118,7 @@ export default function RestaurantHoursPage({
                         value={day.openTime}
                         onChange={(e) => updateSchedule(index, "openTime", e.target.value)}
                         disabled={!day.isOpen}
-                        className="w-32"
+                        className="w-24"
                       />
                     </TableCell>
                     <TableCell>
@@ -142,22 +127,21 @@ export default function RestaurantHoursPage({
                         value={day.closeTime}
                         onChange={(e) => updateSchedule(index, "closeTime", e.target.value)}
                         disabled={!day.isOpen}
-                        className="w-32"
+                        className="w-24"
                       />
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          </form>
-        </CardContent>
-        <CardFooter className="flex justify-end">
-          <Button type="submit" form="hours-form" disabled={saving}>
+          </div>
+
+          <Button type="submit" disabled={saving} className="w-full">
             {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
             Guardar Horarios
           </Button>
-        </CardFooter>
-      </Card>
-    </div>
+        </form>
+      </div>
+    </RestaurantConfigSteps>
   )
 }
