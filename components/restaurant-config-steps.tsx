@@ -35,7 +35,15 @@ interface Step {
   description: string
 }
 
-export function RestaurantConfigSteps({ tenantId, currentStep }: { tenantId: string; currentStep: string }) {
+export function RestaurantConfigSteps({
+  tenantId,
+  currentStep,
+  children,
+}: {
+  tenantId: string
+  currentStep: string
+  children: React.ReactNode
+}) {
   const router = useRouter()
   const [completedSteps, setCompletedSteps] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -206,106 +214,109 @@ export function RestaurantConfigSteps({ tenantId, currentStep }: { tenantId: str
   }
 
   return (
-    <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-220px)]">
-      {/* Panel lateral con pasos */}
-      <div className="w-full md:w-64 flex-shrink-0">
-        <Card className="h-full">
-          <CardContent className="p-3 h-full flex flex-col">
-            <div className="mb-3 space-y-1">
-              <div className="flex justify-between text-sm">
-                <span>Progreso</span>
-                <span className="font-medium">{calculateProgress()}%</span>
+    <div className="space-y-4">
+      {/* Mostrar alerta si no hay sucursal seleccionada */}
+      <NoBranchSelectedAlert />
+
+      <div className="flex flex-col md:flex-row gap-4">
+        {/* Panel lateral con pasos */}
+        <div className="w-full md:w-64 flex-shrink-0">
+          <Card className="h-full">
+            <CardContent className="p-3 h-full flex flex-col">
+              <div className="mb-3 space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span>Progreso</span>
+                  <span className="font-medium">{calculateProgress()}%</span>
+                </div>
+                <Progress value={calculateProgress()} className="h-2" />
               </div>
-              <Progress value={calculateProgress()} className="h-2" />
-            </div>
 
-            <ScrollArea className="flex-1 pr-3">
-              <div className="space-y-1">
-                {steps.map((step, index) => {
-                  const isActive = step.id === currentStep
-                  const isCompleted = completedSteps.includes(step.id)
+              <ScrollArea className="flex-1 pr-3">
+                <div className="space-y-1">
+                  {steps.map((step, index) => {
+                    const isActive = step.id === currentStep
+                    const isCompleted = completedSteps.includes(step.id)
 
-                  return (
-                    <Button
-                      key={step.id}
-                      variant={isActive ? "default" : isCompleted ? "outline" : "ghost"}
-                      size="sm"
-                      className={cn(
-                        "w-full justify-start text-left h-auto py-2",
-                        isActive ? "pointer-events-none" : "",
-                      )}
-                      onClick={() => router.push(step.path)}
-                    >
-                      <div className="flex items-center w-full">
-                        <div className="flex items-center justify-center w-5 h-5 rounded-full mr-2 text-xs font-medium bg-muted">
-                          {isCompleted ? <CheckCircle2 className="h-3 w-3 text-green-500" /> : index + 1}
+                    return (
+                      <Button
+                        key={step.id}
+                        variant={isActive ? "default" : isCompleted ? "outline" : "ghost"}
+                        size="sm"
+                        className={cn(
+                          "w-full justify-start text-left h-auto py-2",
+                          isActive ? "pointer-events-none" : "",
+                        )}
+                        onClick={() => router.push(step.path)}
+                      >
+                        <div className="flex items-center w-full">
+                          <div className="flex items-center justify-center w-5 h-5 rounded-full mr-2 text-xs font-medium bg-muted">
+                            {isCompleted ? <CheckCircle2 className="h-3 w-3 text-green-500" /> : index + 1}
+                          </div>
+                          <span className="flex-1 text-sm">{step.label}</span>
                         </div>
-                        <span className="flex-1 text-sm">{step.label}</span>
-                      </div>
-                    </Button>
-                  )
-                })}
-              </div>
-            </ScrollArea>
+                      </Button>
+                    )
+                  })}
+                </div>
+              </ScrollArea>
 
-            <div className="mt-3 pt-3 border-t flex justify-between">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={goToPreviousStep}
-                disabled={currentStep === steps[0].id || !currentBranch}
-              >
-                <ArrowLeft className="mr-1 h-3 w-3" />
-                Anterior
-              </Button>
+              <div className="mt-3 pt-3 border-t flex justify-between">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToPreviousStep}
+                  disabled={currentStep === steps[0].id || !currentBranch}
+                >
+                  <ArrowLeft className="mr-1 h-3 w-3" />
+                  Anterior
+                </Button>
 
-              <Button
-                size="sm"
-                onClick={() => {
-                  markStepAsCompleted(currentStep)
-                  goToNextStep()
-                }}
-                disabled={currentStep === steps[steps.length - 1].id || !currentBranch}
-              >
-                Siguiente
-                <ArrowRight className="ml-1 h-3 w-3" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Contenido principal */}
-      <div className="flex-1">
-        <Card className="h-full">
-          <CardContent className="p-4 h-full overflow-auto">
-            <div className="flex items-center mb-4">
-              {currentStepObj?.icon && <currentStepObj.icon className="mr-2 h-5 w-5 text-muted-foreground" />}
-              <div>
-                <h2 className="text-lg font-medium">{currentStepObj?.label}</h2>
-                <p className="text-sm text-muted-foreground">{currentStepObj?.description}</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              {/* Aquí va el contenido específico de cada paso */}
-              {/* Este contenido lo proporciona la página que usa este componente */}
-              <NoBranchSelectedAlert />
-
-              <div className="min-h-[300px]">
-                {/* Contenido del paso */}
-                {/* Slot para el contenido */}
-              </div>
-
-              <div className="flex justify-end pt-4 border-t">
-                <Button onClick={() => markStepAsCompleted(currentStep)} disabled={!currentBranch} className="ml-auto">
-                  <Save className="mr-2 h-4 w-4" />
-                  Guardar Cambios
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    markStepAsCompleted(currentStep)
+                    goToNextStep()
+                  }}
+                  disabled={currentStep === steps[steps.length - 1].id || !currentBranch}
+                >
+                  Siguiente
+                  <ArrowRight className="ml-1 h-3 w-3" />
                 </Button>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Contenido principal */}
+        <div className="flex-1">
+          <Card className="h-full">
+            <CardContent className="p-4">
+              <div className="flex items-center mb-4">
+                {currentStepObj?.icon && <currentStepObj.icon className="mr-2 h-5 w-5 text-muted-foreground" />}
+                <div>
+                  <h2 className="text-lg font-medium">{currentStepObj?.label}</h2>
+                  <p className="text-sm text-muted-foreground">{currentStepObj?.description}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {/* Renderizar el contenido pasado como children */}
+                {children}
+
+                <div className="flex justify-end pt-4 border-t">
+                  <Button
+                    onClick={() => markStepAsCompleted(currentStep)}
+                    disabled={!currentBranch}
+                    className="ml-auto"
+                  >
+                    <Save className="mr-2 h-4 w-4" />
+                    Guardar Cambios
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )
