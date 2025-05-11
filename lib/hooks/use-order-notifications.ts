@@ -11,22 +11,26 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
   const notificationSound = useRef<HTMLAudioElement | null>(null)
   const audioLoaded = useRef<boolean>(false)
   const notificationsEnabled = useRef<boolean>(true)
+  const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null)
+
+  // Verificar si ya se ha otorgado permiso
+  useEffect(() => {
+    const storedPermission = localStorage.getItem("audioNotificationsPermission")
+    if (storedPermission === "granted") {
+      setPermissionGranted(true)
+    } else if (storedPermission === "denied") {
+      setPermissionGranted(false)
+    }
+  }, [])
 
   // Función para crear y configurar el elemento de audio
   const setupAudio = () => {
     if (typeof window === "undefined") return
+    if (!permissionGranted) return
 
     try {
       // Crear un nuevo elemento de audio
-      const audio = new Audio()
-
-      // Configurar múltiples fuentes para mayor compatibilidad
-      const source1 = document.createElement("source")
-      source1.src = "/sounds/new-order.mp3"
-      source1.type = "audio/mpeg"
-
-      // Agregar las fuentes al elemento de audio
-      audio.appendChild(source1)
+      const audio = new Audio("/sounds/new-order.mp3")
 
       // Configurar el audio
       audio.preload = "auto"
@@ -46,9 +50,6 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
           src: audio.src,
           error: e,
         })
-
-        // Intentar cargar directamente como fallback
-        audio.src = "/sounds/new-order.mp3"
       })
 
       // Guardar la referencia
@@ -61,9 +62,25 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
     }
   }
 
+  // Configurar el audio cuando se otorga permiso
+  useEffect(() => {
+    if (permissionGranted) {
+      setupAudio()
+    }
+
+    return () => {
+      // Limpiar
+      if (notificationSound.current) {
+        notificationSound.current.pause()
+        notificationSound.current = null
+      }
+      audioLoaded.current = false
+    }
+  }, [permissionGranted])
+
   // Función para reproducir el sonido
   const playNotificationSound = () => {
-    if (!notificationSound.current) return
+    if (!notificationSound.current || !permissionGranted) return
 
     try {
       // Reiniciar el audio
@@ -75,12 +92,6 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
       if (playPromise !== undefined) {
         playPromise.catch((err) => {
           console.error("Error al reproducir:", err)
-
-          // Si falla por interacción del usuario, intentamos un enfoque alternativo
-          if (err.name === "NotAllowedError") {
-            console.log("Reproducción bloqueada por falta de interacción del usuario")
-            // Aquí podrías mostrar un mensaje al usuario para que interactúe
-          }
         })
       }
     } catch (err) {
@@ -89,21 +100,7 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
   }
 
   useEffect(() => {
-    // Configurar el audio
-    setupAudio()
-
-    return () => {
-      // Limpiar
-      if (notificationSound.current) {
-        notificationSound.current.pause()
-        notificationSound.current = null
-      }
-      audioLoaded.current = false
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!tenantId || !branchId) return
+    if (!tenantId || !branchId || permissionGranted === null) return
 
     const ordersRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/orders`)
 
@@ -125,8 +122,8 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
       if (isRecent) {
         setNewOrder(order)
 
-        // Reproducir sonido si las notificaciones están habilitadas
-        if (notificationsEnabled.current) {
+        // Reproducir sonido si las notificaciones están habilitadas y se ha otorgado permiso
+        if (notificationsEnabled.current && permissionGranted) {
           playNotificationSound()
         }
       }
@@ -150,7 +147,7 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
       off(ordersRef, "child_added", newOrderHandler)
       off(ordersRef, "child_changed", updatedOrderHandler)
     }
-  }, [tenantId, branchId])
+  }, [tenantId, branchId, permissionGranted])
 
   const toggleNotifications = () => {
     notificationsEnabled.current = !notificationsEnabled.current
@@ -159,8 +156,24 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
 
   // Función para probar el sonido (útil para depuración)
   const testSound = () => {
+    if (!permissionGranted) {
+      console.log("No se ha otorgado permiso para reproducir audio")
+      return false
+    }
+
     playNotificationSound()
     return audioLoaded.current
+  }
+
+  // Funciones para manejar permisos
+  const grantPermission = () => {
+    setPermissionGranted(true)
+    localStorage.setItem("audioNotificationsPermission", "granted")
+  }
+
+  const denyPermission = () => {
+    setPermissionGranted(false)
+    localStorage.setItem("audioNotificationsPermission", "denied")
   }
 
   return {
@@ -168,6 +181,9 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
     updatedOrder,
     notificationsEnabled: () => notificationsEnabled.current,
     toggleNotifications,
-    testSound, // Exportamos esta función para pruebas
+    testSound,
+    permissionGranted,
+    grantPermission,
+    denyPermission,
   }
 }
