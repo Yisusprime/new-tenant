@@ -84,7 +84,7 @@ export function OrdersList({ orders, tenantId, branchId, onStatusChange }: Order
   const getTimerStartTime = (order: Order) => {
     // Si está en preparación, usar la fecha de actualización (cuando cambió a preparación)
     if (order.status === "preparing") {
-      return order.updatedAt
+      return order.updatedAt || order.createdAt
     }
     // Para otros estados, usar la fecha de creación
     return order.createdAt
