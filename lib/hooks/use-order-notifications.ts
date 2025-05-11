@@ -5,49 +5,54 @@ import { ref, onChildAdded, off, onChildChanged } from "firebase/database"
 import { realtimeDb } from "@/lib/firebase/client"
 import type { Order } from "@/lib/types/order"
 
+// Definir las URLs de los sonidos
+const NOTIFICATION_SOUNDS = {
+  mp3: "/sounds/new-order.mp3",
+  wav: "/sounds/new-order.wav",
+  ogg: "/sounds/new-order.ogg",
+}
+
 export function useOrderNotifications(tenantId: string, branchId: string | null) {
   const [newOrder, setNewOrder] = useState<Order | null>(null)
   const [updatedOrder, setUpdatedOrder] = useState<Order | null>(null)
-  const notificationSound = useRef<HTMLAudioElement | null>(null)
   const notificationsEnabled = useRef<boolean>(true)
-  const [audioLoaded, setAudioLoaded] = useState(false)
   const [audioError, setAudioError] = useState<string | null>(null)
 
-  useEffect(() => {
-    // Inicializar el sonido
-    if (typeof window !== "undefined") {
-      try {
-        const audio = new Audio("/sounds/new-order.mp3")
+  // Función para reproducir el sonido
+  const playNotificationSound = () => {
+    if (!notificationsEnabled.current) return Promise.resolve()
 
-        // Eventos para manejar la carga del audio
-        audio.addEventListener("canplaythrough", () => {
-          console.log("Audio cargado correctamente")
-          setAudioLoaded(true)
-          setAudioError(null)
-        })
+    // Crear un nuevo elemento de audio cada vez
+    const audio = new Audio()
 
-        audio.addEventListener("error", (e) => {
-          console.error("Error al cargar el audio:", e)
-          setAudioError("Error al cargar el sonido de notificación")
-          setAudioLoaded(false)
-        })
+    // Intentar con diferentes formatos
+    audio.src = NOTIFICATION_SOUNDS.mp3
 
-        // Cargar el audio
-        audio.load()
-        notificationSound.current = audio
-      } catch (err) {
-        console.error("Error al inicializar el audio:", err)
-        setAudioError(`Error al inicializar el audio: ${err}`)
+    // Fallback para navegadores que no soportan MP3
+    audio.onerror = () => {
+      console.log("MP3 no soportado, intentando con WAV")
+      audio.src = NOTIFICATION_SOUNDS.wav
+
+      audio.onerror = () => {
+        console.error("No se pudo reproducir ningún formato de audio")
+        setAudioError("No se pudo reproducir el sonido de notificación")
+        return Promise.reject(new Error("No se pudo reproducir ningún formato de audio"))
       }
     }
 
-    return () => {
-      // Limpiar el sonido al desmontar
-      if (notificationSound.current) {
-        notificationSound.current = null
+    return audio.play().catch((err) => {
+      console.error("Error al reproducir sonido:", err)
+
+      // Si el error es por interacción del usuario, mostramos un mensaje específico
+      if (err.name === "NotAllowedError") {
+        setAudioError("El navegador bloqueó la reproducción automática. Interactúa con la página primero.")
+      } else {
+        setAudioError(`Error al reproducir sonido: ${err.message}`)
       }
-    }
-  }, [])
+
+      return Promise.reject(err)
+    })
+  }
 
   useEffect(() => {
     if (!tenantId || !branchId) return
@@ -72,16 +77,10 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
       if (isRecent) {
         setNewOrder(order)
 
-        // Reproducir sonido si las notificaciones están habilitadas
-        if (notificationsEnabled.current && notificationSound.current && audioLoaded) {
-          // Reiniciar el audio para poder reproducirlo múltiples veces
-          notificationSound.current.currentTime = 0
-
-          notificationSound.current.play().catch((err) => {
-            console.error("Error al reproducir sonido:", err)
-            setAudioError(`Error al reproducir sonido: ${err.message}`)
-          })
-        }
+        // Reproducir sonido
+        playNotificationSound().catch(() => {
+          // Error ya manejado en la función
+        })
       }
     })
 
@@ -103,7 +102,7 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
       off(ordersRef, "child_added", newOrderHandler)
       off(ordersRef, "child_changed", updatedOrderHandler)
     }
-  }, [tenantId, branchId, audioLoaded])
+  }, [tenantId, branchId])
 
   const toggleNotifications = () => {
     notificationsEnabled.current = !notificationsEnabled.current
@@ -112,15 +111,7 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
 
   // Función para probar el sonido
   const testSound = () => {
-    if (notificationSound.current && audioLoaded) {
-      notificationSound.current.currentTime = 0
-      return notificationSound.current.play().catch((err) => {
-        console.error("Error al probar el sonido:", err)
-        setAudioError(`Error al probar el sonido: ${err.message}`)
-        return Promise.reject(err)
-      })
-    }
-    return Promise.reject(new Error("Audio no cargado"))
+    return playNotificationSound()
   }
 
   return {
@@ -128,7 +119,6 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
     updatedOrder,
     notificationsEnabled: () => notificationsEnabled.current,
     toggleNotifications,
-    audioLoaded,
     audioError,
     testSound,
   }

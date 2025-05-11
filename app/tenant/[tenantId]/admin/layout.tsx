@@ -130,7 +130,6 @@ function AdminLayoutContent({
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [configOpen, setConfigOpen] = useState(false)
   const [restaurantConfigOpen, setRestaurantConfigOpen] = useState(false)
-  const [manuallyToggled, setManuallyToggled] = useState(false)
 
   // Verificar si la ruta actual debe ocultar automáticamente el sidebar
   const shouldAutoHideSidebar = () => {
@@ -139,18 +138,12 @@ function AdminLayoutContent({
 
   // Efecto para ocultar automáticamente el sidebar en rutas específicas
   useEffect(() => {
-    if (shouldAutoHideSidebar() && !manuallyToggled) {
+    if (shouldAutoHideSidebar()) {
       setSidebarOpen(false)
-    } else if (!shouldAutoHideSidebar() && !manuallyToggled) {
+    } else {
       setSidebarOpen(true)
     }
-  }, [pathname, manuallyToggled])
-
-  // Función para alternar manualmente el sidebar
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen)
-    setManuallyToggled(true)
-  }
+  }, [pathname])
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -270,11 +263,15 @@ function AdminLayoutContent({
       <div
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } md:relative md:translate-x-0`}
+        } md:relative md:translate-x-0 ${sidebarOpen ? "md:translate-x-0" : "md:-translate-x-full"}`}
       >
         <div className="flex items-center justify-between h-16 px-4 border-b">
           <div className="font-bold text-xl truncate">{tenantData?.name || tenantId}</div>
-          <button onClick={toggleSidebar} className="p-1 rounded-md hover:bg-gray-200" aria-label="Cerrar menú">
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="p-1 rounded-md hover:bg-gray-200"
+            aria-label="Cerrar menú"
+          >
             <X size={20} />
           </button>
         </div>
@@ -415,7 +412,11 @@ function AdminLayoutContent({
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-white shadow-sm h-16 flex items-center px-4">
           {!sidebarOpen && (
-            <button onClick={toggleSidebar} className="p-1 mr-4 rounded-md hover:bg-gray-200" aria-label="Abrir menú">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-1 mr-4 rounded-md hover:bg-gray-200"
+              aria-label="Abrir menú"
+            >
               <Menu size={24} />
             </button>
           )}

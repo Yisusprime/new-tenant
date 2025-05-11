@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useBranch } from "@/lib/context/branch-context"
 import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
 import { Button } from "@/components/ui/button"
-import { Plus, RefreshCw, Bell, BellOff } from "lucide-react"
+import { Plus, RefreshCw, Bell, BellOff, Volume2 } from "lucide-react"
 import { getOrders, getOrdersByType } from "@/lib/services/order-service"
 import { getTables } from "@/lib/services/table-service"
 import type { Order } from "@/lib/types/order"
@@ -31,7 +31,7 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
   const [notificationsOn, setNotificationsOn] = useState(true)
 
   // Usar el hook de notificaciones
-  const { newOrder, toggleNotifications, notificationsEnabled } = useOrderNotifications(
+  const { newOrder, toggleNotifications, notificationsEnabled, audioError, testSound } = useOrderNotifications(
     tenantId,
     currentBranch?.id || null,
   )
@@ -91,6 +91,17 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
     }
   }, [newOrder])
 
+  // Efecto para mostrar errores de audio
+  useEffect(() => {
+    if (audioError) {
+      toast({
+        title: "Error de sonido",
+        description: audioError,
+        variant: "destructive",
+      })
+    }
+  }, [audioError])
+
   const handleOrderCreated = () => {
     loadOrders()
     setCreateDialogOpen(false)
@@ -116,11 +127,28 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
     })
   }
 
+  const handleTestSound = () => {
+    testSound()
+      .then(() => {
+        toast({
+          title: "Prueba de sonido",
+          description: "El sonido de notificación funciona correctamente",
+          variant: "default",
+        })
+      })
+      .catch(() => {
+        // El error ya se muestra en el efecto de audioError
+      })
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Gestor de Pedidos</h1>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleTestSound} title="Probar sonido de notificación">
+            <Volume2 className="h-4 w-4" />
+          </Button>
           <Button
             variant="outline"
             size="sm"
