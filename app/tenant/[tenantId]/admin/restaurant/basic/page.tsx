@@ -44,7 +44,8 @@ export default function RestaurantBasicInfoPage({
     name: currentBranch?.name || "",
     shortDescription: "",
     localId: tenantId,
-    taxIncluded: true,
+    taxEnabled: false, // IVA desactivado por defecto
+    taxIncluded: true, // IVA incluido en los precios por defecto
     currencyCode: "CLP", // Peso chileno por defecto
     taxRate: 0.19, // 19% por defecto (Chile)
   })
@@ -159,6 +160,11 @@ export default function RestaurantBasicInfoPage({
   const handleTaxRateChange = (value: string) => {
     const rate = Number.parseFloat(value) / 100
     setBasicInfo((prev) => ({ ...prev, taxRate: rate }))
+  }
+
+  // Manejar el cambio de estado del IVA
+  const handleTaxEnabledChange = (enabled: boolean) => {
+    setBasicInfo((prev) => ({ ...prev, taxEnabled: enabled }))
   }
 
   if (loading) {
@@ -301,40 +307,48 @@ export default function RestaurantBasicInfoPage({
 
             <div className="flex items-center justify-between pt-4">
               <div className="space-y-0.5">
-                <Label htmlFor="taxIncluded">IVA Incluido</Label>
-                <p className="text-sm text-muted-foreground">Los precios mostrados incluyen IVA</p>
+                <Label htmlFor="taxEnabled">IVA Activado</Label>
+                <p className="text-sm text-muted-foreground">Activar/desactivar el cálculo de IVA</p>
               </div>
-              <Switch
-                id="taxIncluded"
-                checked={basicInfo.taxIncluded}
-                onCheckedChange={(checked) => setBasicInfo({ ...basicInfo, taxIncluded: checked })}
-              />
+              <Switch id="taxEnabled" checked={basicInfo.taxEnabled} onCheckedChange={handleTaxEnabledChange} />
             </div>
 
-            <div className="space-y-2 pt-2">
-              <Label htmlFor="taxRate">Tasa de IVA (%)</Label>
-              <Select
-                value={(basicInfo.taxRate * 100).toString()}
-                onValueChange={handleTaxRateChange}
-                disabled={!basicInfo.taxIncluded}
-              >
-                <SelectTrigger id="taxRate">
-                  <SelectValue placeholder="Selecciona la tasa de IVA" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="19">19% (Chile)</SelectItem>
-                  <SelectItem value="21">21% (Argentina)</SelectItem>
-                  <SelectItem value="16">16% (México)</SelectItem>
-                  <SelectItem value="18">18% (Perú)</SelectItem>
-                  <SelectItem value="12">12% (Ecuador)</SelectItem>
-                  <SelectItem value="13">13% (Costa Rica)</SelectItem>
-                  <SelectItem value="0">0% (Sin IVA)</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-gray-500">
-                Esta tasa se aplicará a los precios {basicInfo.taxIncluded ? "incluidos" : "sin incluir"} IVA.
-              </p>
-            </div>
+            {basicInfo.taxEnabled && (
+              <>
+                <div className="flex items-center justify-between pt-4">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="taxIncluded">IVA Incluido</Label>
+                    <p className="text-sm text-muted-foreground">Los precios mostrados incluyen IVA</p>
+                  </div>
+                  <Switch
+                    id="taxIncluded"
+                    checked={basicInfo.taxIncluded}
+                    onCheckedChange={(checked) => setBasicInfo({ ...basicInfo, taxIncluded: checked })}
+                  />
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <Label htmlFor="taxRate">Tasa de IVA (%)</Label>
+                  <Select value={(basicInfo.taxRate * 100).toString()} onValueChange={handleTaxRateChange}>
+                    <SelectTrigger id="taxRate">
+                      <SelectValue placeholder="Selecciona la tasa de IVA" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="19">19% (Chile)</SelectItem>
+                      <SelectItem value="21">21% (Argentina)</SelectItem>
+                      <SelectItem value="16">16% (México)</SelectItem>
+                      <SelectItem value="18">18% (Perú)</SelectItem>
+                      <SelectItem value="12">12% (Ecuador)</SelectItem>
+                      <SelectItem value="13">13% (Costa Rica)</SelectItem>
+                      <SelectItem value="0">0% (Sin IVA)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500">
+                    Esta tasa se aplicará a los precios {basicInfo.taxIncluded ? "incluidos" : "sin incluir"} IVA.
+                  </p>
+                </div>
+              </>
+            )}
           </div>
 
           <Button type="submit" disabled={saving} className="w-full">

@@ -153,7 +153,10 @@ export function CreateOrderDialog({
       const config = await getRestaurantConfig(tenantId, branchId)
       if (config && config.basicInfo) {
         // Establecer la configuración de IVA
-        const isTaxEnabled = config.basicInfo.taxEnabled !== undefined ? config.basicInfo.taxEnabled : false
+        // Determinar si el IVA está activado basado en taxRate > 0
+        const isTaxEnabled =
+          config.basicInfo.taxEnabled !== undefined ? config.basicInfo.taxEnabled : config.basicInfo.taxRate > 0
+
         setTaxEnabled(isTaxEnabled)
         setTaxIncluded(config.basicInfo.taxIncluded)
 

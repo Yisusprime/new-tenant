@@ -1,5 +1,6 @@
 import { ref, get, set, update, remove, push } from "firebase/database"
 import { realtimeDb } from "@/lib/firebase/client"
+import { getRestaurantConfig } from "@/lib/services/restaurant-config-service"
 import type { Order, OrderFormData, OrderStatus, OrderType } from "@/lib/types/order"
 
 // Función para generar un número de pedido único
@@ -120,10 +121,42 @@ export async function createOrder(tenantId: string, branchId: string, orderData:
     const newOrderRef = push(ordersRef)
     const orderId = newOrderRef.key!
 
+    // Obtener la configuración del restaurante para determinar el IVA
+    let taxIncluded = orderData.taxIncluded !== undefined ? orderData.taxIncluded : true
+    let taxRate = 0.19 // Valor por defecto
+    let shouldApplyTax = false // Por defecto, no aplicar IVA
+
+    try {
+      const config = await getRestaurantConfig(tenantId, branchId)
+      if (config && config.basicInfo) {
+        // Usar la configuración del restaurante
+        taxIncluded = config.basicInfo.taxIncluded
+        taxRate = config.basicInfo.taxRate || 0.19
+
+        // Determinar si se debe aplicar IVA basado en la existencia de taxEnabled o en taxRate > 0
+        shouldApplyTax = config.basicInfo.taxEnabled !== undefined ? config.basicInfo.taxEnabled : taxRate > 0
+
+        console.log("Configuración de IVA cargada:", {
+          taxIncluded,
+          taxRate,
+          shouldApplyTax,
+        })
+      }
+    } catch (error) {
+      console.error("Error al obtener configuración de IVA:", error)
+      // En caso de error, usar los valores por defecto
+    }
+
     // Calcular subtotal, impuestos y total
     const subtotal = orderData.items.reduce((sum, item) => sum + item.subtotal, 0)
-    const tax = subtotal * 0.1 // 10% de impuesto (ajustar según necesidades)
-    const total = subtotal + tax
+
+    // Calcular impuestos solo si se debe aplicar IVA
+    let tax = 0
+    if (shouldApplyTax && !taxIncluded) {
+      tax = Math.round(subtotal * taxRate)
+    }
+
+    const total = subtotal + tax + (orderData.tip || 0) - (orderData.coupon?.discount || 0)
 
     // Crear el objeto de pedido con valores por defecto
     const newOrderWithUndefined: Omit<Order, "id"> = {
@@ -134,6 +167,8 @@ export async function createOrder(tenantId: string, branchId: string, orderData:
       subtotal,
       tax,
       total,
+      taxIncluded,
+      taxEnabled: shouldApplyTax, // Guardar si el IVA está activado
       customerName: orderData.customerName || null,
       customerPhone: orderData.customerPhone || null,
       customerEmail: orderData.customerEmail || null,
