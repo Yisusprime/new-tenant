@@ -90,3 +90,5 @@ export interface Order {
     estimatedTime: number
   }
 }
+
+// Asegurarnos de que OrderType se exporte como una exportación nombrada

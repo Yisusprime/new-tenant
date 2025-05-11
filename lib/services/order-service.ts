@@ -1,5 +1,5 @@
-import { db } from "@/lib/firebase/admin"
-import { OrderStatus, type OrderType } from "@/lib/types/order"
+import { db } from "../../lib/firebase/admin"
+import { OrderStatus, type OrderType } from "../types/order"
 import { serverTimestamp } from "firebase-admin/firestore"
 
 // Función para obtener todos los pedidos

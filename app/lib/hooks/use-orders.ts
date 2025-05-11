@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useParams } from "next/navigation"
-import { useBranch } from "../../lib/context/branch-context"
+import { useBranch } from "../context/branch-context"
 import { OrderService } from "../services/order-service"
 import { OrderStatus, OrderType } from "../types/order"
 
@@ -252,3 +252,5 @@ export const useOrders = () => {
     deleteTable,
   }
 }
+
+// Asegurarnos de que useOrders se exporte como una exportación nombrada
