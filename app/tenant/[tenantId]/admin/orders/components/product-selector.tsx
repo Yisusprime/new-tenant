@@ -12,13 +12,13 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import type { Product, ProductExtra } from "@/lib/types/product"
-import { formatCurrency } from "@/lib/utils"
-import { Loader2, Search } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { getCategories } from "@/lib/services/category-service"
-import type { Category } from "@/lib/services/category-service"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Checkbox } from "@/components/ui/checkbox"
+import { formatCurrency } from "@/lib/utils"
+import { Loader2, Minus, Plus, Search } from "lucide-react"
+import type { Product, ProductExtra } from "@/lib/types/product"
+import { getCategories, type Category } from "@/lib/services/category-service"
 
 interface ProductSelectorProps {
   open: boolean
@@ -26,81 +26,64 @@ interface ProductSelectorProps {
   products: Product[]
   extras: ProductExtra[]
   onAddProduct: (product: Product, quantity: number, selectedExtras: ProductExtra[]) => void
+  tenantId: string
+  branchId: string
 }
 
-export function ProductSelector({ open, onOpenChange, products, extras, onAddProduct }: ProductSelectorProps) {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
+export function ProductSelector({
+  open,
+  onOpenChange,
+  products,
+  extras,
+  onAddProduct,
+  tenantId,
+  branchId,
+}: ProductSelectorProps) {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [selectedExtras, setSelectedExtras] = useState<ProductExtra[]>([])
-  const [availableExtras, setAvailableExtras] = useState<ProductExtra[]>([])
-  const [loading, setLoading] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
   const [categories, setCategories] = useState<Category[]>([])
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState<string>("all")
+  const [loading, setLoading] = useState(false)
 
+  // Cargar categorías al abrir el diálogo
   useEffect(() => {
     if (open) {
-      setSearchTerm("")
-      setSelectedProduct(null)
-      setQuantity(1)
-      setSelectedExtras([])
       loadCategories()
     }
-  }, [open])
-
-  useEffect(() => {
-    let filtered = products
-
-    // Filtrar por categoría si hay una seleccionada
-    if (selectedCategory) {
-      filtered = filtered.filter((product) => product.categoryId === selectedCategory)
-    }
-
-    // Filtrar por término de búsqueda
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase()
-      filtered = filtered.filter(
-        (product) =>
-          product.name.toLowerCase().includes(term) ||
-          (product.description && product.description.toLowerCase().includes(term)),
-      )
-    }
-
-    setFilteredProducts(filtered)
-  }, [products, searchTerm, selectedCategory])
+  }, [open, tenantId, branchId])
 
   const loadCategories = async () => {
     try {
-      // Aquí deberías obtener el tenantId y branchId del contexto o props
-      // Por ahora, usamos valores de ejemplo
-      const tenantId = window.location.pathname.split("/")[2]
-      const branchId = localStorage.getItem(`${tenantId}_currentBranch`) || ""
-
-      if (tenantId && branchId) {
-        const categoriesData = await getCategories(tenantId, branchId)
-        setCategories(categoriesData.filter((c) => c.isActive))
-      }
+      setLoading(true)
+      const categoriesData = await getCategories(tenantId, branchId)
+      setCategories(categoriesData.filter((c) => c.isActive))
+      setLoading(false)
     } catch (error) {
       console.error("Error al cargar categorías:", error)
+      setLoading(false)
     }
   }
 
-  const handleProductSelect = (product: Product) => {
+  // Filtrar productos según la búsqueda y categoría seleccionada
+  const filteredProducts = products.filter((product) => {
+    const matchesSearch =
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()))
+
+    const matchesCategory = selectedCategory === "all" || product.categoryId === selectedCategory
+
+    return matchesSearch && matchesCategory
+  })
+
+  const handleSelectProduct = (product: Product) => {
     setSelectedProduct(product)
     setQuantity(1)
     setSelectedExtras([])
-
-    // Filtrar extras disponibles para este producto
-    if (product.availableExtras && product.availableExtras.length > 0) {
-      const productExtras = extras.filter((extra) => product.availableExtras!.includes(extra.id))
-      setAvailableExtras(productExtras)
-    } else {
-      setAvailableExtras([])
-    }
   }
 
-  const handleExtraToggle = (extra: ProductExtra) => {
+  const handleToggleExtra = (extra: ProductExtra) => {
     if (selectedExtras.some((e) => e.id === extra.id)) {
       setSelectedExtras(selectedExtras.filter((e) => e.id !== extra.id))
     } else {
@@ -108,21 +91,18 @@ export function ProductSelector({ open, onOpenChange, products, extras, onAddPro
     }
   }
 
-  const handleAddProduct = () => {
-    if (!selectedProduct) return
-
-    setLoading(true)
-    try {
+  const handleAddToOrder = () => {
+    if (selectedProduct) {
       onAddProduct(selectedProduct, quantity, selectedExtras)
-      setSelectedProduct(null)
-      setQuantity(1)
-      setSelectedExtras([])
-      onOpenChange(false)
-    } catch (error) {
-      console.error("Error al agregar producto:", error)
-    } finally {
-      setLoading(false)
+      resetForm()
     }
+  }
+
+  const resetForm = () => {
+    setSelectedProduct(null)
+    setQuantity(1)
+    setSelectedExtras([])
+    setSearchTerm("")
   }
 
   const calculateTotal = () => {
@@ -132,160 +112,214 @@ export function ProductSelector({ open, onOpenChange, products, extras, onAddPro
     return (selectedProduct.price + extrasTotal) * quantity
   }
 
+  // Filtrar extras disponibles para el producto seleccionado
+  const availableExtras =
+    selectedProduct && selectedProduct.availableExtras
+      ? extras.filter((extra) => selectedProduct.availableExtras?.includes(extra.id))
+      : []
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+    <Dialog
+      open={open}
+      onOpenChange={(newOpen) => {
+        if (!newOpen) resetForm()
+        onOpenChange(newOpen)
+      }}
+    >
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Seleccionar Producto</DialogTitle>
-          <DialogDescription>Busca y selecciona productos para agregar al pedido.</DialogDescription>
+          <DialogDescription>Busca y selecciona los productos para agregar al pedido.</DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue={selectedProduct ? "details" : "products"} className="mt-4">
-          <TabsList className="grid grid-cols-2">
-            <TabsTrigger value="products">Productos</TabsTrigger>
-            <TabsTrigger value="details" disabled={!selectedProduct}>
-              Detalles
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="products" className="py-4">
-            <div className="space-y-4">
-              <div className="flex gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+        <div className="flex-1 min-h-0 flex flex-col">
+          {!selectedProduct ? (
+            // Vista de selección de producto
+            <>
+              <div className="mb-4 space-y-4">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
                   <Input
+                    type="search"
                     placeholder="Buscar productos..."
+                    className="pl-8"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-8"
                   />
                 </div>
-                <div className="w-64">
-                  <select
-                    className="w-full h-10 px-3 rounded-md border border-input bg-background"
-                    value={selectedCategory || ""}
-                    onChange={(e) => setSelectedCategory(e.target.value || null)}
-                  >
-                    <option value="">Todas las categorías</option>
-                    {categories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredProducts.length === 0 ? (
-                  <div className="col-span-full text-center py-8">
-                    <p className="text-gray-500">No se encontraron productos</p>
+                <Tabs defaultValue="all" value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <ScrollArea className="w-full" orientation="horizontal">
+                    <TabsList className="w-full justify-start">
+                      <TabsTrigger value="all">Todos</TabsTrigger>
+                      {categories.map((category) => (
+                        <TabsTrigger key={category.id} value={category.id}>
+                          {category.name}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </ScrollArea>
+
+                  <TabsContent value="all" className="mt-2">
+                    <ProductGrid products={filteredProducts} onSelectProduct={handleSelectProduct} loading={loading} />
+                  </TabsContent>
+
+                  {categories.map((category) => (
+                    <TabsContent key={category.id} value={category.id} className="mt-2">
+                      <ProductGrid
+                        products={filteredProducts}
+                        onSelectProduct={handleSelectProduct}
+                        loading={loading}
+                      />
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              </div>
+            </>
+          ) : (
+            // Vista de detalles del producto seleccionado
+            <div className="flex-1 overflow-hidden flex flex-col">
+              <div className="flex items-start mb-4">
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold">{selectedProduct.name}</h3>
+                  {selectedProduct.description && (
+                    <p className="text-sm text-gray-500 mt-1">{selectedProduct.description}</p>
+                  )}
+                  <p className="text-lg font-medium mt-2">{formatCurrency(selectedProduct.price)}</p>
+                </div>
+                {selectedProduct.imageUrl && (
+                  <div className="w-24 h-24 rounded-md overflow-hidden">
+                    <img
+                      src={selectedProduct.imageUrl || "/placeholder.svg"}
+                      alt={selectedProduct.name}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-                ) : (
-                  filteredProducts.map((product) => (
-                    <div
-                      key={product.id}
-                      className={`border rounded-md p-4 cursor-pointer transition-colors ${
-                        selectedProduct?.id === product.id ? "border-primary bg-primary/5" : "hover:border-gray-400"
-                      }`}
-                      onClick={() => handleProductSelect(product)}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="font-medium">{product.name}</h3>
-                          {product.description && (
-                            <p className="text-sm text-gray-500 mt-1 line-clamp-2">{product.description}</p>
-                          )}
-                        </div>
-                        <p className="font-medium">{formatCurrency(product.price)}</p>
-                      </div>
-                    </div>
-                  ))
                 )}
               </div>
-            </div>
-          </TabsContent>
 
-          <TabsContent value="details" className="py-4">
-            {selectedProduct && (
-              <div className="space-y-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="text-lg font-medium">{selectedProduct.name}</h3>
-                    {selectedProduct.description && <p className="text-gray-500 mt-1">{selectedProduct.description}</p>}
-                  </div>
-                  <p className="font-medium text-lg">{formatCurrency(selectedProduct.price)}</p>
+              <div className="flex items-center justify-between mb-4 bg-gray-100 p-3 rounded-md">
+                <span className="font-medium">Cantidad:</span>
+                <div className="flex items-center">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    disabled={quantity <= 1}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <span className="mx-3 font-medium">{quantity}</span>
+                  <Button variant="outline" size="icon" onClick={() => setQuantity(quantity + 1)}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="quantity">Cantidad</Label>
-                  <div className="flex items-center">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    >
-                      -
-                    </Button>
-                    <span className="mx-4 font-medium">{quantity}</span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => setQuantity(quantity + 1)}
-                    >
-                      +
-                    </Button>
-                  </div>
-                </div>
-
-                {availableExtras.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>Extras Disponibles</Label>
-                    <div className="space-y-2 border rounded-md p-4">
+              {availableExtras.length > 0 && (
+                <div className="mb-4">
+                  <h4 className="font-medium mb-2">Extras disponibles:</h4>
+                  <ScrollArea className="h-[200px] pr-4">
+                    <div className="space-y-2">
                       {availableExtras.map((extra) => (
-                        <div key={extra.id} className="flex items-center justify-between">
+                        <div key={extra.id} className="flex items-center justify-between border p-2 rounded-md">
                           <div className="flex items-center space-x-2">
                             <Checkbox
                               id={`extra-${extra.id}`}
                               checked={selectedExtras.some((e) => e.id === extra.id)}
-                              onCheckedChange={() => handleExtraToggle(extra)}
+                              onCheckedChange={() => handleToggleExtra(extra)}
                             />
-                            <Label htmlFor={`extra-${extra.id}`} className="cursor-pointer">
-                              {extra.name}
-                            </Label>
+                            <div>
+                              <Label htmlFor={`extra-${extra.id}`} className="font-medium">
+                                {extra.name}
+                              </Label>
+                              {extra.description && <p className="text-xs text-gray-500">{extra.description}</p>}
+                            </div>
                           </div>
-                          <span>{formatCurrency(extra.price)}</span>
+                          <span className="font-medium">{formatCurrency(extra.price)}</span>
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  </ScrollArea>
+                </div>
+              )}
 
-                <div className="pt-4 border-t">
-                  <div className="flex justify-between items-center font-bold text-lg">
-                    <span>Total</span>
-                    <span>{formatCurrency(calculateTotal())}</span>
-                  </div>
+              <div className="mt-auto pt-4 border-t">
+                <div className="flex justify-between items-center mb-4">
+                  <span className="font-medium">Total:</span>
+                  <span className="text-lg font-bold">{formatCurrency(calculateTotal())}</span>
                 </div>
               </div>
-            )}
-          </TabsContent>
-        </Tabs>
+            </div>
+          )}
+        </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancelar
-          </Button>
-          <Button onClick={handleAddProduct} disabled={!selectedProduct || loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Agregar al Pedido
-          </Button>
+        <DialogFooter className="pt-2">
+          {selectedProduct ? (
+            <div className="flex w-full justify-between">
+              <Button variant="outline" onClick={() => setSelectedProduct(null)}>
+                Volver
+              </Button>
+              <Button onClick={handleAddToOrder}>Agregar al Pedido</Button>
+            </div>
+          ) : (
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+interface ProductGridProps {
+  products: Product[]
+  onSelectProduct: (product: Product) => void
+  loading: boolean
+}
+
+function ProductGrid({ products, onSelectProduct, loading }: ProductGridProps) {
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      </div>
+    )
+  }
+
+  if (products.length === 0) {
+    return <div className="text-center py-12 text-gray-500">No se encontraron productos</div>
+  }
+
+  return (
+    <ScrollArea className="h-[400px]">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-1">
+        {products.map((product) => (
+          <div
+            key={product.id}
+            className="border rounded-md p-3 cursor-pointer hover:bg-gray-50 transition-colors"
+            onClick={() => onSelectProduct(product)}
+          >
+            <div className="flex items-start">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-medium truncate">{product.name}</h3>
+                {product.description && <p className="text-sm text-gray-500 line-clamp-2">{product.description}</p>}
+                <p className="mt-1 font-medium">{formatCurrency(product.price)}</p>
+              </div>
+              {product.imageUrl && (
+                <div className="w-16 h-16 rounded-md overflow-hidden ml-2 flex-shrink-0">
+                  <img
+                    src={product.imageUrl || "/placeholder.svg"}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </ScrollArea>
   )
 }

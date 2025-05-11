@@ -10,9 +10,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { OrderFormData, OrderItem, OrderType } from "@/lib/types/order"
 import type { Table } from "@/lib/services/table-service"
 import { createOrder } from "@/lib/services/order-service"
@@ -20,33 +17,13 @@ import { getTables } from "@/lib/services/table-service"
 import { getProducts } from "@/lib/services/product-service"
 import { getProductExtras } from "@/lib/services/product-service"
 import type { Product, ProductExtra } from "@/lib/types/product"
-import { Textarea } from "@/components/ui/textarea"
-import { formatCurrency } from "@/lib/utils"
-import {
-  ArrowLeft,
-  ArrowRight,
-  ChevronDown,
-  ChevronUp,
-  CreditCard,
-  Home,
-  Loader2,
-  MapPin,
-  Minus,
-  Package,
-  Percent,
-  Plus,
-  Save,
-  ShoppingBag,
-  Tag,
-  Trash2,
-  User,
-  Utensils,
-} from "lucide-react"
+import { ArrowLeft, ArrowRight, Loader2, Save } from "lucide-react"
 import { ProductSelector } from "./product-selector"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { OrderTypeStep } from "./order-type-step"
+import { CustomerInfoStep } from "./customer-info-step"
+import { ProductsStep } from "./products-step"
+import { PaymentStep } from "./payment-step"
+import { OrderSummary } from "./order-summary"
 
 interface CreateOrderDialogProps {
   open: boolean
@@ -89,11 +66,6 @@ export function CreateOrderDialog({
   const [tipPercentage, setTipPercentage] = useState(0)
   const [couponCode, setCouponCode] = useState("")
   const [couponDiscount, setCouponDiscount] = useState(0)
-
-  // Estados para campos adicionales
-  const [showOptionalFields, setShowOptionalFields] = useState(false)
-  const [showTipOptions, setShowTipOptions] = useState(false)
-  const [showCouponOptions, setShowCouponOptions] = useState(false)
   const [cashAmount, setCashAmount] = useState("")
   const [changeAmount, setChangeAmount] = useState(0)
 
@@ -264,18 +236,24 @@ export function CreateOrderDialog({
     }
 
     if (step === 2) {
+      if (items.length === 0) {
+        newErrors.items = "Debe agregar al menos un producto al pedido"
+      }
+    }
+
+    if (step === 3) {
       // Solo validamos el nombre como obligatorio
       if (!customerName.trim()) {
         newErrors.customerName = "El nombre del cliente es obligatorio"
       }
 
-      // Validamos teléfono solo si es delivery o si se mostró el campo opcional
-      if ((orderType === "delivery" || showOptionalFields) && !customerPhone.trim()) {
+      // Validamos teléfono solo si es delivery
+      if (orderType === "delivery" && !customerPhone.trim()) {
         newErrors.customerPhone = "El teléfono del cliente es obligatorio para delivery"
       }
     }
 
-    if (step === 3) {
+    if (step === 4) {
       if (!paymentMethod) {
         newErrors.paymentMethod = "Debe seleccionar un método de pago"
       }
@@ -283,12 +261,6 @@ export function CreateOrderDialog({
       // Validar monto en efectivo si el método es cash
       if (paymentMethod === "cash" && Number.parseFloat(cashAmount || "0") < calculateTotal()) {
         newErrors.cashAmount = "El monto en efectivo debe ser igual o mayor al total"
-      }
-    }
-
-    if (step === 4) {
-      if (items.length === 0) {
-        newErrors.items = "Debe agregar al menos un producto al pedido"
       }
     }
 
@@ -404,9 +376,6 @@ export function CreateOrderDialog({
     setCouponDiscount(0)
     setCashAmount("")
     setChangeAmount(0)
-    setShowOptionalFields(false)
-    setShowTipOptions(false)
-    setShowCouponOptions(false)
     setCurrentStep(1)
     setErrors({})
   }
@@ -415,597 +384,75 @@ export function CreateOrderDialog({
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
-        return renderOrderTypeStep()
+        return (
+          <OrderTypeStep
+            orderType={orderType}
+            setOrderType={setOrderType}
+            selectedTableId={selectedTableId}
+            setSelectedTableId={setSelectedTableId}
+            tables={tables}
+            deliveryStreet={deliveryStreet}
+            setDeliveryStreet={setDeliveryStreet}
+            deliveryNumber={deliveryNumber}
+            setDeliveryNumber={setDeliveryNumber}
+            deliveryCity={deliveryCity}
+            setDeliveryCity={setDeliveryCity}
+            deliveryZipCode={deliveryZipCode}
+            setDeliveryZipCode={setDeliveryZipCode}
+            deliveryNotes={deliveryNotes}
+            setDeliveryNotes={setDeliveryNotes}
+            errors={errors}
+          />
+        )
       case 2:
-        return renderCustomerInfoStep()
+        return (
+          <ProductsStep
+            items={items}
+            setItems={setItems}
+            setProductSelectorOpen={setProductSelectorOpen}
+            handleRemoveItem={handleRemoveItem}
+            handleUpdateItemQuantity={handleUpdateItemQuantity}
+            errors={errors}
+          />
+        )
       case 3:
-        return renderPaymentStep()
+        return (
+          <CustomerInfoStep
+            orderType={orderType}
+            customerName={customerName}
+            setCustomerName={setCustomerName}
+            customerPhone={customerPhone}
+            setCustomerPhone={setCustomerPhone}
+            customerEmail={customerEmail}
+            setCustomerEmail={setCustomerEmail}
+            errors={errors}
+          />
+        )
       case 4:
-        return renderProductsStep()
+        return (
+          <PaymentStep
+            paymentMethod={paymentMethod}
+            setPaymentMethod={setPaymentMethod}
+            tipAmount={tipAmount}
+            setTipAmount={setTipAmount}
+            tipPercentage={tipPercentage}
+            setTipPercentage={setTipPercentage}
+            couponCode={couponCode}
+            setCouponCode={setCouponCode}
+            couponDiscount={couponDiscount}
+            setCouponDiscount={setCouponDiscount}
+            cashAmount={cashAmount}
+            setCashAmount={setCashAmount}
+            changeAmount={changeAmount}
+            calculateTotal={calculateTotal}
+            handleTipPercentageChange={handleTipPercentageChange}
+            handleCustomTipChange={handleCustomTipChange}
+            errors={errors}
+          />
+        )
       default:
         return null
     }
-  }
-
-  const renderOrderTypeStep = () => {
-    return (
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="orderType" className="text-base font-medium flex items-center">
-            <Package className="w-4 h-4 mr-2" />
-            Tipo de Pedido <span className="text-red-500 ml-1">*</span>
-          </Label>
-          <Select value={orderType} onValueChange={(value) => setOrderType(value as OrderType)}>
-            <SelectTrigger id="orderType" className={errors.orderType ? "border-red-500" : ""}>
-              <SelectValue placeholder="Seleccionar tipo de pedido" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="local">
-                <div className="flex items-center">
-                  <Utensils className="w-4 h-4 mr-2" />
-                  Consumo en Local
-                </div>
-              </SelectItem>
-              <SelectItem value="takeaway">
-                <div className="flex items-center">
-                  <ShoppingBag className="w-4 h-4 mr-2" />
-                  Para Llevar
-                </div>
-              </SelectItem>
-              <SelectItem value="table">
-                <div className="flex items-center">
-                  <Home className="w-4 h-4 mr-2" />
-                  Mesa
-                </div>
-              </SelectItem>
-              <SelectItem value="delivery">
-                <div className="flex items-center">
-                  <MapPin className="w-4 h-4 mr-2" />
-                  Delivery
-                </div>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          {errors.orderType && <p className="text-red-500 text-sm">{errors.orderType}</p>}
-        </div>
-
-        {orderType === "table" && (
-          <div className="space-y-2">
-            <Label htmlFor="tableId" className="text-base font-medium flex items-center">
-              <Home className="w-4 h-4 mr-2" />
-              Mesa <span className="text-red-500 ml-1">*</span>
-            </Label>
-            <Select
-              value={selectedTableId || "no-selection"}
-              onValueChange={(value) => {
-                console.log("Mesa seleccionada:", value)
-                setSelectedTableId(value)
-              }}
-            >
-              <SelectTrigger id="tableId" className={errors.tableId ? "border-red-500" : ""}>
-                <SelectValue placeholder="Seleccionar mesa" />
-              </SelectTrigger>
-              <SelectContent>
-                {tables.length === 0 ? (
-                  <SelectItem value="no-tables" disabled>
-                    No hay mesas disponibles
-                  </SelectItem>
-                ) : (
-                  tables
-                    .filter((table) => !!table.id)
-                    .map((table) => (
-                      <SelectItem key={table.id} value={table.id}>
-                        Mesa {table.number} ({table.capacity} personas)
-                      </SelectItem>
-                    ))
-                )}
-                <SelectItem value="no-selection" disabled className="hidden">
-                  Seleccionar mesa
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.tableId && <p className="text-red-500 text-sm">{errors.tableId}</p>}
-          </div>
-        )}
-
-        {orderType === "delivery" && (
-          <div className="space-y-4">
-            <h3 className="font-medium flex items-center">
-              <MapPin className="w-4 h-4 mr-2" />
-              Dirección de Entrega
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="deliveryStreet" className="flex items-center">
-                  Calle <span className="text-red-500 ml-1">*</span>
-                </Label>
-                <Input
-                  id="deliveryStreet"
-                  value={deliveryStreet}
-                  onChange={(e) => setDeliveryStreet(e.target.value)}
-                  placeholder="Ej: Av. Principal"
-                  className={errors.deliveryStreet ? "border-red-500" : ""}
-                />
-                {errors.deliveryStreet && <p className="text-red-500 text-sm">{errors.deliveryStreet}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="deliveryNumber" className="flex items-center">
-                  Número <span className="text-red-500 ml-1">*</span>
-                </Label>
-                <Input
-                  id="deliveryNumber"
-                  value={deliveryNumber}
-                  onChange={(e) => setDeliveryNumber(e.target.value)}
-                  placeholder="Ej: 123"
-                  className={errors.deliveryNumber ? "border-red-500" : ""}
-                />
-                {errors.deliveryNumber && <p className="text-red-500 text-sm">{errors.deliveryNumber}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="deliveryCity" className="flex items-center">
-                  Ciudad <span className="text-red-500 ml-1">*</span>
-                </Label>
-                <Input
-                  id="deliveryCity"
-                  value={deliveryCity}
-                  onChange={(e) => setDeliveryCity(e.target.value)}
-                  placeholder="Ej: Buenos Aires"
-                  className={errors.deliveryCity ? "border-red-500" : ""}
-                />
-                {errors.deliveryCity && <p className="text-red-500 text-sm">{errors.deliveryCity}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="deliveryZipCode">
-                  Código Postal <span className="text-gray-500 text-xs">(Opcional)</span>
-                </Label>
-                <Input
-                  id="deliveryZipCode"
-                  value={deliveryZipCode}
-                  onChange={(e) => setDeliveryZipCode(e.target.value)}
-                  placeholder="Ej: 1000"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="deliveryNotes">
-                Notas de Entrega <span className="text-gray-500 text-xs">(Opcional)</span>
-              </Label>
-              <Textarea
-                id="deliveryNotes"
-                value={deliveryNotes}
-                onChange={(e) => setDeliveryNotes(e.target.value)}
-                placeholder="Ej: Timbre 2B, edificio azul"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  const renderCustomerInfoStep = () => {
-    // Determinar qué campos son obligatorios según el tipo de pedido
-    const isPhoneRequired = orderType === "delivery"
-
-    return (
-      <div className="space-y-6">
-        <h3 className="font-medium flex items-center">
-          <User className="w-4 h-4 mr-2" />
-          Información del Cliente
-        </h3>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="customerName" className="flex items-center">
-              Nombre <span className="text-red-500 ml-1">*</span>
-            </Label>
-            <Input
-              id="customerName"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="Ej: Juan Pérez"
-              className={errors.customerName ? "border-red-500" : ""}
-            />
-            {errors.customerName && <p className="text-red-500 text-sm">{errors.customerName}</p>}
-          </div>
-
-          {/* Campos opcionales colapsables */}
-          <Collapsible
-            open={showOptionalFields || isPhoneRequired}
-            onOpenChange={setShowOptionalFields}
-            className="border rounded-md p-2"
-          >
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-medium">
-                {isPhoneRequired ? "Información adicional" : "Información adicional (opcional)"}
-              </h4>
-              {!isPhoneRequired && (
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm" className="p-0 h-8 w-8">
-                    {showOptionalFields ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </Button>
-                </CollapsibleTrigger>
-              )}
-            </div>
-
-            <CollapsibleContent className="pt-2 space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="customerPhone" className="flex items-center">
-                  Teléfono {isPhoneRequired && <span className="text-red-500 ml-1">*</span>}
-                </Label>
-                <Input
-                  id="customerPhone"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                  placeholder="Ej: +54 11 1234-5678"
-                  className={errors.customerPhone ? "border-red-500" : ""}
-                />
-                {errors.customerPhone && <p className="text-red-500 text-sm">{errors.customerPhone}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="customerEmail">
-                  Email <span className="text-gray-500 text-xs">(Opcional)</span>
-                </Label>
-                <Input
-                  id="customerEmail"
-                  type="email"
-                  value={customerEmail}
-                  onChange={(e) => setCustomerEmail(e.target.value)}
-                  placeholder="Ej: cliente@ejemplo.com"
-                />
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
-      </div>
-    )
-  }
-
-  const renderPaymentStep = () => {
-    return (
-      <div className="space-y-6">
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="paymentMethod" className="text-base font-medium flex items-center">
-              <CreditCard className="w-4 h-4 mr-2" />
-              Método de Pago <span className="text-red-500 ml-1">*</span>
-            </Label>
-            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-              <SelectTrigger id="paymentMethod" className={errors.paymentMethod ? "border-red-500" : ""}>
-                <SelectValue placeholder="Seleccionar método de pago" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="cash">Efectivo</SelectItem>
-                <SelectItem value="card">Tarjeta</SelectItem>
-                <SelectItem value="transfer">Transferencia</SelectItem>
-                <SelectItem value="app">App de Pago</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.paymentMethod && <p className="text-red-500 text-sm">{errors.paymentMethod}</p>}
-          </div>
-
-          {/* Campos específicos para pago en efectivo */}
-          {paymentMethod === "cash" && (
-            <div className="space-y-4 border rounded-md p-3 bg-gray-50">
-              <div className="space-y-2">
-                <Label htmlFor="cashAmount" className="flex items-center">
-                  Monto recibido <span className="text-red-500 ml-1">*</span>
-                </Label>
-                <Input
-                  id="cashAmount"
-                  type="number"
-                  min={calculateTotal()}
-                  step="0.01"
-                  value={cashAmount}
-                  onChange={(e) => setCashAmount(e.target.value)}
-                  placeholder={`Mínimo ${formatCurrency(calculateTotal())}`}
-                  className={errors.cashAmount ? "border-red-500" : ""}
-                />
-                {errors.cashAmount && <p className="text-red-500 text-sm">{errors.cashAmount}</p>}
-              </div>
-
-              <div className="flex justify-between items-center font-medium">
-                <span>Cambio a devolver:</span>
-                <span className={changeAmount > 0 ? "text-green-600" : ""}>{formatCurrency(changeAmount)}</span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="flex space-x-2">
-          {/* Botón de propina */}
-          <div className="flex-1">
-            <Collapsible open={showTipOptions} onOpenChange={setShowTipOptions} className="border rounded-md">
-              <CollapsibleTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full justify-between"
-                  onClick={() => setShowTipOptions(!showTipOptions)}
-                >
-                  <div className="flex items-center">
-                    <Percent className="h-4 w-4 mr-2" />
-                    Propina
-                  </div>
-                  {tipAmount > 0 && <Badge variant="secondary">{formatCurrency(tipAmount)}</Badge>}
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="p-3 space-y-3">
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant={tipPercentage === 0 ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handleTipPercentageChange(0)}
-                  >
-                    Sin propina
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={tipPercentage === 10 ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handleTipPercentageChange(10)}
-                  >
-                    10%
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={tipPercentage === 15 ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handleTipPercentageChange(15)}
-                  >
-                    15%
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={tipPercentage === 20 ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handleTipPercentageChange(20)}
-                  >
-                    20%
-                  </Button>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Label htmlFor="customTip">Monto:</Label>
-                  <Input
-                    id="customTip"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={tipAmount.toString()}
-                    onChange={(e) => handleCustomTipChange(e.target.value)}
-                    className="w-24"
-                  />
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-          </div>
-
-          {/* Botón de cupón */}
-          <div className="flex-1">
-            <Collapsible open={showCouponOptions} onOpenChange={setShowCouponOptions} className="border rounded-md">
-              <CollapsibleTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full justify-between"
-                  onClick={() => setShowCouponOptions(!showCouponOptions)}
-                >
-                  <div className="flex items-center">
-                    <Tag className="h-4 w-4 mr-2" />
-                    Cupón
-                  </div>
-                  {couponDiscount > 0 && <Badge variant="secondary">-{formatCurrency(couponDiscount)}</Badge>}
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="p-3 space-y-3">
-                <div className="flex items-center space-x-2">
-                  <Input
-                    id="couponCode"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
-                    placeholder="Código de cupón"
-                    className="flex-1"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      // Aquí iría la lógica para validar el cupón
-                      // Por ahora, simplemente aplicamos un descuento fijo de ejemplo
-                      if (couponCode.trim()) {
-                        setCouponDiscount(500) // $500 de descuento
-                      }
-                    }}
-                  >
-                    Aplicar
-                  </Button>
-                </div>
-                {couponDiscount > 0 && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Descuento aplicado:</span>
-                    <span className="font-medium text-green-600">-{formatCurrency(couponDiscount)}</span>
-                  </div>
-                )}
-              </CollapsibleContent>
-            </Collapsible>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  const renderProductsStep = () => {
-    return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h3 className="font-medium flex items-center">
-            <ShoppingBag className="w-4 h-4 mr-2" />
-            Productos <span className="text-red-500 ml-1">*</span>
-          </h3>
-          <Button onClick={() => setProductSelectorOpen(true)} size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Agregar Producto
-          </Button>
-        </div>
-
-        {items.length === 0 ? (
-          <div className="text-center py-8 border rounded-md bg-gray-50">
-            <p className="text-gray-500">No hay productos en el pedido</p>
-            {errors.items && <p className="text-red-500 text-sm mt-2">{errors.items}</p>}
-            <Button onClick={() => setProductSelectorOpen(true)} variant="link" className="mt-2">
-              Agregar Producto
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {items.map((item) => (
-              <div key={item.id} className="flex justify-between items-start border p-4 rounded-md">
-                <div className="flex-1">
-                  <div className="flex justify-between">
-                    <p className="font-medium">{item.name}</p>
-                    <p className="font-medium">{formatCurrency(item.subtotal)}</p>
-                  </div>
-                  <div className="flex items-center mt-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => handleUpdateItemQuantity(item.id, item.quantity - 1)}
-                    >
-                      <Minus className="h-3 w-3" />
-                    </Button>
-                    <span className="mx-2">{item.quantity}</span>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => handleUpdateItemQuantity(item.id, item.quantity + 1)}
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                    <span className="ml-4 text-sm text-gray-500">{formatCurrency(item.price)} c/u</span>
-                  </div>
-                  {item.extras && item.extras.length > 0 && (
-                    <div className="mt-2 text-sm text-gray-500">
-                      <p>Extras:</p>
-                      <ul className="list-disc list-inside ml-2">
-                        {item.extras.map((extra, i) => (
-                          <li key={i}>
-                            {extra.name} ({formatCurrency(extra.price)})
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-                <Button variant="ghost" size="icon" className="text-red-500" onClick={() => handleRemoveItem(item.id)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  // Renderizado del resumen del pedido
-  const renderOrderSummary = () => {
-    const subtotal = calculateSubtotal()
-    const total = calculateTotal()
-
-    return (
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle className="text-lg">Resumen del Pedido</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Tipo de pedido:</span>
-              <Badge variant="outline">
-                {orderType === "local" && "Consumo en Local"}
-                {orderType === "takeaway" && "Para Llevar"}
-                {orderType === "table" && "Mesa"}
-                {orderType === "delivery" && "Delivery"}
-              </Badge>
-            </div>
-
-            {orderType === "table" && selectedTableId && (
-              <div className="flex justify-between text-sm">
-                <span>Mesa:</span>
-                <span>{tables.find((t) => t.id === selectedTableId)?.number || ""}</span>
-              </div>
-            )}
-
-            {customerName && (
-              <div className="flex justify-between text-sm">
-                <span>Cliente:</span>
-                <span>{customerName}</span>
-              </div>
-            )}
-
-            {paymentMethod && (
-              <div className="flex justify-between text-sm">
-                <span>Método de pago:</span>
-                <span>
-                  {paymentMethod === "cash" && "Efectivo"}
-                  {paymentMethod === "card" && "Tarjeta"}
-                  {paymentMethod === "transfer" && "Transferencia"}
-                  {paymentMethod === "app" && "App de Pago"}
-                </span>
-              </div>
-            )}
-
-            {paymentMethod === "cash" && Number.parseFloat(cashAmount) > 0 && (
-              <>
-                <div className="flex justify-between text-sm">
-                  <span>Monto recibido:</span>
-                  <span>{formatCurrency(Number.parseFloat(cashAmount))}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Cambio:</span>
-                  <span>{formatCurrency(changeAmount)}</span>
-                </div>
-              </>
-            )}
-          </div>
-
-          <Separator />
-
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span>Productos:</span>
-              <span>{items.length}</span>
-            </div>
-            <div className="flex justify-between font-medium">
-              <span>Subtotal:</span>
-              <span>{formatCurrency(subtotal)}</span>
-            </div>
-
-            {tipAmount > 0 && (
-              <div className="flex justify-between text-sm">
-                <span>Propina ({tipPercentage}%):</span>
-                <span>{formatCurrency(tipAmount)}</span>
-              </div>
-            )}
-
-            {couponDiscount > 0 && (
-              <div className="flex justify-between text-sm text-green-600">
-                <span>Descuento:</span>
-                <span>-{formatCurrency(couponDiscount)}</span>
-              </div>
-            )}
-          </div>
-        </CardContent>
-        <CardFooter className="border-t pt-4">
-          <div className="flex justify-between w-full text-lg font-bold">
-            <span>Total:</span>
-            <span>{formatCurrency(total)}</span>
-          </div>
-        </CardFooter>
-      </Card>
-    )
   }
 
   // Renderizado de la barra de progreso
@@ -1016,9 +463,9 @@ export function CreateOrderDialog({
           <div className="text-xs">Paso {currentStep} de 4</div>
           <div className="text-xs font-medium">
             {currentStep === 1 && "Tipo de Pedido"}
-            {currentStep === 2 && "Información del Cliente"}
-            {currentStep === 3 && "Pago y Descuentos"}
-            {currentStep === 4 && "Productos"}
+            {currentStep === 2 && "Productos"}
+            {currentStep === 3 && "Cliente"}
+            {currentStep === 4 && "Pago"}
           </div>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2.5">
@@ -1047,7 +494,23 @@ export function CreateOrderDialog({
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-2">{renderStepContent()}</div>
-            <div className="md:col-span-1">{renderOrderSummary()}</div>
+            <div className="md:col-span-1">
+              <OrderSummary
+                orderType={orderType}
+                items={items}
+                customerName={customerName}
+                paymentMethod={paymentMethod}
+                selectedTableId={selectedTableId}
+                tables={tables}
+                cashAmount={cashAmount}
+                changeAmount={changeAmount}
+                tipAmount={tipAmount}
+                tipPercentage={tipPercentage}
+                couponDiscount={couponDiscount}
+                calculateSubtotal={calculateSubtotal}
+                calculateTotal={calculateTotal}
+              />
+            </div>
           </div>
 
           <DialogFooter className="flex justify-between">
@@ -1091,6 +554,8 @@ export function CreateOrderDialog({
         products={products}
         extras={extras}
         onAddProduct={handleAddProduct}
+        tenantId={tenantId}
+        branchId={branchId}
       />
     </>
   )
