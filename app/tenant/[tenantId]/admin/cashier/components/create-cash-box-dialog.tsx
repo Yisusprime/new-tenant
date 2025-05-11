@@ -7,8 +7,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { useCashBox } from "@/lib/hooks/use-cash-box"
 import { toast } from "@/components/ui/use-toast"
+import { useBranch } from "@/lib/context/branch-context"
 
 interface CreateCashBoxDialogProps {
   isOpen: boolean
@@ -17,19 +19,38 @@ interface CreateCashBoxDialogProps {
 }
 
 export function CreateCashBoxDialog({ isOpen, onClose, onSuccess }: CreateCashBoxDialogProps) {
+  const { tenantId, currentBranch } = useBranch()
   const [name, setName] = useState("Caja Principal")
   const [initialAmount, setInitialAmount] = useState(0)
+  const [notes, setNotes] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const { createCashBox } = useCashBox()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError(null)
+
+    if (!tenantId || !currentBranch) {
+      setError("No hay sucursal o tenant seleccionado")
+      setIsLoading(false)
+      return
+    }
 
     try {
+      console.log("Intentando crear caja con datos:", {
+        name,
+        initialAmount,
+        notes,
+        tenantId,
+        branchId: currentBranch.id,
+      })
+
       await createCashBox({
         name,
         initialAmount,
+        notes,
       })
 
       toast({
@@ -39,10 +60,12 @@ export function CreateCashBoxDialog({ isOpen, onClose, onSuccess }: CreateCashBo
 
       onSuccess?.()
       onClose()
-    } catch (error: any) {
+    } catch (err: any) {
+      console.error("Error al crear caja:", err)
+      setError(err.message || "No se pudo crear la caja. Inténtalo de nuevo.")
       toast({
         title: "Error",
-        description: error.message || "No se pudo crear la caja. Inténtalo de nuevo.",
+        description: err.message || "No se pudo crear la caja. Inténtalo de nuevo.",
         variant: "destructive",
       })
     } finally {
@@ -80,6 +103,18 @@ export function CreateCashBoxDialog({ isOpen, onClose, onSuccess }: CreateCashBo
                 placeholder="0.00"
               />
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="notes">Notas (opcional)</Label>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Notas adicionales sobre esta caja"
+                rows={3}
+              />
+            </div>
+
+            {error && <div className="text-sm text-red-500 mt-2">{error}</div>}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>

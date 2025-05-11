@@ -28,7 +28,10 @@ export function useCashBox(cashBoxId?: string) {
 
   // Cargar la caja actual o la caja abierta
   const loadCashBox = useCallback(async () => {
-    if (!currentBranch || !tenantId) return
+    if (!currentBranch || !tenantId) {
+      setLoading(false) // Importante: terminar la carga si no hay branch o tenant
+      return
+    }
 
     try {
       setLoading(true)
@@ -55,18 +58,19 @@ export function useCashBox(cashBoxId?: string) {
         setSummary(boxSummary)
       }
     } catch (err: any) {
-      setError(err.message || "Error al cargar la caja")
       console.error("Error al cargar la caja:", err)
+      setError(err.message || "Error al cargar la caja")
     } finally {
-      setLoading(false)
+      setLoading(false) // Siempre terminar la carga, incluso si hay error
     }
   }, [tenantId, currentBranch, cashBoxId])
 
   // Cargar todas las cajas
   const loadCashBoxes = useCallback(async () => {
     if (!currentBranch || !tenantId) {
+      console.log("No hay branch o tenant seleccionado, terminando carga")
       setCashBoxes([])
-      setLoading(false)
+      setLoading(false) // Importante: terminar la carga si no hay branch o tenant
       return
     }
 
@@ -74,16 +78,24 @@ export function useCashBox(cashBoxId?: string) {
       setLoading(true)
       setError(null)
 
-      console.log("Cargando cajas para:", tenantId, currentBranch.id)
-      const boxes = await getCashBoxes(tenantId, currentBranch.id)
-      console.log("Cajas cargadas:", boxes)
+      console.log(`Cargando cajas para tenant: ${tenantId}, branch: ${currentBranch.id}`)
+
+      // Forzar un timeout para evitar carga infinita
+      const timeoutPromise = new Promise<CashBox[]>((_, reject) => {
+        setTimeout(() => reject(new Error("Tiempo de espera agotado")), 10000)
+      })
+
+      // Intentar obtener las cajas con un timeout
+      const boxes = await Promise.race([getCashBoxes(tenantId, currentBranch.id), timeoutPromise])
+
+      console.log(`Cajas cargadas: ${boxes.length}`)
       setCashBoxes(boxes)
     } catch (err: any) {
       console.error("Error al cargar las cajas:", err)
       setError(err.message || "Error al cargar las cajas")
-      setCashBoxes([])
+      setCashBoxes([]) // Establecer un array vacío en caso de error
     } finally {
-      setLoading(false)
+      setLoading(false) // Siempre terminar la carga, incluso si hay error
     }
   }, [tenantId, currentBranch])
 
@@ -95,16 +107,21 @@ export function useCashBox(cashBoxId?: string) {
       }
 
       try {
+        console.log("Creando nueva caja con datos:", data)
         const newBox = await createCashBoxService(tenantId, currentBranch.id, data)
-        await loadCashBoxes()
+        console.log("Caja creada:", newBox)
+
+        // Actualizar la lista de cajas inmediatamente sin esperar a loadCashBoxes
+        setCashBoxes((prev) => [...prev, newBox])
+
         return newBox
       } catch (err: any) {
-        setError(err.message || "Error al crear la caja")
         console.error("Error al crear la caja:", err)
+        setError(err.message || "Error al crear la caja")
         throw err
       }
     },
-    [tenantId, currentBranch, loadCashBoxes],
+    [tenantId, currentBranch],
   )
 
   // Abrir una caja
@@ -116,7 +133,14 @@ export function useCashBox(cashBoxId?: string) {
 
       try {
         const openedBox = await openCashBoxService(tenantId, currentBranch.id, boxId, initialAmount, notes)
-        await loadCashBox()
+
+        // Actualizar la caja en la lista inmediatamente
+        setCashBoxes((prev) => prev.map((box) => (box.id === boxId ? openedBox : box)))
+
+        if (cashBoxId === boxId) {
+          setCashBox(openedBox)
+        }
+
         return openedBox
       } catch (err: any) {
         setError(err.message || "Error al abrir la caja")
@@ -124,7 +148,7 @@ export function useCashBox(cashBoxId?: string) {
         throw err
       }
     },
-    [tenantId, currentBranch, loadCashBox],
+    [tenantId, currentBranch, cashBoxId],
   )
 
   // Cerrar una caja
@@ -136,7 +160,14 @@ export function useCashBox(cashBoxId?: string) {
 
       try {
         const closedBox = await closeCashBoxService(tenantId, currentBranch.id, boxId, finalAmount, notes)
-        await loadCashBox()
+
+        // Actualizar la caja en la lista inmediatamente
+        setCashBoxes((prev) => prev.map((box) => (box.id === boxId ? closedBox : box)))
+
+        if (cashBoxId === boxId) {
+          setCashBox(closedBox)
+        }
+
         return closedBox
       } catch (err: any) {
         setError(err.message || "Error al cerrar la caja")
@@ -144,7 +175,7 @@ export function useCashBox(cashBoxId?: string) {
         throw err
       }
     },
-    [tenantId, currentBranch, loadCashBox],
+    [tenantId, currentBranch, cashBoxId],
   )
 
   // Añadir un movimiento a la caja
@@ -223,13 +254,28 @@ export function useCashBox(cashBoxId?: string) {
 
   // Cargar datos iniciales
   useEffect(() => {
+    console.log("Efecto de carga inicial:", { tenantId, branchId: currentBranch?.id })
+
+    // Establecer un timeout para evitar carga infinita
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        console.log("Timeout de carga alcanzado, forzando fin de carga")
+        setLoading(false)
+        setError("Tiempo de espera agotado. Por favor, intenta recargar la página.")
+      }
+    }, 15000) // 15 segundos máximo de carga
+
     if (tenantId && currentBranch) {
-      console.log("Iniciando carga de datos de caja")
       loadCashBoxes()
       if (cashBoxId) {
         loadCashBox()
       }
+    } else {
+      // Si no hay tenant o branch, terminar la carga
+      setLoading(false)
     }
+
+    return () => clearTimeout(timeoutId)
   }, [loadCashBox, loadCashBoxes, tenantId, currentBranch, cashBoxId])
 
   return {

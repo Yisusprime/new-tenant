@@ -1,111 +1,103 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import type { CashBox } from "@/lib/types/cashier"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { LockOpen, Lock, ArrowRight } from "lucide-react"
+import type { CashBox } from "@/lib/types/cashier"
 import { formatCurrency } from "@/lib/utils"
-import { Lock, Unlock } from "lucide-react"
 
 interface CashBoxCardProps {
   cashBox: CashBox
-  onOpen: (cashBoxId: string) => void
-  onClose: (cashBoxId: string) => void
+  onOpen: (id: string) => void
+  onClose: (id: string) => void
 }
 
 export function CashBoxCard({ cashBox, onOpen, onClose }: CashBoxCardProps) {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
-
-  const handleViewDetails = () => {
-    router.push(`/admin/cashier/${cashBox.id}`)
-  }
-
-  const handleOpen = async () => {
-    setIsLoading(true)
-    try {
-      await onOpen(cashBox.id)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleClose = async () => {
-    setIsLoading(true)
-    try {
-      await onClose(cashBox.id)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   const formatDate = (dateString?: string) => {
     if (!dateString) return "N/A"
     return new Date(dateString).toLocaleString()
   }
 
   return (
-    <Card className="w-full">
+    <Card className={cashBox.isOpen ? "border-green-500" : ""}>
       <CardHeader>
-        <div className="flex justify-between items-center">
-          <CardTitle>{cashBox.name}</CardTitle>
-          <Badge variant={cashBox.isOpen ? "success" : "secondary"}>{cashBox.isOpen ? "Abierta" : "Cerrada"}</Badge>
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle>{cashBox.name}</CardTitle>
+            <CardDescription>
+              {cashBox.isOpen ? (
+                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                  Abierta
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
+                  Cerrada
+                </Badge>
+              )}
+            </CardDescription>
+          </div>
         </div>
-        <CardDescription>
-          {cashBox.isOpen
-            ? `Abierta el ${formatDate(cashBox.openedAt)}`
-            : cashBox.closedAt
-              ? `Cerrada el ${formatDate(cashBox.closedAt)}`
-              : "No ha sido abierta"}
-        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground">Monto inicial:</span>
-            <span className="font-medium">{formatCurrency(cashBox.initialAmount)}</span>
-          </div>
-          {cashBox.isOpen && (
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Monto actual (esperado):</span>
-              <span className="font-medium">{formatCurrency(cashBox.expectedAmount)}</span>
-            </div>
-          )}
-          {!cashBox.isOpen && cashBox.closedAt && (
+          {cashBox.isOpen ? (
             <>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Monto final:</span>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-500">Monto inicial:</span>
+                <span className="font-medium">{formatCurrency(cashBox.initialAmount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-500">Monto actual:</span>
+                <span className="font-medium">{formatCurrency(cashBox.expectedAmount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-500">Abierta el:</span>
+                <span className="text-sm">{formatDate(cashBox.openedAt)}</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-500">Monto final:</span>
                 <span className="font-medium">{formatCurrency(cashBox.currentAmount)}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Diferencia:</span>
-                <span
-                  className={`font-medium ${cashBox.difference && cashBox.difference < 0 ? "text-red-500" : "text-green-500"}`}
-                >
-                  {cashBox.difference !== undefined ? formatCurrency(cashBox.difference) : "N/A"}
-                </span>
+              {cashBox.difference !== undefined && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500">Diferencia:</span>
+                  <span
+                    className={`font-medium ${cashBox.difference < 0 ? "text-red-500" : cashBox.difference > 0 ? "text-green-500" : ""}`}
+                  >
+                    {formatCurrency(cashBox.difference)}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-500">Cerrada el:</span>
+                <span className="text-sm">{formatDate(cashBox.closedAt)}</span>
               </div>
             </>
           )}
         </div>
       </CardContent>
       <CardFooter className="flex justify-between">
-        <Button variant="outline" onClick={handleViewDetails}>
-          Ver detalles
-        </Button>
         {cashBox.isOpen ? (
-          <Button variant="destructive" onClick={handleClose} disabled={isLoading}>
-            <Lock className="mr-2 h-4 w-4" />
-            Cerrar caja
+          <Button variant="outline" className="w-full" onClick={() => onClose(cashBox.id)}>
+            <Lock className="h-4 w-4 mr-2" />
+            Cerrar Caja
           </Button>
         ) : (
-          <Button variant="default" onClick={handleOpen} disabled={isLoading}>
-            <Unlock className="mr-2 h-4 w-4" />
-            Abrir caja
+          <Button variant="outline" className="w-full" onClick={() => onOpen(cashBox.id)}>
+            <LockOpen className="h-4 w-4 mr-2" />
+            Abrir Caja
           </Button>
         )}
+        <Button variant="ghost" className="w-full" asChild>
+          <a href={`/tenant/${cashBox.tenantId}/admin/cashier/${cashBox.id}`}>
+            Detalles
+            <ArrowRight className="h-4 w-4 ml-2" />
+          </a>
+        </Button>
       </CardFooter>
     </Card>
   )

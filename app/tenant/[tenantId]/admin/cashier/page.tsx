@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useCashBox } from "@/lib/hooks/use-cash-box"
 import { CashBoxCard } from "./components/cash-box-card"
 import { OpenCashBoxDialog } from "./components/open-cash-box-dialog"
@@ -11,15 +11,24 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { PlusIcon, TagsIcon } from "lucide-react"
+import { PlusIcon, TagsIcon, RefreshCw } from "lucide-react"
 import { useBranch } from "@/lib/context/branch-context"
 import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
+import { toast } from "@/components/ui/use-toast"
 
 export default function CashierPage() {
   const { tenantId, currentBranch, hasActiveBranches } = useBranch()
   const { cashBoxes, loading, error, loadCashBoxes } = useCashBox()
+  const [isInitialized, setIsInitialized] = useState(false)
 
-  console.log("Estado de caja:", { loading, error, cashBoxesCount: cashBoxes.length })
+  console.log("Estado de caja:", {
+    loading,
+    error,
+    cashBoxesCount: cashBoxes.length,
+    tenantId,
+    branchId: currentBranch?.id,
+    isInitialized,
+  })
 
   const [selectedCashBoxId, setSelectedCashBoxId] = useState<string | null>(null)
   const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false)
@@ -28,6 +37,13 @@ export default function CashierPage() {
   const [isCategoriesDialogOpen, setIsCategoriesDialogOpen] = useState(false)
 
   const selectedCashBox = selectedCashBoxId ? cashBoxes.find((box) => box.id === selectedCashBoxId) : null
+
+  useEffect(() => {
+    // Marcar como inicializado después de la primera carga
+    if (!isInitialized && !loading) {
+      setIsInitialized(true)
+    }
+  }, [loading, isInitialized])
 
   const handleOpenCashBox = (cashBoxId: string) => {
     setSelectedCashBoxId(cashBoxId)
@@ -43,6 +59,26 @@ export default function CashierPage() {
     loadCashBoxes()
   }
 
+  const handleRefresh = () => {
+    loadCashBoxes()
+    toast({
+      title: "Actualizando",
+      description: "Actualizando lista de cajas...",
+    })
+  }
+
+  const handleCreateCashBox = () => {
+    if (!currentBranch || !tenantId) {
+      toast({
+        title: "Error",
+        description: "Debes seleccionar una sucursal primero",
+        variant: "destructive",
+      })
+      return
+    }
+    setIsCreateDialogOpen(true)
+  }
+
   if (!currentBranch || !hasActiveBranches) {
     return <NoBranchSelectedAlert />
   }
@@ -52,16 +88,57 @@ export default function CashierPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Gestión de Caja</h1>
         <div className="flex gap-2">
+          <Button onClick={handleRefresh} variant="outline" size="icon">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
           <Button onClick={() => setIsCategoriesDialogOpen(true)}>
             <TagsIcon className="h-4 w-4 mr-2" />
             Categorías
           </Button>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
+          <Button onClick={handleCreateCashBox}>
             <PlusIcon className="h-4 w-4 mr-2" />
             Nueva Caja
           </Button>
         </div>
       </div>
+
+      {/* Panel de depuración - solo visible en desarrollo */}
+      {process.env.NODE_ENV === "development" && (
+        <Card className="bg-yellow-50">
+          <CardContent className="pt-6">
+            <h3 className="font-semibold mb-2">Información de depuración:</h3>
+            <pre className="text-xs overflow-auto bg-yellow-100 p-2 rounded">
+              {JSON.stringify(
+                {
+                  tenantId,
+                  branchId: currentBranch?.id,
+                  loading,
+                  error,
+                  cashBoxesCount: cashBoxes.length,
+                  isInitialized,
+                },
+                null,
+                2,
+              )}
+            </pre>
+          </CardContent>
+        </Card>
+      )}
+
+      {error && (
+        <Card className="bg-red-50">
+          <CardContent className="pt-6">
+            <div className="text-center text-red-500">
+              <p className="font-semibold">Error al cargar las cajas:</p>
+              <p>{error}</p>
+              <Button variant="outline" className="mt-2" onClick={handleRefresh}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Reintentar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs defaultValue="active" className="space-y-4">
         <TabsList>
@@ -70,7 +147,7 @@ export default function CashierPage() {
         </TabsList>
 
         <TabsContent value="active" className="space-y-4">
-          {loading ? (
+          {loading && !isInitialized ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {[1, 2, 3].map((i) => (
                 <Card key={i}>
@@ -87,12 +164,6 @@ export default function CashierPage() {
                 </Card>
               ))}
             </div>
-          ) : error ? (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center text-red-500">Error al cargar las cajas: {error}</div>
-              </CardContent>
-            </Card>
           ) : cashBoxes.length === 0 ? (
             <Card>
               <CardContent className="pt-6">
@@ -126,16 +197,10 @@ export default function CashierPage() {
         </TabsContent>
 
         <TabsContent value="closed" className="space-y-4">
-          {loading ? (
+          {loading && !isInitialized ? (
             <Card>
               <CardContent className="pt-6">
                 <Skeleton className="h-24 w-full" />
-              </CardContent>
-            </Card>
-          ) : error ? (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center text-red-500">Error al cargar las cajas: {error}</div>
               </CardContent>
             </Card>
           ) : cashBoxes.filter((box) => box.status === "closed").length === 0 ? (

@@ -9,6 +9,14 @@ export async function createCashBox(tenantId: string, branchId: string, data: Pa
     const user = auth.currentUser
     if (!user) throw new Error("Usuario no autenticado")
 
+    console.log("Iniciando creación de caja para:", { tenantId, branchId })
+
+    // Verificar que realtimeDb esté inicializado
+    if (!realtimeDb) {
+      console.error("realtimeDb no está inicializado")
+      throw new Error("Error de conexión a la base de datos")
+    }
+
     const cashBoxId = uuidv4()
     const cashBoxRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/cashBoxes/${cashBoxId}`)
 
@@ -22,14 +30,17 @@ export async function createCashBox(tenantId: string, branchId: string, data: Pa
       currentAmount: data.initialAmount || 0,
       expectedAmount: data.initialAmount || 0,
       status: "active",
+      createdAt: new Date().toISOString(),
+      createdBy: user.uid,
     }
 
-    console.log("Creando nueva caja:", newCashBox)
+    console.log("Guardando nueva caja:", newCashBox)
     await set(cashBoxRef, newCashBox)
+    console.log("Caja guardada exitosamente")
     return newCashBox
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error al crear caja:", error)
-    throw error
+    throw new Error(`Error al crear caja: ${error.message}`)
   }
 }
 
@@ -246,10 +257,18 @@ export async function getCashBox(tenantId: string, branchId: string, cashBoxId: 
 export async function getCashBoxes(tenantId: string, branchId: string): Promise<CashBox[]> {
   try {
     console.log(`Obteniendo cajas para tenant: ${tenantId}, branch: ${branchId}`)
-    const cashBoxesRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/cashBoxes`)
-    const snapshot = await get(cashBoxesRef)
 
-    console.log("Snapshot existe:", snapshot.exists())
+    // Verificar que realtimeDb esté inicializado
+    if (!realtimeDb) {
+      console.error("realtimeDb no está inicializado")
+      throw new Error("Error de conexión a la base de datos")
+    }
+
+    const cashBoxesRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/cashBoxes`)
+    console.log("Referencia creada:", cashBoxesRef.toString())
+
+    const snapshot = await get(cashBoxesRef)
+    console.log("Snapshot obtenido, existe:", snapshot.exists())
 
     if (!snapshot.exists()) {
       console.log("No hay cajas, devolviendo array vacío")
@@ -265,9 +284,9 @@ export async function getCashBoxes(tenantId: string, branchId: string): Promise<
 
     console.log(`Total de cajas encontradas: ${cashBoxes.length}`)
     return cashBoxes
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error al obtener cajas:", error)
-    throw error
+    throw new Error(`Error al obtener cajas: ${error.message}`)
   }
 }
 
