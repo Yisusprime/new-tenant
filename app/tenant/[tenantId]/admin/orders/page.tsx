@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useBranch } from "@/lib/context/branch-context"
 import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
 import { Button } from "@/components/ui/button"
-import { Plus, RefreshCw, Bell, BellOff, Volume2 } from "lucide-react"
+import { Plus, RefreshCw, Bell, BellOff } from "lucide-react"
 import { getOrders, getOrdersByType } from "@/lib/services/order-service"
 import { getTables } from "@/lib/services/table-service"
 import type { Order } from "@/lib/types/order"
@@ -16,8 +16,6 @@ import { TablesList } from "./components/tables-list"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "@/components/ui/use-toast"
 import { useOrderNotifications } from "@/lib/hooks/use-order-notifications"
-import { NotificationSoundTester } from "@/components/notification-sound-tester"
-import { AudioPermissionDialog } from "@/components/audio-permission-dialog"
 import { VisualNotification } from "@/components/visual-notification"
 
 export default function OrdersPage({ params }: { params: { tenantId: string } }) {
@@ -38,14 +36,16 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
     newOrder,
     toggleNotifications,
     notificationsEnabled,
-    notificationType,
-    setAudioNotifications,
-    setVisualNotifications,
-    disableNotifications,
-    showVisualNotification,
+    showNotification,
     notificationMessage,
-    hideVisualNotification,
+    notificationOrderId,
+    hideNotification,
   } = useOrderNotifications(tenantId, currentBranch?.id || null)
+
+  // Inicializar el estado de notificaciones
+  useEffect(() => {
+    setNotificationsOn(notificationsEnabled())
+  }, [])
 
   const loadOrders = async () => {
     if (!currentBranch) return
@@ -140,43 +140,21 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
     })
   }
 
-  // Función para solicitar permisos de notificación nuevamente
-  const requestNotificationPermission = () => {
-    // Eliminar la preferencia guardada
-    localStorage.removeItem("notificationsPermission")
-    // Recargar la página para mostrar el diálogo de nuevo
-    window.location.reload()
-  }
-
   return (
     <div className="space-y-6">
-      {/* Diálogo de permiso de notificaciones */}
-      <AudioPermissionDialog
-        onPermissionGranted={setAudioNotifications}
-        onPermissionDenied={disableNotifications}
-        onVisualOnly={setVisualNotifications}
-      />
-
       {/* Componente de notificación visual */}
       <VisualNotification
-        show={showVisualNotification}
+        show={showNotification}
         message={notificationMessage}
-        onClose={hideVisualNotification}
+        orderId={notificationOrderId}
+        tenantId={tenantId}
+        branchId={currentBranch?.id}
+        onClose={hideNotification}
       />
 
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Gestor de Pedidos</h1>
         <div className="flex gap-2">
-          {notificationType === "none" && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={requestNotificationPermission}
-              title="Configurar notificaciones"
-            >
-              <Bell className="h-4 w-4" />
-            </Button>
-          )}
           <Button
             variant="outline"
             size="sm"
@@ -202,38 +180,6 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
 
       {currentBranch && (
         <>
-          {/* Mostrar estado de las notificaciones */}
-          {notificationType !== "none" && (
-            <div
-              className={`p-3 rounded-md ${
-                notificationType === "audio"
-                  ? "bg-green-50 border border-green-200"
-                  : "bg-blue-50 border border-blue-200"
-              }`}
-            >
-              <div className="flex items-center">
-                {notificationType === "audio" ? (
-                  <>
-                    <Volume2 className="h-5 w-5 text-green-500 mr-2" />
-                    <span className="text-sm text-green-700">
-                      Notificaciones con sonido habilitadas. Recibirás alertas sonoras cuando lleguen nuevos pedidos.
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <Bell className="h-5 w-5 text-blue-500 mr-2" />
-                    <span className="text-sm text-blue-700">
-                      Notificaciones visuales habilitadas. Recibirás alertas visuales cuando lleguen nuevos pedidos.
-                    </span>
-                  </>
-                )}
-                <Button variant="link" size="sm" onClick={requestNotificationPermission} className="ml-2">
-                  Cambiar
-                </Button>
-              </div>
-            </div>
-          )}
-
           <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
             <TabsList>
               <TabsTrigger value="all">Todos los Pedidos</TabsTrigger>
@@ -251,17 +197,12 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
                     <Skeleton className="h-48 w-full" />
                   </div>
                 ) : (
-                  <>
-                    {notificationType === "audio" && (
-                      <NotificationSoundTester tenantId={tenantId} branchId={currentBranch?.id || ""} />
-                    )}
-                    <OrdersList
-                      orders={orders}
-                      tenantId={tenantId}
-                      branchId={currentBranch.id}
-                      onStatusChange={handleStatusChange}
-                    />
-                  </>
+                  <OrdersList
+                    orders={orders}
+                    tenantId={tenantId}
+                    branchId={currentBranch.id}
+                    onStatusChange={handleStatusChange}
+                  />
                 )}
               </div>
             </TabsContent>

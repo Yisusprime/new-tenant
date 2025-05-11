@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { Bell, X } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 import { useRouter } from "next/navigation"
 
-interface VisualNotificationProps {
+interface OrderNotificationProps {
   show: boolean
   message: string
   orderId?: string
@@ -13,7 +14,7 @@ interface VisualNotificationProps {
   onClose: () => void
 }
 
-export function VisualNotification({ show, message, orderId, tenantId, branchId, onClose }: VisualNotificationProps) {
+export function OrderNotification({ show, message, orderId, tenantId, branchId, onClose }: OrderNotificationProps) {
   const router = useRouter()
   const [isVisible, setIsVisible] = useState(false)
 
@@ -74,48 +75,36 @@ export function VisualNotification({ show, message, orderId, tenantId, branchId,
     }
   }, [show, message, orderId, tenantId, branchId, router])
 
-  if (!isVisible) return null
-
   return (
-    <div
-      className="fixed top-4 right-4 z-50 max-w-md transition-all duration-300 ease-in-out"
-      style={{
-        animation: "slideIn 0.3s ease-out forwards",
-      }}
-    >
-      <div
-        className="bg-green-600 text-white p-4 rounded-lg shadow-lg flex items-start cursor-pointer"
-        onClick={handleClick}
-      >
-        <Bell className="h-6 w-6 mr-3 flex-shrink-0 animate-pulse" />
-        <div className="flex-1">
-          <h4 className="font-bold text-lg">¡Nuevo Pedido!</h4>
-          <p>{message}</p>
-          <p className="text-xs mt-1 text-green-100">Haz clic para ver detalles</p>
-        </div>
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            setIsVisible(false)
-            setTimeout(onClose, 300)
-          }}
-          className="ml-2 text-white hover:text-green-200"
+    <AnimatePresence>
+      {isVisible && (
+        <motion.div
+          initial={{ opacity: 0, y: -50 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -50 }}
+          className="fixed top-4 right-4 z-50 max-w-md"
+          onClick={handleClick}
         >
-          <X className="h-5 w-5" />
-        </button>
-      </div>
-      <style jsx global>{`
-        @keyframes slideIn {
-          from {
-            transform: translateY(-20px);
-            opacity: 0;
-          }
-          to {
-            transform: translateY(0);
-            opacity: 1;
-          }
-        }
-      `}</style>
-    </div>
+          <div className="bg-green-600 text-white p-4 rounded-lg shadow-lg flex items-start cursor-pointer">
+            <Bell className="h-6 w-6 mr-3 flex-shrink-0 animate-pulse" />
+            <div className="flex-1">
+              <h4 className="font-bold text-lg">¡Nuevo Pedido!</h4>
+              <p>{message}</p>
+              <p className="text-xs mt-1 text-green-100">Haz clic para ver detalles</p>
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setIsVisible(false)
+                setTimeout(onClose, 300)
+              }}
+              className="ml-2 text-white hover:text-green-200"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
