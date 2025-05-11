@@ -16,6 +16,7 @@ import { createOrder } from "@/lib/services/order-service"
 import { getTables } from "@/lib/services/table-service"
 import { getProducts } from "@/lib/services/product-service"
 import { getProductExtras } from "@/lib/services/product-service"
+import { getRestaurantConfig } from "@/lib/services/restaurant-config-service"
 import type { Product, ProductExtra } from "@/lib/types/product"
 import { ArrowLeft, ArrowRight, Loader2, Save } from "lucide-react"
 import { ProductSelector } from "./product-selector"
@@ -69,6 +70,10 @@ export function CreateOrderDialog({
   const [cashAmount, setCashAmount] = useState("")
   const [changeAmount, setChangeAmount] = useState(0)
 
+  // Estado para la configuración del IVA
+  const [taxIncluded, setTaxIncluded] = useState(true)
+  const [taxRate, setTaxRate] = useState(0.21) // 21% por defecto
+
   // Estados para el wizard
   const [currentStep, setCurrentStep] = useState(1)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -87,6 +92,7 @@ export function CreateOrderDialog({
       loadProducts()
       loadExtras()
       loadTables()
+      loadRestaurantConfig()
 
       // Si hay una mesa seleccionada, establecer el tipo de pedido a "table"
       if (selectedTable && selectedTable.id) {
@@ -110,7 +116,7 @@ export function CreateOrderDialog({
     } else {
       setChangeAmount(0)
     }
-  }, [cashAmount, paymentMethod, items, tipAmount, couponDiscount])
+  }, [cashAmount, paymentMethod, items, tipAmount, couponDiscount, taxIncluded])
 
   const loadProducts = async () => {
     try {
@@ -137,6 +143,17 @@ export function CreateOrderDialog({
       setTables(tablesData.filter((t) => t.isActive && (t.status === "available" || t.status === "reserved")))
     } catch (error) {
       console.error("Error al cargar mesas:", error)
+    }
+  }
+
+  const loadRestaurantConfig = async () => {
+    try {
+      const config = await getRestaurantConfig(tenantId, branchId)
+      if (config && config.basicInfo) {
+        setTaxIncluded(config.basicInfo.taxIncluded)
+      }
+    } catch (error) {
+      console.error("Error al cargar configuración del restaurante:", error)
     }
   }
 
@@ -204,9 +221,18 @@ export function CreateOrderDialog({
     return items.reduce((sum, item) => sum + item.subtotal, 0)
   }
 
+  const calculateTaxAmount = () => {
+    if (taxIncluded) {
+      return 0 // Si el IVA está incluido, no se añade al total
+    }
+    const subtotal = calculateSubtotal()
+    return Math.round(subtotal * taxRate)
+  }
+
   const calculateTotal = () => {
     const subtotal = calculateSubtotal()
-    return subtotal + tipAmount - couponDiscount
+    const tax = calculateTaxAmount()
+    return subtotal + tax + tipAmount - couponDiscount
   }
 
   // Validación por pasos
@@ -287,11 +313,19 @@ export function CreateOrderDialog({
     try {
       setLoading(true)
 
+      const subtotal = calculateSubtotal()
+      const tax = calculateTaxAmount()
+      const total = calculateTotal()
+
       const orderData: OrderFormData = {
         type: orderType,
         items,
         customerName: customerName.trim(),
         paymentMethod,
+        subtotal,
+        tax,
+        total,
+        taxIncluded,
       }
 
       // Campos opcionales
@@ -509,6 +543,8 @@ export function CreateOrderDialog({
                 couponDiscount={couponDiscount}
                 calculateSubtotal={calculateSubtotal}
                 calculateTotal={calculateTotal}
+                taxIncluded={taxIncluded}
+                taxAmount={calculateTaxAmount()}
               />
             </div>
           </div>

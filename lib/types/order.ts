@@ -32,6 +32,7 @@ export interface Order {
   subtotal: number
   tax: number
   total: number
+  taxIncluded: boolean
   customerName?: string
   customerPhone?: string
   customerEmail?: string
@@ -43,6 +44,15 @@ export interface Order {
   createdAt: string
   updatedAt: string
   completedAt?: string
+  tip?: number
+  coupon?: {
+    code: string
+    discount: number
+  }
+  cashDetails?: {
+    amountReceived: number
+    change: number
+  }
 }
 
 export interface OrderFormData {
@@ -55,4 +65,17 @@ export interface OrderFormData {
   tableNumber?: string // Número de mesa (para pedidos de mesa)
   deliveryAddress?: DeliveryAddress // Dirección de entrega (para pedidos de delivery)
   paymentMethod?: string
+  subtotal?: number
+  tax?: number
+  total?: number
+  taxIncluded?: boolean
+  tip?: number
+  coupon?: {
+    code: string
+    discount: number
+  }
+  cashDetails?: {
+    amountReceived: number
+    change: number
+  }
 }

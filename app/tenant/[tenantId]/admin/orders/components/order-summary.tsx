@@ -19,6 +19,8 @@ interface OrderSummaryProps {
   couponDiscount: number
   calculateSubtotal: () => number
   calculateTotal: () => number
+  taxIncluded: boolean
+  taxAmount: number
 }
 
 export function OrderSummary({
@@ -35,6 +37,8 @@ export function OrderSummary({
   couponDiscount,
   calculateSubtotal,
   calculateTotal,
+  taxIncluded,
+  taxAmount,
 }: OrderSummaryProps) {
   const subtotal = calculateSubtotal()
   const total = calculateTotal()
@@ -104,9 +108,16 @@ export function OrderSummary({
             <span>{items.length}</span>
           </div>
           <div className="flex justify-between font-medium">
-            <span>Subtotal:</span>
+            <span>{taxIncluded ? "Subtotal (IVA incluido):" : "Subtotal:"}</span>
             <span>{formatCurrency(subtotal)}</span>
           </div>
+
+          {!taxIncluded && taxAmount > 0 && (
+            <div className="flex justify-between text-sm">
+              <span>IVA (21%):</span>
+              <span>{formatCurrency(taxAmount)}</span>
+            </div>
+          )}
 
           {tipAmount > 0 && (
             <div className="flex justify-between text-sm">
