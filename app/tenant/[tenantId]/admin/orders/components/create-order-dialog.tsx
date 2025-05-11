@@ -70,9 +70,10 @@ export function CreateOrderDialog({
   const [cashAmount, setCashAmount] = useState("")
   const [changeAmount, setChangeAmount] = useState(0)
 
-  // Estado para la configuración del IVA
+  // Estado para la configuración del IVA y moneda
   const [taxIncluded, setTaxIncluded] = useState(true)
-  const [taxRate, setTaxRate] = useState(0.21) // 21% por defecto
+  const [taxRate, setTaxRate] = useState(0.19) // 19% por defecto (Chile)
+  const [currencyCode, setCurrencyCode] = useState("CLP") // Peso chileno por defecto
 
   // Estados para el wizard
   const [currentStep, setCurrentStep] = useState(1)
@@ -150,7 +151,14 @@ export function CreateOrderDialog({
     try {
       const config = await getRestaurantConfig(tenantId, branchId)
       if (config && config.basicInfo) {
+        // Establecer la configuración de IVA
         setTaxIncluded(config.basicInfo.taxIncluded)
+
+        // Establecer la tasa de IVA (con valor predeterminado de 0.19 si no está definido)
+        setTaxRate(config.basicInfo.taxRate !== undefined ? config.basicInfo.taxRate : 0.19)
+
+        // Establecer el código de moneda (con valor predeterminado de CLP si no está definido)
+        setCurrencyCode(config.basicInfo.currencyCode || "CLP")
       }
     } catch (error) {
       console.error("Error al cargar configuración del restaurante:", error)
@@ -447,6 +455,7 @@ export function CreateOrderDialog({
             handleRemoveItem={handleRemoveItem}
             handleUpdateItemQuantity={handleUpdateItemQuantity}
             errors={errors}
+            currencyCode={currencyCode}
           />
         )
       case 3:
@@ -482,6 +491,7 @@ export function CreateOrderDialog({
             handleTipPercentageChange={handleTipPercentageChange}
             handleCustomTipChange={handleCustomTipChange}
             errors={errors}
+            currencyCode={currencyCode}
           />
         )
       default:
@@ -545,6 +555,8 @@ export function CreateOrderDialog({
                 calculateTotal={calculateTotal}
                 taxIncluded={taxIncluded}
                 taxAmount={calculateTaxAmount()}
+                taxRate={taxRate}
+                currencyCode={currencyCode}
               />
             </div>
           </div>
@@ -592,6 +604,7 @@ export function CreateOrderDialog({
         onAddProduct={handleAddProduct}
         tenantId={tenantId}
         branchId={branchId}
+        currencyCode={currencyCode}
       />
     </>
   )

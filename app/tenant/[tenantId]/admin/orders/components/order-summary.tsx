@@ -21,6 +21,8 @@ interface OrderSummaryProps {
   calculateTotal: () => number
   taxIncluded: boolean
   taxAmount: number
+  taxRate: number
+  currencyCode: string
 }
 
 export function OrderSummary({
@@ -39,9 +41,16 @@ export function OrderSummary({
   calculateTotal,
   taxIncluded,
   taxAmount,
+  taxRate,
+  currencyCode,
 }: OrderSummaryProps) {
   const subtotal = calculateSubtotal()
   const total = calculateTotal()
+
+  // Función para formatear la moneda con el código correcto
+  const formatMoney = (amount: number) => {
+    return formatCurrency(amount, currencyCode)
+  }
 
   return (
     <Card className="w-full">
@@ -90,11 +99,11 @@ export function OrderSummary({
             <>
               <div className="flex justify-between text-sm">
                 <span>Monto recibido:</span>
-                <span>{formatCurrency(Number.parseFloat(cashAmount))}</span>
+                <span>{formatMoney(Number.parseFloat(cashAmount))}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span>Cambio:</span>
-                <span>{formatCurrency(changeAmount)}</span>
+                <span>{formatMoney(changeAmount)}</span>
               </div>
             </>
           )}
@@ -109,27 +118,27 @@ export function OrderSummary({
           </div>
           <div className="flex justify-between font-medium">
             <span>{taxIncluded ? "Subtotal (IVA incluido):" : "Subtotal:"}</span>
-            <span>{formatCurrency(subtotal)}</span>
+            <span>{formatMoney(subtotal)}</span>
           </div>
 
           {!taxIncluded && taxAmount > 0 && (
             <div className="flex justify-between text-sm">
-              <span>IVA (21%):</span>
-              <span>{formatCurrency(taxAmount)}</span>
+              <span>IVA ({(taxRate * 100).toFixed(0)}%):</span>
+              <span>{formatMoney(taxAmount)}</span>
             </div>
           )}
 
           {tipAmount > 0 && (
             <div className="flex justify-between text-sm">
               <span>Propina ({tipPercentage}%):</span>
-              <span>{formatCurrency(tipAmount)}</span>
+              <span>{formatMoney(tipAmount)}</span>
             </div>
           )}
 
           {couponDiscount > 0 && (
             <div className="flex justify-between text-sm text-green-600">
               <span>Descuento:</span>
-              <span>-{formatCurrency(couponDiscount)}</span>
+              <span>-{formatMoney(couponDiscount)}</span>
             </div>
           )}
         </div>
@@ -137,7 +146,7 @@ export function OrderSummary({
       <CardFooter className="border-t pt-4">
         <div className="flex justify-between w-full text-lg font-bold">
           <span>Total:</span>
-          <span>{formatCurrency(total)}</span>
+          <span>{formatMoney(total)}</span>
         </div>
       </CardFooter>
     </Card>

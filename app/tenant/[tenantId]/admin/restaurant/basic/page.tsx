@@ -19,6 +19,7 @@ import { Loader2, Camera, Trash, Store } from "lucide-react"
 import Image from "next/image"
 import { useBranch } from "@/lib/context/branch-context"
 import { useRestaurantConfig } from "@/hooks/use-restaurant-config"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function RestaurantBasicInfoPage({
   params,
@@ -44,6 +45,8 @@ export default function RestaurantBasicInfoPage({
     shortDescription: "",
     localId: tenantId,
     taxIncluded: true,
+    currencyCode: "CLP", // Peso chileno por defecto
+    taxRate: 0.19, // 19% por defecto (Chile)
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -151,6 +154,11 @@ export default function RestaurantBasicInfoPage({
     } finally {
       setUploadingLogo(false)
     }
+  }
+
+  const handleTaxRateChange = (value: string) => {
+    const rate = Number.parseFloat(value) / 100
+    setBasicInfo((prev) => ({ ...prev, taxRate: rate }))
   }
 
   if (loading) {
@@ -269,6 +277,28 @@ export default function RestaurantBasicInfoPage({
               </p>
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="currencyCode">Moneda *</Label>
+              <Select
+                value={basicInfo.currencyCode}
+                onValueChange={(value) => setBasicInfo({ ...basicInfo, currencyCode: value })}
+              >
+                <SelectTrigger id="currencyCode">
+                  <SelectValue placeholder="Selecciona una moneda" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CLP">Peso Chileno (CLP)</SelectItem>
+                  <SelectItem value="USD">Dólar Estadounidense (USD)</SelectItem>
+                  <SelectItem value="EUR">Euro (EUR)</SelectItem>
+                  <SelectItem value="ARS">Peso Argentino (ARS)</SelectItem>
+                  <SelectItem value="MXN">Peso Mexicano (MXN)</SelectItem>
+                  <SelectItem value="COP">Peso Colombiano (COP)</SelectItem>
+                  <SelectItem value="PEN">Sol Peruano (PEN)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500">Esta moneda se usará para mostrar los precios en tu restaurante.</p>
+            </div>
+
             <div className="flex items-center justify-between pt-4">
               <div className="space-y-0.5">
                 <Label htmlFor="taxIncluded">IVA Incluido</Label>
@@ -279,6 +309,31 @@ export default function RestaurantBasicInfoPage({
                 checked={basicInfo.taxIncluded}
                 onCheckedChange={(checked) => setBasicInfo({ ...basicInfo, taxIncluded: checked })}
               />
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <Label htmlFor="taxRate">Tasa de IVA (%)</Label>
+              <Select
+                value={(basicInfo.taxRate * 100).toString()}
+                onValueChange={handleTaxRateChange}
+                disabled={!basicInfo.taxIncluded}
+              >
+                <SelectTrigger id="taxRate">
+                  <SelectValue placeholder="Selecciona la tasa de IVA" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="19">19% (Chile)</SelectItem>
+                  <SelectItem value="21">21% (Argentina)</SelectItem>
+                  <SelectItem value="16">16% (México)</SelectItem>
+                  <SelectItem value="18">18% (Perú)</SelectItem>
+                  <SelectItem value="12">12% (Ecuador)</SelectItem>
+                  <SelectItem value="13">13% (Costa Rica)</SelectItem>
+                  <SelectItem value="0">0% (Sin IVA)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500">
+                Esta tasa se aplicará a los precios {basicInfo.taxIncluded ? "incluidos" : "sin incluir"} IVA.
+              </p>
             </div>
           </div>
 

@@ -2,7 +2,7 @@ import { db, storage } from "@/lib/firebase/client"
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage"
 
-// Actualizar la interfaz RestaurantBasicInfo para incluir bannerImage
+// Actualizar la interfaz RestaurantBasicInfo para incluir bannerImage, currencyCode y taxRate
 export interface RestaurantBasicInfo {
   name: string
   shortDescription: string
@@ -10,6 +10,8 @@ export interface RestaurantBasicInfo {
   logo?: string
   bannerImage?: string
   taxIncluded: boolean
+  currencyCode: string
+  taxRate: number
 }
 
 export interface RestaurantContactInfo {
@@ -300,6 +302,8 @@ export async function initializeRestaurantConfig(
         shortDescription: "",
         localId: tenantId,
         taxIncluded: true,
+        currencyCode: "CLP", // Peso chileno por defecto
+        taxRate: 0.19, // 19% por defecto (Chile)
       },
       contactInfo: {
         phone: "",
