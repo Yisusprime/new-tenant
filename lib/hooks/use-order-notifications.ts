@@ -8,14 +8,23 @@ import type { Order } from "@/lib/types/order"
 export function useOrderNotifications(tenantId: string, branchId: string | null) {
   const [newOrder, setNewOrder] = useState<Order | null>(null)
   const [updatedOrder, setUpdatedOrder] = useState<Order | null>(null)
+  const notificationSound = useRef<HTMLAudioElement | null>(null)
   const notificationsEnabled = useRef<boolean>(true)
-  const [soundLoaded, setSoundLoaded] = useState<boolean>(false)
-  const [soundError, setSoundError] = useState<string | null>(null)
 
-  // Usamos un enfoque más simple para el sonido
-  const audioRef = useRef<HTMLAudioElement | null>(null)
+  useEffect(() => {
+    // Inicializar el sonido
+    if (typeof window !== "undefined") {
+      notificationSound.current = new Audio("/sounds/new-order.mp3")
+    }
 
-  // Efecto para escuchar nuevos pedidos
+    return () => {
+      // Limpiar el sonido al desmontar
+      if (notificationSound.current) {
+        notificationSound.current = null
+      }
+    }
+  }, [])
+
   useEffect(() => {
     if (!tenantId || !branchId) return
 
@@ -40,8 +49,10 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
         setNewOrder(order)
 
         // Reproducir sonido si las notificaciones están habilitadas
-        if (notificationsEnabled.current && soundLoaded) {
-          playSound()
+        if (notificationsEnabled.current && notificationSound.current) {
+          notificationSound.current.play().catch((err) => {
+            console.error("Error al reproducir sonido:", err)
+          })
         }
       }
     })
@@ -64,95 +75,17 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
       off(ordersRef, "child_added", newOrderHandler)
       off(ordersRef, "child_changed", updatedOrderHandler)
     }
-  }, [tenantId, branchId, soundLoaded])
+  }, [tenantId, branchId])
 
-  // Función para reproducir el sonido
-  const playSound = () => {
-    if (!audioRef.current) return false
-
-    try {
-      // Reiniciar el audio para asegurar que se reproduzca desde el principio
-      audioRef.current.currentTime = 0
-
-      // Intentar reproducir el sonido
-      const playPromise = audioRef.current.play()
-
-      if (playPromise !== undefined) {
-        playPromise.catch((error) => {
-          console.error("Error al reproducir sonido:", error)
-        })
-      }
-
-      return true
-    } catch (error) {
-      console.error("Error al intentar reproducir sonido:", error)
-      return false
-    }
-  }
-
-  // Función para alternar notificaciones
   const toggleNotifications = () => {
     notificationsEnabled.current = !notificationsEnabled.current
     return notificationsEnabled.current
   }
-
-  // Efecto para crear el elemento de audio una sola vez
-  useEffect(() => {
-    // Limpiar cualquier audio existente
-    if (audioRef.current) {
-      audioRef.current = null
-    }
-
-    // Crear un nuevo elemento de audio
-    if (typeof window !== "undefined") {
-      try {
-        const audio = new Audio("/notification.mp3")
-
-        // Configurar eventos
-        audio.addEventListener("canplaythrough", () => {
-          console.log("Sonido cargado correctamente")
-          setSoundLoaded(true)
-          setSoundError(null)
-        })
-
-        audio.addEventListener("error", (e) => {
-          console.error("Error al cargar el sonido:", e)
-          setSoundError("No se pudo cargar el sonido")
-          setSoundLoaded(false)
-        })
-
-        // Guardar la referencia
-        audioRef.current = audio
-
-        // Precargar el audio
-        audio.load()
-      } catch (error) {
-        console.error("Error al inicializar el sonido:", error)
-        setSoundError("Error al inicializar el sonido")
-      }
-    }
-
-    // Limpiar al desmontar
-    return () => {
-      if (audioRef.current) {
-        audioRef.current = null
-        setSoundLoaded(false)
-      }
-    }
-  }, [])
 
   return {
     newOrder,
     updatedOrder,
     notificationsEnabled: () => notificationsEnabled.current,
     toggleNotifications,
-    playNotificationSound: playSound,
-    soundLoaded,
-    soundError,
-    reloadSound: () => {
-      if (audioRef.current) {
-        audioRef.current.load()
-      }
-    },
   }
 }

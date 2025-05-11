@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useBranch } from "@/lib/context/branch-context"
 import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
 import { Button } from "@/components/ui/button"
-import { Plus, RefreshCw, Bell, BellOff, Volume2 } from "lucide-react"
+import { Plus, RefreshCw, Bell, BellOff } from "lucide-react"
 import { getOrders, getOrdersByType } from "@/lib/services/order-service"
 import { getTables } from "@/lib/services/table-service"
 import type { Order } from "@/lib/types/order"
@@ -16,8 +16,6 @@ import { TablesList } from "./components/tables-list"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "@/components/ui/use-toast"
 import { useOrderNotifications } from "@/lib/hooks/use-order-notifications"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle } from "lucide-react"
 
 export default function OrdersPage({ params }: { params: { tenantId: string } }) {
   const { tenantId } = params
@@ -33,15 +31,10 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
   const [notificationsOn, setNotificationsOn] = useState(true)
 
   // Usar el hook de notificaciones
-  const {
-    newOrder,
-    toggleNotifications,
-    notificationsEnabled,
-    playNotificationSound,
-    soundLoaded,
-    soundError,
-    reloadSound,
-  } = useOrderNotifications(tenantId, currentBranch?.id || null)
+  const { newOrder, toggleNotifications, notificationsEnabled } = useOrderNotifications(
+    tenantId,
+    currentBranch?.id || null,
+  )
 
   const loadOrders = async () => {
     if (!currentBranch) return
@@ -113,6 +106,19 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
     setCreateDialogOpen(true)
   }
 
+  // Función para crear un pedido desde una mesa específica
+  const handleCreateTableOrder = (table: Table) => {
+    // Verificar que la mesa tenga un ID válido
+    if (!table || !table.id) {
+      console.error("Error: Intento de crear pedido con mesa inválida", table)
+      return
+    }
+
+    console.log("Creando pedido para mesa:", table)
+    setSelectedTable(table)
+    setCreateDialogOpen(true)
+  }
+
   const handleToggleNotifications = () => {
     const isEnabled = toggleNotifications()
     setNotificationsOn(isEnabled)
@@ -121,23 +127,6 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
       description: isEnabled ? "Recibirás alertas de nuevos pedidos" : "No recibirás alertas de nuevos pedidos",
       variant: "default",
     })
-  }
-
-  const handleTestSound = () => {
-    const success = playNotificationSound()
-    if (success) {
-      toast({
-        title: "Reproduciendo sonido",
-        description: "Si no escuchas nada, verifica el volumen de tu dispositivo",
-        variant: "default",
-      })
-    } else {
-      toast({
-        title: "Error al reproducir sonido",
-        description: "El sonido no está disponible o no se ha cargado correctamente",
-        variant: "destructive",
-      })
-    }
   }
 
   return (
@@ -153,9 +142,6 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
           >
             {notificationsOn ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
           </Button>
-          <Button variant="outline" size="sm" onClick={handleTestSound} title="Probar sonido de notificación">
-            <Volume2 className="h-4 w-4" />
-          </Button>
           <Button variant="outline" size="sm" onClick={loadOrders}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Actualizar
@@ -168,19 +154,6 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
           )}
         </div>
       </div>
-
-      {soundError && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error de sonido</AlertTitle>
-          <AlertDescription className="flex justify-between items-center">
-            <span>No se pudo cargar el sonido de notificación. Las alertas sonoras no funcionarán.</span>
-            <Button variant="outline" size="sm" onClick={reloadSound} className="ml-2">
-              Reintentar
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
 
       <NoBranchSelectedAlert />
 
@@ -228,7 +201,7 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
                     orders={tableOrders}
                     tenantId={tenantId}
                     branchId={currentBranch.id}
-                    onCreateOrder={handleCreateOrderForTable}
+                    onCreateOrder={handleCreateTableOrder}
                     onStatusChange={handleStatusChange}
                   />
                 )}
