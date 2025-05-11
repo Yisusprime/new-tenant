@@ -224,10 +224,12 @@ export function OrderDetailsDialog({
               <span>Subtotal</span>
               <span>{formatCurrency(order.subtotal)}</span>
             </div>
-            <div className="flex justify-between items-center mt-2">
-              <span>Impuestos</span>
-              <span>{formatCurrency(order.tax)}</span>
-            </div>
+            {order.tax > 0 && (
+              <div className="flex justify-between items-center mt-2 text-sm">
+                <span>Impuestos</span>
+                <span>{formatCurrency(order.tax)}</span>
+              </div>
+            )}
             <div className="flex justify-between items-center mt-4 font-bold">
               <span>Total</span>
               <span>{formatCurrency(order.total)}</span>

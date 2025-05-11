@@ -152,10 +152,16 @@ export function CreateOrderDialog({
       const config = await getRestaurantConfig(tenantId, branchId)
       if (config && config.basicInfo) {
         // Establecer la configuración de IVA
+        const isTaxEnabled = config.basicInfo.taxEnabled !== undefined ? config.basicInfo.taxEnabled : true
         setTaxIncluded(config.basicInfo.taxIncluded)
 
-        // Establecer la tasa de IVA (con valor predeterminado de 0.19 si no está definido)
-        setTaxRate(config.basicInfo.taxRate !== undefined ? config.basicInfo.taxRate : 0.19)
+        // Si el IVA está desactivado, establecer la tasa a 0
+        if (!isTaxEnabled) {
+          setTaxRate(0)
+        } else {
+          // Establecer la tasa de IVA (con valor predeterminado de 0.19 si no está definido)
+          setTaxRate(config.basicInfo.taxRate !== undefined ? config.basicInfo.taxRate : 0.19)
+        }
 
         // Establecer el código de moneda (con valor predeterminado de CLP si no está definido)
         setCurrencyCode(config.basicInfo.currencyCode || "CLP")
@@ -230,8 +236,9 @@ export function CreateOrderDialog({
   }
 
   const calculateTaxAmount = () => {
-    if (taxIncluded) {
-      return 0 // Si el IVA está incluido, no se añade al total
+    // Si el IVA está incluido o está desactivado (taxRate === 0), no se añade al total
+    if (taxIncluded || taxRate === 0) {
+      return 0
     }
     const subtotal = calculateSubtotal()
     return Math.round(subtotal * taxRate)

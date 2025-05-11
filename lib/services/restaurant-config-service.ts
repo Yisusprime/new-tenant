@@ -9,7 +9,8 @@ export interface RestaurantBasicInfo {
   localId: string
   logo?: string
   bannerImage?: string
-  taxIncluded: boolean
+  taxEnabled: boolean // Indica si el IVA está activado
+  taxIncluded: boolean // Indica si el IVA está incluido en los precios
   currencyCode: string
   taxRate: number
 }
@@ -301,7 +302,8 @@ export async function initializeRestaurantConfig(
         name: restaurantName,
         shortDescription: "",
         localId: tenantId,
-        taxIncluded: true,
+        taxEnabled: true, // IVA activado por defecto
+        taxIncluded: true, // IVA incluido en los precios por defecto
         currencyCode: "CLP", // Peso chileno por defecto
         taxRate: 0.19, // 19% por defecto (Chile)
       },
