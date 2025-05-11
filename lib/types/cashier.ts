@@ -1,7 +1,3 @@
-export type CashMovementType = "income" | "expense" | "initial" | "closing"
-export type CashBoxStatus = "active" | "closed" | "archived"
-export type PaymentMethod = "cash" | "card" | "transfer" | "other"
-
 export interface CashBox {
   id: string
   tenantId: string
@@ -11,13 +7,13 @@ export interface CashBox {
   initialAmount: number
   currentAmount: number
   expectedAmount: number
-  difference?: number
+  status: "active" | "closed" | "archived"
   openedAt?: string
   openedBy?: string
   closedAt?: string
   closedBy?: string
+  difference?: number
   notes?: string
-  status: CashBoxStatus
   createdAt?: string
   createdBy?: string
 }
@@ -32,11 +28,13 @@ export interface CashMovement {
   description: string
   createdAt: string
   createdBy: string
-  paymentMethod?: PaymentMethod
+  paymentMethod?: string
   category?: string
   reference?: string
   attachmentUrl?: string
 }
+
+export type CashMovementType = "income" | "expense" | "initial" | "closing"
 
 export interface CashCategory {
   id: string

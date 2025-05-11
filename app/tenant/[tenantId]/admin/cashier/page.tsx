@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useParams } from "next/navigation"
 import { useCashBox } from "@/lib/hooks/use-cash-box"
 import { CashBoxCard } from "./components/cash-box-card"
 import { OpenCashBoxDialog } from "./components/open-cash-box-dialog"
@@ -17,8 +18,10 @@ import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
 import { toast } from "@/components/ui/use-toast"
 
 export default function CashierPage() {
-  const { tenantId, currentBranch, hasActiveBranches } = useBranch()
-  const { cashBoxes, loading, error, loadCashBoxes } = useCashBox()
+  const params = useParams<{ tenantId: string }>()
+  const urlTenantId = params?.tenantId
+  const { currentBranch, hasActiveBranches } = useBranch()
+  const { cashBoxes, loading, error, loadCashBoxes, tenantId } = useCashBox()
   const [isInitialized, setIsInitialized] = useState(false)
 
   console.log("Estado de caja:", {
@@ -26,6 +29,7 @@ export default function CashierPage() {
     error,
     cashBoxesCount: cashBoxes.length,
     tenantId,
+    urlTenantId,
     branchId: currentBranch?.id,
     isInitialized,
   })
@@ -68,7 +72,7 @@ export default function CashierPage() {
   }
 
   const handleCreateCashBox = () => {
-    if (!currentBranch || !tenantId) {
+    if (!currentBranch) {
       toast({
         title: "Error",
         description: "Debes seleccionar una sucursal primero",
@@ -76,6 +80,16 @@ export default function CashierPage() {
       })
       return
     }
+
+    if (!urlTenantId && !tenantId) {
+      toast({
+        title: "Error",
+        description: "No se pudo identificar el tenant",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsCreateDialogOpen(true)
   }
 
@@ -103,7 +117,7 @@ export default function CashierPage() {
       </div>
 
       {/* Panel de depuración - solo visible en desarrollo */}
-      {process.env.NODE_ENV === "development" && (
+      {process.env.NODE_ENV !== "production" && (
         <Card className="bg-yellow-50">
           <CardContent className="pt-6">
             <h3 className="font-semibold mb-2">Información de depuración:</h3>
@@ -111,6 +125,7 @@ export default function CashierPage() {
               {JSON.stringify(
                 {
                   tenantId,
+                  urlTenantId,
                   branchId: currentBranch?.id,
                   loading,
                   error,
@@ -250,11 +265,11 @@ export default function CashierPage() {
         onSuccess={handleDialogSuccess}
       />
 
-      {tenantId && (
+      {(urlTenantId || tenantId) && (
         <CategoriesDialog
           isOpen={isCategoriesDialogOpen}
           onClose={() => setIsCategoriesDialogOpen(false)}
-          tenantId={tenantId}
+          tenantId={urlTenantId || tenantId || ""}
         />
       )}
     </div>

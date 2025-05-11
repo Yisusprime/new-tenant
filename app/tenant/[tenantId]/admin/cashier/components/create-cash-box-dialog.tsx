@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
+import { useParams } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,21 +20,34 @@ interface CreateCashBoxDialogProps {
 }
 
 export function CreateCashBoxDialog({ isOpen, onClose, onSuccess }: CreateCashBoxDialogProps) {
-  const { tenantId, currentBranch } = useBranch()
+  const params = useParams<{ tenantId: string }>()
+  const urlTenantId = params?.tenantId
+  const { currentBranch } = useBranch()
+  const { createCashBox, tenantId: contextTenantId } = useCashBox()
+
+  // Usar el tenantId de la URL si está disponible, de lo contrario usar el del contexto
+  const tenantId = urlTenantId || contextTenantId
+
   const [name, setName] = useState("Caja Principal")
   const [initialAmount, setInitialAmount] = useState(0)
   const [notes, setNotes] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { createCashBox } = useCashBox()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError(null)
 
-    if (!tenantId || !currentBranch) {
-      setError("No hay sucursal o tenant seleccionado")
+    if (!currentBranch) {
+      setError("No hay sucursal seleccionada")
+      setIsLoading(false)
+      return
+    }
+
+    if (!tenantId) {
+      setError("No se pudo identificar el tenant")
+      console.error("No hay tenantId disponible", { urlTenantId, contextTenantId })
       setIsLoading(false)
       return
     }
@@ -115,6 +129,17 @@ export function CreateCashBoxDialog({ isOpen, onClose, onSuccess }: CreateCashBo
             </div>
 
             {error && <div className="text-sm text-red-500 mt-2">{error}</div>}
+
+            {/* Información de depuración - solo visible en desarrollo */}
+            {process.env.NODE_ENV !== "production" && (
+              <div className="text-xs bg-yellow-50 p-2 rounded">
+                <p>Depuración:</p>
+                <p>tenantId: {tenantId || "no disponible"}</p>
+                <p>urlTenantId: {urlTenantId || "no disponible"}</p>
+                <p>contextTenantId: {contextTenantId || "no disponible"}</p>
+                <p>branchId: {currentBranch?.id || "no disponible"}</p>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>

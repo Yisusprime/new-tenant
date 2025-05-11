@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useParams } from "next/navigation"
 import {
   getCashBox,
   getOpenCashBox,
@@ -18,7 +19,13 @@ import type { CashBox, CashMovement, CashBoxSummary } from "@/lib/types/cashier"
 import { useBranch } from "@/lib/context/branch-context"
 
 export function useCashBox(cashBoxId?: string) {
-  const { currentBranch, tenantId } = useBranch()
+  const params = useParams<{ tenantId: string }>()
+  const urlTenantId = params?.tenantId
+  const { currentBranch, tenantId: contextTenantId } = useBranch()
+
+  // Usar el tenantId de la URL si está disponible, de lo contrario usar el del contexto
+  const tenantId = urlTenantId || contextTenantId
+
   const [cashBox, setCashBox] = useState<CashBox | null>(null)
   const [cashBoxes, setCashBoxes] = useState<CashBox[]>([])
   const [movements, setMovements] = useState<CashMovement[]>([])
@@ -29,6 +36,7 @@ export function useCashBox(cashBoxId?: string) {
   // Cargar la caja actual o la caja abierta
   const loadCashBox = useCallback(async () => {
     if (!currentBranch || !tenantId) {
+      console.log("No hay branch o tenant para cargar caja", { currentBranch, tenantId })
       setLoading(false) // Importante: terminar la carga si no hay branch o tenant
       return
     }
@@ -68,7 +76,7 @@ export function useCashBox(cashBoxId?: string) {
   // Cargar todas las cajas
   const loadCashBoxes = useCallback(async () => {
     if (!currentBranch || !tenantId) {
-      console.log("No hay branch o tenant seleccionado, terminando carga")
+      console.log("No hay branch o tenant para cargar cajas", { currentBranch, tenantId, urlTenantId, contextTenantId })
       setCashBoxes([])
       setLoading(false) // Importante: terminar la carga si no hay branch o tenant
       return
@@ -97,17 +105,22 @@ export function useCashBox(cashBoxId?: string) {
     } finally {
       setLoading(false) // Siempre terminar la carga, incluso si hay error
     }
-  }, [tenantId, currentBranch])
+  }, [tenantId, currentBranch, urlTenantId, contextTenantId])
 
   // Crear una nueva caja
   const createCashBox = useCallback(
     async (data: Partial<CashBox>) => {
-      if (!currentBranch || !tenantId) {
-        throw new Error("No hay sucursal o tenant seleccionado")
+      if (!currentBranch) {
+        throw new Error("No hay sucursal seleccionada")
+      }
+
+      if (!tenantId) {
+        console.error("No hay tenantId disponible", { urlTenantId, contextTenantId })
+        throw new Error("No se pudo identificar el tenant")
       }
 
       try {
-        console.log("Creando nueva caja con datos:", data)
+        console.log("Creando nueva caja con datos:", { ...data, tenantId, branchId: currentBranch.id })
         const newBox = await createCashBoxService(tenantId, currentBranch.id, data)
         console.log("Caja creada:", newBox)
 
@@ -121,14 +134,18 @@ export function useCashBox(cashBoxId?: string) {
         throw err
       }
     },
-    [tenantId, currentBranch],
+    [tenantId, currentBranch, urlTenantId, contextTenantId],
   )
 
   // Abrir una caja
   const openCashBox = useCallback(
     async (boxId: string, initialAmount: number, notes?: string) => {
-      if (!currentBranch || !tenantId) {
-        throw new Error("No hay sucursal o tenant seleccionado")
+      if (!currentBranch) {
+        throw new Error("No hay sucursal seleccionada")
+      }
+
+      if (!tenantId) {
+        throw new Error("No se pudo identificar el tenant")
       }
 
       try {
@@ -154,8 +171,12 @@ export function useCashBox(cashBoxId?: string) {
   // Cerrar una caja
   const closeCashBox = useCallback(
     async (boxId: string, finalAmount: number, notes?: string) => {
-      if (!currentBranch || !tenantId) {
-        throw new Error("No hay sucursal o tenant seleccionado")
+      if (!currentBranch) {
+        throw new Error("No hay sucursal seleccionada")
+      }
+
+      if (!tenantId) {
+        throw new Error("No se pudo identificar el tenant")
       }
 
       try {
@@ -181,8 +202,12 @@ export function useCashBox(cashBoxId?: string) {
   // Añadir un movimiento a la caja
   const addCashMovement = useCallback(
     async (boxId: string, data: Partial<CashMovement>) => {
-      if (!currentBranch || !tenantId) {
-        throw new Error("No hay sucursal o tenant seleccionado")
+      if (!currentBranch) {
+        throw new Error("No hay sucursal seleccionada")
+      }
+
+      if (!tenantId) {
+        throw new Error("No se pudo identificar el tenant")
       }
 
       try {
@@ -254,7 +279,7 @@ export function useCashBox(cashBoxId?: string) {
 
   // Cargar datos iniciales
   useEffect(() => {
-    console.log("Efecto de carga inicial:", { tenantId, branchId: currentBranch?.id })
+    console.log("Efecto de carga inicial:", { tenantId, branchId: currentBranch?.id, urlTenantId, contextTenantId })
 
     // Establecer un timeout para evitar carga infinita
     const timeoutId = setTimeout(() => {
@@ -276,7 +301,7 @@ export function useCashBox(cashBoxId?: string) {
     }
 
     return () => clearTimeout(timeoutId)
-  }, [loadCashBox, loadCashBoxes, tenantId, currentBranch, cashBoxId])
+  }, [loadCashBox, loadCashBoxes, tenantId, currentBranch, cashBoxId, urlTenantId, contextTenantId])
 
   return {
     cashBox,
@@ -291,5 +316,6 @@ export function useCashBox(cashBoxId?: string) {
     openCashBox,
     closeCashBox,
     addCashMovement,
+    tenantId, // Exportar el tenantId para depuración
   }
 }
