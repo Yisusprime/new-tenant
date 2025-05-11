@@ -10,11 +10,35 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
   const [updatedOrder, setUpdatedOrder] = useState<Order | null>(null)
   const notificationSound = useRef<HTMLAudioElement | null>(null)
   const notificationsEnabled = useRef<boolean>(true)
+  const [audioLoaded, setAudioLoaded] = useState(false)
+  const [audioError, setAudioError] = useState<string | null>(null)
 
   useEffect(() => {
     // Inicializar el sonido
     if (typeof window !== "undefined") {
-      notificationSound.current = new Audio("/sounds/new-order.mp3")
+      try {
+        const audio = new Audio("/sounds/new-order.mp3")
+
+        // Eventos para manejar la carga del audio
+        audio.addEventListener("canplaythrough", () => {
+          console.log("Audio cargado correctamente")
+          setAudioLoaded(true)
+          setAudioError(null)
+        })
+
+        audio.addEventListener("error", (e) => {
+          console.error("Error al cargar el audio:", e)
+          setAudioError("Error al cargar el sonido de notificación")
+          setAudioLoaded(false)
+        })
+
+        // Cargar el audio
+        audio.load()
+        notificationSound.current = audio
+      } catch (err) {
+        console.error("Error al inicializar el audio:", err)
+        setAudioError(`Error al inicializar el audio: ${err}`)
+      }
     }
 
     return () => {
@@ -49,9 +73,13 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
         setNewOrder(order)
 
         // Reproducir sonido si las notificaciones están habilitadas
-        if (notificationsEnabled.current && notificationSound.current) {
+        if (notificationsEnabled.current && notificationSound.current && audioLoaded) {
+          // Reiniciar el audio para poder reproducirlo múltiples veces
+          notificationSound.current.currentTime = 0
+
           notificationSound.current.play().catch((err) => {
             console.error("Error al reproducir sonido:", err)
+            setAudioError(`Error al reproducir sonido: ${err.message}`)
           })
         }
       }
@@ -75,11 +103,24 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
       off(ordersRef, "child_added", newOrderHandler)
       off(ordersRef, "child_changed", updatedOrderHandler)
     }
-  }, [tenantId, branchId])
+  }, [tenantId, branchId, audioLoaded])
 
   const toggleNotifications = () => {
     notificationsEnabled.current = !notificationsEnabled.current
     return notificationsEnabled.current
+  }
+
+  // Función para probar el sonido
+  const testSound = () => {
+    if (notificationSound.current && audioLoaded) {
+      notificationSound.current.currentTime = 0
+      return notificationSound.current.play().catch((err) => {
+        console.error("Error al probar el sonido:", err)
+        setAudioError(`Error al probar el sonido: ${err.message}`)
+        return Promise.reject(err)
+      })
+    }
+    return Promise.reject(new Error("Audio no cargado"))
   }
 
   return {
@@ -87,5 +128,8 @@ export function useOrderNotifications(tenantId: string, branchId: string | null)
     updatedOrder,
     notificationsEnabled: () => notificationsEnabled.current,
     toggleNotifications,
+    audioLoaded,
+    audioError,
+    testSound,
   }
 }
