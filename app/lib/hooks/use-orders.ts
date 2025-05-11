@@ -1,14 +1,13 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { type Order, OrderType, OrderStatus, type Table } from "../types/order"
+import { type Order, OrderType, OrderStatus } from "../types/order"
 import { useBranch } from "../context/branch-context"
 
 // Hook personalizado para gestionar pedidos
 export function useOrders() {
   const { currentBranch } = useBranch()
   const [orders, setOrders] = useState<Order[]>([])
-  const [tables, setTables] = useState<Table[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -117,12 +116,9 @@ export function useOrders() {
 
   return {
     orders,
-    tables,
     loading,
     error,
     loadAllOrders,
     loadOrdersByType,
   }
 }
-
-// Asegurarnos de que useOrders se exporte como una exportación nombrada

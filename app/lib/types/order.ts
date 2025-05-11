@@ -25,14 +25,6 @@ export interface Customer {
   address?: string
 }
 
-// Interfaz para la información de la mesa
-export interface Table {
-  id: string
-  name: string
-  capacity: number
-  isActive: boolean
-}
-
 // Interfaz para los elementos del pedido
 export interface OrderItem {
   id: string
@@ -49,20 +41,6 @@ export interface OrderItem {
   subtotal: number
 }
 
-// Interfaz para la información de entrega
-export interface DeliveryInfo {
-  address: string
-  instructions?: string
-  estimatedTime?: number // en minutos
-  deliveryFee: number
-}
-
-// Interfaz para la información de la mesa en un pedido
-export interface TableInfo {
-  id: string
-  name: string
-}
-
 // Interfaz para un pedido completo
 export interface Order {
   id: string
@@ -73,8 +51,10 @@ export interface Order {
   status: OrderStatus
   items: OrderItem[]
   customer?: Customer
-  tableInfo?: TableInfo
-  deliveryInfo?: DeliveryInfo
+  tableInfo?: {
+    id: string
+    name: string
+  }
   subtotal: number
   tax: number
   discount?: number
@@ -85,17 +65,3 @@ export interface Order {
   completedAt?: any // Firestore Timestamp o Date
   cancelledAt?: any // Firestore Timestamp o Date
 }
-
-// Interfaz para un resumen de pedido (para listados)
-export interface OrderSummary {
-  id: string
-  orderNumber: string
-  type: OrderType
-  status: OrderStatus
-  customerName?: string
-  tableInfo?: TableInfo
-  total: number
-  createdAt: any // Firestore Timestamp o Date
-}
-
-// Asegurarnos de que OrderType se exporte como una exportación nombrada
