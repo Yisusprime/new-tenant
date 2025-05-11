@@ -19,6 +19,8 @@ export default function CashierPage() {
   const { tenantId, currentBranch, hasActiveBranches } = useBranch()
   const { cashBoxes, loading, error, loadCashBoxes } = useCashBox()
 
+  console.log("Estado de caja:", { loading, error, cashBoxesCount: cashBoxes.length })
+
   const [selectedCashBoxId, setSelectedCashBoxId] = useState<string | null>(null)
   const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false)
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false)
@@ -89,6 +91,14 @@ export default function CashierPage() {
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center text-red-500">Error al cargar las cajas: {error}</div>
+              </CardContent>
+            </Card>
+          ) : cashBoxes.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center text-muted-foreground">
+                  No hay cajas disponibles. Crea una nueva caja para comenzar.
+                </div>
               </CardContent>
             </Card>
           ) : cashBoxes.filter((box) => box.status === "active").length === 0 ? (

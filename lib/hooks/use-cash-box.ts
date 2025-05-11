@@ -64,17 +64,24 @@ export function useCashBox(cashBoxId?: string) {
 
   // Cargar todas las cajas
   const loadCashBoxes = useCallback(async () => {
-    if (!currentBranch || !tenantId) return
+    if (!currentBranch || !tenantId) {
+      setCashBoxes([])
+      setLoading(false)
+      return
+    }
 
     try {
       setLoading(true)
       setError(null)
 
+      console.log("Cargando cajas para:", tenantId, currentBranch.id)
       const boxes = await getCashBoxes(tenantId, currentBranch.id)
+      console.log("Cajas cargadas:", boxes)
       setCashBoxes(boxes)
     } catch (err: any) {
-      setError(err.message || "Error al cargar las cajas")
       console.error("Error al cargar las cajas:", err)
+      setError(err.message || "Error al cargar las cajas")
+      setCashBoxes([])
     } finally {
       setLoading(false)
     }
@@ -216,9 +223,14 @@ export function useCashBox(cashBoxId?: string) {
 
   // Cargar datos iniciales
   useEffect(() => {
-    loadCashBox()
-    loadCashBoxes()
-  }, [loadCashBox, loadCashBoxes])
+    if (tenantId && currentBranch) {
+      console.log("Iniciando carga de datos de caja")
+      loadCashBoxes()
+      if (cashBoxId) {
+        loadCashBox()
+      }
+    }
+  }, [loadCashBox, loadCashBoxes, tenantId, currentBranch, cashBoxId])
 
   return {
     cashBox,

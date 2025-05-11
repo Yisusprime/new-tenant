@@ -3,21 +3,15 @@
 import type React from "react"
 
 import { useState } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import type { CashBox } from "@/lib/types/cashier"
 import { useCashBox } from "@/lib/hooks/use-cash-box"
 import { toast } from "@/components/ui/use-toast"
+import type { CashBox } from "@/lib/types/cashier"
+import { formatCurrency } from "@/lib/utils"
 
 interface OpenCashBoxDialogProps {
   isOpen: boolean
@@ -27,37 +21,29 @@ interface OpenCashBoxDialogProps {
 }
 
 export function OpenCashBoxDialog({ isOpen, onClose, cashBox, onSuccess }: OpenCashBoxDialogProps) {
-  const [initialAmount, setInitialAmount] = useState<number>(0)
-  const [notes, setNotes] = useState<string>("")
+  const [initialAmount, setInitialAmount] = useState(0)
+  const [notes, setNotes] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const { openCashBox } = useCashBox()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (initialAmount <= 0) {
-      toast({
-        title: "Error",
-        description: "El monto inicial debe ser mayor a cero",
-        variant: "destructive",
-      })
-      return
-    }
-
     setIsLoading(true)
 
     try {
       await openCashBox(cashBox.id, initialAmount, notes)
+
       toast({
         title: "Caja abierta",
-        description: "La caja ha sido abierta correctamente",
+        description: `La caja "${cashBox.name}" ha sido abierta con un monto inicial de ${formatCurrency(initialAmount)}.`,
       })
+
       onSuccess?.()
       onClose()
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Ha ocurrido un error al abrir la caja",
+        description: error.message || "No se pudo abrir la caja. Inténtalo de nuevo.",
         variant: "destructive",
       })
     } finally {
@@ -66,39 +52,34 @@ export function OpenCashBoxDialog({ isOpen, onClose, cashBox, onSuccess }: OpenC
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Abrir Caja</DialogTitle>
-          <DialogDescription>Ingresa el monto inicial con el que abrirás la caja {cashBox.name}.</DialogDescription>
+          <DialogTitle>Abrir caja: {cashBox.name}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="initialAmount" className="text-right">
-                Monto inicial
-              </Label>
+            <div className="grid gap-2">
+              <Label htmlFor="initialAmount">Monto inicial</Label>
               <Input
                 id="initialAmount"
                 type="number"
-                step="0.01"
                 min="0"
+                step="0.01"
                 value={initialAmount}
-                onChange={(e) => setInitialAmount(Number.parseFloat(e.target.value) || 0)}
-                className="col-span-3"
+                onChange={(e) => setInitialAmount(Number(e.target.value))}
+                placeholder="0.00"
                 required
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="notes" className="text-right">
-                Notas
-              </Label>
+            <div className="grid gap-2">
+              <Label htmlFor="notes">Notas (opcional)</Label>
               <Textarea
                 id="notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="col-span-3"
-                placeholder="Notas adicionales (opcional)"
+                placeholder="Añade notas o comentarios sobre la apertura de caja"
+                rows={3}
               />
             </div>
           </div>
@@ -107,7 +88,7 @@ export function OpenCashBoxDialog({ isOpen, onClose, cashBox, onSuccess }: OpenC
               Cancelar
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Abriendo..." : "Abrir Caja"}
+              {isLoading ? "Abriendo..." : "Abrir caja"}
             </Button>
           </DialogFooter>
         </form>

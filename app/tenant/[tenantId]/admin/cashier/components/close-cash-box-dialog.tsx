@@ -2,22 +2,15 @@
 
 import type React from "react"
 
-import { useState } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { useState, useEffect } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import type { CashBox } from "@/lib/types/cashier"
 import { useCashBox } from "@/lib/hooks/use-cash-box"
 import { toast } from "@/components/ui/use-toast"
+import type { CashBox } from "@/lib/types/cashier"
 import { formatCurrency } from "@/lib/utils"
 
 interface CloseCashBoxDialogProps {
@@ -28,39 +21,34 @@ interface CloseCashBoxDialogProps {
 }
 
 export function CloseCashBoxDialog({ isOpen, onClose, cashBox, onSuccess }: CloseCashBoxDialogProps) {
-  const [finalAmount, setFinalAmount] = useState<number>(cashBox.expectedAmount || 0)
-  const [notes, setNotes] = useState<string>("")
+  const [finalAmount, setFinalAmount] = useState(cashBox.expectedAmount)
+  const [difference, setDifference] = useState(0)
+  const [notes, setNotes] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const { closeCashBox } = useCashBox()
 
-  const difference = finalAmount - (cashBox.expectedAmount || 0)
+  useEffect(() => {
+    setDifference(finalAmount - cashBox.expectedAmount)
+  }, [finalAmount, cashBox.expectedAmount])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (finalAmount < 0) {
-      toast({
-        title: "Error",
-        description: "El monto final no puede ser negativo",
-        variant: "destructive",
-      })
-      return
-    }
-
     setIsLoading(true)
 
     try {
       await closeCashBox(cashBox.id, finalAmount, notes)
+
       toast({
         title: "Caja cerrada",
-        description: "La caja ha sido cerrada correctamente",
+        description: `La caja "${cashBox.name}" ha sido cerrada con un monto final de ${formatCurrency(finalAmount)}.`,
       })
+
       onSuccess?.()
       onClose()
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Ha ocurrido un error al cerrar la caja",
+        description: error.message || "No se pudo cerrar la caja. Inténtalo de nuevo.",
         variant: "destructive",
       })
     } finally {
@@ -69,67 +57,54 @@ export function CloseCashBoxDialog({ isOpen, onClose, cashBox, onSuccess }: Clos
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Cerrar Caja</DialogTitle>
-          <DialogDescription>Ingresa el monto final con el que cerrarás la caja {cashBox.name}.</DialogDescription>
+          <DialogTitle>Cerrar caja: {cashBox.name}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="expectedAmount" className="text-right">
-                Monto esperado
-              </Label>
-              <div className="col-span-3">
-                <Input
-                  id="expectedAmount"
-                  type="text"
-                  value={formatCurrency(cashBox.expectedAmount || 0)}
-                  disabled
-                  className="bg-muted"
-                />
+            <div className="grid gap-2">
+              <Label>Monto esperado</Label>
+              <div className="p-2 bg-muted rounded-md text-center font-medium">
+                {formatCurrency(cashBox.expectedAmount)}
               </div>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="finalAmount" className="text-right">
-                Monto final
-              </Label>
+            <div className="grid gap-2">
+              <Label htmlFor="finalAmount">Monto final (real en caja)</Label>
               <Input
                 id="finalAmount"
                 type="number"
-                step="0.01"
                 min="0"
+                step="0.01"
                 value={finalAmount}
-                onChange={(e) => setFinalAmount(Number.parseFloat(e.target.value) || 0)}
-                className="col-span-3"
+                onChange={(e) => setFinalAmount(Number(e.target.value))}
+                placeholder="0.00"
                 required
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="difference" className="text-right">
-                Diferencia
-              </Label>
-              <div className="col-span-3">
-                <Input
-                  id="difference"
-                  type="text"
-                  value={formatCurrency(difference)}
-                  disabled
-                  className={`bg-muted ${difference < 0 ? "text-red-500" : difference > 0 ? "text-green-500" : ""}`}
-                />
+            <div className="grid gap-2">
+              <Label>Diferencia</Label>
+              <div
+                className={`p-2 rounded-md text-center font-medium ${
+                  difference < 0
+                    ? "bg-red-100 text-red-700"
+                    : difference > 0
+                      ? "bg-green-100 text-green-700"
+                      : "bg-muted"
+                }`}
+              >
+                {formatCurrency(difference)}
               </div>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="notes" className="text-right">
-                Notas
-              </Label>
+            <div className="grid gap-2">
+              <Label htmlFor="notes">Notas (opcional)</Label>
               <Textarea
                 id="notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="col-span-3"
-                placeholder="Notas adicionales (opcional)"
+                placeholder="Añade notas o comentarios sobre el cierre de caja"
+                rows={3}
               />
             </div>
           </div>
@@ -138,7 +113,7 @@ export function CloseCashBoxDialog({ isOpen, onClose, cashBox, onSuccess }: Clos
               Cancelar
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Cerrando..." : "Cerrar Caja"}
+              {isLoading ? "Cerrando..." : "Cerrar caja"}
             </Button>
           </DialogFooter>
         </form>

@@ -24,6 +24,7 @@ export async function createCashBox(tenantId: string, branchId: string, data: Pa
       status: "active",
     }
 
+    console.log("Creando nueva caja:", newCashBox)
     await set(cashBoxRef, newCashBox)
     return newCashBox
   } catch (error) {
@@ -244,18 +245,25 @@ export async function getCashBox(tenantId: string, branchId: string, cashBoxId: 
 // Función para obtener todas las cajas de una sucursal
 export async function getCashBoxes(tenantId: string, branchId: string): Promise<CashBox[]> {
   try {
+    console.log(`Obteniendo cajas para tenant: ${tenantId}, branch: ${branchId}`)
     const cashBoxesRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/cashBoxes`)
     const snapshot = await get(cashBoxesRef)
 
+    console.log("Snapshot existe:", snapshot.exists())
+
     if (!snapshot.exists()) {
+      console.log("No hay cajas, devolviendo array vacío")
       return []
     }
 
     const cashBoxes: CashBox[] = []
     snapshot.forEach((childSnapshot) => {
-      cashBoxes.push(childSnapshot.val() as CashBox)
+      const cashBox = childSnapshot.val() as CashBox
+      console.log("Caja encontrada:", cashBox.id, cashBox.name)
+      cashBoxes.push(cashBox)
     })
 
+    console.log(`Total de cajas encontradas: ${cashBoxes.length}`)
     return cashBoxes
   } catch (error) {
     console.error("Error al obtener cajas:", error)

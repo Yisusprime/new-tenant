@@ -3,14 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -24,37 +17,32 @@ interface CreateCashBoxDialogProps {
 }
 
 export function CreateCashBoxDialog({ isOpen, onClose, onSuccess }: CreateCashBoxDialogProps) {
-  const [name, setName] = useState<string>("")
+  const [name, setName] = useState("Caja Principal")
+  const [initialAmount, setInitialAmount] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const { createCashBox } = useCashBox()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (!name.trim()) {
-      toast({
-        title: "Error",
-        description: "El nombre de la caja es requerido",
-        variant: "destructive",
-      })
-      return
-    }
-
     setIsLoading(true)
 
     try {
-      await createCashBox({ name })
+      await createCashBox({
+        name,
+        initialAmount,
+      })
+
       toast({
         title: "Caja creada",
-        description: "La caja ha sido creada correctamente",
+        description: `La caja "${name}" ha sido creada exitosamente.`,
       })
-      setName("")
+
       onSuccess?.()
       onClose()
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Ha ocurrido un error al crear la caja",
+        description: error.message || "No se pudo crear la caja. Inténtalo de nuevo.",
         variant: "destructive",
       })
     } finally {
@@ -63,25 +51,33 @@ export function CreateCashBoxDialog({ isOpen, onClose, onSuccess }: CreateCashBo
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Crear Nueva Caja</DialogTitle>
-          <DialogDescription>Ingresa el nombre para la nueva caja.</DialogDescription>
+          <DialogTitle>Crear nueva caja</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Nombre
-              </Label>
+            <div className="grid gap-2">
+              <Label htmlFor="name">Nombre de la caja</Label>
               <Input
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="col-span-3"
+                placeholder="Ej: Caja Principal"
                 required
-                disabled={isLoading}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="initialAmount">Monto inicial (opcional)</Label>
+              <Input
+                id="initialAmount"
+                type="number"
+                min="0"
+                step="0.01"
+                value={initialAmount}
+                onChange={(e) => setInitialAmount(Number(e.target.value))}
+                placeholder="0.00"
               />
             </div>
           </div>
@@ -90,7 +86,7 @@ export function CreateCashBoxDialog({ isOpen, onClose, onSuccess }: CreateCashBo
               Cancelar
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Creando..." : "Crear Caja"}
+              {isLoading ? "Creando..." : "Crear caja"}
             </Button>
           </DialogFooter>
         </form>

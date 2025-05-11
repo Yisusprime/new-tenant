@@ -1,5 +1,23 @@
 export type CashMovementType = "income" | "expense" | "initial" | "closing"
 
+export interface CashBox {
+  id: string
+  branchId: string
+  tenantId: string
+  name: string
+  isOpen: boolean
+  initialAmount: number
+  currentAmount: number
+  expectedAmount: number
+  openedAt?: string
+  openedBy?: string
+  closedAt?: string
+  closedBy?: string
+  difference?: number
+  notes?: string
+  status: "active" | "closed"
+}
+
 export interface CashMovement {
   id: string
   type: CashMovementType
@@ -14,24 +32,6 @@ export interface CashMovement {
   category?: string
   reference?: string
   attachmentUrl?: string
-}
-
-export interface CashBox {
-  id: string
-  branchId: string
-  tenantId: string
-  name: string
-  isOpen: boolean
-  openedAt?: string
-  openedBy?: string
-  closedAt?: string
-  closedBy?: string
-  initialAmount: number
-  currentAmount: number
-  expectedAmount: number
-  difference?: number
-  notes?: string
-  status: "active" | "closed" | "archived"
 }
 
 export interface CashCategory {
