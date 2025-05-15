@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -9,9 +9,11 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2 } from "lucide-react"
-import { closeCashRegister } from "@/lib/services/cash-register-service"
+import { closeCashRegister, getCashRegisterSummary } from "@/lib/services/cash-register-service"
 import { formatCurrency } from "@/lib/utils"
 import type { CashRegister, CashRegisterSummary } from "@/lib/types/cash-register"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
 
 // Esquema de validación
 const cashRegisterCloseSchema = z.object({
@@ -41,10 +43,29 @@ export function CashRegisterCloseForm({
   onCancel,
 }: CashRegisterCloseFormProps) {
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [localSummary, setLocalSummary] = useState<CashRegisterSummary | null>(summary)
+
+  // Cargar el resumen si no se proporciona
+  useEffect(() => {
+    const loadSummary = async () => {
+      if (!summary && register) {
+        try {
+          const data = await getCashRegisterSummary(tenantId, branchId, register.id)
+          setLocalSummary(data)
+        } catch (err) {
+          console.error("Error al cargar resumen:", err)
+          setError("No se pudo cargar el resumen de caja. Por favor, intente nuevamente.")
+        }
+      }
+    }
+
+    loadSummary()
+  }, [tenantId, branchId, register, summary])
 
   // Valores por defecto
   const defaultValues: Partial<CashRegisterCloseFormValues> = {
-    actualBalance: summary.expectedBalance,
+    actualBalance: localSummary?.expectedBalance || register?.currentBalance || 0,
     notes: "",
   }
 
@@ -53,12 +74,24 @@ export function CashRegisterCloseForm({
     defaultValues,
   })
 
+  // Actualizar los valores por defecto cuando cambia el resumen
+  useEffect(() => {
+    if (localSummary) {
+      form.setValue("actualBalance", localSummary.expectedBalance)
+    }
+  }, [localSummary, form])
+
   const watchActualBalance = form.watch("actualBalance")
-  const difference = (watchActualBalance || 0) - summary.expectedBalance
+  const difference = (watchActualBalance || 0) - (localSummary?.expectedBalance || 0)
 
   const onSubmit = async (data: CashRegisterCloseFormValues) => {
     try {
       setLoading(true)
+      setError(null)
+
+      if (!register || !userId) {
+        throw new Error("Faltan datos necesarios para cerrar la caja")
+      }
 
       const result = await closeCashRegister(tenantId, branchId, register.id, userId, {
         actualBalance: data.actualBalance,
@@ -66,17 +99,38 @@ export function CashRegisterCloseForm({
       })
 
       onSuccess(result)
-    } catch (error) {
-      console.error("Error al cerrar caja:", error)
-      // Aquí podrías mostrar un mensaje de error
+    } catch (err) {
+      console.error("Error al cerrar caja:", err)
+      setError(err instanceof Error ? err.message : "Error desconocido al cerrar la caja")
     } finally {
       setLoading(false)
     }
   }
 
+  // Si no tenemos los datos necesarios, mostrar un mensaje de error
+  if (!register || (!summary && !localSummary)) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          No se pudieron cargar los datos necesarios para cerrar la caja. Por favor, intente nuevamente.
+        </AlertDescription>
+      </Alert>
+    )
+  }
+
+  const summaryData = localSummary || summary
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
           <div>
             <h3 className="font-medium text-sm text-gray-500">Balance Inicial</h3>
@@ -84,18 +138,18 @@ export function CashRegisterCloseForm({
           </div>
           <div>
             <h3 className="font-medium text-sm text-gray-500">Balance Esperado</h3>
-            <p className="text-lg font-semibold">{formatCurrency(summary.expectedBalance)}</p>
+            <p className="text-lg font-semibold">{formatCurrency(summaryData.expectedBalance)}</p>
           </div>
           <div>
             <h3 className="font-medium text-sm text-gray-500">Total Ingresos</h3>
             <p className="text-lg font-semibold text-green-600">
-              {formatCurrency(summary.totalIncome + summary.totalSales + summary.totalDeposits)}
+              {formatCurrency(summaryData.totalIncome + summaryData.totalSales + summaryData.totalDeposits)}
             </p>
           </div>
           <div>
             <h3 className="font-medium text-sm text-gray-500">Total Egresos</h3>
             <p className="text-lg font-semibold text-red-600">
-              {formatCurrency(summary.totalExpense + summary.totalRefunds + summary.totalWithdrawals)}
+              {formatCurrency(summaryData.totalExpense + summaryData.totalRefunds + summaryData.totalWithdrawals)}
             </p>
           </div>
         </div>
@@ -107,7 +161,7 @@ export function CashRegisterCloseForm({
             <FormItem>
               <FormLabel>Balance Final Real</FormLabel>
               <FormControl>
-                <Input type="number" min="0" step="1" {...field} />
+                <Input type="number" min="0" step="0.01" {...field} />
               </FormControl>
               <FormDescription>Ingrese el monto real contado al cierre de caja</FormDescription>
               <FormMessage />

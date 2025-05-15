@@ -8,6 +8,8 @@ import { getCashRegisterSummary } from "@/lib/services/cash-register-service"
 import type { CashRegisterSummary as CashRegisterSummaryType } from "@/lib/types/cash-register"
 import { ArrowDownCircle, ArrowUpCircle, DollarSign, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
 
 interface CashRegisterSummaryProps {
   tenantId: string
@@ -19,21 +21,38 @@ interface CashRegisterSummaryProps {
 export function CashRegisterSummary({ tenantId, branchId, registerId }: CashRegisterSummaryProps) {
   const [summary, setSummary] = useState<CashRegisterSummaryType | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const loadSummary = async () => {
     try {
       setLoading(true)
+      setError(null)
+
+      // Verificar que tenemos todos los datos necesarios
+      if (!tenantId || !branchId || !registerId) {
+        throw new Error("Faltan datos necesarios para cargar el resumen")
+      }
+
       const data = await getCashRegisterSummary(tenantId, branchId, registerId)
+
+      if (!data) {
+        throw new Error("No se pudo obtener el resumen de caja")
+      }
+
       setSummary(data)
-    } catch (error) {
-      console.error("Error al cargar resumen:", error)
+    } catch (err) {
+      console.error("Error al cargar resumen:", err)
+      setError(err instanceof Error ? err.message : "Error desconocido al cargar el resumen")
+      setSummary(null)
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    loadSummary()
+    if (tenantId && branchId && registerId) {
+      loadSummary()
+    }
   }, [tenantId, branchId, registerId])
 
   if (loading) {
@@ -52,14 +71,24 @@ export function CashRegisterSummary({ tenantId, branchId, registerId }: CashRegi
     )
   }
 
-  if (!summary) {
+  if (error || !summary) {
     return (
-      <div className="text-center p-4">
-        <p className="text-red-500">Error al cargar el resumen de caja</p>
-        <Button variant="outline" size="sm" onClick={loadSummary} className="mt-2">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Reintentar
-        </Button>
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-medium">Resumen de Caja</h3>
+          <Button variant="outline" size="sm" onClick={loadSummary}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Reintentar
+          </Button>
+        </div>
+
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error al cargar el resumen de caja</AlertTitle>
+          <AlertDescription>
+            {error || "No se pudo cargar la información. Por favor, intente nuevamente."}
+          </AlertDescription>
+        </Alert>
       </div>
     )
   }

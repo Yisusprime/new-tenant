@@ -13,6 +13,10 @@ import type {
 // Función para obtener todas las cajas de una sucursal
 export async function getCashRegisters(tenantId: string, branchId: string): Promise<CashRegister[]> {
   try {
+    if (!tenantId || !branchId) {
+      throw new Error("Tenant ID y Branch ID son requeridos")
+    }
+
     const registersRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/cashRegisters`)
     const snapshot = await get(registersRef)
 
@@ -41,6 +45,10 @@ export async function getCashRegister(
   registerId: string,
 ): Promise<CashRegister | null> {
   try {
+    if (!tenantId || !branchId || !registerId) {
+      throw new Error("Tenant ID, Branch ID y Register ID son requeridos")
+    }
+
     const registerRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/cashRegisters/${registerId}`)
     const snapshot = await get(registerRef)
 
@@ -66,6 +74,10 @@ export async function createCashRegister(
   registerData: CashRegisterFormData,
 ): Promise<CashRegister> {
   try {
+    if (!tenantId || !branchId || !userId) {
+      throw new Error("Tenant ID, Branch ID y User ID son requeridos")
+    }
+
     const timestamp = new Date().toISOString()
     const registersRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/cashRegisters`)
 
@@ -108,6 +120,10 @@ export async function updateCashRegister(
   registerData: Partial<CashRegisterFormData>,
 ): Promise<CashRegister> {
   try {
+    if (!tenantId || !branchId || !registerId) {
+      throw new Error("Tenant ID, Branch ID y Register ID son requeridos")
+    }
+
     const timestamp = new Date().toISOString()
     const registerRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/cashRegisters/${registerId}`)
 
@@ -153,6 +169,10 @@ export async function closeCashRegister(
   closeData: CashRegisterCloseData,
 ): Promise<CashRegister> {
   try {
+    if (!tenantId || !branchId || !registerId || !userId) {
+      throw new Error("Tenant ID, Branch ID, Register ID y User ID son requeridos")
+    }
+
     const timestamp = new Date().toISOString()
     const registerRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/cashRegisters/${registerId}`)
 
@@ -216,6 +236,10 @@ export async function getCashMovements(
   registerId: string,
 ): Promise<CashMovement[]> {
   try {
+    if (!tenantId || !branchId || !registerId) {
+      throw new Error("Tenant ID, Branch ID y Register ID son requeridos")
+    }
+
     const movementsRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/cashMovements`)
     const movementsQuery = query(movementsRef, orderByChild("registerId"), equalTo(registerId))
     const snapshot = await get(movementsQuery)
@@ -246,6 +270,10 @@ export async function createCashMovement(
   movementData: CashMovementFormData,
 ): Promise<CashMovement> {
   try {
+    if (!tenantId || !branchId || !userId || !movementData.registerId) {
+      throw new Error("Tenant ID, Branch ID, User ID y Register ID son requeridos")
+    }
+
     const timestamp = new Date().toISOString()
     const movementsRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/cashMovements`)
     const registerRef = ref(
@@ -319,6 +347,10 @@ export async function getCashRegisterSummary(
   registerId: string,
 ): Promise<CashRegisterSummary> {
   try {
+    if (!tenantId || !branchId || !registerId) {
+      throw new Error("Tenant ID, Branch ID y Register ID son requeridos")
+    }
+
     // Obtener la caja
     const register = await getCashRegister(tenantId, branchId, registerId)
     if (!register) {
@@ -409,6 +441,10 @@ export async function getCashRegisterSummary(
 // Función para obtener las cajas abiertas de una sucursal
 export async function getOpenCashRegisters(tenantId: string, branchId: string): Promise<CashRegister[]> {
   try {
+    if (!tenantId || !branchId) {
+      throw new Error("Tenant ID y Branch ID son requeridos")
+    }
+
     const registers = await getCashRegisters(tenantId, branchId)
     return registers.filter((register) => register.status === "open")
   } catch (error) {
@@ -429,6 +465,10 @@ export async function registerSale(
   paymentMethod: string,
 ): Promise<CashMovement> {
   try {
+    if (!tenantId || !branchId || !userId || !registerId || !orderId) {
+      throw new Error("Faltan datos requeridos para registrar la venta")
+    }
+
     return await createCashMovement(tenantId, branchId, userId, {
       registerId,
       type: "sale",
@@ -457,6 +497,10 @@ export async function registerRefund(
   reason: string,
 ): Promise<CashMovement> {
   try {
+    if (!tenantId || !branchId || !userId || !registerId || !orderId) {
+      throw new Error("Faltan datos requeridos para registrar el reembolso")
+    }
+
     return await createCashMovement(tenantId, branchId, userId, {
       registerId,
       type: "refund",
