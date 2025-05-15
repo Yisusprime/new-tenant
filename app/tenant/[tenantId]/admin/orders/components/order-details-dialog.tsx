@@ -1,14 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { useState, useEffect } from "react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -27,10 +20,19 @@ import {
 } from "@/components/ui/alert-dialog"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { Printer, Utensils } from "lucide-react"
+import { Loader2, DollarSign, AlertCircle } from "lucide-react"
 import { PrintTicketDialog } from "@/components/print-ticket-dialog"
 import { PrintCommandDialog } from "@/components/print-command-dialog"
 import { usePrintTicket } from "@/lib/hooks/use-print-ticket"
+import { toast } from "@/components/ui/use-toast"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { useUser } from "@/lib/hooks/use-user"
+
+// Añadir los imports necesarios
+import { getOpenCashRegisters, registerSale } from "@/lib/services/cash-register-service"
+import type { CashRegister } from "@/lib/types/cash-register"
 
 interface OrderDetailsDialogProps {
   order: Order
@@ -53,6 +55,73 @@ export function OrderDetailsDialog({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const { isPrintDialogOpen, setIsPrintDialogOpen, isCommandDialogOpen, setIsCommandDialogOpen, restaurantInfo } =
     usePrintTicket(tenantId, branchId)
+  const { user } = useUser()
+
+  // Añadir estados para la caja
+  const [cashRegisters, setCashRegisters] = useState<CashRegister[]>([])
+  const [selectedCashRegisterId, setSelectedCashRegisterId] = useState<string>("")
+  const [showCashRegisterSection, setShowCashRegisterSection] = useState(false)
+  const [registeringInCash, setRegisteringInCash] = useState(false)
+
+  // Añadir función para cargar cajas
+  const loadCashRegisters = async () => {
+    try {
+      if (tenantId && branchId) {
+        const openRegisters = await getOpenCashRegisters(tenantId, branchId)
+        setCashRegisters(openRegisters)
+
+        // Si hay una caja abierta, seleccionarla por defecto
+        if (openRegisters.length > 0) {
+          setSelectedCashRegisterId(openRegisters[0].id)
+        }
+      }
+    } catch (error) {
+      console.error("Error al cargar cajas:", error)
+    }
+  }
+
+  // Modificar useEffect para cargar cajas
+  useEffect(() => {
+    if (open && order) {
+      loadCashRegisters()
+    }
+  }, [open, order, tenantId, branchId])
+
+  // Añadir función para registrar en caja
+  const handleRegisterInCash = async () => {
+    if (!order || !selectedCashRegisterId || !user) return
+
+    try {
+      setRegisteringInCash(true)
+      await registerSale(
+        tenantId,
+        branchId,
+        user.uid,
+        selectedCashRegisterId,
+        order.id,
+        order.orderNumber,
+        order.total,
+        order.paymentMethod || "cash",
+      )
+
+      toast({
+        title: "Venta registrada",
+        description: `La venta se ha registrado correctamente en la caja`,
+        variant: "default",
+      })
+
+      setShowCashRegisterSection(false)
+    } catch (error) {
+      console.error("Error al registrar venta en caja:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo registrar la venta en la caja",
+        variant: "destructive",
+      })
+    } finally {
+      setRegisteringInCash(false)
+    }
+  }
 
   const handleStatusChange = async (status: OrderStatus) => {
     try {
@@ -262,58 +331,74 @@ export function OrderDetailsDialog({
             </div>
           </div>
 
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <div className="flex gap-2 w-full sm:w-auto">
-              <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)} disabled={loading}>
-                Eliminar Pedido
-              </Button>
-              <div className="flex gap-1">
+          {/* Sección para registrar en caja */}
+          {order && order.status !== "cancelled" && (
+            <div className="mt-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium">Registrar en Caja</h3>
                 <Button
                   variant="outline"
-                  size="icon"
-                  onClick={() => setIsPrintDialogOpen(true)}
-                  title="Imprimir Ticket"
+                  size="sm"
+                  onClick={() => {
+                    setShowCashRegisterSection(!showCashRegisterSection)
+                    if (!showCashRegisterSection) {
+                      loadCashRegisters()
+                    }
+                  }}
                 >
-                  <Printer className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setIsCommandDialogOpen(true)}
-                  title="Imprimir Comanda"
-                >
-                  <Utensils className="h-4 w-4" />
+                  {showCashRegisterSection ? "Ocultar" : "Mostrar"}
                 </Button>
               </div>
+
+              {showCashRegisterSection && (
+                <div className="mt-4 space-y-4">
+                  {cashRegisters.length === 0 ? (
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>No hay cajas abiertas</AlertTitle>
+                      <AlertDescription>Para registrar esta venta, primero debe abrir una caja.</AlertDescription>
+                    </Alert>
+                  ) : (
+                    <>
+                      <div>
+                        <Label htmlFor="cashRegister">Seleccionar Caja</Label>
+                        <Select value={selectedCashRegisterId} onValueChange={setSelectedCashRegisterId}>
+                          <SelectTrigger id="cashRegister">
+                            <SelectValue placeholder="Seleccionar caja" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {cashRegisters.map((register) => (
+                              <SelectItem key={register.id} value={register.id}>
+                                {register.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <Button
+                        onClick={handleRegisterInCash}
+                        disabled={registeringInCash || !selectedCashRegisterId}
+                        className="w-full"
+                      >
+                        {registeringInCash ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Registrando...
+                          </>
+                        ) : (
+                          <>
+                            <DollarSign className="mr-2 h-4 w-4" />
+                            Registrar Venta en Caja
+                          </>
+                        )}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => handleStatusChange("cancelled")}
-                disabled={loading || order.status === "cancelled"}
-              >
-                Cancelar Pedido
-              </Button>
-              <Button
-                onClick={() => {
-                  const nextStatus: Record<OrderStatus, OrderStatus> = {
-                    pending: "preparing",
-                    preparing: "ready",
-                    ready: "delivered",
-                    delivered: "delivered",
-                    cancelled: "cancelled",
-                  }
-                  handleStatusChange(nextStatus[order.status])
-                }}
-                disabled={loading || order.status === "delivered" || order.status === "cancelled"}
-              >
-                {order.status === "pending" && "Iniciar Preparación"}
-                {order.status === "preparing" && "Marcar como Listo"}
-                {order.status === "ready" && "Marcar como Entregado"}
-                {(order.status === "delivered" || order.status === "cancelled") && "Completado"}
-              </Button>
-            </div>
-          </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
 

@@ -26,6 +26,11 @@ import { ProductsStep } from "./products-step"
 import { PaymentStep } from "./payment-step"
 import { OrderSummary } from "./order-summary"
 
+// Añadir el import para el servicio de caja
+import { getOpenCashRegisters, registerSale } from "@/lib/services/cash-register-service"
+import type { CashRegister } from "@/lib/types/cash-register"
+import { useAuth } from "@/hooks/use-auth"
+
 interface CreateOrderDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -80,6 +85,12 @@ export function CreateOrderDialog({
   const [currentStep, setCurrentStep] = useState(1)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  // Añadir estado para las cajas disponibles y la caja seleccionada
+  const [cashRegisters, setCashRegisters] = useState<CashRegister[]>([])
+  const [selectedCashRegisterId, setSelectedCashRegisterId] = useState<string>("")
+
+  const { user } = useAuth()
+
   // Asegurarnos de que selectedTableId nunca sea una cadena vacía
   useEffect(() => {
     if (selectedTableId === "") {
@@ -88,6 +99,23 @@ export function CreateOrderDialog({
     }
   }, [selectedTableId])
 
+  // Cargar las cajas disponibles al abrir el diálogo
+  const loadCashRegisters = async () => {
+    try {
+      if (tenantId && branchId) {
+        const openRegisters = await getOpenCashRegisters(tenantId, branchId)
+        setCashRegisters(openRegisters)
+
+        // Si hay una caja abierta, seleccionarla por defecto
+        if (openRegisters.length > 0) {
+          setSelectedCashRegisterId(openRegisters[0].id)
+        }
+      }
+    } catch (error) {
+      console.error("Error al cargar cajas:", error)
+    }
+  }
+
   // Cargar datos al abrir el diálogo
   useEffect(() => {
     if (open) {
@@ -95,6 +123,7 @@ export function CreateOrderDialog({
       loadExtras()
       loadTables()
       loadRestaurantConfig()
+      loadCashRegisters() // Añadir esta línea
 
       // Si hay una mesa seleccionada, establecer el tipo de pedido a "table"
       if (selectedTable && selectedTable.id) {
@@ -360,7 +389,7 @@ export function CreateOrderDialog({
         tax,
         total,
         taxIncluded,
-        taxEnabled, // Añadir esta propiedad para saber si el IVA está activado
+        taxEnabled,
       }
 
       // Campos opcionales
@@ -415,7 +444,28 @@ export function CreateOrderDialog({
         }
       }
 
-      await createOrder(tenantId, branchId, orderData)
+      // Crear el pedido
+      const createdOrder = await createOrder(tenantId, branchId, orderData)
+
+      // Si hay una caja seleccionada, registrar la venta
+      if (selectedCashRegisterId && user) {
+        try {
+          await registerSale(
+            tenantId,
+            branchId,
+            user.uid,
+            selectedCashRegisterId,
+            createdOrder.id,
+            createdOrder.orderNumber,
+            total,
+            paymentMethod,
+          )
+        } catch (error) {
+          console.error("Error al registrar venta en caja:", error)
+          // No interrumpir el flujo si falla el registro en caja
+        }
+      }
+
       resetForm()
       onOrderCreated()
     } catch (error) {
@@ -519,6 +569,11 @@ export function CreateOrderDialog({
             handleCustomTipChange={handleCustomTipChange}
             errors={errors}
             currencyCode={currencyCode}
+            // Nuevas propiedades
+            tenantId={tenantId}
+            branchId={branchId}
+            selectedCashRegisterId={selectedCashRegisterId}
+            setSelectedCashRegisterId={setSelectedCashRegisterId}
           />
         )
       default:

@@ -13,7 +13,7 @@ interface AuthContextType {
   tenantId: string | null
 }
 
-const AuthContext = createContext<AuthContextType>({
+export const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   signOut: async () => {},

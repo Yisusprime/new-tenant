@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { CreditCard, Percent, Tag } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
+import { getOpenCashRegisters } from "@/lib/services/cash-register-service"
+import type { CashRegister } from "@/lib/types/cash-register"
 
 interface PaymentStepProps {
   paymentMethod: string
@@ -28,6 +30,12 @@ interface PaymentStepProps {
   handleTipPercentageChange: (percentage: number) => void
   handleCustomTipChange: (value: string) => void
   errors: Record<string, string>
+  currencyCode: string
+  // Nuevas propiedades
+  tenantId?: string
+  branchId?: string
+  selectedCashRegisterId?: string
+  setSelectedCashRegisterId?: (id: string) => void
 }
 
 export function PaymentStep({
@@ -48,58 +56,131 @@ export function PaymentStep({
   handleTipPercentageChange,
   handleCustomTipChange,
   errors,
+  currencyCode,
+  // Nuevas propiedades
+  tenantId,
+  branchId,
+  selectedCashRegisterId,
+  setSelectedCashRegisterId,
 }: PaymentStepProps) {
+  const [cashRegisters, setCashRegisters] = useState<CashRegister[]>([])
+  const [loadingRegisters, setLoadingRegisters] = useState(false)
+
+  // Cargar cajas disponibles
+  useEffect(() => {
+    const loadCashRegisters = async () => {
+      if (tenantId && branchId) {
+        try {
+          setLoadingRegisters(true)
+          const openRegisters = await getOpenCashRegisters(tenantId, branchId)
+          setCashRegisters(openRegisters)
+
+          // Si hay una caja abierta y no hay una seleccionada, seleccionarla por defecto
+          if (openRegisters.length > 0 && !selectedCashRegisterId && setSelectedCashRegisterId) {
+            setSelectedCashRegisterId(openRegisters[0].id)
+          }
+        } catch (error) {
+          console.error("Error al cargar cajas:", error)
+        } finally {
+          setLoadingRegisters(false)
+        }
+      }
+    }
+
+    loadCashRegisters()
+  }, [tenantId, branchId, selectedCashRegisterId, setSelectedCashRegisterId])
+
   const [showTipOptions, setShowTipOptions] = useState(false)
   const [showCouponOptions, setShowCouponOptions] = useState(false)
 
   return (
     <div className="space-y-6">
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="paymentMethod" className="text-base font-medium flex items-center">
-            <CreditCard className="w-4 h-4 mr-2" />
-            Método de Pago <span className="text-red-500 ml-1">*</span>
-          </Label>
-          <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-            <SelectTrigger id="paymentMethod" className={errors.paymentMethod ? "border-red-500" : ""}>
-              <SelectValue placeholder="Seleccionar método de pago" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="cash">Efectivo</SelectItem>
-              <SelectItem value="card">Tarjeta</SelectItem>
-              <SelectItem value="transfer">Transferencia</SelectItem>
-              <SelectItem value="app">App de Pago</SelectItem>
-            </SelectContent>
-          </Select>
-          {errors.paymentMethod && <p className="text-red-500 text-sm">{errors.paymentMethod}</p>}
-        </div>
+      <div>
+        <h3 className="text-lg font-medium mb-4">Información de Pago</h3>
 
-        {/* Campos específicos para pago en efectivo */}
-        {paymentMethod === "cash" && (
-          <div className="space-y-4 border rounded-md p-3 bg-gray-50">
-            <div className="space-y-2">
-              <Label htmlFor="cashAmount" className="flex items-center">
-                Monto recibido <span className="text-red-500 ml-1">*</span>
-              </Label>
-              <Input
-                id="cashAmount"
-                type="number"
-                min={calculateTotal()}
-                step="0.01"
-                value={cashAmount}
-                onChange={(e) => setCashAmount(e.target.value)}
-                placeholder={`Mínimo ${formatCurrency(calculateTotal())}`}
-                className={errors.cashAmount ? "border-red-500" : ""}
-              />
-              {errors.cashAmount && <p className="text-red-500 text-sm">{errors.cashAmount}</p>}
-            </div>
-
-            <div className="flex justify-between items-center font-medium">
-              <span>Cambio a devolver:</span>
-              <span className={changeAmount > 0 ? "text-green-600" : ""}>{formatCurrency(changeAmount)}</span>
-            </div>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="paymentMethod" className="text-base font-medium flex items-center">
+              <CreditCard className="w-4 h-4 mr-2" />
+              Método de Pago <span className="text-red-500 ml-1">*</span>
+            </Label>
+            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+              <SelectTrigger id="paymentMethod" className={errors.paymentMethod ? "border-red-500" : ""}>
+                <SelectValue placeholder="Seleccionar método de pago" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cash">Efectivo</SelectItem>
+                <SelectItem value="card">Tarjeta</SelectItem>
+                <SelectItem value="transfer">Transferencia</SelectItem>
+                <SelectItem value="app">App de Pago</SelectItem>
+              </SelectContent>
+            </Select>
+            {errors.paymentMethod && <p className="text-red-500 text-sm">{errors.paymentMethod}</p>}
           </div>
-        )}
+
+          {/* Selector de caja */}
+          {setSelectedCashRegisterId && (
+            <div>
+              <Label htmlFor="cashRegister">Caja</Label>
+              <Select
+                value={selectedCashRegisterId}
+                onValueChange={setSelectedCashRegisterId}
+                disabled={loadingRegisters || cashRegisters.length === 0}
+              >
+                <SelectTrigger id="cashRegister">
+                  <SelectValue
+                    placeholder={
+                      loadingRegisters
+                        ? "Cargando cajas..."
+                        : cashRegisters.length === 0
+                          ? "No hay cajas abiertas"
+                          : "Seleccionar caja"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {cashRegisters.map((register) => (
+                    <SelectItem key={register.id} value={register.id}>
+                      {register.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {cashRegisters.length === 0 && !loadingRegisters && (
+                <p className="text-sm text-yellow-600 mt-1">
+                  No hay cajas abiertas. La venta no se registrará en ninguna caja.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Campos específicos para pago en efectivo */}
+          {paymentMethod === "cash" && (
+            <div className="space-y-4 border rounded-md p-3 bg-gray-50">
+              <div className="space-y-2">
+                <Label htmlFor="cashAmount" className="flex items-center">
+                  Monto recibido <span className="text-red-500 ml-1">*</span>
+                </Label>
+                <Input
+                  id="cashAmount"
+                  type="number"
+                  min={calculateTotal()}
+                  step="0.01"
+                  value={cashAmount}
+                  onChange={(e) => setCashAmount(e.target.value)}
+                  placeholder={`Mínimo ${formatCurrency(calculateTotal())}`}
+                  className={errors.cashAmount ? "border-red-500" : ""}
+                />
+                {errors.cashAmount && <p className="text-red-500 text-sm">{errors.cashAmount}</p>}
+              </div>
+
+              <div className="flex justify-between items-center font-medium">
+                <span>Cambio a devolver:</span>
+                <span className={changeAmount > 0 ? "text-green-600" : ""}>{formatCurrency(changeAmount)}</span>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex space-x-2">

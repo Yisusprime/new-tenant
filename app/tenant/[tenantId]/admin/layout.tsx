@@ -9,6 +9,7 @@ import { onAuthStateChanged, signOut } from "firebase/auth"
 import { auth, db } from "@/lib/firebase/client"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+// Añadir el import para el ícono de caja
 import {
   LogOut,
   Menu,
@@ -30,6 +31,7 @@ import {
   Table,
   ChevronLeft,
   ChevronRight,
+  DollarSign,
 } from "lucide-react"
 import Link from "next/link"
 import { BranchProvider, useBranch } from "@/lib/context/branch-context"
@@ -259,10 +261,12 @@ function AdminLayoutContent({
   }
 
   // Menú principal reorganizado
+  // Modificar el array menuItems para incluir el gestor de caja después de "Pedidos"
   const menuItems = [
     { path: "/dashboard", label: "Dashboard", icon: Home },
     { type: "separator", label: "Gestión" },
     { path: "/orders", label: "Pedidos", icon: ShoppingBag },
+    { path: "/cash-register", label: "Caja", icon: DollarSign },
     { path: "/products", label: "Productos", icon: Store },
     { path: "/categories", label: "Categorías", icon: FolderTree },
     { path: "/branches", label: "Sucursales", icon: MapPin },

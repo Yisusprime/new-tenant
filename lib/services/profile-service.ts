@@ -40,6 +40,11 @@ export async function getUserProfile(tenantId: string, userId: string): Promise<
   }
 }
 
+// Función para obtener el perfil de un usuario por su ID
+export async function getProfileByUserId(tenantId: string, userId: string): Promise<UserProfile | null> {
+  return getUserProfile(tenantId, userId)
+}
+
 // Función para crear o actualizar el perfil de un usuario
 export async function updateUserProfile(
   tenantId: string,
