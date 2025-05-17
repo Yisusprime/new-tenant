@@ -103,6 +103,7 @@ export function CreateOrderDialog({
   // Seleccionar la primera caja disponible por defecto
   useEffect(() => {
     if (cashRegisters.length > 0 && !selectedCashRegisterId) {
+      console.log("Seleccionando caja por defecto:", cashRegisters[0].id)
       setSelectedCashRegisterId(cashRegisters[0].id)
     }
   }, [cashRegisters, selectedCashRegisterId])
@@ -180,7 +181,7 @@ export function CreateOrderDialog({
         setTaxIncluded(config.basicInfo.taxIncluded)
 
         // Establecer la tasa de IVA (con valor predeterminado de 0.19 si no está definido)
-        setTaxRate(config.basicInfo.taxRate !== undefined ? config.basicInfo.taxRate : config.basicInfo.taxRate)
+        setTaxRate(config.basicInfo.taxRate !== undefined ? config.basicInfo.taxRate : 0.19)
 
         // Establecer el código de moneda (con valor predeterminado de CLP si no está definido)
         setCurrencyCode(config.basicInfo.currencyCode || "CLP")
@@ -492,6 +493,7 @@ export function CreateOrderDialog({
     setChangeAmount(0)
     setCurrentStep(1)
     setErrors({})
+    setSelectedCashRegisterId("") // Resetear la caja seleccionada
   }
 
   // Renderizado de los pasos

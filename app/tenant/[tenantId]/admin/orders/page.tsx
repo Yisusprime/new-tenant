@@ -63,6 +63,7 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
     try {
       setLoadingCashRegisters(true)
       const registers = await getOpenCashRegisters(tenantId, currentBranch.id)
+      console.log("Cajas abiertas cargadas:", registers)
       setOpenCashRegisters(registers)
     } catch (error) {
       console.error("Error al cargar cajas abiertas:", error)
@@ -227,7 +228,14 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
           >
             {notificationsOn ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
           </Button>
-          <Button variant="outline" size="sm" onClick={loadOrders}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              loadOrders()
+              loadOpenCashRegisters()
+            }}
+          >
             <RefreshCw className="h-4 w-4 mr-2" />
             Actualizar
           </Button>

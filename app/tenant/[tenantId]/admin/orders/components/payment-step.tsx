@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { CreditCard, Percent, Tag } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
-import { getOpenCashRegisters } from "@/lib/services/cash-register-service"
 import type { CashRegister } from "@/lib/types/cash-register"
 
 interface PaymentStepProps {
@@ -32,10 +31,9 @@ interface PaymentStepProps {
   errors: Record<string, string>
   currencyCode: string
   // Nuevas propiedades
-  tenantId?: string
-  branchId?: string
-  selectedCashRegisterId?: string
-  setSelectedCashRegisterId?: (id: string) => void
+  cashRegisters: CashRegister[] // Cambiar a recibir directamente las cajas
+  selectedCashRegisterId: string
+  setSelectedCashRegisterId: (id: string) => void
 }
 
 export function PaymentStep({
@@ -58,40 +56,19 @@ export function PaymentStep({
   errors,
   currencyCode,
   // Nuevas propiedades
-  tenantId,
-  branchId,
+  cashRegisters,
   selectedCashRegisterId,
   setSelectedCashRegisterId,
 }: PaymentStepProps) {
-  const [cashRegisters, setCashRegisters] = useState<CashRegister[]>([])
-  const [loadingRegisters, setLoadingRegisters] = useState(false)
-
-  // Cargar cajas disponibles
-  useEffect(() => {
-    const loadCashRegisters = async () => {
-      if (tenantId && branchId) {
-        try {
-          setLoadingRegisters(true)
-          const openRegisters = await getOpenCashRegisters(tenantId, branchId)
-          setCashRegisters(openRegisters)
-
-          // Si hay una caja abierta y no hay una seleccionada, seleccionarla por defecto
-          if (openRegisters.length > 0 && !selectedCashRegisterId && setSelectedCashRegisterId) {
-            setSelectedCashRegisterId(openRegisters[0].id)
-          }
-        } catch (error) {
-          console.error("Error al cargar cajas:", error)
-        } finally {
-          setLoadingRegisters(false)
-        }
-      }
-    }
-
-    loadCashRegisters()
-  }, [tenantId, branchId, selectedCashRegisterId, setSelectedCashRegisterId])
-
   const [showTipOptions, setShowTipOptions] = useState(false)
   const [showCouponOptions, setShowCouponOptions] = useState(false)
+
+  // Seleccionar la primera caja por defecto si no hay ninguna seleccionada
+  useEffect(() => {
+    if (cashRegisters.length > 0 && !selectedCashRegisterId) {
+      setSelectedCashRegisterId(cashRegisters[0].id)
+    }
+  }, [cashRegisters, selectedCashRegisterId, setSelectedCashRegisterId])
 
   return (
     <div className="space-y-6">
@@ -101,7 +78,7 @@ export function PaymentStep({
         <div className="space-y-4">
           <div>
             <Label htmlFor="paymentMethod" className="text-base font-medium flex items-center">
-              <CreditCard className="w-4 h-4 mr-2" />
+              <CreditCard className="w-4 w-4 mr-2" />
               Método de Pago <span className="text-red-500 ml-1">*</span>
             </Label>
             <Select value={paymentMethod} onValueChange={setPaymentMethod}>
@@ -119,40 +96,33 @@ export function PaymentStep({
           </div>
 
           {/* Selector de caja */}
-          {setSelectedCashRegisterId && (
-            <div>
-              <Label htmlFor="cashRegister">Caja</Label>
-              <Select
-                value={selectedCashRegisterId}
-                onValueChange={setSelectedCashRegisterId}
-                disabled={loadingRegisters || cashRegisters.length === 0}
-              >
-                <SelectTrigger id="cashRegister">
-                  <SelectValue
-                    placeholder={
-                      loadingRegisters
-                        ? "Cargando cajas..."
-                        : cashRegisters.length === 0
-                          ? "No hay cajas abiertas"
-                          : "Seleccionar caja"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {cashRegisters.map((register) => (
-                    <SelectItem key={register.id} value={register.id}>
-                      {register.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {cashRegisters.length === 0 && !loadingRegisters && (
-                <p className="text-sm text-yellow-600 mt-1">
-                  No hay cajas abiertas. La venta no se registrará en ninguna caja.
-                </p>
-              )}
-            </div>
-          )}
+          <div>
+            <Label htmlFor="cashRegister" className="text-base font-medium">
+              Caja <span className="text-red-500 ml-1">*</span>
+            </Label>
+            <Select
+              value={selectedCashRegisterId}
+              onValueChange={setSelectedCashRegisterId}
+              disabled={cashRegisters.length === 0}
+            >
+              <SelectTrigger id="cashRegister" className={errors.cashRegisterId ? "border-red-500" : ""}>
+                <SelectValue placeholder={cashRegisters.length === 0 ? "No hay cajas abiertas" : "Seleccionar caja"} />
+              </SelectTrigger>
+              <SelectContent>
+                {cashRegisters.map((register) => (
+                  <SelectItem key={register.id} value={register.id}>
+                    {register.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.cashRegisterId && <p className="text-red-500 text-sm">{errors.cashRegisterId}</p>}
+            {cashRegisters.length === 0 && (
+              <p className="text-sm text-yellow-600 mt-1">
+                No hay cajas abiertas. La venta no se registrará en ninguna caja.
+              </p>
+            )}
+          </div>
 
           {/* Campos específicos para pago en efectivo */}
           {paymentMethod === "cash" && (
