@@ -1,224 +1,296 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useAuth } from "@/lib/context/auth-context"
-import { useBranch } from "@/lib/context/branch-context"
-import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { formatCurrency, formatDateTime } from "@/lib/utils"
 import { getPendingVerificationMovements } from "@/lib/services/cash-register-service"
-import type { CashMovement } from "@/lib/types/cash-register"
+import { useUser } from "@/lib/hooks/use-user"
 import { PaymentVerificationForm } from "@/components/payment-verification-form"
 import { PaymentVerificationBadge } from "@/components/payment-verification-badge"
-import { CheckCircle2, RefreshCw, Search } from "lucide-react"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useBranch } from "@/lib/context/branch-context"
+import { ArrowDownCircle, ArrowUpCircle, CreditCard, RefreshCw, Search } from "lucide-react"
+import type { CashMovement } from "@/lib/types/cash-register"
+import type { JSX } from "react"
 
-export default function PendingPaymentsPage({ params }: { params: { tenantId: string } }) {
+interface PendingPaymentsPageProps {
+  params: {
+    tenantId: string
+  }
+}
+
+export default function PendingPaymentsPage({ params }: PendingPaymentsPageProps) {
   const { tenantId } = params
   const { currentBranch } = useBranch()
-  const { user } = useAuth()
-  const [pendingMovements, setPendingMovements] = useState<CashMovement[]>([])
-  const [filteredMovements, setFilteredMovements] = useState<CashMovement[]>([])
-  const [selectedMovement, setSelectedMovement] = useState<CashMovement | null>(null)
+  const { user } = useUser()
+  const [movements, setMovements] = useState<CashMovement[]>([])
   const [loading, setLoading] = useState(true)
-  const [verificationDialogOpen, setVerificationDialogOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
-  const [paymentMethodFilter, setPaymentMethodFilter] = useState("all")
+  const [selectedMovement, setSelectedMovement] = useState<CashMovement | null>(null)
+  const [verificationDialogOpen, setVerificationDialogOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<"all" | "transfer" | "card">("all")
 
-  // Cargar datos
-  const loadData = async () => {
-    if (!currentBranch || !user) return
+  const loadMovements = async () => {
+    if (!currentBranch) return
 
     try {
       setLoading(true)
-      const movements = await getPendingVerificationMovements(tenantId, currentBranch.id)
-      setPendingMovements(movements)
-      applyFilters(movements, searchTerm, paymentMethodFilter)
+      const pendingMovements = await getPendingVerificationMovements(tenantId, currentBranch.id)
+      setMovements(pendingMovements || [])
     } catch (error) {
       console.error("Error al cargar pagos pendientes:", error)
+      setMovements([])
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    if (currentBranch && user) {
-      loadData()
+    if (currentBranch) {
+      loadMovements()
     }
-  }, [tenantId, currentBranch, user])
+  }, [tenantId, currentBranch])
 
-  // Aplicar filtros
-  const applyFilters = (movements: CashMovement[], search: string, paymentMethod: string) => {
-    let filtered = movements
-
-    // Filtrar por método de pago
-    if (paymentMethod !== "all") {
-      filtered = filtered.filter((m) => m.paymentMethod === paymentMethod)
-    }
-
-    // Filtrar por término de búsqueda
-    if (search) {
-      const searchLower = search.toLowerCase()
-      filtered = filtered.filter(
-        (m) =>
-          m.description.toLowerCase().includes(searchLower) ||
-          m.reference?.toLowerCase().includes(searchLower) ||
-          m.orderNumber?.toLowerCase().includes(searchLower) ||
-          m.transactionId?.toLowerCase().includes(searchLower),
-      )
-    }
-
-    setFilteredMovements(filtered)
-  }
-
-  useEffect(() => {
-    applyFilters(pendingMovements, searchTerm, paymentMethodFilter)
-  }, [searchTerm, paymentMethodFilter, pendingMovements])
-
-  // Manejar la verificación de un pago
   const handleVerificationSuccess = (updatedMovement: CashMovement) => {
     setVerificationDialogOpen(false)
-    loadData() // Recargar datos
+    setSelectedMovement(null)
+
+    // Actualizar la lista de movimientos
+    setMovements((prevMovements) => prevMovements.filter((m) => m.id !== updatedMovement.id))
   }
 
-  // Obtener el nombre del método de pago
-  const getPaymentMethodName = (method: string) => {
-    switch (method) {
-      case "transfer":
-        return "Transferencia"
-      case "card":
-        return "Tarjeta"
-      case "cash":
-        return "Efectivo"
-      case "app":
-        return "App de Pago"
-      default:
-        return method
+  // Filtrar movimientos por término de búsqueda y tipo
+  const filteredMovements = movements.filter((movement) => {
+    const matchesSearch =
+      searchTerm === "" ||
+      movement.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      movement.reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      movement.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (movement.transactionId && movement.transactionId.toLowerCase().includes(searchTerm.toLowerCase()))
+
+    const matchesTab =
+      activeTab === "all" ||
+      (activeTab === "transfer" && movement.paymentMethod === "transfer") ||
+      (activeTab === "card" && movement.paymentMethod === "card")
+
+    return matchesSearch && matchesTab
+  })
+
+  // Función para obtener el color y texto según el tipo de movimiento
+  const getMovementTypeInfo = (type: string) => {
+    const typeMap: Record<string, { color: string; text: string; icon: JSX.Element }> = {
+      income: {
+        color: "bg-green-100 text-green-800",
+        text: "Ingreso",
+        icon: <ArrowUpCircle className="h-4 w-4 text-green-600" />,
+      },
+      expense: {
+        color: "bg-red-100 text-red-800",
+        text: "Gasto",
+        icon: <ArrowDownCircle className="h-4 w-4 text-red-600" />,
+      },
+      sale: {
+        color: "bg-blue-100 text-blue-800",
+        text: "Venta",
+        icon: <ArrowUpCircle className="h-4 w-4 text-blue-600" />,
+      },
+      refund: {
+        color: "bg-orange-100 text-orange-800",
+        text: "Reembolso",
+        icon: <ArrowDownCircle className="h-4 w-4 text-orange-600" />,
+      },
+      withdrawal: {
+        color: "bg-purple-100 text-purple-800",
+        text: "Retiro",
+        icon: <ArrowDownCircle className="h-4 w-4 text-purple-600" />,
+      },
+      deposit: {
+        color: "bg-indigo-100 text-indigo-800",
+        text: "Depósito",
+        icon: <ArrowUpCircle className="h-4 w-4 text-indigo-600" />,
+      },
+      adjustment: {
+        color: "bg-gray-100 text-gray-800",
+        text: "Ajuste",
+        icon: <ArrowUpCircle className="h-4 w-4 text-gray-600" />,
+      },
     }
+
+    return typeMap[type] || { color: "bg-gray-100 text-gray-800", text: type, icon: null }
+  }
+
+  // Función para obtener el texto del método de pago
+  const getPaymentMethodText = (method: string) => {
+    const methodMap: Record<string, { text: string; icon: JSX.Element }> = {
+      cash: { text: "Efectivo", icon: <ArrowUpCircle className="h-4 w-4" /> },
+      card: { text: "Tarjeta", icon: <CreditCard className="h-4 w-4" /> },
+      transfer: { text: "Transferencia", icon: <ArrowUpCircle className="h-4 w-4" /> },
+      app: { text: "App de Pago", icon: <CreditCard className="h-4 w-4" /> },
+      other: { text: "Otro", icon: <ArrowUpCircle className="h-4 w-4" /> },
+    }
+
+    return methodMap[method] || { text: method, icon: <ArrowUpCircle className="h-4 w-4" /> }
+  }
+
+  if (!currentBranch) {
+    return (
+      <div className="container mx-auto py-6">
+        <h1 className="text-2xl font-bold mb-6">Pagos Pendientes</h1>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-gray-500">Seleccione una sucursal para ver los pagos pendientes.</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Pagos Pendientes de Verificación</h1>
-        <Button variant="outline" size="sm" onClick={loadData}>
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Actualizar
-        </Button>
+    <div className="container mx-auto py-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <h1 className="text-2xl font-bold">Pagos Pendientes</h1>
+        <div className="flex items-center gap-2">
+          <div className="relative w-full md:w-64">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+            <Input
+              type="search"
+              placeholder="Buscar pagos..."
+              className="pl-8"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <Button variant="outline" size="icon" onClick={loadMovements} title="Actualizar">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
-      <NoBranchSelectedAlert />
+      <Tabs defaultValue="all" value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
+        <TabsList className="mb-4">
+          <TabsTrigger value="all">Todos</TabsTrigger>
+          <TabsTrigger value="transfer">Transferencias</TabsTrigger>
+          <TabsTrigger value="card">Tarjetas</TabsTrigger>
+        </TabsList>
 
-      {currentBranch && (
-        <>
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-              <Input
-                placeholder="Buscar por descripción, referencia o número de orden..."
-                className="pl-8"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <Select value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Método de pago" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="transfer">Transferencia</SelectItem>
-                <SelectItem value="card">Tarjeta</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <TabsContent value="all" className="mt-0">
+          {renderContent()}
+        </TabsContent>
+        <TabsContent value="transfer" className="mt-0">
+          {renderContent()}
+        </TabsContent>
+        <TabsContent value="card" className="mt-0">
+          {renderContent()}
+        </TabsContent>
+      </Tabs>
 
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <Skeleton className="h-48 w-full" />
-              <Skeleton className="h-48 w-full" />
-              <Skeleton className="h-48 w-full" />
-            </div>
-          ) : filteredMovements.length === 0 ? (
-            <Alert>
-              <CheckCircle2 className="h-4 w-4" />
-              <AlertTitle>No hay pagos pendientes</AlertTitle>
-              <AlertDescription>Todos los pagos con tarjeta y transferencias han sido verificados.</AlertDescription>
-            </Alert>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredMovements.map((movement) => (
-                <Card
-                  key={movement.id}
-                  className="cursor-pointer hover:border-primary transition-colors"
-                  onClick={() => {
-                    setSelectedMovement(movement)
-                    setVerificationDialogOpen(true)
-                  }}
-                >
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-start">
-                      <CardTitle className="text-lg">{getPaymentMethodName(movement.paymentMethod)}</CardTitle>
-                      <PaymentVerificationBadge status={movement.verificationStatus || "pending"} />
-                    </div>
-                    <CardDescription>
-                      {movement.orderNumber ? `Pedido #${movement.orderNumber}` : "Movimiento de caja"}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-500">Monto:</span>
-                        <span className="font-bold text-lg">{formatCurrency(movement.amount)}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-500">Fecha:</span>
-                        <span className="font-medium">{formatDateTime(movement.createdAt)}</span>
-                      </div>
-                      {movement.reference && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-500">Referencia:</span>
-                          <span className="font-medium">{movement.reference}</span>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                  <CardFooter className="pt-0">
-                    <div className="w-full">
-                      <p className="text-sm text-gray-600 truncate">{movement.description}</p>
-                    </div>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-          )}
-
-          {/* Diálogo para verificar pago */}
-          {user && selectedMovement && (
-            <Dialog open={verificationDialogOpen} onOpenChange={setVerificationDialogOpen}>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Verificar Pago</DialogTitle>
-                  <DialogDescription>Confirme si el pago ha sido recibido correctamente.</DialogDescription>
-                </DialogHeader>
-                <PaymentVerificationForm
-                  tenantId={tenantId}
-                  branchId={currentBranch.id}
-                  userId={user.uid}
-                  movement={selectedMovement}
-                  onSuccess={handleVerificationSuccess}
-                  onCancel={() => setVerificationDialogOpen(false)}
-                />
-              </DialogContent>
-            </Dialog>
-          )}
-        </>
+      {/* Diálogo de verificación */}
+      {user && selectedMovement && (
+        <Dialog open={verificationDialogOpen} onOpenChange={setVerificationDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Verificar Pago</DialogTitle>
+            </DialogHeader>
+            <PaymentVerificationForm
+              tenantId={tenantId}
+              branchId={currentBranch.id}
+              userId={user.uid}
+              movement={selectedMovement}
+              onSuccess={handleVerificationSuccess}
+              onCancel={() => setVerificationDialogOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   )
+
+  function renderContent() {
+    if (loading) {
+      return (
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-24 w-full" />
+          ))}
+        </div>
+      )
+    }
+
+    if (filteredMovements.length === 0) {
+      return (
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-gray-500">
+              No hay pagos pendientes
+              <br />
+              Todos los pagos con tarjeta y transferencias han sido verificados.
+            </p>
+          </CardContent>
+        </Card>
+      )
+    }
+
+    return (
+      <div className="space-y-4">
+        {filteredMovements.map((movement) => {
+          const typeInfo = getMovementTypeInfo(movement.type)
+          const paymentMethod = getPaymentMethodText(movement.paymentMethod)
+          const isNegative = ["expense", "refund", "withdrawal"].includes(movement.type)
+
+          return (
+            <Card key={movement.id} className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center space-x-2">
+                    {typeInfo.icon}
+                    <CardTitle className="text-base">{movement.description}</CardTitle>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <PaymentVerificationBadge status={movement.verificationStatus} />
+                  </div>
+                </div>
+                <CardDescription>
+                  {formatDateTime(movement.createdAt)} •
+                  <span className="flex items-center gap-1 inline-flex ml-1">
+                    {paymentMethod.icon}
+                    {paymentMethod.text}
+                  </span>
+                  {movement.reference && ` • Ref: ${movement.reference}`}
+                  {movement.transactionId && ` • Trans: ${movement.transactionId}`}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-between items-center">
+                  <div>
+                    {movement.orderNumber && (
+                      <span className="text-sm text-gray-500">Pedido #{movement.orderNumber}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-lg font-bold ${isNegative ? "text-red-600" : "text-green-600"}`}>
+                      {isNegative ? "-" : "+"}
+                      {formatCurrency(movement.amount)}
+                    </span>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setSelectedMovement(movement)
+                        setVerificationDialogOpen(true)
+                      }}
+                    >
+                      Verificar
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
+    )
+  }
 }
