@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatCurrency, formatDateTime } from "@/lib/utils"
 import { getCashMovements } from "@/lib/services/cash-register-service"
+import { ref, get } from "firebase/database"
+import { realtimeDb } from "@/lib/firebase/client"
 import type { CashMovement } from "@/lib/types/cash-register"
-import { ArrowDownCircle, ArrowUpCircle, RefreshCw } from "lucide-react"
+import { ArrowDownCircle, ArrowUpCircle, RefreshCw, AlertTriangle } from "lucide-react"
 
 interface CashMovementsListProps {
   tenantId: string
@@ -17,14 +19,31 @@ interface CashMovementsListProps {
 }
 
 export function CashMovementsList({ tenantId, branchId, registerId }: CashMovementsListProps) {
-  const [movements, setMovements] = useState<CashMovement[]>([])
+  const [movements, setMovements] = useState<(CashMovement & { isCancelled?: boolean })[]>([])
   const [loading, setLoading] = useState(true)
 
   const loadMovements = async () => {
     try {
       setLoading(true)
       const data = await getCashMovements(tenantId, branchId, registerId)
-      setMovements(data)
+
+      // Obtener todos los pedidos para verificar su estado
+      const ordersRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/orders`)
+      const ordersSnapshot = await get(ordersRef)
+      const orders = ordersSnapshot.exists() ? ordersSnapshot.val() : {}
+
+      // Marcar los movimientos de pedidos cancelados
+      const enhancedMovements = data.map((movement) => {
+        if (movement.orderId && movement.type === "sale") {
+          const order = orders[movement.orderId]
+          if (order && order.status === "cancelled") {
+            return { ...movement, isCancelled: true }
+          }
+        }
+        return { ...movement, isCancelled: false }
+      })
+
+      setMovements(enhancedMovements)
     } catch (error) {
       console.error("Error al cargar movimientos:", error)
     } finally {
@@ -37,7 +56,7 @@ export function CashMovementsList({ tenantId, branchId, registerId }: CashMoveme
   }, [tenantId, branchId, registerId])
 
   // Función para obtener el color y texto según el tipo de movimiento
-  const getMovementTypeInfo = (type: string) => {
+  const getMovementTypeInfo = (type: string, isCancelled = false) => {
     const typeMap: Record<string, { color: string; text: string; icon: JSX.Element }> = {
       income: {
         color: "bg-green-100 text-green-800",
@@ -50,9 +69,13 @@ export function CashMovementsList({ tenantId, branchId, registerId }: CashMoveme
         icon: <ArrowDownCircle className="h-4 w-4 text-red-600" />,
       },
       sale: {
-        color: "bg-blue-100 text-blue-800",
-        text: "Venta",
-        icon: <ArrowUpCircle className="h-4 w-4 text-blue-600" />,
+        color: isCancelled ? "bg-gray-100 text-gray-800" : "bg-blue-100 text-blue-800",
+        text: isCancelled ? "Venta Cancelada" : "Venta",
+        icon: isCancelled ? (
+          <AlertTriangle className="h-4 w-4 text-gray-600" />
+        ) : (
+          <ArrowUpCircle className="h-4 w-4 text-blue-600" />
+        ),
       },
       refund: {
         color: "bg-orange-100 text-orange-800",
@@ -125,16 +148,19 @@ export function CashMovementsList({ tenantId, branchId, registerId }: CashMoveme
       ) : (
         <div className="space-y-4">
           {movements.map((movement) => {
-            const typeInfo = getMovementTypeInfo(movement.type)
+            const typeInfo = getMovementTypeInfo(movement.type, movement.isCancelled)
             const isNegative = ["expense", "refund", "withdrawal"].includes(movement.type)
+            const isCancelled = movement.isCancelled
 
             return (
-              <Card key={movement.id}>
+              <Card key={movement.id} className={isCancelled ? "border-gray-300 bg-gray-50" : ""}>
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-start">
                     <div className="flex items-center space-x-2">
                       {typeInfo.icon}
-                      <CardTitle className="text-base">{movement.description}</CardTitle>
+                      <CardTitle className={`text-base ${isCancelled ? "line-through text-gray-500" : ""}`}>
+                        {movement.description}
+                      </CardTitle>
                     </div>
                     <Badge className={typeInfo.color}>{typeInfo.text}</Badge>
                   </div>
@@ -147,10 +173,17 @@ export function CashMovementsList({ tenantId, branchId, registerId }: CashMoveme
                   <div className="flex justify-between items-center">
                     <div>
                       {movement.orderNumber && (
-                        <span className="text-sm text-gray-500">Pedido #{movement.orderNumber}</span>
+                        <span className={`text-sm ${isCancelled ? "text-gray-500" : "text-gray-500"}`}>
+                          Pedido #{movement.orderNumber}
+                          {isCancelled && " (Cancelado)"}
+                        </span>
                       )}
                     </div>
-                    <span className={`text-lg font-bold ${isNegative ? "text-red-600" : "text-green-600"}`}>
+                    <span
+                      className={`text-lg font-bold ${
+                        isCancelled ? "text-gray-500" : isNegative ? "text-red-600" : "text-green-600"
+                      }`}
+                    >
                       {isNegative ? "-" : "+"}
                       {formatCurrency(movement.amount)}
                     </span>

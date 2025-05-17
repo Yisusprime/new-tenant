@@ -64,20 +64,22 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
         // Verificar si la caja seleccionada sigue abierta
         const stillOpen = openRegs.some((reg) => reg.id === selectedRegister.id)
 
-        if (stillOpen) {
-          // Actualizar la información de la caja seleccionada
-          const updatedRegister = allRegisters.find((r) => r.id === selectedRegister.id)
-          if (updatedRegister) {
-            setSelectedRegister(updatedRegister)
+        // Actualizar la información de la caja seleccionada
+        const updatedRegister = allRegisters.find((r) => r.id === selectedRegister.id)
+        if (updatedRegister) {
+          setSelectedRegister(updatedRegister)
 
-            // Cargar el resumen actualizado
-            const summary = await getCashRegisterSummary(tenantId, currentBranch.id, updatedRegister.id)
-            setRegisterSummary(summary)
+          // Cargar el resumen actualizado
+          const summary = await getCashRegisterSummary(tenantId, currentBranch.id, updatedRegister.id)
+          setRegisterSummary(summary)
+
+          // Si la caja ya no está abierta y estamos en la pestaña "open", cambiar a "detail"
+          if (!stillOpen && activeTab === "open") {
+            setActiveTab("detail")
           }
         } else {
-          // Si la caja ya no está abierta, deseleccionarla y cambiar a la pestaña "open"
+          // Si la caja ya no existe, deseleccionarla
           setSelectedRegister(null)
-          setActiveTab("open")
         }
       }
     } catch (error) {
@@ -96,6 +98,7 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
   // Manejar la selección de una caja
   const handleSelectRegister = async (register: CashRegister) => {
     setSelectedRegister(register)
+    setActiveTab("detail") // Cambiar a la pestaña de detalle al seleccionar una caja
 
     if (currentBranch) {
       try {
@@ -112,6 +115,7 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
     setCreateDialogOpen(false)
     loadData()
     setSelectedRegister(register)
+    setActiveTab("detail") // Cambiar a la pestaña de detalle al crear una caja
   }
 
   // Manejar el registro de un movimiento
@@ -123,10 +127,8 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
   // Manejar el cierre de caja
   const handleRegisterClosed = () => {
     setCloseDialogOpen(false)
-    // Deseleccionar la caja cerrada y cambiar a la pestaña "open"
-    setSelectedRegister(null)
-    setActiveTab("open")
     loadData()
+    // No deseleccionamos la caja para poder seguir viendo sus detalles
   }
 
   // Asegúrate de que la función closeCashRegister actualice el estado local
@@ -369,6 +371,21 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
                                 </Button>
                               </div>
                             )}
+                            {register.status !== "open" && (
+                              <div className="flex justify-end w-full">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    navigateToMovements(register.id)
+                                  }}
+                                >
+                                  <History className="h-4 w-4 mr-2" />
+                                  Ver Movimientos
+                                </Button>
+                              </div>
+                            )}
                           </CardFooter>
                         </Card>
                       )
@@ -381,9 +398,14 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
             {selectedRegister && (
               <TabsContent value="detail" className="space-y-6">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-lg font-medium">Detalle de Caja: {selectedRegister.name}</h2>
+                  <h2 className="text-lg font-medium">
+                    Detalle de Caja: {selectedRegister.name}{" "}
+                    <Badge className={getStatusBadge(selectedRegister.status).color}>
+                      {getStatusBadge(selectedRegister.status).text}
+                    </Badge>
+                  </h2>
                   <div className="flex gap-2">
-                    {selectedRegister.status === "open" && (
+                    {selectedRegister.status === "open" ? (
                       <>
                         <Button variant="outline" size="sm" onClick={() => setMovementDialogOpen(true)}>
                           <ArrowUpDown className="h-4 w-4 mr-2" />
@@ -398,6 +420,11 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
                           Cerrar Caja
                         </Button>
                       </>
+                    ) : (
+                      <Button variant="outline" size="sm" onClick={() => navigateToMovements(selectedRegister.id)}>
+                        <History className="h-4 w-4 mr-2" />
+                        Ver Movimientos
+                      </Button>
                     )}
                   </div>
                 </div>
