@@ -144,8 +144,6 @@ function AdminLayoutContent({
   })
   const [configOpen, setConfigOpen] = useState(false)
   const [restaurantConfigOpen, setRestaurantConfigOpen] = useState(false)
-  const [pendingPaymentsCount, setPendingPaymentsCount] = useState(0)
-  const { currentBranch } = useBranch()
 
   // Función para actualizar el estado del sidebar
   const toggleSidebar = () => {
@@ -155,33 +153,6 @@ function AdminLayoutContent({
       localStorage.setItem("sidebarOpen", String(newState))
     }
   }
-
-  // Función para cargar pagos pendientes
-  const loadPendingPayments = async () => {
-    try {
-      if (tenantId && currentBranch?.id) {
-        // Importar dinámicamente para evitar problemas de SSR
-        const { getPendingVerificationMovements } = await import("@/lib/services/cash-register-service")
-        const pendingMovements = await getPendingVerificationMovements(tenantId, currentBranch.id)
-        // Asegurarse de que pendingMovements sea un array
-        setPendingPaymentsCount(pendingMovements?.length || 0)
-      }
-    } catch (error) {
-      console.error("Error al cargar pagos pendientes:", error)
-      setPendingPaymentsCount(0)
-    }
-  }
-
-  // Efecto para cargar pagos pendientes
-  useEffect(() => {
-    if (currentBranch?.id) {
-      loadPendingPayments()
-
-      // Configurar intervalo para actualizar
-      const interval = setInterval(loadPendingPayments, 5 * 60 * 1000)
-      return () => clearInterval(interval)
-    }
-  }, [tenantId, currentBranch?.id])
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -252,7 +223,7 @@ function AdminLayoutContent({
 
   // Verificar si alguna ruta dentro de un grupo está activa
   const isGroupActive = (paths: string[]) => {
-    return paths.some((path) => pathname?.startsWith(`/tenant/${tenantId}/admin${path}`))
+    return paths.some((path) => pathname.startsWith(`/tenant/${tenantId}/admin${path}`))
   }
 
   if (loading) {
@@ -295,22 +266,10 @@ function AdminLayoutContent({
     { path: "/dashboard", label: "Dashboard", icon: Home },
     { type: "separator", label: "Gestión" },
     { path: "/orders", label: "Pedidos", icon: ShoppingBag },
-    {
-      path: "/cash-register",
-      label: "Caja",
-      icon: DollarSign,
-      submenu: [
-        { path: "/cash-register", label: "Estado de Caja" },
-        { path: "/cash-register/history", label: "Historial" },
-        {
-          path: "/cash-register/pending-payments",
-          label: "Pagos Pendientes",
-          badge: pendingPaymentsCount > 0 ? pendingPaymentsCount : undefined,
-        },
-      ],
-    },
+    { path: "/cash-register", label: "Caja", icon: DollarSign },
     { path: "/products", label: "Productos", icon: Store },
     { path: "/categories", label: "Categorías", icon: FolderTree },
+    { path: "/branches", label: "Sucursales", icon: MapPin },
     { type: "separator", label: "Configuración" },
     { path: "/plans", label: "Planes", icon: CreditCard },
     { type: "separator", label: "Herramientas" },
@@ -373,65 +332,10 @@ function AdminLayoutContent({
                   </li>
                 )
               }
-
-              // Si el ítem tiene submenú
-              if (item.submenu) {
-                const isSubmenuActive = item.submenu.some(
-                  (subitem) => pathname === `/tenant/${tenantId}/admin${subitem.path}`,
-                )
-
-                return (
-                  <li key={item.path}>
-                    <Collapsible open={isSubmenuActive || isActive(item.path)} className="w-full">
-                      <CollapsibleTrigger
-                        className={`flex items-center justify-between w-full px-4 py-2 rounded-md transition-colors ${
-                          isSubmenuActive || isActive(item.path)
-                            ? "bg-primary text-primary-foreground"
-                            : "hover:bg-gray-100"
-                        }`}
-                      >
-                        <div className="flex items-center">
-                          <item.icon className={`${sidebarOpen ? "mr-3" : "mx-auto"} h-5 w-5`} />
-                          {sidebarOpen && <span>{item.label}</span>}
-                        </div>
-                        {sidebarOpen && <ChevronDown className="h-4 w-4" />}
-                      </CollapsibleTrigger>
-
-                      {sidebarOpen && (
-                        <CollapsibleContent>
-                          <ul className="mt-1 ml-7 space-y-1 border-l pl-2">
-                            {item.submenu.map((subitem) => (
-                              <li key={subitem.path}>
-                                <Link
-                                  href={`/tenant/${tenantId}/admin${subitem.path}`}
-                                  className={`flex items-center justify-between px-4 py-2 rounded-md transition-colors ${
-                                    pathname === `/tenant/${tenantId}/admin${subitem.path}`
-                                      ? "bg-primary/10 text-primary"
-                                      : "hover:bg-gray-100"
-                                  }`}
-                                >
-                                  <span>{subitem.label}</span>
-                                  {subitem.badge && (
-                                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
-                                      {subitem.badge}
-                                    </span>
-                                  )}
-                                </Link>
-                              </li>
-                            ))}
-                          </ul>
-                        </CollapsibleContent>
-                      )}
-                    </Collapsible>
-                  </li>
-                )
-              }
-
-              // Ítem normal sin submenú
               return (
                 <li key={item.path}>
                   <Link
-                    href={`/tenant/${tenantId}/admin${item.path}`}
+                    href={`/admin${item.path}`}
                     className={`flex items-center px-4 py-2 rounded-md transition-colors ${
                       isActive(item.path) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
                     }`}
@@ -469,9 +373,9 @@ function AdminLayoutContent({
                     {configItems.map((item) => (
                       <li key={item.path}>
                         <Link
-                          href={`/tenant/${tenantId}/admin${item.path}`}
+                          href={`/admin${item.path}`}
                           className={`flex items-center px-4 py-2 rounded-md transition-colors ${
-                            pathname?.includes(item.path) ? "bg-primary/10 text-primary" : "hover:bg-gray-100"
+                            pathname.includes(item.path) ? "bg-primary/10 text-primary" : "hover:bg-gray-100"
                           }`}
                         >
                           <item.icon className="mr-3 h-4 w-4" />
@@ -511,9 +415,9 @@ function AdminLayoutContent({
                     {restaurantConfigItems.map((item) => (
                       <li key={item.path}>
                         <Link
-                          href={`/tenant/${tenantId}/admin${item.path}`}
+                          href={`/admin${item.path}`}
                           className={`flex items-center px-4 py-2 rounded-md transition-colors ${
-                            pathname?.includes(item.path) ? "bg-primary/10 text-primary" : "hover:bg-gray-100"
+                            pathname.includes(item.path) ? "bg-primary/10 text-primary" : "hover:bg-gray-100"
                           }`}
                         >
                           <item.icon className="mr-3 h-4 w-4" />
@@ -529,7 +433,7 @@ function AdminLayoutContent({
             {!sidebarOpen && (
               <li className="hidden md:block">
                 <Link
-                  href={`/tenant/${tenantId}/admin/settings/profile`}
+                  href={`/admin/settings/profile`}
                   className={`flex items-center justify-center px-4 py-2 rounded-md transition-colors ${
                     isGroupActive(["/settings"]) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
                   }`}
@@ -543,7 +447,7 @@ function AdminLayoutContent({
             {!sidebarOpen && (
               <li className="hidden md:block">
                 <Link
-                  href={`/tenant/${tenantId}/admin/restaurant/basic`}
+                  href={`/admin/restaurant/basic`}
                   className={`flex items-center justify-center px-4 py-2 rounded-md transition-colors ${
                     isGroupActive(["/restaurant"]) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
                   }`}

@@ -11,7 +11,6 @@ import { ref, get } from "firebase/database"
 import { realtimeDb } from "@/lib/firebase/client"
 import type { CashMovement } from "@/lib/types/cash-register"
 import { ArrowDownCircle, ArrowUpCircle, RefreshCw, AlertTriangle } from "lucide-react"
-import type { JSX } from "react"
 
 interface CashMovementsListProps {
   tenantId: string

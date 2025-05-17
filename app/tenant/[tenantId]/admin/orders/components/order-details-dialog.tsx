@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { Loader2, DollarSign, AlertCircle, Printer, Utensils, CreditCard } from "lucide-react"
+import { Loader2, DollarSign, AlertCircle, Printer, Utensils } from "lucide-react"
 import { PrintTicketDialog } from "@/components/print-ticket-dialog"
 import { PrintCommandDialog } from "@/components/print-command-dialog"
 import { usePrintTicket } from "@/lib/hooks/use-print-ticket"
@@ -32,11 +32,7 @@ import { useUser } from "@/lib/hooks/use-user"
 
 // Añadir los imports necesarios
 import { getOpenCashRegisters, registerSale } from "@/lib/services/cash-register-service"
-import type { CashRegister, CashMovement } from "@/lib/types/cash-register"
-import { PaymentVerificationForm } from "@/components/payment-verification-form"
-import { PaymentVerificationBadge } from "@/components/payment-verification-badge"
-import { get, ref } from "firebase/database"
-import { realtimeDb } from "@/lib/firebase/client"
+import type { CashRegister } from "@/lib/types/cash-register"
 
 interface OrderDetailsDialogProps {
   order: Order
@@ -67,10 +63,6 @@ export function OrderDetailsDialog({
   const [showCashRegisterSection, setShowCashRegisterSection] = useState(false)
   const [registeringInCash, setRegisteringInCash] = useState(false)
 
-  // Estados para verificación de pago
-  const [paymentMovement, setPaymentMovement] = useState<CashMovement | null>(null)
-  const [verificationDialogOpen, setVerificationDialogOpen] = useState(false)
-
   // Añadir función para cargar cajas
   const loadCashRegisters = async () => {
     try {
@@ -88,41 +80,10 @@ export function OrderDetailsDialog({
     }
   }
 
-  // Función para buscar el movimiento de pago asociado a este pedido
-  const loadPaymentMovement = async () => {
-    if (!order || !order.id) return null
-
-    try {
-      // Obtener todos los movimientos de caja
-      const movementsRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/cashMovements`)
-      const snapshot = await get(movementsRef)
-
-      if (!snapshot.exists()) return null
-
-      const movementsData = snapshot.val()
-      const allMovements = Object.entries(movementsData).map(([id, data]) => ({
-        id,
-        ...(data as any),
-      })) as CashMovement[]
-
-      // Buscar el movimiento asociado a este pedido
-      const orderMovement = allMovements.find(
-        (m) => m.orderId === order.id && (m.paymentMethod === "transfer" || m.paymentMethod === "card"),
-      )
-
-      setPaymentMovement(orderMovement || null)
-      return orderMovement
-    } catch (error) {
-      console.error("Error al buscar movimiento de pago:", error)
-      return null
-    }
-  }
-
-  // Modificar useEffect para cargar cajas y movimiento de pago
+  // Modificar useEffect para cargar cajas
   useEffect(() => {
     if (open && order) {
       loadCashRegisters()
-      loadPaymentMovement()
     }
   }, [open, order, tenantId, branchId])
 
@@ -150,14 +111,6 @@ export function OrderDetailsDialog({
       })
 
       setShowCashRegisterSection(false)
-
-      // Si el pago es con transferencia o tarjeta, cargar el movimiento para verificación
-      if (order.paymentMethod === "transfer" || order.paymentMethod === "card") {
-        const movement = await loadPaymentMovement()
-        if (movement) {
-          setPaymentMovement(movement)
-        }
-      }
     } catch (error) {
       console.error("Error al registrar venta en caja:", error)
       toast({
@@ -168,18 +121,6 @@ export function OrderDetailsDialog({
     } finally {
       setRegisteringInCash(false)
     }
-  }
-
-  // Función para manejar la verificación exitosa
-  const handleVerificationSuccess = (updatedMovement: CashMovement) => {
-    setVerificationDialogOpen(false)
-    setPaymentMovement(updatedMovement)
-
-    toast({
-      title: "Pago verificado",
-      description: "El estado del pago ha sido actualizado correctamente",
-      variant: "default",
-    })
   }
 
   const handleStatusChange = async (status: OrderStatus) => {
@@ -252,9 +193,6 @@ export function OrderDetailsDialog({
   // Verificar si el IVA está activado en el pedido
   const isTaxEnabled = order.taxEnabled !== undefined ? order.taxEnabled : true
 
-  // Verificar si es un pago electrónico (transferencia o tarjeta)
-  const isElectronicPayment = order.paymentMethod === "transfer" || order.paymentMethod === "card"
-
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -321,25 +259,6 @@ export function OrderDetailsDialog({
                         : "Pendiente"}
                   </Badge>
                 </p>
-
-                {/* Mostrar estado de verificación para pagos electrónicos */}
-                {isElectronicPayment && (
-                  <div className="mt-2">
-                    <span className="font-medium">Verificación:</span>{" "}
-                    {paymentMovement ? (
-                      <div className="flex items-center gap-2 mt-1">
-                        <PaymentVerificationBadge status={paymentMovement.verificationStatus || "pending"} />
-                        {user && (
-                          <Button variant="outline" size="sm" onClick={() => setVerificationDialogOpen(true)}>
-                            Verificar
-                          </Button>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-gray-500">No registrado en caja</span>
-                    )}
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -519,19 +438,6 @@ export function OrderDetailsDialog({
                           </>
                         )}
                       </Button>
-
-                      {/* Botón para verificar pago electrónico */}
-                      {isElectronicPayment && paymentMovement && (
-                        <Button
-                          variant="outline"
-                          onClick={() => setVerificationDialogOpen(true)}
-                          disabled={registeringInCash}
-                          className="w-full"
-                        >
-                          <CreditCard className="mr-2 h-4 w-4" />
-                          Verificar Pago Electrónico
-                        </Button>
-                      )}
                     </>
                   )}
                 </div>
@@ -574,26 +480,6 @@ export function OrderDetailsDialog({
         onOpenChange={setIsCommandDialogOpen}
         restaurantName={restaurantInfo.name}
       />
-
-      {/* Diálogo para verificar pago */}
-      {user && paymentMovement && (
-        <Dialog open={verificationDialogOpen} onOpenChange={setVerificationDialogOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Verificar Pago</DialogTitle>
-              <DialogDescription>Confirme si el pago ha sido recibido correctamente.</DialogDescription>
-            </DialogHeader>
-            <PaymentVerificationForm
-              tenantId={tenantId}
-              branchId={branchId}
-              userId={user.uid}
-              movement={paymentMovement}
-              onSuccess={handleVerificationSuccess}
-              onCancel={() => setVerificationDialogOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
-      )}
     </>
   )
 }
