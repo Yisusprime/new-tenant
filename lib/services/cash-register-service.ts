@@ -8,6 +8,7 @@ import type {
   CashRegisterCloseData,
   CashRegisterSummary,
   CashRegisterStatus,
+  PaymentVerificationFormData,
 } from "@/lib/types/cash-register"
 
 // Función para obtener todas las cajas de una sucursal
@@ -266,6 +267,41 @@ export async function getCashMovements(
   }
 }
 
+// Función para obtener movimientos pendientes de verificación
+export async function getPendingVerificationMovements(tenantId: string, branchId: string): Promise<CashMovement[]> {
+  try {
+    if (!tenantId || !branchId) {
+      throw new Error("Tenant ID y Branch ID son requeridos")
+    }
+
+    const movementsRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/cashMovements`)
+    const snapshot = await get(movementsRef)
+
+    if (!snapshot.exists()) {
+      return []
+    }
+
+    const movementsData = snapshot.val()
+    const allMovements = Object.entries(movementsData).map(([id, data]) => ({
+      id,
+      ...(data as any),
+    })) as CashMovement[]
+
+    // Filtrar movimientos pendientes de verificación (transferencias y tarjetas)
+    const pendingMovements = allMovements.filter(
+      (movement) =>
+        (movement.paymentMethod === "transfer" || movement.paymentMethod === "card") &&
+        (!movement.verificationStatus || movement.verificationStatus === "pending"),
+    )
+
+    // Ordenar por fecha de creación (más reciente primero)
+    return pendingMovements.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  } catch (error) {
+    console.error("Error al obtener movimientos pendientes:", error)
+    throw error
+  }
+}
+
 // Función para crear un nuevo movimiento de caja
 export async function createCashMovement(
   tenantId: string,
@@ -309,7 +345,19 @@ export async function createCashMovement(
     }
     // Para "adjustment", el monto puede ser positivo o negativo según se ingresó
 
-    const newBalance = register.currentBalance + balanceChange
+    // Para pagos con tarjeta o transferencia, establecer estado de verificación
+    let verificationStatus = undefined
+    if (movementData.paymentMethod === "transfer" || movementData.paymentMethod === "card") {
+      verificationStatus = movementData.verificationStatus || "pending"
+    }
+
+    // Si el pago es en efectivo o está verificado, actualizar el balance
+    const shouldUpdateBalance =
+      movementData.paymentMethod === "cash" ||
+      (verificationStatus === "verified" &&
+        (movementData.paymentMethod === "transfer" || movementData.paymentMethod === "card"))
+
+    const newBalance = shouldUpdateBalance ? register.currentBalance + balanceChange : register.currentBalance
 
     // Crear el objeto del movimiento
     const newMovement: Omit<CashMovement, "id"> = {
@@ -323,16 +371,20 @@ export async function createCashMovement(
       orderNumber: movementData.orderNumber || "",
       createdAt: timestamp,
       createdBy: userId,
+      verificationStatus,
+      transactionId: movementData.transactionId,
     }
 
     // Guardar el movimiento en Realtime Database
     await set(newMovementRef, newMovement)
 
-    // Actualizar el balance de la caja
-    await update(registerRef, {
-      currentBalance: newBalance,
-      updatedAt: timestamp,
-    })
+    // Actualizar el balance de la caja solo si es necesario
+    if (shouldUpdateBalance) {
+      await update(registerRef, {
+        currentBalance: newBalance,
+        updatedAt: timestamp,
+      })
+    }
 
     return {
       id: movementId,
@@ -340,6 +392,112 @@ export async function createCashMovement(
     } as CashMovement
   } catch (error) {
     console.error("Error al crear movimiento:", error)
+    throw error
+  }
+}
+
+// Función para verificar un pago
+export async function verifyPayment(
+  tenantId: string,
+  branchId: string,
+  userId: string,
+  movementId: string,
+  verificationData: PaymentVerificationFormData,
+): Promise<CashMovement> {
+  try {
+    if (!tenantId || !branchId || !userId || !movementId) {
+      throw new Error("Faltan datos requeridos para verificar el pago")
+    }
+
+    const timestamp = new Date().toISOString()
+    const movementRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/cashMovements/${movementId}`)
+
+    // Obtener el movimiento actual
+    const movementSnapshot = await get(movementRef)
+    if (!movementSnapshot.exists()) {
+      throw new Error("El movimiento no existe")
+    }
+
+    const movement = movementSnapshot.val() as CashMovement
+
+    // Verificar que el movimiento sea de tipo transferencia o tarjeta
+    if (movement.paymentMethod !== "transfer" && movement.paymentMethod !== "card") {
+      throw new Error("Solo se pueden verificar pagos con transferencia o tarjeta")
+    }
+
+    // Preparar datos de actualización
+    const updateData = {
+      verificationStatus: verificationData.status,
+      verificationNotes: verificationData.notes || "",
+      verificationDate: timestamp,
+      verificationBy: userId,
+      transactionId: verificationData.transactionId || movement.transactionId,
+    }
+
+    // Actualizar el movimiento
+    await update(movementRef, updateData)
+
+    // Si el pago se verifica como correcto, actualizar el balance de la caja
+    if (verificationData.status === "verified" && movement.verificationStatus !== "verified") {
+      const registerRef = ref(
+        realtimeDb,
+        `tenants/${tenantId}/branches/${branchId}/cashRegisters/${movement.registerId}`,
+      )
+      const registerSnapshot = await get(registerRef)
+
+      if (registerSnapshot.exists()) {
+        const register = registerSnapshot.val() as CashRegister
+
+        // Calcular el cambio en el balance
+        let balanceChange = movement.amount
+        if (["expense", "refund", "withdrawal"].includes(movement.type)) {
+          balanceChange = -Math.abs(movement.amount)
+        } else if (["income", "sale", "deposit"].includes(movement.type)) {
+          balanceChange = Math.abs(movement.amount)
+        }
+
+        // Actualizar el balance de la caja
+        await update(registerRef, {
+          currentBalance: register.currentBalance + balanceChange,
+          updatedAt: timestamp,
+        })
+      }
+    }
+
+    // Si el pago se rechaza después de haber sido verificado, revertir el balance
+    if (verificationData.status === "rejected" && movement.verificationStatus === "verified") {
+      const registerRef = ref(
+        realtimeDb,
+        `tenants/${tenantId}/branches/${branchId}/cashRegisters/${movement.registerId}`,
+      )
+      const registerSnapshot = await get(registerRef)
+
+      if (registerSnapshot.exists()) {
+        const register = registerSnapshot.val() as CashRegister
+
+        // Calcular el cambio en el balance (inverso)
+        let balanceChange = movement.amount
+        if (["expense", "refund", "withdrawal"].includes(movement.type)) {
+          balanceChange = Math.abs(movement.amount) // Invertir el signo
+        } else if (["income", "sale", "deposit"].includes(movement.type)) {
+          balanceChange = -Math.abs(movement.amount) // Invertir el signo
+        }
+
+        // Actualizar el balance de la caja
+        await update(registerRef, {
+          currentBalance: register.currentBalance + balanceChange,
+          updatedAt: timestamp,
+        })
+      }
+    }
+
+    return {
+      id: movementId,
+      ...movement,
+      ...updateData,
+    } as CashMovement
+  } catch (error) {
+    console.error("Error al verificar pago:", error)
     throw error
   }
 }
@@ -392,6 +550,14 @@ export async function getCashRegisterSummary(
 
     // Calcular totales por tipo de movimiento
     for (const movement of movements) {
+      // Ignorar movimientos de tarjeta o transferencia que no estén verificados
+      if (
+        (movement.paymentMethod === "card" || movement.paymentMethod === "transfer") &&
+        movement.verificationStatus !== "verified"
+      ) {
+        continue
+      }
+
       const amount = movement.amount
 
       // Verificar si el movimiento está relacionado con un pedido cancelado

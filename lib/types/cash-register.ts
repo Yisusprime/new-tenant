@@ -1,6 +1,7 @@
 export type CashMovementType = "sale" | "expense" | "deposit" | "withdrawal" | "adjustment"
 export type PaymentMethod = "cash" | "card" | "transfer" | "app" | "other"
 export type CashRegisterStatus = "open" | "closed"
+export type PaymentVerificationStatus = "pending" | "verified" | "rejected"
 
 export interface CashRegister {
   id: string
@@ -32,6 +33,11 @@ export interface CashMovement {
   orderNumber?: string
   createdAt: string
   createdBy: string
+  verificationStatus?: PaymentVerificationStatus
+  verificationNotes?: string
+  verificationDate?: string
+  verificationBy?: string
+  transactionId?: string
 }
 
 export interface CashRegisterSummary {
@@ -70,6 +76,8 @@ export interface CashMovementFormData {
   reference?: string
   orderId?: string
   orderNumber?: string
+  verificationStatus?: PaymentVerificationStatus
+  transactionId?: string
 }
 
 export interface CashRegisterCloseData {
@@ -105,4 +113,11 @@ export interface CashAudit {
   notes?: string
   denominations?: CashDenominations | null
   createdAt: string
+}
+
+export interface PaymentVerificationFormData {
+  movementId: string
+  status: PaymentVerificationStatus
+  notes?: string
+  transactionId?: string
 }
