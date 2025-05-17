@@ -27,7 +27,7 @@ import { PaymentStep } from "./payment-step"
 import { OrderSummary } from "./order-summary"
 
 // Añadir el import para el servicio de caja
-import { getOpenCashRegisters, registerSale } from "@/lib/services/cash-register-service"
+import { registerSale } from "@/lib/services/cash-register-service"
 import type { CashRegister } from "@/lib/types/cash-register"
 import { useAuth } from "@/hooks/use-auth"
 
@@ -38,6 +38,7 @@ interface CreateOrderDialogProps {
   branchId: string
   onOrderCreated: () => void
   selectedTable?: Table | null
+  cashRegisters: CashRegister[] // Añadir esta prop
 }
 
 export function CreateOrderDialog({
@@ -47,6 +48,7 @@ export function CreateOrderDialog({
   branchId,
   onOrderCreated,
   selectedTable,
+  cashRegisters, // Añadir esta prop
 }: CreateOrderDialogProps) {
   // Estados para los datos del pedido
   const [loading, setLoading] = useState(false)
@@ -85,8 +87,7 @@ export function CreateOrderDialog({
   const [currentStep, setCurrentStep] = useState(1)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  // Añadir estado para las cajas disponibles y la caja seleccionada
-  const [cashRegisters, setCashRegisters] = useState<CashRegister[]>([])
+  // Añadir estado para la caja seleccionada
   const [selectedCashRegisterId, setSelectedCashRegisterId] = useState<string>("")
 
   const { user } = useAuth()
@@ -99,22 +100,12 @@ export function CreateOrderDialog({
     }
   }, [selectedTableId])
 
-  // Cargar las cajas disponibles al abrir el diálogo
-  const loadCashRegisters = async () => {
-    try {
-      if (tenantId && branchId) {
-        const openRegisters = await getOpenCashRegisters(tenantId, branchId)
-        setCashRegisters(openRegisters)
-
-        // Si hay una caja abierta, seleccionarla por defecto
-        if (openRegisters.length > 0) {
-          setSelectedCashRegisterId(openRegisters[0].id)
-        }
-      }
-    } catch (error) {
-      console.error("Error al cargar cajas:", error)
+  // Seleccionar la primera caja disponible por defecto
+  useEffect(() => {
+    if (cashRegisters.length > 0 && !selectedCashRegisterId) {
+      setSelectedCashRegisterId(cashRegisters[0].id)
     }
-  }
+  }, [cashRegisters, selectedCashRegisterId])
 
   // Cargar datos al abrir el diálogo
   useEffect(() => {
@@ -123,7 +114,6 @@ export function CreateOrderDialog({
       loadExtras()
       loadTables()
       loadRestaurantConfig()
-      loadCashRegisters() // Añadir esta línea
 
       // Si hay una mesa seleccionada, establecer el tipo de pedido a "table"
       if (selectedTable && selectedTable.id) {
@@ -190,7 +180,7 @@ export function CreateOrderDialog({
         setTaxIncluded(config.basicInfo.taxIncluded)
 
         // Establecer la tasa de IVA (con valor predeterminado de 0.19 si no está definido)
-        setTaxRate(config.basicInfo.taxRate !== undefined ? config.basicInfo.taxRate : 0.19)
+        setTaxRate(config.basicInfo.taxRate !== undefined ? config.basicInfo.taxRate : config.basicInfo.taxRate)
 
         // Establecer el código de moneda (con valor predeterminado de CLP si no está definido)
         setCurrencyCode(config.basicInfo.currencyCode || "CLP")
@@ -351,6 +341,11 @@ export function CreateOrderDialog({
       if (paymentMethod === "cash" && Number.parseFloat(cashAmount || "0") < calculateTotal()) {
         newErrors.cashAmount = "El monto en efectivo debe ser igual o mayor al total"
       }
+
+      // Validar que se haya seleccionado una caja
+      if (!selectedCashRegisterId) {
+        newErrors.cashRegisterId = "Debe seleccionar una caja"
+      }
     }
 
     setErrors(newErrors)
@@ -447,7 +442,7 @@ export function CreateOrderDialog({
       // Crear el pedido
       const createdOrder = await createOrder(tenantId, branchId, orderData)
 
-      // Si hay una caja seleccionada, registrar la venta
+      // Registrar la venta en la caja seleccionada
       if (selectedCashRegisterId && user) {
         try {
           await registerSale(
@@ -570,8 +565,7 @@ export function CreateOrderDialog({
             errors={errors}
             currencyCode={currencyCode}
             // Nuevas propiedades
-            tenantId={tenantId}
-            branchId={branchId}
+            cashRegisters={cashRegisters}
             selectedCashRegisterId={selectedCashRegisterId}
             setSelectedCashRegisterId={setSelectedCashRegisterId}
           />
@@ -639,7 +633,7 @@ export function CreateOrderDialog({
                 taxAmount={calculateTaxAmount()}
                 taxRate={taxRate}
                 currencyCode={currencyCode}
-                taxEnabled={taxEnabled} // Pasar la propiedad
+                taxEnabled={taxEnabled}
               />
             </div>
           </div>

@@ -1,4 +1,4 @@
-import { ref, get, set, update, push, query, orderByChild, equalTo } from "firebase/database"
+import { ref, get, set, update, push } from "firebase/database"
 import { realtimeDb } from "@/lib/firebase/client"
 import type {
   CashRegister,
@@ -240,19 +240,23 @@ export async function getCashMovements(
       throw new Error("Tenant ID, Branch ID y Register ID son requeridos")
     }
 
+    // Modificación: En lugar de usar query con orderByChild y equalTo,
+    // obtenemos todos los movimientos y filtramos manualmente
     const movementsRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/cashMovements`)
-    const movementsQuery = query(movementsRef, orderByChild("registerId"), equalTo(registerId))
-    const snapshot = await get(movementsQuery)
+    const snapshot = await get(movementsRef)
 
     if (!snapshot.exists()) {
       return []
     }
 
     const movementsData = snapshot.val()
-    const movements = Object.entries(movementsData).map(([id, data]) => ({
+    const allMovements = Object.entries(movementsData).map(([id, data]) => ({
       id,
       ...(data as any),
     })) as CashMovement[]
+
+    // Filtrar manualmente por registerId
+    const movements = allMovements.filter((movement) => movement.registerId === registerId)
 
     // Ordenar por fecha de creación (más reciente primero)
     return movements.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
