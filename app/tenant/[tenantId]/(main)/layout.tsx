@@ -2,6 +2,10 @@ import type React from "react"
 import { doc, getDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase/client"
 
+// Add the necessary imports at the top
+import { SessionTimeoutDialog } from "@/components/session-timeout-dialog"
+import { AuthProvider } from "@/lib/context/auth-context"
+
 // Función para obtener datos del tenant
 async function getTenantData(tenantId: string) {
   try {
@@ -20,6 +24,7 @@ async function getTenantData(tenantId: string) {
   }
 }
 
+// Update the component to include the AuthProvider and SessionTimeoutDialog
 export default async function TenantMainLayout({
   children,
   params,
@@ -40,14 +45,19 @@ export default async function TenantMainLayout({
   const tenantName = tenantData?.name || tenantId
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <main className="flex-1">{children}</main>
+    <AuthProvider tenantId={tenantId}>
+      <div className="min-h-screen flex flex-col">
+        <main className="flex-1">{children}</main>
 
-      <footer className="bg-gray-800 text-white py-4">
-        <div className="container mx-auto px-4 text-center">
-          &copy; {new Date().getFullYear()} {tenantName} | Powered by Gastroo
-        </div>
-      </footer>
-    </div>
+        <footer className="bg-gray-800 text-white py-4">
+          <div className="container mx-auto px-4 text-center">
+            &copy; {new Date().getFullYear()} {tenantName} | Powered by Gastroo
+          </div>
+        </footer>
+
+        {/* Add the SessionTimeoutDialog */}
+        <SessionTimeoutDialog />
+      </div>
+    </AuthProvider>
   )
 }

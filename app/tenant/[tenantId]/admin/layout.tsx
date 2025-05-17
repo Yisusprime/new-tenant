@@ -42,6 +42,9 @@ import { AuthProvider } from "@/lib/context/auth-context"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Separator } from "@/components/ui/separator"
 
+// Add the import at the top of the file
+import { SessionTimeoutDialog } from "@/components/session-timeout-dialog"
+
 // Componente para el selector de sucursales
 function BranchSelector() {
   const { branches, currentBranch, setCurrentBranch, loading, error, hasActiveBranches } = useBranch()
@@ -521,6 +524,9 @@ function AdminLayoutContent({
           <BranchAlertModal />
           {children}
         </main>
+
+        {/* Add the SessionTimeoutDialog here */}
+        <SessionTimeoutDialog />
       </div>
     </div>
   )
