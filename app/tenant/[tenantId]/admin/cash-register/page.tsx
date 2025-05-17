@@ -13,12 +13,24 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { formatCurrency, formatDateTime } from "@/lib/utils"
 import { getCashRegisters, getOpenCashRegisters, getCashRegisterSummary } from "@/lib/services/cash-register-service"
-import type { CashRegister, CashRegisterSummary } from "@/lib/types/cash-register"
+import { getLastCashAudit } from "@/lib/services/cash-audit-service"
+import type { CashRegister, CashRegisterSummary, CashAudit } from "@/lib/types/cash-register"
 import { CashRegisterForm } from "@/components/cash-register-form"
 import { CashMovementForm } from "@/components/cash-movement-form"
 import { CashRegisterCloseForm } from "@/components/cash-register-close-form"
 import { CashRegisterSummary as CashRegisterSummaryComponent } from "@/components/cash-register-summary"
-import { AlertCircle, ArrowUpDown, History, Plus, RefreshCw, XCircle } from "lucide-react"
+import { CashAuditDialog } from "@/components/cash-audit-dialog"
+import {
+  AlertCircle,
+  AlertTriangle,
+  ArrowUpDown,
+  CheckCircle2,
+  ClipboardCheck,
+  History,
+  Plus,
+  RefreshCw,
+  XCircle,
+} from "lucide-react"
 import { useRouter } from "next/navigation"
 import { closeCashRegister } from "@/lib/services/cash-register-service"
 import { toast } from "@/components/ui/use-toast"
@@ -32,6 +44,7 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
   const [openRegisters, setOpenRegisters] = useState<CashRegister[]>([])
   const [selectedRegister, setSelectedRegister] = useState<CashRegister | null>(null)
   const [registerSummary, setRegisterSummary] = useState<CashRegisterSummary | null>(null)
+  const [lastAudit, setLastAudit] = useState<CashAudit | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("open")
   const [isLoading, setIsLoading] = useState(false)
@@ -40,6 +53,7 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [movementDialogOpen, setMovementDialogOpen] = useState(false)
   const [closeDialogOpen, setCloseDialogOpen] = useState(false)
+  const [auditDialogOpen, setAuditDialogOpen] = useState(false)
 
   // Cargar datos
   const loadData = async () => {
@@ -60,6 +74,10 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
         // Cargar el resumen de la caja seleccionada
         const summary = await getCashRegisterSummary(tenantId, currentBranch.id, openRegs[0].id)
         setRegisterSummary(summary)
+
+        // Cargar el último arqueo
+        const audit = await getLastCashAudit(tenantId, currentBranch.id, openRegs[0].id)
+        setLastAudit(audit)
       } else if (selectedRegister) {
         // Verificar si la caja seleccionada sigue abierta
         const stillOpen = openRegs.some((reg) => reg.id === selectedRegister.id)
@@ -73,6 +91,10 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
           const summary = await getCashRegisterSummary(tenantId, currentBranch.id, updatedRegister.id)
           setRegisterSummary(summary)
 
+          // Cargar el último arqueo
+          const audit = await getLastCashAudit(tenantId, currentBranch.id, updatedRegister.id)
+          setLastAudit(audit)
+
           // Si la caja ya no está abierta y estamos en la pestaña "open", cambiar a "detail"
           if (!stillOpen && activeTab === "open") {
             setActiveTab("detail")
@@ -80,6 +102,7 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
         } else {
           // Si la caja ya no existe, deseleccionarla
           setSelectedRegister(null)
+          setLastAudit(null)
         }
       }
     } catch (error) {
@@ -104,6 +127,10 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
       try {
         const summary = await getCashRegisterSummary(tenantId, currentBranch.id, register.id)
         setRegisterSummary(summary)
+
+        // Cargar el último arqueo
+        const audit = await getLastCashAudit(tenantId, currentBranch.id, register.id)
+        setLastAudit(audit)
       } catch (error) {
         console.error("Error al cargar resumen:", error)
       }
@@ -129,6 +156,12 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
     setCloseDialogOpen(false)
     loadData()
     // No deseleccionamos la caja para poder seguir viendo sus detalles
+  }
+
+  // Manejar la realización de un arqueo
+  const handleAuditCompleted = () => {
+    setAuditDialogOpen(false)
+    loadData()
   }
 
   // Asegúrate de que la función closeCashRegister actualice el estado local
@@ -171,6 +204,46 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
   const navigateToMovements = (registerId: string) => {
     // Usar ruta relativa
     router.push(`/admin/cash-register/movements/${registerId}`)
+  }
+
+  // Navegar a la página de arqueos
+  const navigateToAudits = (registerId: string) => {
+    // Usar ruta relativa
+    router.push(`/admin/cash-register/audits/${registerId}`)
+  }
+
+  // Obtener información del último arqueo
+  const getLastAuditInfo = () => {
+    if (!lastAudit) {
+      return {
+        text: "Sin arqueos",
+        icon: <AlertCircle className="h-4 w-4 text-gray-500" />,
+        color: "text-gray-500",
+      }
+    }
+
+    const timeSinceAudit = new Date().getTime() - new Date(lastAudit.performedAt).getTime()
+    const hoursSinceAudit = Math.floor(timeSinceAudit / (1000 * 60 * 60))
+
+    if (lastAudit.status === "balanced") {
+      return {
+        text: `Último arqueo: ${formatDateTime(lastAudit.performedAt)} (${hoursSinceAudit}h)`,
+        icon: <CheckCircle2 className="h-4 w-4 text-green-600" />,
+        color: "text-green-600",
+      }
+    } else if (lastAudit.status === "surplus") {
+      return {
+        text: `Último arqueo: ${formatDateTime(lastAudit.performedAt)} (${hoursSinceAudit}h) - Sobrante: ${formatCurrency(lastAudit.difference)}`,
+        icon: <AlertCircle className="h-4 w-4 text-blue-600" />,
+        color: "text-blue-600",
+      }
+    } else {
+      return {
+        text: `Último arqueo: ${formatDateTime(lastAudit.performedAt)} (${hoursSinceAudit}h) - Faltante: ${formatCurrency(Math.abs(lastAudit.difference))}`,
+        icon: <AlertTriangle className="h-4 w-4 text-red-600" />,
+        color: "text-red-600",
+      }
+    }
   }
 
   return (
@@ -258,6 +331,18 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   handleSelectRegister(register)
+                                  setAuditDialogOpen(true)
+                                }}
+                              >
+                                <ClipboardCheck className="h-4 w-4 mr-2" />
+                                Arqueo
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleSelectRegister(register)
                                   setMovementDialogOpen(true)
                                 }}
                               >
@@ -274,7 +359,7 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
                                 }}
                               >
                                 <XCircle className="h-4 w-4 mr-2" />
-                                Cerrar Caja
+                                Cerrar
                               </Button>
                             </div>
                           </CardFooter>
@@ -343,49 +428,58 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
                             </div>
                           </CardContent>
                           <CardFooter className="pt-0">
-                            {register.status === "open" && (
-                              <div className="flex justify-between w-full">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleSelectRegister(register)
-                                    setMovementDialogOpen(true)
-                                  }}
-                                >
-                                  <ArrowUpDown className="h-4 w-4 mr-2" />
-                                  Movimiento
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleSelectRegister(register)
-                                    setCloseDialogOpen(true)
-                                  }}
-                                >
-                                  <XCircle className="h-4 w-4 mr-2" />
-                                  Cerrar Caja
-                                </Button>
-                              </div>
-                            )}
-                            {register.status !== "open" && (
-                              <div className="flex justify-end w-full">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    navigateToMovements(register.id)
-                                  }}
-                                >
-                                  <History className="h-4 w-4 mr-2" />
-                                  Ver Movimientos
-                                </Button>
-                              </div>
-                            )}
+                            <div className="flex justify-end w-full gap-2">
+                              {register.status === "open" && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleSelectRegister(register)
+                                      setAuditDialogOpen(true)
+                                    }}
+                                  >
+                                    <ClipboardCheck className="h-4 w-4 mr-2" />
+                                    Arqueo
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleSelectRegister(register)
+                                      setMovementDialogOpen(true)
+                                    }}
+                                  >
+                                    <ArrowUpDown className="h-4 w-4 mr-2" />
+                                    Movimiento
+                                  </Button>
+                                </>
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  navigateToAudits(register.id)
+                                }}
+                              >
+                                <ClipboardCheck className="h-4 w-4 mr-2" />
+                                Ver Arqueos
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  navigateToMovements(register.id)
+                                }}
+                              >
+                                <History className="h-4 w-4 mr-2" />
+                                Ver Movimientos
+                              </Button>
+                            </div>
                           </CardFooter>
                         </Card>
                       )
@@ -407,9 +501,17 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
                   <div className="flex gap-2">
                     {selectedRegister.status === "open" ? (
                       <>
+                        <Button variant="outline" size="sm" onClick={() => setAuditDialogOpen(true)}>
+                          <ClipboardCheck className="h-4 w-4 mr-2" />
+                          Realizar Arqueo
+                        </Button>
                         <Button variant="outline" size="sm" onClick={() => setMovementDialogOpen(true)}>
                           <ArrowUpDown className="h-4 w-4 mr-2" />
                           Nuevo Movimiento
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => navigateToAudits(selectedRegister.id)}>
+                          <ClipboardCheck className="h-4 w-4 mr-2" />
+                          Ver Arqueos
                         </Button>
                         <Button variant="outline" size="sm" onClick={() => navigateToMovements(selectedRegister.id)}>
                           <History className="h-4 w-4 mr-2" />
@@ -421,13 +523,43 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
                         </Button>
                       </>
                     ) : (
-                      <Button variant="outline" size="sm" onClick={() => navigateToMovements(selectedRegister.id)}>
-                        <History className="h-4 w-4 mr-2" />
-                        Ver Movimientos
-                      </Button>
+                      <>
+                        <Button variant="outline" size="sm" onClick={() => navigateToAudits(selectedRegister.id)}>
+                          <ClipboardCheck className="h-4 w-4 mr-2" />
+                          Ver Arqueos
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => navigateToMovements(selectedRegister.id)}>
+                          <History className="h-4 w-4 mr-2" />
+                          Ver Movimientos
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
+
+                {/* Información del último arqueo */}
+                {selectedRegister.status === "open" && (
+                  <Card className="mb-4">
+                    <CardHeader className="py-3">
+                      <div className="flex items-center">
+                        {getLastAuditInfo().icon}
+                        <CardTitle className={`text-base ml-2 ${getLastAuditInfo().color}`}>
+                          {getLastAuditInfo().text}
+                        </CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardFooter className="pt-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="ml-auto"
+                        onClick={() => navigateToAudits(selectedRegister.id)}
+                      >
+                        Ver historial de arqueos
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                )}
 
                 <CashRegisterSummaryComponent
                   tenantId={tenantId}
@@ -501,6 +633,19 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
               )}
             </DialogContent>
           </Dialog>
+
+          {/* Diálogo para realizar arqueo de caja */}
+          {user && selectedRegister && (
+            <CashAuditDialog
+              open={auditDialogOpen}
+              onOpenChange={setAuditDialogOpen}
+              tenantId={tenantId}
+              branchId={currentBranch.id}
+              userId={user.uid}
+              register={selectedRegister}
+              onSuccess={handleAuditCompleted}
+            />
+          )}
         </>
       )}
     </div>
