@@ -19,6 +19,7 @@ import { toast } from "@/components/ui/use-toast"
 import { OrdersList } from "../components/orders-list"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import Link from "next/link"
 
 export default function OrderHistoryPage({ params }: { params: { tenantId: string } }) {
   const { tenantId } = params
@@ -164,9 +165,11 @@ export default function OrderHistoryPage({ params }: { params: { tenantId: strin
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="outline" size="icon" onClick={() => router.push(`/tenant/${tenantId}/admin/orders`)}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
+          <Link href="/admin/orders">
+            <Button variant="outline" size="icon">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
           <h1 className="text-2xl font-bold">Historial de Pedidos</h1>
         </div>
         <div className="flex gap-2">

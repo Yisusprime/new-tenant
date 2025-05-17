@@ -20,6 +20,8 @@ import { CashRegisterCloseForm } from "@/components/cash-register-close-form"
 import { CashRegisterSummary as CashRegisterSummaryComponent } from "@/components/cash-register-summary"
 import { AlertCircle, ArrowUpDown, History, Plus, RefreshCw, XCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { closeCashRegister } from "@/lib/services/cash-register-service"
+import { toast } from "@/components/ui/use-toast"
 
 export default function CashRegisterPage({ params }: { params: { tenantId: string } }) {
   const { tenantId } = params
@@ -32,6 +34,7 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
   const [registerSummary, setRegisterSummary] = useState<CashRegisterSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("open")
+  const [isLoading, setIsLoading] = useState(false)
 
   // Estados para diálogos
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -58,14 +61,23 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
         const summary = await getCashRegisterSummary(tenantId, currentBranch.id, openRegs[0].id)
         setRegisterSummary(summary)
       } else if (selectedRegister) {
-        // Actualizar la información de la caja seleccionada
-        const updatedRegister = allRegisters.find((r) => r.id === selectedRegister.id)
-        if (updatedRegister) {
-          setSelectedRegister(updatedRegister)
+        // Verificar si la caja seleccionada sigue abierta
+        const stillOpen = openRegs.some((reg) => reg.id === selectedRegister.id)
 
-          // Cargar el resumen actualizado
-          const summary = await getCashRegisterSummary(tenantId, currentBranch.id, updatedRegister.id)
-          setRegisterSummary(summary)
+        if (stillOpen) {
+          // Actualizar la información de la caja seleccionada
+          const updatedRegister = allRegisters.find((r) => r.id === selectedRegister.id)
+          if (updatedRegister) {
+            setSelectedRegister(updatedRegister)
+
+            // Cargar el resumen actualizado
+            const summary = await getCashRegisterSummary(tenantId, currentBranch.id, updatedRegister.id)
+            setRegisterSummary(summary)
+          }
+        } else {
+          // Si la caja ya no está abierta, deseleccionarla y cambiar a la pestaña "open"
+          setSelectedRegister(null)
+          setActiveTab("open")
         }
       }
     } catch (error) {
@@ -111,8 +123,35 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
   // Manejar el cierre de caja
   const handleRegisterClosed = () => {
     setCloseDialogOpen(false)
-    loadData()
+    // Deseleccionar la caja cerrada y cambiar a la pestaña "open"
     setSelectedRegister(null)
+    setActiveTab("open")
+    loadData()
+  }
+
+  // Asegúrate de que la función closeCashRegister actualice el estado local
+  const handleCloseCashRegister = async (registerId: string, closeData: any) => {
+    try {
+      setIsLoading(true)
+      await closeCashRegister(tenantId, currentBranch?.id || "", registerId, closeData)
+
+      // Actualizar el estado local para reflejar que la caja está cerrada
+      setOpenRegisters((prev) => prev.filter((reg) => reg.id !== registerId))
+
+      toast({
+        title: "Caja cerrada",
+        description: "La caja ha sido cerrada correctamente",
+      })
+    } catch (error) {
+      console.error("Error al cerrar la caja:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo cerrar la caja",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   // Obtener el color y texto según el estado de la caja
@@ -429,6 +468,8 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
                   summary={registerSummary}
                   onSuccess={handleRegisterClosed}
                   onCancel={() => setCloseDialogOpen(false)}
+                  onCloseCashRegister={handleCloseCashRegister}
+                  isLoading={isLoading}
                 />
               )}
             </DialogContent>

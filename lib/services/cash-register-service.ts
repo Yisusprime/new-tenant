@@ -385,9 +385,28 @@ export async function getCashRegisterSummary(
       },
     }
 
+    // Obtener todos los pedidos para verificar su estado
+    const ordersRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/orders`)
+    const ordersSnapshot = await get(ordersRef)
+    const orders = ordersSnapshot.exists() ? ordersSnapshot.val() : {}
+
     // Calcular totales por tipo de movimiento
-    movements.forEach((movement) => {
+    for (const movement of movements) {
       const amount = movement.amount
+
+      // Verificar si el movimiento está relacionado con un pedido cancelado
+      let isCancelledOrder = false
+      if (movement.orderId && movement.type === "sale") {
+        const order = orders[movement.orderId]
+        if (order && order.status === "cancelled") {
+          isCancelledOrder = true
+        }
+      }
+
+      // Si es un pedido cancelado, no sumarlo a los totales
+      if (isCancelledOrder) {
+        continue
+      }
 
       switch (movement.type) {
         case "income":
@@ -398,13 +417,8 @@ export async function getCashRegisterSummary(
           summary.totalExpense += amount
           break
         case "sale":
-          // Verificar si el pedido está cancelado antes de sumarlo como venta
-          if (movement.orderId) {
-            // Aquí verificaríamos el estado del pedido, pero como no tenemos acceso directo,
-            // lo haremos en la función registerSale y registerRefund
-            summary.totalSales += amount
-            summary.paymentMethodTotals[movement.paymentMethod] += amount
-          }
+          summary.totalSales += amount
+          summary.paymentMethodTotals[movement.paymentMethod] += amount
           break
         case "refund":
           summary.totalRefunds += amount
@@ -425,7 +439,7 @@ export async function getCashRegisterSummary(
           }
           break
       }
-    })
+    }
 
     // Calcular el balance esperado
     summary.expectedBalance =

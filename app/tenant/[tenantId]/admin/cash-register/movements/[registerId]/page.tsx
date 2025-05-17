@@ -14,6 +14,7 @@ import { getCashRegister, getCashMovements } from "@/lib/services/cash-register-
 import type { CashRegister, CashMovement } from "@/lib/types/cash-register"
 import { ArrowDownCircle, ArrowLeft, ArrowUpCircle, ChevronDown, RefreshCw } from "lucide-react"
 import type { JSX } from "react"
+import Link from "next/link"
 
 const ITEMS_PER_PAGE = 10
 
@@ -194,9 +195,11 @@ export default function CashRegisterMovementsPage({
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={navigateBack}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
+          <Link href="/admin/cash-register">
+            <Button variant="outline" size="icon">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
           <h1 className="text-2xl font-bold">Movimientos de Caja: {register.name}</h1>
         </div>
         <Button variant="outline" size="sm" onClick={loadData}>
