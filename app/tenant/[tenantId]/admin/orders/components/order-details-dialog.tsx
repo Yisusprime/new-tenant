@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { Loader2, DollarSign, AlertCircle } from "lucide-react"
+import { Loader2, DollarSign, AlertCircle, Printer, Utensils } from "lucide-react"
 import { PrintTicketDialog } from "@/components/print-ticket-dialog"
 import { PrintCommandDialog } from "@/components/print-command-dialog"
 import { usePrintTicket } from "@/lib/hooks/use-print-ticket"
@@ -328,6 +328,51 @@ export function OrderDetailsDialog({
             <div className="flex justify-between items-center mt-4 font-bold">
               <span>Total</span>
               <span>{formatCurrency(order.total)}</span>
+            </div>
+          </div>
+
+          {/* Botones de acción */}
+          <div className="flex flex-wrap justify-between gap-2 mt-4">
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setIsPrintDialogOpen(true)} title="Imprimir Ticket">
+                <Printer className="h-4 w-4 mr-2" />
+                Ticket
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setIsCommandDialogOpen(true)} title="Imprimir Comanda">
+                <Utensils className="h-4 w-4 mr-2" />
+                Comanda
+              </Button>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleStatusChange("cancelled")}
+                disabled={loading || order.status === "cancelled"}
+              >
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  const nextStatus: Record<OrderStatus, OrderStatus> = {
+                    pending: "preparing",
+                    preparing: "ready",
+                    ready: "delivered",
+                    delivered: "delivered",
+                    cancelled: "cancelled",
+                  }
+                  handleStatusChange(nextStatus[order.status])
+                }}
+                disabled={loading || order.status === "delivered" || order.status === "cancelled"}
+              >
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {order.status === "pending" && "Iniciar Preparación"}
+                {order.status === "preparing" && "Marcar como Listo"}
+                {order.status === "ready" && "Marcar como Entregado"}
+                {(order.status === "delivered" || order.status === "cancelled") && "Completado"}
+              </Button>
             </div>
           </div>
 
