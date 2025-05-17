@@ -5,22 +5,22 @@ import { CheckCircle } from "lucide-react"
 
 export default function LandingPage() {
   return (
-    <div className="flex flex-col min-h-screen bg-[#050E2F] text-white">
+    <div className="flex flex-col min-h-screen bg-black text-white">
       <header className="py-6 sticky top-0 z-50">
         <div className="container mx-auto px-4">
-          <div className="bg-[#0A1642]/80 backdrop-blur-md rounded-full py-3 px-6 flex justify-between items-center">
-            <div className="text-2xl font-bold">Gastroo</div>
+          <div className="bg-[#0A0A0A]/90 backdrop-blur-md rounded-full py-3 px-6 flex justify-between items-center">
+            <div className="text-2xl font-medium">Gastroo</div>
             <nav className="hidden md:flex gap-6">
-              <Link href="#features" className="text-gray-300 hover:text-white transition">
+              <Link href="#features" className="text-gray-300 hover:text-white transition text-sm">
                 Características
               </Link>
-              <Link href="#how-it-works" className="text-gray-300 hover:text-white transition">
+              <Link href="#how-it-works" className="text-gray-300 hover:text-white transition text-sm">
                 Cómo funciona
               </Link>
-              <Link href="#pricing" className="text-gray-300 hover:text-white transition">
+              <Link href="#pricing" className="text-gray-300 hover:text-white transition text-sm">
                 Precios
               </Link>
-              <Link href="#testimonials" className="text-gray-300 hover:text-white transition">
+              <Link href="#testimonials" className="text-gray-300 hover:text-white transition text-sm">
                 Testimonios
               </Link>
             </nav>
@@ -28,11 +28,11 @@ export default function LandingPage() {
               <Button
                 asChild
                 variant="ghost"
-                className="hidden md:inline-flex text-gray-300 hover:text-white hover:bg-[#1A2A5E]"
+                className="hidden md:inline-flex text-gray-300 hover:text-white hover:bg-[#111] text-sm"
               >
                 <Link href="/login">Iniciar sesión</Link>
               </Button>
-              <Button asChild className="bg-white text-[#050E2F] hover:bg-gray-200 rounded-full">
+              <Button asChild className="bg-white text-black hover:bg-gray-200 rounded-full text-sm font-medium">
                 <Link href="/register">Registrarse</Link>
               </Button>
             </div>
@@ -43,18 +43,18 @@ export default function LandingPage() {
       <main className="flex-1">
         {/* Hero Section */}
         <section className="py-24 overflow-hidden relative">
-          <div className="absolute inset-0 bg-[url('/grid-pattern.png')] bg-repeat opacity-10"></div>
+          <div className="absolute inset-0 bg-[url('/blue-lines.png')] bg-repeat opacity-30"></div>
           <div className="container mx-auto px-4 text-center max-w-4xl">
-            <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
+            <h1 className="text-5xl md:text-6xl font-medium mb-6 leading-tight tracking-tight">
               Gestiona tu restaurante de forma digital
             </h1>
-            <p className="text-xl mb-10 text-gray-300 max-w-2xl mx-auto">
+            <p className="text-xl mb-10 text-gray-300 max-w-2xl mx-auto font-light">
               Recibe y gestiona todos los pedidos de tu negocio con tu propio subdominio personalizado.
             </p>
             <Button
               asChild
               size="lg"
-              className="bg-white text-[#050E2F] hover:bg-gray-200 rounded-full px-8 py-6 text-lg"
+              className="bg-white text-black hover:bg-gray-200 rounded-full px-8 py-6 text-sm font-medium"
             >
               <Link href="/register">Habla con ventas</Link>
             </Button>
@@ -62,9 +62,9 @@ export default function LandingPage() {
         </section>
 
         {/* Trusted By Section */}
-        <section className="py-16 bg-white text-[#050E2F]">
+        <section className="py-16 bg-white text-black">
           <div className="container mx-auto px-4 text-center">
-            <p className="text-gray-600 mb-10 uppercase tracking-wider text-sm font-medium">
+            <p className="text-gray-600 mb-10 uppercase tracking-wider text-xs font-medium">
               +500 restaurantes confían en nosotros
             </p>
             <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16">
@@ -86,23 +86,28 @@ export default function LandingPage() {
         </section>
 
         {/* Features Section */}
-        <section id="features" className="py-24 bg-[#0A1642]">
+        <section id="features" className="py-24 bg-black">
           <div className="container mx-auto px-4">
             <div className="text-center max-w-3xl mx-auto mb-16">
-              <h2 className="text-3xl font-bold mb-4">Todo lo que necesitas para tu restaurante digital</h2>
-              <p className="text-xl text-gray-300">
+              <h2 className="text-3xl font-medium mb-4 tracking-tight">
+                Todo lo que necesitas para tu restaurante digital
+              </h2>
+              <p className="text-xl text-gray-300 font-light">
                 Una plataforma completa diseñada específicamente para las necesidades de tu restaurante
               </p>
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {features.map((feature, index) => (
-                <div key={index} className="p-6 rounded-xl bg-[#162252] hover:bg-[#1D2B63] transition duration-300">
-                  <div className="w-12 h-12 bg-[#2A3A7B] rounded-lg flex items-center justify-center mb-4">
+                <div
+                  key={index}
+                  className="p-6 rounded-xl bg-[#0A0A0A] border border-[#222] hover:border-[#444] transition duration-300"
+                >
+                  <div className="w-12 h-12 bg-[#111] rounded-lg flex items-center justify-center mb-4">
                     <feature.icon className="w-6 h-6 text-white" />
                   </div>
-                  <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
-                  <p className="text-gray-300">{feature.description}</p>
+                  <h3 className="text-xl font-medium mb-3">{feature.title}</h3>
+                  <p className="text-gray-300 font-light">{feature.description}</p>
                 </div>
               ))}
             </div>
@@ -110,25 +115,25 @@ export default function LandingPage() {
         </section>
 
         {/* How It Works */}
-        <section id="how-it-works" className="py-24 bg-[#050E2F]">
+        <section id="how-it-works" className="py-24 bg-[#050505]">
           <div className="container mx-auto px-4">
             <div className="text-center max-w-3xl mx-auto mb-16">
-              <h2 className="text-3xl font-bold mb-4">Cómo funciona</h2>
-              <p className="text-xl text-gray-300">Comienza a usar Gastroo en tres simples pasos</p>
+              <h2 className="text-3xl font-medium mb-4 tracking-tight">Cómo funciona</h2>
+              <p className="text-xl text-gray-300 font-light">Comienza a usar Gastroo en tres simples pasos</p>
             </div>
 
             <div className="grid md:grid-cols-3 gap-8">
               {steps.map((step, index) => (
                 <div key={index} className="relative">
                   {index < steps.length - 1 && (
-                    <div className="hidden md:block absolute top-16 left-[calc(100%_-_16px)] w-16 border-t-2 border-dashed border-[#2A3A7B]"></div>
+                    <div className="hidden md:block absolute top-16 left-[calc(100%_-_16px)] w-16 border-t-2 border-dashed border-[#222]"></div>
                   )}
-                  <div className="bg-[#162252] rounded-xl p-8 h-full flex flex-col items-center text-center">
-                    <div className="w-12 h-12 rounded-full bg-white text-[#050E2F] flex items-center justify-center font-bold text-xl mb-6">
+                  <div className="bg-[#0A0A0A] rounded-xl p-8 h-full flex flex-col items-center text-center border border-[#222]">
+                    <div className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center font-medium text-xl mb-6">
                       {index + 1}
                     </div>
-                    <h3 className="text-xl font-semibold mb-3">{step.title}</h3>
-                    <p className="text-gray-300">{step.description}</p>
+                    <h3 className="text-xl font-medium mb-3">{step.title}</h3>
+                    <p className="text-gray-300 font-light">{step.description}</p>
                   </div>
                 </div>
               ))}
@@ -137,16 +142,18 @@ export default function LandingPage() {
         </section>
 
         {/* Testimonials */}
-        <section id="testimonials" className="py-24 bg-[#0A1642]">
+        <section id="testimonials" className="py-24 bg-black">
           <div className="container mx-auto px-4">
             <div className="text-center max-w-3xl mx-auto mb-16">
-              <h2 className="text-3xl font-bold mb-4">Lo que dicen nuestros clientes</h2>
-              <p className="text-xl text-gray-300">Restaurantes que han transformado su negocio con Gastroo</p>
+              <h2 className="text-3xl font-medium mb-4 tracking-tight">Lo que dicen nuestros clientes</h2>
+              <p className="text-xl text-gray-300 font-light">
+                Restaurantes que han transformado su negocio con Gastroo
+              </p>
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {testimonials.map((testimonial, index) => (
-                <div key={index} className="bg-[#162252] p-6 rounded-xl">
+                <div key={index} className="bg-[#0A0A0A] p-6 rounded-xl border border-[#222]">
                   <div className="flex items-center gap-4 mb-4">
                     <div className="w-12 h-12 rounded-full overflow-hidden">
                       <Image
@@ -157,11 +164,11 @@ export default function LandingPage() {
                       />
                     </div>
                     <div>
-                      <h4 className="font-semibold">{testimonial.name}</h4>
+                      <h4 className="font-medium">{testimonial.name}</h4>
                       <p className="text-sm text-gray-300">{testimonial.role}</p>
                     </div>
                   </div>
-                  <p className="text-gray-300">{testimonial.quote}</p>
+                  <p className="text-gray-300 font-light">{testimonial.quote}</p>
                   <div className="mt-4 flex">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <svg key={star} className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
@@ -176,11 +183,11 @@ export default function LandingPage() {
         </section>
 
         {/* Pricing */}
-        <section id="pricing" className="py-24 bg-[#050E2F]">
+        <section id="pricing" className="py-24 bg-[#050505]">
           <div className="container mx-auto px-4">
             <div className="text-center max-w-3xl mx-auto mb-16">
-              <h2 className="text-3xl font-bold mb-4">Planes simples y transparentes</h2>
-              <p className="text-xl text-gray-300">
+              <h2 className="text-3xl font-medium mb-4 tracking-tight">Planes simples y transparentes</h2>
+              <p className="text-xl text-gray-300 font-light">
                 Elige el plan que mejor se adapte a las necesidades de tu restaurante
               </p>
             </div>
@@ -190,32 +197,34 @@ export default function LandingPage() {
                 <div
                   key={index}
                   className={`rounded-xl overflow-hidden ${
-                    plan.popular ? "border-2 border-white relative shadow-xl" : "border border-[#2A3A7B] shadow-sm"
+                    plan.popular ? "border-2 border-white relative shadow-xl" : "border border-[#222] shadow-sm"
                   }`}
                 >
                   {plan.popular && (
-                    <div className="bg-white text-[#050E2F] text-center py-1 text-sm font-medium">Más popular</div>
+                    <div className="bg-white text-black text-center py-1 text-xs font-medium">Más popular</div>
                   )}
-                  <div className="p-6 bg-[#162252]">
-                    <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
-                    <p className="text-gray-300 mb-4">{plan.description}</p>
+                  <div className="p-6 bg-[#0A0A0A]">
+                    <h3 className="text-xl font-medium mb-2">{plan.name}</h3>
+                    <p className="text-gray-300 mb-4 font-light">{plan.description}</p>
                     <div className="mb-4">
-                      <span className="text-4xl font-bold">${plan.price}</span>
-                      <span className="text-gray-300">/mes</span>
+                      <span className="text-4xl font-medium">${plan.price}</span>
+                      <span className="text-gray-300 font-light">/mes</span>
                     </div>
                     <Button
                       asChild
                       className={`w-full rounded-full ${
-                        plan.popular ? "bg-white text-[#050E2F] hover:bg-gray-200" : "bg-[#2A3A7B] hover:bg-[#354990]"
+                        plan.popular ? "bg-white text-black hover:bg-gray-200" : "bg-[#111] hover:bg-[#222]"
                       }`}
                     >
-                      <Link href="/register">Comenzar</Link>
+                      <Link href="/register" className="text-sm font-medium">
+                        Comenzar
+                      </Link>
                     </Button>
                     <ul className="mt-6 space-y-3">
                       {plan.features.map((feature, i) => (
                         <li key={i} className="flex items-start gap-2">
                           <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0 mt-0.5" />
-                          <span className="text-gray-300">{feature}</span>
+                          <span className="text-gray-300 font-light">{feature}</span>
                         </li>
                       ))}
                     </ul>
@@ -227,17 +236,17 @@ export default function LandingPage() {
         </section>
 
         {/* CTA Section */}
-        <section className="py-24 bg-[#0A1642]">
+        <section className="py-24 bg-black">
           <div className="container mx-auto px-4 text-center">
             <div className="max-w-3xl mx-auto">
-              <h2 className="text-3xl font-bold mb-6">¿Listo para transformar tu restaurante?</h2>
-              <p className="text-xl mb-8 text-gray-300">
+              <h2 className="text-3xl font-medium mb-6 tracking-tight">¿Listo para transformar tu restaurante?</h2>
+              <p className="text-xl mb-8 text-gray-300 font-light">
                 Únete a cientos de restaurantes que ya están creciendo con Gastroo
               </p>
               <Button
                 asChild
                 size="lg"
-                className="bg-white text-[#050E2F] hover:bg-gray-200 rounded-full px-8 py-6 text-lg"
+                className="bg-white text-black hover:bg-gray-200 rounded-full px-8 py-6 text-sm font-medium"
               >
                 <Link href="/register">Habla con ventas</Link>
               </Button>
@@ -246,12 +255,14 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="bg-[#0A1642] py-16 border-t border-[#2A3A7B]">
+      <footer className="bg-[#0A0A0A] py-16 border-t border-[#222]">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
             <div className="col-span-2">
-              <div className="text-2xl font-bold mb-4">Gastroo</div>
-              <p className="text-gray-300 mb-4">La plataforma completa para gestionar tu restaurante en línea.</p>
+              <div className="text-2xl font-medium mb-4">Gastroo</div>
+              <p className="text-gray-300 mb-4 font-light">
+                La plataforma completa para gestionar tu restaurante en línea.
+              </p>
               <div className="flex gap-4">
                 <a href="#" className="text-gray-300 hover:text-white transition">
                   <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -279,83 +290,85 @@ export default function LandingPage() {
               </div>
             </div>
             <div>
-              <h3 className="text-lg font-semibold mb-4">Producto</h3>
+              <h3 className="text-lg font-medium mb-4">Producto</h3>
               <ul className="space-y-2">
                 <li>
-                  <Link href="#features" className="text-gray-300 hover:text-white transition">
+                  <Link href="#features" className="text-gray-300 hover:text-white transition text-sm">
                     Características
                   </Link>
                 </li>
                 <li>
-                  <Link href="#pricing" className="text-gray-300 hover:text-white transition">
+                  <Link href="#pricing" className="text-gray-300 hover:text-white transition text-sm">
                     Precios
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="text-gray-300 hover:text-white transition">
+                  <Link href="#" className="text-gray-300 hover:text-white transition text-sm">
                     Integraciones
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="text-gray-300 hover:text-white transition">
+                  <Link href="#" className="text-gray-300 hover:text-white transition text-sm">
                     Actualizaciones
                   </Link>
                 </li>
               </ul>
             </div>
             <div>
-              <h3 className="text-lg font-semibold mb-4">Soporte</h3>
+              <h3 className="text-lg font-medium mb-4">Soporte</h3>
               <ul className="space-y-2">
                 <li>
-                  <Link href="#" className="text-gray-300 hover:text-white transition">
+                  <Link href="#" className="text-gray-300 hover:text-white transition text-sm">
                     Documentación
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="text-gray-300 hover:text-white transition">
+                  <Link href="#" className="text-gray-300 hover:text-white transition text-sm">
                     Guías
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="text-gray-300 hover:text-white transition">
+                  <Link href="#" className="text-gray-300 hover:text-white transition text-sm">
                     Centro de ayuda
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="text-gray-300 hover:text-white transition">
+                  <Link href="#" className="text-gray-300 hover:text-white transition text-sm">
                     Contacto
                   </Link>
                 </li>
               </ul>
             </div>
             <div>
-              <h3 className="text-lg font-semibold mb-4">Empresa</h3>
+              <h3 className="text-lg font-medium mb-4">Empresa</h3>
               <ul className="space-y-2">
                 <li>
-                  <Link href="#" className="text-gray-300 hover:text-white transition">
+                  <Link href="#" className="text-gray-300 hover:text-white transition text-sm">
                     Acerca de
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="text-gray-300 hover:text-white transition">
+                  <Link href="#" className="text-gray-300 hover:text-white transition text-sm">
                     Blog
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="text-gray-300 hover:text-white transition">
+                  <Link href="#" className="text-gray-300 hover:text-white transition text-sm">
                     Carreras
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="text-gray-300 hover:text-white transition">
+                  <Link href="#" className="text-gray-300 hover:text-white transition text-sm">
                     Prensa
                   </Link>
                 </li>
               </ul>
             </div>
           </div>
-          <div className="mt-12 pt-8 border-t border-[#2A3A7B] text-center text-gray-300">
-            <p>&copy; {new Date().getFullYear()} Gastroo. Todos los derechos reservados.</p>
+          <div className="mt-12 pt-8 border-t border-[#222] text-center text-gray-300">
+            <p className="text-sm font-light">
+              &copy; {new Date().getFullYear()} Gastroo. Todos los derechos reservados.
+            </p>
           </div>
         </div>
       </footer>
