@@ -17,9 +17,9 @@ import type { CashRegister, CashRegisterSummary } from "@/lib/types/cash-registe
 import { CashRegisterForm } from "@/components/cash-register-form"
 import { CashMovementForm } from "@/components/cash-movement-form"
 import { CashRegisterCloseForm } from "@/components/cash-register-close-form"
-import { CashMovementsList } from "@/components/cash-movements-list"
 import { CashRegisterSummary as CashRegisterSummaryComponent } from "@/components/cash-register-summary"
-import { AlertCircle, ArrowUpDown, Plus, RefreshCw, XCircle } from "lucide-react"
+import { AlertCircle, ArrowUpDown, History, Plus, RefreshCw, XCircle } from "lucide-react"
+import Link from "next/link"
 
 export default function CashRegisterPage({ params }: { params: { tenantId: string } }) {
   const { tenantId } = params
@@ -343,6 +343,12 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
                           <ArrowUpDown className="h-4 w-4 mr-2" />
                           Nuevo Movimiento
                         </Button>
+                        <Link href={`/tenant/${tenantId}/admin/cash-register/movements/${selectedRegister.id}`}>
+                          <Button variant="outline" size="sm">
+                            <History className="h-4 w-4 mr-2" />
+                            Ver Movimientos
+                          </Button>
+                        </Link>
                         <Button variant="outline" size="sm" onClick={() => setCloseDialogOpen(true)}>
                           <XCircle className="h-4 w-4 mr-2" />
                           Cerrar Caja
@@ -352,22 +358,11 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div>
-                    <CashRegisterSummaryComponent
-                      tenantId={tenantId}
-                      branchId={currentBranch.id}
-                      registerId={selectedRegister.id}
-                    />
-                  </div>
-                  <div>
-                    <CashMovementsList
-                      tenantId={tenantId}
-                      branchId={currentBranch.id}
-                      registerId={selectedRegister.id}
-                    />
-                  </div>
-                </div>
+                <CashRegisterSummaryComponent
+                  tenantId={tenantId}
+                  branchId={currentBranch.id}
+                  registerId={selectedRegister.id}
+                />
               </TabsContent>
             )}
           </Tabs>

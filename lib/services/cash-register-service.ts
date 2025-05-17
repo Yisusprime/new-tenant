@@ -398,8 +398,13 @@ export async function getCashRegisterSummary(
           summary.totalExpense += amount
           break
         case "sale":
-          summary.totalSales += amount
-          summary.paymentMethodTotals[movement.paymentMethod] += amount
+          // Verificar si el pedido está cancelado antes de sumarlo como venta
+          if (movement.orderId) {
+            // Aquí verificaríamos el estado del pedido, pero como no tenemos acceso directo,
+            // lo haremos en la función registerSale y registerRefund
+            summary.totalSales += amount
+            summary.paymentMethodTotals[movement.paymentMethod] += amount
+          }
           break
         case "refund":
           summary.totalRefunds += amount
@@ -473,6 +478,21 @@ export async function registerSale(
       throw new Error("Faltan datos requeridos para registrar la venta")
     }
 
+    // Verificar el estado del pedido antes de registrar la venta
+    const orderRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/orders/${orderId}`)
+    const orderSnapshot = await get(orderRef)
+
+    if (!orderSnapshot.exists()) {
+      throw new Error("El pedido no existe")
+    }
+
+    const order = orderSnapshot.val()
+
+    // Si el pedido está cancelado, no registrar como venta
+    if (order.status === "cancelled") {
+      throw new Error("No se puede registrar una venta de un pedido cancelado")
+    }
+
     return await createCashMovement(tenantId, branchId, userId, {
       registerId,
       type: "sale",
@@ -516,6 +536,37 @@ export async function registerRefund(
     })
   } catch (error) {
     console.error("Error al registrar reembolso:", error)
+    throw error
+  }
+}
+
+// Función para cancelar una venta en la caja cuando se cancela un pedido
+export async function cancelSale(
+  tenantId: string,
+  branchId: string,
+  userId: string,
+  registerId: string,
+  orderId: string,
+  orderNumber: string,
+  amount: number,
+  paymentMethod: string,
+): Promise<CashMovement> {
+  try {
+    if (!tenantId || !branchId || !userId || !registerId || !orderId) {
+      throw new Error("Faltan datos requeridos para cancelar la venta")
+    }
+
+    return await createCashMovement(tenantId, branchId, userId, {
+      registerId,
+      type: "refund", // Usamos refund para cancelaciones
+      amount,
+      description: `Cancelación - Pedido #${orderNumber}`,
+      paymentMethod: paymentMethod as any,
+      orderId,
+      orderNumber,
+    })
+  } catch (error) {
+    console.error("Error al cancelar venta:", error)
     throw error
   }
 }
