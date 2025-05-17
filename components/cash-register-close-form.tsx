@@ -15,7 +15,6 @@ import { hasActiveOrders } from "@/lib/services/order-service"
 import { getLastCashAudit } from "@/lib/services/cash-audit-service"
 import type { CashRegister, CashRegisterSummary, CashAudit } from "@/lib/types/cash-register"
 import { toast } from "@/components/ui/use-toast"
-import { CashAuditDialog } from "./cash-audit-dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +34,7 @@ interface CashRegisterCloseFormProps {
   summary: CashRegisterSummary
   onSuccess: () => void
   onCancel: () => void
+  onRequestAudit: () => void
 }
 
 export function CashRegisterCloseForm({
@@ -45,6 +45,7 @@ export function CashRegisterCloseForm({
   summary,
   onSuccess,
   onCancel,
+  onRequestAudit,
 }: CashRegisterCloseFormProps) {
   const [actualBalance, setActualBalance] = useState<number>(summary.expectedBalance)
   const [notes, setNotes] = useState<string>("")
@@ -53,9 +54,8 @@ export function CashRegisterCloseForm({
   const [checkingOrders, setCheckingOrders] = useState<boolean>(true)
   const [confirmDialogOpen, setConfirmDialogOpen] = useState<boolean>(false)
   const [lastAudit, setLastAudit] = useState<CashAudit | null>(null)
-  const [auditDialogOpen, setAuditDialogOpen] = useState<boolean>(false)
-  const [shouldShowAuditPrompt, setShouldShowAuditPrompt] = useState<boolean>(true)
   const [auditPromptOpen, setAuditPromptOpen] = useState<boolean>(false)
+  const [shouldShowAuditPrompt, setShouldShowAuditPrompt] = useState<boolean>(true)
 
   // Verificar si hay pedidos activos y cargar el último arqueo
   useEffect(() => {
@@ -90,7 +90,9 @@ export function CashRegisterCloseForm({
 
         // Si debemos mostrar el prompt de arqueo, mostrarlo después de cargar los datos
         if (shouldShowAuditPrompt) {
-          setAuditPromptOpen(true)
+          setTimeout(() => {
+            setAuditPromptOpen(true)
+          }, 300)
         }
       }
     }
@@ -141,33 +143,13 @@ export function CashRegisterCloseForm({
     closeCashRegisterAction()
   }
 
-  const handleAuditSuccess = () => {
-    setAuditDialogOpen(false)
-    // Recargar el último arqueo
-    const loadLastAudit = async () => {
-      try {
-        const audit = await getLastCashAudit(tenantId, branchId, register.id)
-        setLastAudit(audit)
-
-        // Si el arqueo tiene una diferencia, actualizar el balance actual
-        if (audit) {
-          setActualBalance(audit.actualCash)
-        }
-      } catch (error) {
-        console.error("Error al cargar último arqueo:", error)
-      }
-    }
-
-    loadLastAudit()
-  }
-
   // Función para manejar la respuesta del prompt de arqueo
   const handleAuditPromptResponse = (doAudit: boolean) => {
     setAuditPromptOpen(false)
 
     if (doAudit) {
-      // Abrir el diálogo de arqueo
-      setAuditDialogOpen(true)
+      // Notificar al componente padre que queremos realizar un arqueo
+      onRequestAudit()
     }
   }
 
@@ -207,7 +189,7 @@ export function CashRegisterCloseForm({
                     ? `Sobrante de ${formatCurrency(lastAudit.difference)}`
                     : `Faltante de ${formatCurrency(Math.abs(lastAudit.difference))}`}
               </span>
-              <Button variant="outline" size="sm" onClick={() => setAuditDialogOpen(true)}>
+              <Button variant="outline" size="sm" onClick={onRequestAudit}>
                 Nuevo arqueo
               </Button>
             </AlertDescription>
@@ -303,19 +285,6 @@ export function CashRegisterCloseForm({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Diálogo de arqueo de caja */}
-      <CashAuditDialog
-        open={auditDialogOpen}
-        onOpenChange={setAuditDialogOpen}
-        tenantId={tenantId}
-        branchId={branchId}
-        userId={userId}
-        register={register}
-        onSuccess={handleAuditSuccess}
-        expectedCash={summary.paymentMethodTotals.cash || 0}
-        isClosing={true}
-      />
     </>
   )
 }

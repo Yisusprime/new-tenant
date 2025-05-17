@@ -19,7 +19,6 @@ import { CashRegisterForm } from "@/components/cash-register-form"
 import { CashMovementForm } from "@/components/cash-movement-form"
 import { CashRegisterCloseForm } from "@/components/cash-register-close-form"
 import { CashRegisterSummary as CashRegisterSummaryComponent } from "@/components/cash-register-summary"
-import { CashAuditDialog } from "@/components/cash-audit-dialog"
 import {
   AlertCircle,
   AlertTriangle,
@@ -34,6 +33,7 @@ import {
 import { useRouter } from "next/navigation"
 import { closeCashRegister } from "@/lib/services/cash-register-service"
 import { toast } from "@/components/ui/use-toast"
+import { CashAuditForm } from "@/components/cash-audit-form"
 
 export default function CashRegisterPage({ params }: { params: { tenantId: string } }) {
   const { tenantId } = params
@@ -162,6 +162,16 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
   const handleAuditCompleted = () => {
     setAuditDialogOpen(false)
     loadData()
+  }
+
+  // Manejar la solicitud de arqueo desde el formulario de cierre
+  const handleRequestAudit = () => {
+    // Cerrar el diálogo de cierre y abrir el de arqueo
+    setCloseDialogOpen(false)
+    // Pequeño retraso para evitar problemas de renderizado con múltiples diálogos
+    setTimeout(() => {
+      setAuditDialogOpen(true)
+    }, 300)
   }
 
   // Asegúrate de que la función closeCashRegister actualice el estado local
@@ -641,23 +651,36 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
                   summary={registerSummary}
                   onSuccess={handleRegisterClosed}
                   onCancel={() => setCloseDialogOpen(false)}
+                  onRequestAudit={handleRequestAudit}
                 />
               )}
             </DialogContent>
           </Dialog>
 
           {/* Diálogo para realizar arqueo de caja */}
-          {user && selectedRegister && (
-            <CashAuditDialog
-              open={auditDialogOpen}
-              onOpenChange={setAuditDialogOpen}
-              tenantId={tenantId}
-              branchId={currentBranch.id}
-              userId={user.uid}
-              register={selectedRegister}
-              onSuccess={handleAuditCompleted}
-              expectedCash={registerSummary?.paymentMethodTotals.cash || 0}
-            />
+          {user && selectedRegister && registerSummary && (
+            <Dialog open={auditDialogOpen} onOpenChange={setAuditDialogOpen}>
+              <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Arqueo de Caja: {selectedRegister.name}</DialogTitle>
+                  <DialogDescription>
+                    Verifique el efectivo físico en la caja y registre el resultado.
+                  </DialogDescription>
+                </DialogHeader>
+                <CashAuditForm
+                  tenantId={tenantId}
+                  branchId={currentBranch.id}
+                  userId={user.uid}
+                  register={selectedRegister}
+                  onSuccess={() => {
+                    setAuditDialogOpen(false)
+                    loadData()
+                  }}
+                  onCancel={() => setAuditDialogOpen(false)}
+                  expectedCash={registerSummary.paymentMethodTotals.cash || 0}
+                />
+              </DialogContent>
+            </Dialog>
           )}
         </>
       )}
