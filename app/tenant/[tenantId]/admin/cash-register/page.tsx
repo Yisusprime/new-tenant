@@ -19,10 +19,11 @@ import { CashMovementForm } from "@/components/cash-movement-form"
 import { CashRegisterCloseForm } from "@/components/cash-register-close-form"
 import { CashRegisterSummary as CashRegisterSummaryComponent } from "@/components/cash-register-summary"
 import { AlertCircle, ArrowUpDown, History, Plus, RefreshCw, XCircle } from "lucide-react"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 export default function CashRegisterPage({ params }: { params: { tenantId: string } }) {
   const { tenantId } = params
+  const router = useRouter()
   const { currentBranch } = useBranch()
   const { user } = useAuth()
   const [registers, setRegisters] = useState<CashRegister[]>([])
@@ -123,6 +124,12 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
     }
 
     return statusMap[status] || { color: "bg-gray-100 text-gray-800", text: status }
+  }
+
+  // Navegar a la página de movimientos
+  const navigateToMovements = (registerId: string) => {
+    // Usar ruta relativa
+    router.push(`/admin/cash-register/movements/${registerId}`)
   }
 
   return (
@@ -343,12 +350,10 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
                           <ArrowUpDown className="h-4 w-4 mr-2" />
                           Nuevo Movimiento
                         </Button>
-                        <Link href={`/tenant/${tenantId}/admin/cash-register/movements/${selectedRegister.id}`}>
-                          <Button variant="outline" size="sm">
-                            <History className="h-4 w-4 mr-2" />
-                            Ver Movimientos
-                          </Button>
-                        </Link>
+                        <Button variant="outline" size="sm" onClick={() => navigateToMovements(selectedRegister.id)}>
+                          <History className="h-4 w-4 mr-2" />
+                          Ver Movimientos
+                        </Button>
                         <Button variant="outline" size="sm" onClick={() => setCloseDialogOpen(true)}>
                           <XCircle className="h-4 w-4 mr-2" />
                           Cerrar Caja

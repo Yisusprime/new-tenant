@@ -210,7 +210,8 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
   }
 
   const navigateToHistory = () => {
-    router.push(`/tenant/${tenantId}/admin/orders/history`)
+    // Corregir la ruta para que sea relativa a la ubicación actual
+    router.push(`/admin/orders/history`)
   }
 
   return (

@@ -13,7 +13,6 @@ import { formatCurrency, formatDateTime } from "@/lib/utils"
 import { getCashRegister, getCashMovements } from "@/lib/services/cash-register-service"
 import type { CashRegister, CashMovement } from "@/lib/types/cash-register"
 import { ArrowDownCircle, ArrowLeft, ArrowUpCircle, ChevronDown, RefreshCw } from "lucide-react"
-import Link from "next/link"
 import type { JSX } from "react"
 
 const ITEMS_PER_PAGE = 10
@@ -46,7 +45,7 @@ export default function CashRegisterMovementsPage({
       const registerData = await getCashRegister(tenantId, currentBranch.id, registerId)
       if (!registerData) {
         // Si no se encuentra la caja, redirigir a la página principal
-        router.push(`/tenant/${tenantId}/admin/cash-register`)
+        router.push(`/admin/cash-register`)
         return
       }
       setRegister(registerData)
@@ -160,6 +159,11 @@ export default function CashRegisterMovementsPage({
     return statusMap[status] || { color: "bg-gray-100 text-gray-800", text: status }
   }
 
+  // Navegar de vuelta a la página de caja
+  const navigateBack = () => {
+    router.push(`/admin/cash-register`)
+  }
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -190,11 +194,9 @@ export default function CashRegisterMovementsPage({
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <Link href={`/tenant/${tenantId}/admin/cash-register`}>
-            <Button variant="outline" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
+          <Button variant="outline" size="icon" onClick={navigateBack}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <h1 className="text-2xl font-bold">Movimientos de Caja: {register.name}</h1>
         </div>
         <Button variant="outline" size="sm" onClick={loadData}>
