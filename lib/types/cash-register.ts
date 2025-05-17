@@ -1,24 +1,23 @@
-export type CashRegisterStatus = "open" | "closed" | "pending"
-export type CashMovementType = "income" | "expense" | "sale" | "refund" | "withdrawal" | "deposit" | "adjustment"
+export type CashMovementType = "sale" | "expense" | "deposit" | "withdrawal" | "adjustment"
 export type PaymentMethod = "cash" | "card" | "transfer" | "app" | "other"
-export type AuditStatus = "balanced" | "surplus" | "shortage"
+export type CashRegisterStatus = "open" | "closed"
 
 export interface CashRegister {
   id: string
   name: string
-  description?: string
   status: CashRegisterStatus
-  currentBalance: number
   initialBalance: number
-  expectedFinalBalance?: number
-  openedAt: string
+  currentBalance?: number
+  openedAt?: string
   closedAt?: string
-  openedBy: string
+  openedBy?: string
   closedBy?: string
-  notes?: string
-  isActive: boolean
+  branchId: string
   createdAt: string
   updatedAt: string
+  expectedFinalBalance?: number
+  notes?: string
+  isActive: boolean
 }
 
 export interface CashMovement {
@@ -28,9 +27,9 @@ export interface CashMovement {
   amount: number
   description: string
   paymentMethod: PaymentMethod
+  reference?: string
   orderId?: string
   orderNumber?: string
-  reference?: string
   createdAt: string
   createdBy: string
 }
@@ -46,18 +45,24 @@ export interface CashRegisterSummary {
   expectedBalance: number
   actualBalance: number
   difference: number
-  paymentMethodTotals: Record<PaymentMethod, number>
+  paymentMethodTotals: {
+    cash: number
+    card: number
+    transfer: number
+    app: number
+    other: number
+  }
 }
 
 export interface CashRegisterFormData {
   name: string
-  description?: string
   initialBalance: number
   notes?: string
   isActive: boolean
 }
 
 export interface CashMovementFormData {
+  registerId: string
   type: CashMovementType
   amount: number
   description: string
@@ -68,12 +73,26 @@ export interface CashMovementFormData {
 }
 
 export interface CashRegisterCloseData {
+  registerId: string
   actualBalance: number
   notes?: string
-  paymentMethodCounts?: Record<PaymentMethod, number>
 }
 
-// Nuevas interfaces para el arqueo de caja
+export type AuditStatus = "balanced" | "surplus" | "shortage"
+
+export interface CashDenominations {
+  bills: Record<string, number>
+  coins: Record<string, number>
+}
+
+export interface CashAuditFormData {
+  registerId: string
+  actualCash: number
+  expectedCash?: number
+  notes?: string
+  denominations?: CashDenominations
+}
+
 export interface CashAudit {
   id: string
   registerId: string
@@ -84,18 +103,6 @@ export interface CashAudit {
   difference: number
   status: AuditStatus
   notes?: string
-  denominations?: CashDenominations
+  denominations?: CashDenominations | null
   createdAt: string
-}
-
-export interface CashDenominations {
-  bills: Record<string, number> // Valor del billete -> cantidad
-  coins: Record<string, number> // Valor de la moneda -> cantidad
-}
-
-export interface CashAuditFormData {
-  registerId: string
-  actualCash: number
-  notes?: string
-  denominations?: CashDenominations
 }

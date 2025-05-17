@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -11,21 +11,20 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { createCashAudit } from "@/lib/services/cash-audit-service"
 import { getCashRegisterSummary } from "@/lib/services/cash-register-service"
+import { getRestaurantConfig } from "@/lib/services/restaurant-config-service"
 import { formatCurrency } from "@/lib/utils"
 import { AlertCircle, AlertTriangle, CheckCircle2 } from "lucide-react"
-import type { CashAuditFormData, CashDenominations, CashRegister, CashRegisterSummary } from "@/lib/types/cash-register"
+import type { CashAuditFormData, CashDenominations, CashRegister } from "@/lib/types/cash-register"
+import { getDenominationsForCurrency } from "@/lib/config/currency-denominations"
 
 // Definir el esquema de validación
 const formSchema = z.object({
   actualCash: z.coerce.number().min(0, "El monto debe ser mayor o igual a cero"),
   notes: z.string().optional(),
 })
-
-// Definir las denominaciones de billetes y monedas (ajustar según el país)
-const BILLS = ["1000", "500", "200", "100", "50", "20", "10", "5", "2", "1"]
-const COINS = ["0.5", "0.25", "0.1", "0.05", "0.01"]
 
 interface CashAuditFormProps {
   tenantId: string
@@ -48,14 +47,14 @@ export function CashAuditForm({
 }: CashAuditFormProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [summary, setSummary] = useState<CashRegisterSummary | null>(null)
+  const [expectedCash, setExpectedCash] = useState(initialExpectedCash || 0)
   const [activeTab, setActiveTab] = useState("quick")
+  const [currencyCode, setCurrencyCode] = useState("CLP")
   const [denominations, setDenominations] = useState<CashDenominations>({
-    bills: BILLS.reduce((acc, bill) => ({ ...acc, [bill]: 0 }), {}),
-    coins: COINS.reduce((acc, coin) => ({ ...acc, [coin]: 0 }), {}),
+    bills: {},
+    coins: {},
   })
   const [denominationsTotal, setDenominationsTotal] = useState(0)
-  const [expectedCash, setExpectedCash] = useState(initialExpectedCash || 0)
 
   // Inicializar el formulario
   const form = useForm<z.infer<typeof formSchema>>({
@@ -66,8 +65,51 @@ export function CashAuditForm({
     },
   })
 
+  // Cargar la configuración del restaurante para obtener la moneda
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const config = await getRestaurantConfig(tenantId, branchId)
+        if (config?.basicInfo?.currencyCode) {
+          setCurrencyCode(config.basicInfo.currencyCode)
+        }
+      } catch (err) {
+        console.error("Error al cargar configuración:", err)
+      }
+    }
+
+    loadConfig()
+  }, [tenantId, branchId])
+
+  // Inicializar las denominaciones cuando cambia la moneda
+  useEffect(() => {
+    const { bills, coins } = getDenominationsForCurrency(currencyCode)
+
+    // Inicializar con ceros para evitar undefined
+    const initializedBills = bills.reduce(
+      (acc, bill) => {
+        acc[bill] = 0
+        return acc
+      },
+      {} as Record<string, number>,
+    )
+
+    const initializedCoins = coins.reduce(
+      (acc, coin) => {
+        acc[coin] = 0
+        return acc
+      },
+      {} as Record<string, number>,
+    )
+
+    setDenominations({
+      bills: initializedBills,
+      coins: initializedCoins,
+    })
+  }, [currencyCode])
+
   // Cargar el resumen de la caja si no se proporcionó expectedCash
-  useState(() => {
+  useEffect(() => {
     const loadSummary = async () => {
       if (initialExpectedCash !== undefined) {
         return
@@ -75,7 +117,6 @@ export function CashAuditForm({
 
       try {
         const data = await getCashRegisterSummary(tenantId, branchId, register.id)
-        setSummary(data)
         setExpectedCash(data.paymentMethodTotals.cash || 0)
       } catch (err) {
         console.error("Error al cargar resumen:", err)
@@ -84,7 +125,7 @@ export function CashAuditForm({
     }
 
     loadSummary()
-  })
+  }, [tenantId, branchId, register.id, initialExpectedCash])
 
   // Manejar cambios en las denominaciones
   const handleDenominationChange = (type: "bills" | "coins", value: string, count: number) => {
@@ -102,10 +143,10 @@ export function CashAuditForm({
     // Calcular el nuevo total
     let total = 0
     Object.entries(newDenominations.bills).forEach(([bill, count]) => {
-      total += Number.parseFloat(bill) * count
+      total += Number.parseFloat(bill) * (count || 0)
     })
     Object.entries(newDenominations.coins).forEach(([coin, count]) => {
-      total += Number.parseFloat(coin) * count
+      total += Number.parseFloat(coin) * (count || 0)
     })
 
     setDenominationsTotal(total)
@@ -122,13 +163,44 @@ export function CashAuditForm({
       setLoading(true)
       setError(null)
 
+      // Preparar las denominaciones para evitar undefined
+      let auditDenominations: CashDenominations | undefined = undefined
+
+      if (activeTab === "detailed") {
+        // Filtrar solo las denominaciones con valores
+        const filteredBills = Object.entries(denominations.bills).reduce(
+          (acc, [bill, count]) => {
+            if (count > 0) {
+              acc[bill] = count
+            }
+            return acc
+          },
+          {} as Record<string, number>,
+        )
+
+        const filteredCoins = Object.entries(denominations.coins).reduce(
+          (acc, [coin, count]) => {
+            if (count > 0) {
+              acc[coin] = count
+            }
+            return acc
+          },
+          {} as Record<string, number>,
+        )
+
+        auditDenominations = {
+          bills: filteredBills,
+          coins: filteredCoins,
+        }
+      }
+
       // Crear el objeto de datos para el arqueo
       const auditData: CashAuditFormData = {
         registerId: register.id,
-        actualCash: values.actualCash,
+        actualCash: activeTab === "detailed" ? denominationsTotal : values.actualCash,
         expectedCash: expectedCash,
-        notes: values.notes,
-        denominations: activeTab === "detailed" ? denominations : undefined,
+        notes: values.notes || "",
+        denominations: auditDenominations,
       }
 
       // Crear el arqueo
@@ -146,7 +218,7 @@ export function CashAuditForm({
 
   // Calcular la diferencia esperada
   const actualCash = form.watch("actualCash")
-  const difference = actualCash - expectedCash
+  const difference = activeTab === "detailed" ? denominationsTotal - expectedCash : actualCash - expectedCash
 
   // Determinar el estado del arqueo
   let status = "balanced"
@@ -165,6 +237,9 @@ export function CashAuditForm({
     statusColor = "text-red-600"
     statusIcon = <AlertTriangle className="h-5 w-5 text-red-600" />
   }
+
+  // Obtener las denominaciones para la moneda actual
+  const { bills, coins } = getDenominationsForCurrency(currencyCode)
 
   return (
     <div className="space-y-4">
@@ -255,47 +330,53 @@ export function CashAuditForm({
         <TabsContent value="detailed">
           <Form {...form}>
             <form id="detailed-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Billetes</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  {BILLS.map((bill) => (
-                    <div key={`bill-${bill}`} className="flex items-center space-x-2">
-                      <p className="w-12 text-sm font-medium">${bill}</p>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={denominations.bills[bill]}
-                        onChange={(e) => handleDenominationChange("bills", bill, Number.parseInt(e.target.value) || 0)}
-                        className="w-16 text-center px-1"
-                      />
-                      <p className="text-sm text-gray-500 flex-1 text-right">
-                        = {formatCurrency(Number.parseFloat(bill) * denominations.bills[bill])}
-                      </p>
-                    </div>
-                  ))}
-                </div>
+              <ScrollArea className="h-[400px] pr-4">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Billetes ({currencyCode})</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {bills.map((bill) => (
+                      <div key={`bill-${bill}`} className="flex items-center space-x-2">
+                        <p className="w-20 text-sm font-medium">${bill}</p>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={denominations.bills[bill] || 0}
+                          onChange={(e) =>
+                            handleDenominationChange("bills", bill, Number.parseInt(e.target.value) || 0)
+                          }
+                          className="w-16 text-center px-1"
+                        />
+                        <p className="text-sm text-gray-500 flex-1 text-right">
+                          = {formatCurrency(Number.parseFloat(bill) * (denominations.bills[bill] || 0))}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
 
-                <Separator />
+                  <Separator className="my-4" />
 
-                <h3 className="text-lg font-medium">Monedas</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  {COINS.map((coin) => (
-                    <div key={`coin-${coin}`} className="flex items-center space-x-2">
-                      <p className="w-12 text-sm font-medium">${coin}</p>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={denominations.coins[coin]}
-                        onChange={(e) => handleDenominationChange("coins", coin, Number.parseInt(e.target.value) || 0)}
-                        className="w-16 text-center px-1"
-                      />
-                      <p className="text-sm text-gray-500 flex-1 text-right">
-                        = {formatCurrency(Number.parseFloat(coin) * denominations.coins[coin])}
-                      </p>
-                    </div>
-                  ))}
+                  <h3 className="text-lg font-medium">Monedas ({currencyCode})</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {coins.map((coin) => (
+                      <div key={`coin-${coin}`} className="flex items-center space-x-2">
+                        <p className="w-20 text-sm font-medium">${coin}</p>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={denominations.coins[coin] || 0}
+                          onChange={(e) =>
+                            handleDenominationChange("coins", coin, Number.parseInt(e.target.value) || 0)
+                          }
+                          className="w-16 text-center px-1"
+                        />
+                        <p className="text-sm text-gray-500 flex-1 text-right">
+                          = {formatCurrency(Number.parseFloat(coin) * (denominations.coins[coin] || 0))}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              </ScrollArea>
 
               <div className="grid grid-cols-3 gap-4 py-2 border-t border-b">
                 <div>
@@ -311,7 +392,7 @@ export function CashAuditForm({
                   <div className="flex items-center">
                     {statusIcon}
                     <p className={`text-lg font-bold ml-1 ${statusColor}`}>
-                      {formatCurrency(denominationsTotal - expectedCash)} ({statusText})
+                      {formatCurrency(difference)} ({statusText})
                     </p>
                   </div>
                 </div>

@@ -1,7 +1,62 @@
 import { ref, get, set, push } from "firebase/database"
 import { realtimeDb } from "@/lib/firebase/client"
-import type { CashAudit, CashAuditFormData, AuditStatus } from "@/lib/types/cash-register"
+import type { CashAudit, CashAuditFormData, AuditStatus, CashDenominations } from "@/lib/types/cash-register"
 import { getCashRegister, getCashRegisterSummary } from "./cash-register-service"
+
+// Función para limpiar objetos antes de guardarlos en Firebase (elimina undefined)
+function cleanObject(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return null
+  }
+
+  if (typeof obj !== "object") {
+    return obj
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => cleanObject(item)).filter((item) => item !== undefined)
+  }
+
+  return Object.entries(obj).reduce(
+    (cleaned, [key, value]) => {
+      const cleanedValue = cleanObject(value)
+      if (cleanedValue !== undefined) {
+        cleaned[key] = cleanedValue
+      }
+      return cleaned
+    },
+    {} as Record<string, any>,
+  )
+}
+
+// Función para limpiar las denominaciones
+function cleanDenominations(denominations?: CashDenominations): CashDenominations | null {
+  if (!denominations) return null
+
+  // Limpiar billetes
+  const bills = Object.entries(denominations.bills || {})
+    .filter(([_, count]) => count !== undefined && count !== null)
+    .reduce(
+      (acc, [bill, count]) => {
+        acc[bill] = Number(count) || 0
+        return acc
+      },
+      {} as Record<string, number>,
+    )
+
+  // Limpiar monedas
+  const coins = Object.entries(denominations.coins || {})
+    .filter(([_, count]) => count !== undefined && count !== null)
+    .reduce(
+      (acc, [coin, count]) => {
+        acc[coin] = Number(count) || 0
+        return acc
+      },
+      {} as Record<string, number>,
+    )
+
+  return { bills, coins }
+}
 
 // Función para crear un nuevo arqueo de caja
 export async function createCashAudit(
@@ -21,11 +76,11 @@ export async function createCashAudit(
       throw new Error("La caja no existe")
     }
 
-    // Obtener el resumen de la caja para calcular el efectivo esperado
-    const summary = await getCashRegisterSummary(tenantId, branchId, auditData.registerId)
-
-    // Calcular el efectivo esperado (solo consideramos el efectivo, no tarjetas ni transferencias)
-    const expectedCash = summary.paymentMethodTotals.cash
+    // Obtener el resumen de la caja para calcular el efectivo esperado si no se proporcionó
+    const expectedCash =
+      auditData.expectedCash !== undefined
+        ? auditData.expectedCash
+        : (await getCashRegisterSummary(tenantId, branchId, auditData.registerId)).paymentMethodTotals.cash
 
     // Calcular la diferencia
     const difference = auditData.actualCash - expectedCash
@@ -45,6 +100,9 @@ export async function createCashAudit(
     const newAuditRef = push(auditsRef)
     const auditId = newAuditRef.key!
 
+    // Limpiar las denominaciones para evitar valores undefined
+    const cleanedDenominations = cleanDenominations(auditData.denominations)
+
     // Crear el objeto del arqueo
     const newAudit: Omit<CashAudit, "id"> = {
       registerId: auditData.registerId,
@@ -55,12 +113,15 @@ export async function createCashAudit(
       difference,
       status,
       notes: auditData.notes || "",
-      denominations: auditData.denominations,
+      denominations: cleanedDenominations,
       createdAt: timestamp,
     }
 
+    // Limpiar todo el objeto para eliminar cualquier undefined
+    const cleanedAudit = cleanObject(newAudit)
+
     // Guardar el arqueo en Realtime Database
-    await set(newAuditRef, newAudit)
+    await set(newAuditRef, cleanedAudit)
 
     // Si hay diferencia, registrar un movimiento de ajuste
     if (difference !== 0 && register.status === "open") {
@@ -79,7 +140,7 @@ export async function createCashAudit(
 
     return {
       id: auditId,
-      ...newAudit,
+      ...cleanedAudit,
     } as CashAudit
   } catch (error) {
     console.error("Error al crear arqueo de caja:", error)
