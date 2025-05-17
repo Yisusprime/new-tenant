@@ -324,19 +324,7 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
                             </div>
                           </CardContent>
                           <CardFooter className="pt-0">
-                            <div className="flex justify-between w-full">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleSelectRegister(register)
-                                  setAuditDialogOpen(true)
-                                }}
-                              >
-                                <ClipboardCheck className="h-4 w-4 mr-2" />
-                                Arqueo
-                              </Button>
+                            <div className="flex flex-wrap justify-between w-full gap-2">
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -348,6 +336,18 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
                               >
                                 <ArrowUpDown className="h-4 w-4 mr-2" />
                                 Movimiento
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleSelectRegister(register)
+                                  setAuditDialogOpen(true)
+                                }}
+                              >
+                                <ClipboardCheck className="h-4 w-4 mr-2" />
+                                Arqueo
                               </Button>
                               <Button
                                 variant="outline"
@@ -428,21 +428,9 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
                             </div>
                           </CardContent>
                           <CardFooter className="pt-0">
-                            <div className="flex justify-end w-full gap-2">
+                            <div className="flex flex-wrap justify-end w-full gap-2">
                               {register.status === "open" && (
                                 <>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      handleSelectRegister(register)
-                                      setAuditDialogOpen(true)
-                                    }}
-                                  >
-                                    <ClipboardCheck className="h-4 w-4 mr-2" />
-                                    Arqueo
-                                  </Button>
                                   <Button
                                     variant="outline"
                                     size="sm"
@@ -454,6 +442,18 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
                                   >
                                     <ArrowUpDown className="h-4 w-4 mr-2" />
                                     Movimiento
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleSelectRegister(register)
+                                      setAuditDialogOpen(true)
+                                    }}
+                                  >
+                                    <ClipboardCheck className="h-4 w-4 mr-2" />
+                                    Arqueo
                                   </Button>
                                 </>
                               )}
@@ -479,6 +479,20 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
                                 <History className="h-4 w-4 mr-2" />
                                 Ver Movimientos
                               </Button>
+                              {register.status === "open" && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleSelectRegister(register)
+                                    setCloseDialogOpen(true)
+                                  }}
+                                >
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                  Cerrar
+                                </Button>
+                              )}
                             </div>
                           </CardFooter>
                         </Card>
@@ -498,16 +512,16 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
                       {getStatusBadge(selectedRegister.status).text}
                     </Badge>
                   </h2>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2 justify-end">
                     {selectedRegister.status === "open" ? (
                       <>
-                        <Button variant="outline" size="sm" onClick={() => setAuditDialogOpen(true)}>
-                          <ClipboardCheck className="h-4 w-4 mr-2" />
-                          Realizar Arqueo
-                        </Button>
                         <Button variant="outline" size="sm" onClick={() => setMovementDialogOpen(true)}>
                           <ArrowUpDown className="h-4 w-4 mr-2" />
                           Nuevo Movimiento
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => setAuditDialogOpen(true)}>
+                          <ClipboardCheck className="h-4 w-4 mr-2" />
+                          Realizar Arqueo
                         </Button>
                         <Button variant="outline" size="sm" onClick={() => navigateToAudits(selectedRegister.id)}>
                           <ClipboardCheck className="h-4 w-4 mr-2" />
@@ -549,14 +563,14 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
                       </div>
                     </CardHeader>
                     <CardFooter className="pt-0">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="ml-auto"
-                        onClick={() => navigateToAudits(selectedRegister.id)}
-                      >
-                        Ver historial de arqueos
-                      </Button>
+                      <div className="flex justify-between w-full">
+                        <Button variant="outline" size="sm" onClick={() => navigateToAudits(selectedRegister.id)}>
+                          Ver historial de arqueos
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => setAuditDialogOpen(true)}>
+                          Realizar nuevo arqueo
+                        </Button>
+                      </div>
                     </CardFooter>
                   </Card>
                 )}
@@ -627,8 +641,6 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
                   summary={registerSummary}
                   onSuccess={handleRegisterClosed}
                   onCancel={() => setCloseDialogOpen(false)}
-                  onCloseCashRegister={handleCloseCashRegister}
-                  isLoading={isLoading}
                 />
               )}
             </DialogContent>
@@ -644,6 +656,7 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
               userId={user.uid}
               register={selectedRegister}
               onSuccess={handleAuditCompleted}
+              expectedCash={registerSummary?.paymentMethodTotals.cash || 0}
             />
           )}
         </>

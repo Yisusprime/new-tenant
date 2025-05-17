@@ -14,6 +14,8 @@ interface CashAuditDialogProps {
   userId: string
   register: CashRegister
   onSuccess?: () => void
+  expectedCash?: number
+  isClosing?: boolean
 }
 
 export function CashAuditDialog({
@@ -24,6 +26,8 @@ export function CashAuditDialog({
   userId,
   register,
   onSuccess,
+  expectedCash,
+  isClosing = false,
 }: CashAuditDialogProps) {
   const [currentAuditId, setCurrentAuditId] = useState<string | null>(null)
 
@@ -44,13 +48,21 @@ export function CashAuditDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
-          <DialogTitle>{currentAuditId ? "Resultado del Arqueo de Caja" : "Realizar Arqueo de Caja"}</DialogTitle>
+          <DialogTitle>
+            {currentAuditId
+              ? "Resultado del Arqueo de Caja"
+              : isClosing
+                ? "Arqueo de Caja para Cierre"
+                : "Realizar Arqueo de Caja"}
+          </DialogTitle>
           <DialogDescription>
             {currentAuditId
               ? "Revise los detalles del arqueo realizado."
-              : "Verifique el efectivo físico en la caja y registre el resultado."}
+              : isClosing
+                ? "Verifique el efectivo físico antes de cerrar la caja."
+                : "Verifique el efectivo físico en la caja y registre el resultado."}
           </DialogDescription>
         </DialogHeader>
 
@@ -64,6 +76,7 @@ export function CashAuditDialog({
             register={register}
             onSuccess={handleSuccess}
             onCancel={handleClose}
+            expectedCash={expectedCash}
           />
         )}
       </DialogContent>

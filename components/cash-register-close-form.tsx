@@ -8,12 +8,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Loader2, AlertTriangle } from "lucide-react"
+import { Loader2, AlertTriangle, ClipboardCheck } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { closeCashRegister } from "@/lib/services/cash-register-service"
 import { hasActiveOrders } from "@/lib/services/order-service"
-import type { CashRegister, CashRegisterSummary } from "@/lib/types/cash-register"
+import { getLastCashAudit } from "@/lib/services/cash-audit-service"
+import type { CashRegister, CashRegisterSummary, CashAudit } from "@/lib/types/cash-register"
 import { toast } from "@/components/ui/use-toast"
+import { CashAuditDialog } from "./cash-audit-dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,23 +52,51 @@ export function CashRegisterCloseForm({
   const [hasOrders, setHasOrders] = useState<boolean>(false)
   const [checkingOrders, setCheckingOrders] = useState<boolean>(true)
   const [confirmDialogOpen, setConfirmDialogOpen] = useState<boolean>(false)
+  const [lastAudit, setLastAudit] = useState<CashAudit | null>(null)
+  const [auditDialogOpen, setAuditDialogOpen] = useState<boolean>(false)
+  const [shouldShowAuditPrompt, setShouldShowAuditPrompt] = useState<boolean>(true)
+  const [auditPromptOpen, setAuditPromptOpen] = useState<boolean>(false)
 
-  // Verificar si hay pedidos activos
+  // Verificar si hay pedidos activos y cargar el último arqueo
   useEffect(() => {
-    const checkActiveOrders = async () => {
+    const loadData = async () => {
       try {
         setCheckingOrders(true)
+
+        // Verificar pedidos activos
         const activeOrders = await hasActiveOrders(tenantId, branchId)
         setHasOrders(activeOrders)
+
+        // Cargar último arqueo
+        const audit = await getLastCashAudit(tenantId, branchId, register.id)
+        setLastAudit(audit)
+
+        // Determinar si debemos mostrar el prompt de arqueo
+        // Si no hay arqueo o el último arqueo es de hace más de 1 hora
+        if (!audit) {
+          setShouldShowAuditPrompt(true)
+        } else {
+          const auditTime = new Date(audit.performedAt).getTime()
+          const currentTime = new Date().getTime()
+          const hoursSinceAudit = (currentTime - auditTime) / (1000 * 60 * 60)
+
+          // Si han pasado más de 1 hora desde el último arqueo, sugerir hacer uno nuevo
+          setShouldShowAuditPrompt(hoursSinceAudit > 1)
+        }
       } catch (error) {
-        console.error("Error al verificar pedidos activos:", error)
+        console.error("Error al verificar datos:", error)
       } finally {
         setCheckingOrders(false)
+
+        // Si debemos mostrar el prompt de arqueo, mostrarlo después de cargar los datos
+        if (shouldShowAuditPrompt) {
+          setAuditPromptOpen(true)
+        }
       }
     }
 
-    checkActiveOrders()
-  }, [tenantId, branchId])
+    loadData()
+  }, [tenantId, branchId, register.id])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -111,6 +141,36 @@ export function CashRegisterCloseForm({
     closeCashRegisterAction()
   }
 
+  const handleAuditSuccess = () => {
+    setAuditDialogOpen(false)
+    // Recargar el último arqueo
+    const loadLastAudit = async () => {
+      try {
+        const audit = await getLastCashAudit(tenantId, branchId, register.id)
+        setLastAudit(audit)
+
+        // Si el arqueo tiene una diferencia, actualizar el balance actual
+        if (audit) {
+          setActualBalance(audit.actualCash)
+        }
+      } catch (error) {
+        console.error("Error al cargar último arqueo:", error)
+      }
+    }
+
+    loadLastAudit()
+  }
+
+  // Función para manejar la respuesta del prompt de arqueo
+  const handleAuditPromptResponse = (doAudit: boolean) => {
+    setAuditPromptOpen(false)
+
+    if (doAudit) {
+      // Abrir el diálogo de arqueo
+      setAuditDialogOpen(true)
+    }
+  }
+
   return (
     <>
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -129,6 +189,30 @@ export function CashRegisterCloseForm({
             </AlertDescription>
           </Alert>
         ) : null}
+
+        {/* Mostrar información del último arqueo si existe */}
+        {lastAudit && (
+          <Alert
+            variant={
+              lastAudit.status === "balanced" ? "default" : lastAudit.status === "surplus" ? "info" : "destructive"
+            }
+          >
+            <ClipboardCheck className="h-4 w-4" />
+            <AlertTitle>Último arqueo: {formatCurrency(lastAudit.actualCash)}</AlertTitle>
+            <AlertDescription className="flex justify-between items-center">
+              <span>
+                {lastAudit.status === "balanced"
+                  ? "La caja está cuadrada"
+                  : lastAudit.status === "surplus"
+                    ? `Sobrante de ${formatCurrency(lastAudit.difference)}`
+                    : `Faltante de ${formatCurrency(Math.abs(lastAudit.difference))}`}
+              </span>
+              <Button variant="outline" size="sm" onClick={() => setAuditDialogOpen(true)}>
+                Nuevo arqueo
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="space-y-2">
           <div className="flex justify-between items-center">
@@ -184,6 +268,7 @@ export function CashRegisterCloseForm({
         </div>
       </form>
 
+      {/* Diálogo de confirmación para cerrar con pedidos activos */}
       <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -199,6 +284,38 @@ export function CashRegisterCloseForm({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Diálogo para preguntar si desea realizar un arqueo antes de cerrar */}
+      <AlertDialog open={auditPromptOpen} onOpenChange={setAuditPromptOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Realizar arqueo de caja?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se recomienda realizar un arqueo de caja antes de cerrar para verificar que el efectivo físico coincida
+              con el registro del sistema. ¿Desea realizar un arqueo ahora?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => handleAuditPromptResponse(false)}>
+              No, continuar sin arqueo
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleAuditPromptResponse(true)}>Sí, realizar arqueo</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Diálogo de arqueo de caja */}
+      <CashAuditDialog
+        open={auditDialogOpen}
+        onOpenChange={setAuditDialogOpen}
+        tenantId={tenantId}
+        branchId={branchId}
+        userId={userId}
+        register={register}
+        onSuccess={handleAuditSuccess}
+        expectedCash={summary.paymentMethodTotals.cash || 0}
+        isClosing={true}
+      />
     </>
   )
 }
