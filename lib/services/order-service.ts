@@ -55,6 +55,17 @@ export async function getOrders(tenantId: string, branchId: string): Promise<Ord
   }
 }
 
+// Función para obtener pedidos activos (no entregados ni cancelados)
+export async function getActiveOrders(tenantId: string, branchId: string): Promise<Order[]> {
+  try {
+    const allOrders = await getOrders(tenantId, branchId)
+    return allOrders.filter((order) => order.status !== "delivered" && order.status !== "cancelled")
+  } catch (error) {
+    console.error("Error al obtener pedidos activos:", error)
+    throw error
+  }
+}
+
 // Función para obtener pedidos por tipo (filtrado en el cliente)
 export async function getOrdersByType(tenantId: string, branchId: string, type: OrderType): Promise<Order[]> {
   try {
@@ -87,6 +98,32 @@ export async function getOrdersByStatus(tenantId: string, branchId: string, stat
     return allOrders.filter((order) => order.status === status)
   } catch (error) {
     console.error(`Error al obtener pedidos con estado ${status}:`, error)
+    throw error
+  }
+}
+
+// Función para obtener pedidos por rango de fechas
+export async function getOrdersByDateRange(
+  tenantId: string,
+  branchId: string,
+  startDate: Date,
+  endDate: Date,
+): Promise<Order[]> {
+  try {
+    // Convertir fechas a formato ISO para comparación
+    const startIso = startDate.toISOString()
+    const endIso = endDate.toISOString()
+
+    // Obtenemos todos los pedidos
+    const allOrders = await getOrders(tenantId, branchId)
+
+    // Filtramos por rango de fechas
+    return allOrders.filter((order) => {
+      const orderDate = order.createdAt
+      return orderDate >= startIso && orderDate <= endIso
+    })
+  } catch (error) {
+    console.error("Error al obtener pedidos por rango de fechas:", error)
     throw error
   }
 }
@@ -322,6 +359,17 @@ export async function deleteOrder(tenantId: string, branchId: string, orderId: s
     await remove(orderRef)
   } catch (error) {
     console.error("Error al eliminar pedido:", error)
+    throw error
+  }
+}
+
+// Función para verificar si hay pedidos activos
+export async function hasActiveOrders(tenantId: string, branchId: string): Promise<boolean> {
+  try {
+    const activeOrders = await getActiveOrders(tenantId, branchId)
+    return activeOrders.length > 0
+  } catch (error) {
+    console.error("Error al verificar pedidos activos:", error)
     throw error
   }
 }

@@ -1,27 +1,29 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
 import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Loader2 } from "lucide-react"
-import { closeCashRegister, getCashRegisterSummary } from "@/lib/services/cash-register-service"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Loader2, AlertTriangle } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
+import { closeCashRegister } from "@/lib/services/cash-register-service"
+import { hasActiveOrders } from "@/lib/services/order-service"
 import type { CashRegister, CashRegisterSummary } from "@/lib/types/cash-register"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle } from "lucide-react"
-
-// Esquema de validación
-const cashRegisterCloseSchema = z.object({
-  actualBalance: z.coerce.number().min(0, "El balance final debe ser mayor o igual a cero"),
-  notes: z.string().optional(),
-})
-
-type CashRegisterCloseFormValues = z.infer<typeof cashRegisterCloseSchema>
+import { toast } from "@/components/ui/use-toast"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface CashRegisterCloseFormProps {
   tenantId: string
@@ -29,7 +31,7 @@ interface CashRegisterCloseFormProps {
   userId: string
   register: CashRegister
   summary: CashRegisterSummary
-  onSuccess: (register: CashRegister) => void
+  onSuccess: () => void
   onCancel: () => void
 }
 
@@ -42,162 +44,137 @@ export function CashRegisterCloseForm({
   onSuccess,
   onCancel,
 }: CashRegisterCloseFormProps) {
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [localSummary, setLocalSummary] = useState<CashRegisterSummary | null>(summary)
+  const [actualBalance, setActualBalance] = useState<number>(summary.expectedBalance)
+  const [notes, setNotes] = useState<string>("")
+  const [loading, setLoading] = useState<boolean>(false)
+  const [hasOrders, setHasOrders] = useState<boolean>(false)
+  const [checkingOrders, setCheckingOrders] = useState<boolean>(true)
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState<boolean>(false)
 
-  // Cargar el resumen si no se proporciona
+  // Verificar si hay pedidos activos
   useEffect(() => {
-    const loadSummary = async () => {
-      if (!summary && register) {
-        try {
-          const data = await getCashRegisterSummary(tenantId, branchId, register.id)
-          setLocalSummary(data)
-        } catch (err) {
-          console.error("Error al cargar resumen:", err)
-          setError("No se pudo cargar el resumen de caja. Por favor, intente nuevamente.")
-        }
+    const checkActiveOrders = async () => {
+      try {
+        setCheckingOrders(true)
+        const activeOrders = await hasActiveOrders(tenantId, branchId)
+        setHasOrders(activeOrders)
+      } catch (error) {
+        console.error("Error al verificar pedidos activos:", error)
+      } finally {
+        setCheckingOrders(false)
       }
     }
 
-    loadSummary()
-  }, [tenantId, branchId, register, summary])
+    checkActiveOrders()
+  }, [tenantId, branchId])
 
-  // Valores por defecto
-  const defaultValues: Partial<CashRegisterCloseFormValues> = {
-    actualBalance: localSummary?.expectedBalance || register?.currentBalance || 0,
-    notes: "",
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    // Si hay pedidos activos, mostrar diálogo de confirmación
+    if (hasOrders) {
+      setConfirmDialogOpen(true)
+      return
+    }
+
+    // Si no hay pedidos activos, proceder con el cierre
+    await closeCashRegisterAction()
   }
 
-  const form = useForm<CashRegisterCloseFormValues>({
-    resolver: zodResolver(cashRegisterCloseSchema),
-    defaultValues,
-  })
-
-  // Actualizar los valores por defecto cuando cambia el resumen
-  useEffect(() => {
-    if (localSummary) {
-      form.setValue("actualBalance", localSummary.expectedBalance)
-    }
-  }, [localSummary, form])
-
-  const watchActualBalance = form.watch("actualBalance")
-  const difference = (watchActualBalance || 0) - (localSummary?.expectedBalance || 0)
-
-  const onSubmit = async (data: CashRegisterCloseFormValues) => {
+  const closeCashRegisterAction = async () => {
     try {
       setLoading(true)
-      setError(null)
-
-      if (!register || !userId) {
-        throw new Error("Faltan datos necesarios para cerrar la caja")
-      }
-
-      const result = await closeCashRegister(tenantId, branchId, register.id, userId, {
-        actualBalance: data.actualBalance,
-        notes: data.notes,
+      await closeCashRegister(tenantId, branchId, register.id, userId, {
+        actualBalance,
+        notes,
       })
-
-      onSuccess(result)
-    } catch (err) {
-      console.error("Error al cerrar caja:", err)
-      setError(err instanceof Error ? err.message : "Error desconocido al cerrar la caja")
+      toast({
+        title: "Caja cerrada",
+        description: "La caja se ha cerrado correctamente",
+        variant: "default",
+      })
+      onSuccess()
+    } catch (error) {
+      console.error("Error al cerrar caja:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo cerrar la caja",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
+      setConfirmDialogOpen(false)
     }
   }
 
-  // Si no tenemos los datos necesarios, mostrar un mensaje de error
-  if (!register || (!summary && !localSummary)) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          No se pudieron cargar los datos necesarios para cerrar la caja. Por favor, intente nuevamente.
-        </AlertDescription>
-      </Alert>
-    )
+  const handleConfirmClose = () => {
+    closeCashRegisterAction()
   }
 
-  const summaryData = localSummary || summary
-
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
+    <>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {checkingOrders ? (
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="h-6 w-6 animate-spin mr-2" />
+            <span>Verificando pedidos activos...</span>
+          </div>
+        ) : hasOrders ? (
+          <Alert variant="warning">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Pedidos activos</AlertTitle>
+            <AlertDescription>
+              Hay pedidos activos pendientes. Se recomienda completar o cancelar todos los pedidos antes de cerrar la
+              caja.
+            </AlertDescription>
           </Alert>
-        )}
+        ) : null}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
-          <div>
-            <h3 className="font-medium text-sm text-gray-500">Balance Inicial</h3>
-            <p className="text-lg font-semibold">{formatCurrency(register.initialBalance)}</p>
+        <div className="space-y-2">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium">Balance Esperado:</span>
+            <span className="font-bold">{formatCurrency(summary.expectedBalance)}</span>
           </div>
+
           <div>
-            <h3 className="font-medium text-sm text-gray-500">Balance Esperado</h3>
-            <p className="text-lg font-semibold">{formatCurrency(summaryData.expectedBalance)}</p>
+            <Label htmlFor="actualBalance">Balance Real</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2">$</span>
+              <Input
+                id="actualBalance"
+                type="number"
+                value={actualBalance}
+                onChange={(e) => setActualBalance(Number(e.target.value))}
+                className="pl-8"
+                required
+              />
+            </div>
           </div>
+
+          {actualBalance !== summary.expectedBalance && (
+            <Alert variant={actualBalance > summary.expectedBalance ? "success" : "destructive"}>
+              <AlertTitle>{actualBalance > summary.expectedBalance ? "Sobrante" : "Faltante"} de caja</AlertTitle>
+              <AlertDescription>
+                Hay una diferencia de {formatCurrency(Math.abs(actualBalance - summary.expectedBalance))} entre el
+                balance esperado y el real.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div>
-            <h3 className="font-medium text-sm text-gray-500">Total Ingresos</h3>
-            <p className="text-lg font-semibold text-green-600">
-              {formatCurrency(summaryData.totalIncome + summaryData.totalSales + summaryData.totalDeposits)}
-            </p>
-          </div>
-          <div>
-            <h3 className="font-medium text-sm text-gray-500">Total Egresos</h3>
-            <p className="text-lg font-semibold text-red-600">
-              {formatCurrency(summaryData.totalExpense + summaryData.totalRefunds + summaryData.totalWithdrawals)}
-            </p>
+            <Label htmlFor="notes">Notas</Label>
+            <Textarea
+              id="notes"
+              placeholder="Observaciones sobre el cierre de caja"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+            />
           </div>
         </div>
 
-        <FormField
-          control={form.control}
-          name="actualBalance"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Balance Final Real</FormLabel>
-              <FormControl>
-                <Input type="number" min="0" step="0.01" {...field} />
-              </FormControl>
-              <FormDescription>Ingrese el monto real contado al cierre de caja</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {difference !== 0 && (
-          <div className={`p-4 rounded-lg ${difference > 0 ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
-            <p className="font-medium">
-              {difference > 0 ? "Sobrante" : "Faltante"}: {formatCurrency(Math.abs(difference))}
-            </p>
-            <p className="text-sm mt-1">
-              {difference > 0
-                ? "Hay más dinero del esperado en la caja."
-                : "Falta dinero en la caja respecto a lo esperado."}
-            </p>
-          </div>
-        )}
-
-        <FormField
-          control={form.control}
-          name="notes"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Notas de Cierre</FormLabel>
-              <FormControl>
-                <Textarea placeholder="Observaciones sobre el cierre de caja" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="flex justify-end space-x-4">
-          <Button variant="outline" onClick={onCancel} disabled={loading}>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
             Cancelar
           </Button>
           <Button type="submit" disabled={loading}>
@@ -206,6 +183,22 @@ export function CashRegisterCloseForm({
           </Button>
         </div>
       </form>
-    </Form>
+
+      <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Cerrar caja con pedidos activos?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Hay pedidos activos pendientes. Si cierra la caja ahora, estos pedidos seguirán activos pero no podrán
+              recibirse nuevos pedidos. ¿Desea continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmClose}>Cerrar Caja</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

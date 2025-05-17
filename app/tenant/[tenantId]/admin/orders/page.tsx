@@ -5,8 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useBranch } from "@/lib/context/branch-context"
 import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
 import { Button } from "@/components/ui/button"
-import { Plus, RefreshCw, Bell, BellOff, AlertTriangle } from "lucide-react"
-import { getOrders, getOrdersByType } from "@/lib/services/order-service"
+import { Plus, RefreshCw, Bell, BellOff, AlertTriangle, History } from "lucide-react"
+import { getActiveOrders } from "@/lib/services/order-service"
 import { getTables } from "@/lib/services/table-service"
 import { getOpenCashRegisters } from "@/lib/services/cash-register-service"
 import type { Order } from "@/lib/types/order"
@@ -21,9 +21,11 @@ import { useOrderNotifications } from "@/lib/hooks/use-order-notifications"
 import { VisualNotification } from "@/components/visual-notification"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { OpenCashRegisterDialog } from "../cash-register/components/open-cash-register-dialog"
+import { useRouter } from "next/navigation"
 
 export default function OrdersPage({ params }: { params: { tenantId: string } }) {
   const { tenantId } = params
+  const router = useRouter()
   const { currentBranch } = useBranch()
   const [loading, setLoading] = useState(true)
   const [orders, setOrders] = useState<Order[]>([])
@@ -89,17 +91,19 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
       console.log("Mesas cargadas:", tablesData)
       setTables(tablesData)
 
-      // Luego cargar pedidos
-      console.log("Cargando pedidos...")
-      const allOrders = await getOrders(tenantId, currentBranch.id)
-      console.log("Pedidos cargados:", allOrders)
-      setOrders(allOrders)
+      // Luego cargar pedidos activos (no entregados ni cancelados)
+      console.log("Cargando pedidos activos...")
+      const activeOrders = await getActiveOrders(tenantId, currentBranch.id)
+      console.log("Pedidos activos cargados:", activeOrders)
+      setOrders(activeOrders)
 
-      const tableOrdersData = await getOrdersByType(tenantId, currentBranch.id, "table")
-      setTableOrders(tableOrdersData)
+      // Filtrar pedidos de mesa activos
+      const activeTableOrders = activeOrders.filter((order) => order.type === "table")
+      setTableOrders(activeTableOrders)
 
-      const deliveryOrdersData = await getOrdersByType(tenantId, currentBranch.id, "delivery")
-      setDeliveryOrders(deliveryOrdersData)
+      // Filtrar pedidos de delivery activos
+      const activeDeliveryOrders = activeOrders.filter((order) => order.type === "delivery")
+      setDeliveryOrders(activeDeliveryOrders)
     } catch (error) {
       console.error("Error al cargar datos:", error)
       toast({
@@ -205,6 +209,10 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
     })
   }
 
+  const navigateToHistory = () => {
+    router.push(`/tenant/${tenantId}/admin/orders/history`)
+  }
+
   return (
     <div className="space-y-6">
       {/* Componente de notificación visual */}
@@ -220,6 +228,10 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Gestor de Pedidos</h1>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={navigateToHistory} title="Ver historial de pedidos">
+            <History className="h-4 w-4 mr-2" />
+            Historial
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -273,19 +285,23 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
         <>
           <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
             <TabsList>
-              <TabsTrigger value="all">Todos los Pedidos</TabsTrigger>
+              <TabsTrigger value="all">Pedidos Activos</TabsTrigger>
               <TabsTrigger value="tables">Mesas</TabsTrigger>
               <TabsTrigger value="delivery">Delivery</TabsTrigger>
             </TabsList>
 
             <TabsContent value="all" className="space-y-4">
               <div>
-                <h2 className="text-lg font-medium mb-4">Todos los Pedidos</h2>
+                <h2 className="text-lg font-medium mb-4">Pedidos Activos</h2>
                 {loading ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <Skeleton className="h-48 w-full" />
                     <Skeleton className="h-48 w-full" />
                     <Skeleton className="h-48 w-full" />
+                  </div>
+                ) : orders.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    No hay pedidos activos. Todos los pedidos han sido completados o cancelados.
                   </div>
                 ) : (
                   <OrdersList
@@ -322,13 +338,15 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
 
             <TabsContent value="delivery" className="space-y-4">
               <div>
-                <h2 className="text-lg font-medium mb-4">Pedidos de Delivery</h2>
+                <h2 className="text-lg font-medium mb-4">Pedidos de Delivery Activos</h2>
                 {loading ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <Skeleton className="h-48 w-full" />
                     <Skeleton className="h-48 w-full" />
                     <Skeleton className="h-48 w-full" />
                   </div>
+                ) : deliveryOrders.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">No hay pedidos de delivery activos.</div>
                 ) : (
                   <OrdersList
                     orders={deliveryOrders}
