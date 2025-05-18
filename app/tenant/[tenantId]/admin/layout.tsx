@@ -144,6 +144,8 @@ function AdminLayoutContent({
   })
   const [configOpen, setConfigOpen] = useState(false)
   const [restaurantConfigOpen, setRestaurantConfigOpen] = useState(false)
+  const [headerVisible, setHeaderVisible] = useState(true)
+  const [lastScrollY, setLastScrollY] = useState(0)
 
   // Función para actualizar el estado del sidebar
   const toggleSidebar = () => {
@@ -206,6 +208,62 @@ function AdminLayoutContent({
       document.removeEventListener("mousedown", handleClickOutside)
     }
   }, [sidebarOpen])
+
+  useEffect(() => {
+    // Solo aplicar en dispositivos móviles
+    if (typeof window === "undefined" || window.innerWidth >= 768) return
+
+    const controlHeader = () => {
+      const currentScrollY = window.scrollY
+
+      // Si estamos al inicio de la página, siempre mostrar el header
+      if (currentScrollY < 10) {
+        setHeaderVisible(true)
+        setLastScrollY(currentScrollY)
+        return
+      }
+
+      // Determinar dirección del scroll
+      const isScrollingDown = currentScrollY > lastScrollY
+
+      // Cambiar visibilidad basado en dirección (con un umbral mínimo de 10px)
+      if (isScrollingDown && currentScrollY > lastScrollY + 10) {
+        setHeaderVisible(false)
+      } else if (!isScrollingDown && currentScrollY < lastScrollY - 10) {
+        setHeaderVisible(true)
+      }
+
+      setLastScrollY(currentScrollY)
+    }
+
+    window.addEventListener("scroll", controlHeader)
+    return () => {
+      window.removeEventListener("scroll", controlHeader)
+    }
+  }, [lastScrollY])
+
+  useEffect(() => {
+    // Solución para evitar que la barra de URL del navegador móvil cause problemas
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      // Establecer altura inicial
+      const setAppHeight = () => {
+        const doc = document.documentElement
+        doc.style.setProperty("--app-height", `${window.innerHeight}px`)
+      }
+
+      // Configurar al inicio
+      setAppHeight()
+
+      // Actualizar en cambios de orientación o redimensionamiento
+      window.addEventListener("resize", setAppHeight)
+      window.addEventListener("orientationchange", setAppHeight)
+
+      return () => {
+        window.removeEventListener("resize", setAppHeight)
+        window.removeEventListener("orientationchange", setAppHeight)
+      }
+    }
+  }, [])
 
   const handleLogout = async () => {
     try {
@@ -292,7 +350,10 @@ function AdminLayoutContent({
   ]
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div
+      className="flex bg-gray-100"
+      style={{ height: "100%", position: "fixed", top: 0, left: 0, right: 0, bottom: 0 }}
+    >
       {/* Sidebar con nuevo estilo */}
       <div
         id="admin-sidebar"
@@ -564,8 +625,12 @@ function AdminLayoutContent({
       </div>
 
       {/* Main content con nuevo estilo en la barra superior */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-gradient-to-r from-gray-800 to-gray-900 shadow-md h-16 flex items-center px-4 text-white">
+      <div className="flex-1 flex flex-col overflow-hidden" style={{ height: "var(--app-height, 100%)" }}>
+        <header
+          className={`bg-gradient-to-r from-gray-800 to-gray-900 shadow-md h-16 flex items-center px-4 text-white fixed top-0 left-0 right-0 z-40 transition-transform duration-300 ease-in-out md:relative ${
+            headerVisible ? "translate-y-0" : "-translate-y-full md:translate-y-0"
+          }`}
+        >
           <button
             onClick={() => setSidebarOpen(true)}
             className="p-1 mr-4 rounded-md hover:bg-gray-700 text-gray-300 md:hidden"
@@ -586,7 +651,10 @@ function AdminLayoutContent({
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto p-4">
+        <main
+          className="flex-1 overflow-auto p-4 md:pt-4 pt-20"
+          style={{ height: "calc(var(--app-height, 100%) - 4rem)" }}
+        >
           <BranchAlertModal />
           {children}
         </main>
