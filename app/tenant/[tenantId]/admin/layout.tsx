@@ -9,7 +9,6 @@ import { onAuthStateChanged, signOut } from "firebase/auth"
 import { auth, db } from "@/lib/firebase/client"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-// Añadir el import para el ícono de caja
 import {
   LogOut,
   Menu,
@@ -41,8 +40,6 @@ import { PlanProvider, usePlan } from "@/lib/context/plan-context"
 import { AuthProvider } from "@/lib/context/auth-context"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Separator } from "@/components/ui/separator"
-
-// Primero, añadir los imports necesarios para los tooltips
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 // Componente para el selector de sucursales
@@ -75,7 +72,7 @@ function BranchSelector() {
 
   return (
     <div className="flex items-center gap-2">
-      <MapPin className="h-4 w-4 text-gray-500" />
+      <MapPin className="h-4 w-4 text-gray-200" />
       <Select
         value={currentBranch?.id}
         onValueChange={(value) => {
@@ -83,7 +80,7 @@ function BranchSelector() {
           if (branch) setCurrentBranch(branch)
         }}
       >
-        <SelectTrigger className="w-[180px]">
+        <SelectTrigger className="w-[180px] bg-gray-800 border-gray-700 text-white">
           <SelectValue placeholder="Seleccionar sucursal" />
         </SelectTrigger>
         <SelectContent>
@@ -107,10 +104,10 @@ function PlanBadge() {
   if (isLoading) return <Skeleton className="h-6 w-16" />
 
   const planColors = {
-    free: "bg-gray-100 text-gray-800",
-    basic: "bg-blue-100 text-blue-800",
-    premium: "bg-purple-100 text-purple-800",
-    enterprise: "bg-amber-100 text-amber-800",
+    free: "bg-gray-700 text-gray-200",
+    basic: "bg-blue-900 text-blue-100",
+    premium: "bg-purple-900 text-purple-100",
+    enterprise: "bg-amber-900 text-amber-100",
   }
 
   return (
@@ -264,7 +261,6 @@ function AdminLayoutContent({
   }
 
   // Menú principal reorganizado
-  // Modificar el array menuItems para incluir el gestor de caja después de "Pedidos"
   const menuItems = [
     { path: "/dashboard", label: "Dashboard", icon: Home },
     { type: "separator", label: "Gestión" },
@@ -297,25 +293,25 @@ function AdminLayoutContent({
 
   return (
     <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
+      {/* Sidebar con nuevo estilo */}
       <div
         id="admin-sidebar"
-        className={`fixed inset-y-0 left-0 z-50 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${
+        className={`fixed inset-y-0 left-0 z-50 bg-gray-900 shadow-lg transform transition-transform duration-300 ease-in-out ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         } md:relative md:translate-x-0 ${sidebarOpen ? "w-64" : "w-20"}`}
       >
-        <div className="flex items-center justify-between h-16 px-4 border-b">
-          <div className={`font-bold text-xl truncate ${!sidebarOpen && "md:hidden"}`}>
+        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-700 bg-gray-800">
+          <div className={`font-bold text-xl truncate text-white ${!sidebarOpen && "md:hidden"}`}>
             {tenantData?.name || tenantId}
           </div>
           {!sidebarOpen && (
             <div className="hidden md:flex justify-center w-full">
-              <span className="font-bold text-xl">{(tenantData?.name || tenantId).charAt(0)}</span>
+              <span className="font-bold text-xl text-white">{(tenantData?.name || tenantId).charAt(0)}</span>
             </div>
           )}
           <button
             onClick={() => setSidebarOpen(false)}
-            className="p-1 rounded-md hover:bg-gray-200 md:hidden"
+            className="p-1 rounded-md hover:bg-gray-700 text-gray-300 md:hidden"
             aria-label="Cerrar menú"
           >
             <X size={20} />
@@ -329,32 +325,14 @@ function AdminLayoutContent({
                 return (
                   <li key={`sep-${index}`} className={`pt-2 pb-1 ${!sidebarOpen && "md:hidden"}`}>
                     <div
-                      className={`px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider ${!sidebarOpen && "hidden"}`}
+                      className={`px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider ${!sidebarOpen && "hidden"}`}
                     >
                       {item.label}
                     </div>
-                    <Separator className="my-1" />
+                    <Separator className="my-1 bg-gray-700" />
                   </li>
                 )
               }
-              // Luego, modificar los elementos del menú principal para usar tooltips
-              // Buscar esta sección en el código:
-              // return (
-              //   <li key={item.path}>
-              //     <Link
-              //       href={`/admin${item.path}`}
-              //       className={`flex items-center px-4 py-2 rounded-md transition-colors ${
-              //         isActive(item.path) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
-              //       }`}
-              //       title={item.label}
-              //     >
-              //       <item.icon className={`${sidebarOpen ? "mr-3" : "mx-auto"} h-5 w-5`} />
-              //       {sidebarOpen && <span>{item.label}</span>}
-              //     </Link>
-              //   </li>
-              // )
-
-              // Y reemplazarla con:
               return (
                 <li key={item.path}>
                   {!sidebarOpen ? (
@@ -364,7 +342,9 @@ function AdminLayoutContent({
                           <Link
                             href={`/admin${item.path}`}
                             className={`flex items-center px-4 py-2 rounded-md transition-colors ${
-                              isActive(item.path) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
+                              isActive(item.path)
+                                ? "bg-primary text-primary-foreground"
+                                : "text-gray-300 hover:bg-gray-800 hover:text-white"
                             }`}
                           >
                             <item.icon className="mx-auto h-5 w-5" />
@@ -379,7 +359,9 @@ function AdminLayoutContent({
                     <Link
                       href={`/admin${item.path}`}
                       className={`flex items-center px-4 py-2 rounded-md transition-colors ${
-                        isActive(item.path) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
+                        isActive(item.path)
+                          ? "bg-primary text-primary-foreground"
+                          : "text-gray-300 hover:bg-gray-800 hover:text-white"
                       }`}
                     >
                       <item.icon className="mr-3 h-5 w-5" />
@@ -399,7 +381,9 @@ function AdminLayoutContent({
               >
                 <CollapsibleTrigger
                   className={`flex items-center justify-between w-full px-4 py-2 rounded-md transition-colors ${
-                    isGroupActive(["/settings"]) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
+                    isGroupActive(["/settings"])
+                      ? "bg-primary text-primary-foreground"
+                      : "text-gray-300 hover:bg-gray-800 hover:text-white"
                   }`}
                 >
                   <div className="flex items-center">
@@ -411,13 +395,15 @@ function AdminLayoutContent({
                   />
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <ul className="mt-1 ml-7 space-y-1 border-l pl-2">
+                  <ul className="mt-1 ml-7 space-y-1 border-l border-gray-700 pl-2">
                     {configItems.map((item) => (
                       <li key={item.path}>
                         <Link
                           href={`/admin${item.path}`}
                           className={`flex items-center px-4 py-2 rounded-md transition-colors ${
-                            pathname.includes(item.path) ? "bg-primary/10 text-primary" : "hover:bg-gray-100"
+                            pathname.includes(item.path)
+                              ? "bg-gray-800 text-primary"
+                              : "text-gray-400 hover:bg-gray-800 hover:text-white"
                           }`}
                         >
                           <item.icon className="mr-3 h-4 w-4" />
@@ -439,7 +425,9 @@ function AdminLayoutContent({
               >
                 <CollapsibleTrigger
                   className={`flex items-center justify-between w-full px-4 py-2 rounded-md transition-colors ${
-                    isGroupActive(["/restaurant"]) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
+                    isGroupActive(["/restaurant"])
+                      ? "bg-primary text-primary-foreground"
+                      : "text-gray-300 hover:bg-gray-800 hover:text-white"
                   }`}
                 >
                   <div className="flex items-center">
@@ -453,13 +441,15 @@ function AdminLayoutContent({
                   />
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <ul className="mt-1 ml-7 space-y-1 border-l pl-2">
+                  <ul className="mt-1 ml-7 space-y-1 border-l border-gray-700 pl-2">
                     {restaurantConfigItems.map((item) => (
                       <li key={item.path}>
                         <Link
                           href={`/admin${item.path}`}
                           className={`flex items-center px-4 py-2 rounded-md transition-colors ${
-                            pathname.includes(item.path) ? "bg-primary/10 text-primary" : "hover:bg-gray-100"
+                            pathname.includes(item.path)
+                              ? "bg-gray-800 text-primary"
+                              : "text-gray-400 hover:bg-gray-800 hover:text-white"
                           }`}
                         >
                           <item.icon className="mr-3 h-4 w-4" />
@@ -472,23 +462,6 @@ function AdminLayoutContent({
               </Collapsible>
             </li>
 
-            {/* También modificar los enlaces de Configuración y Restaurante cuando el sidebar está colapsado */}
-            {/* Buscar esta sección: */}
-            {/* {!sidebarOpen && (
-              <li className="hidden md:block">
-                <Link
-                  href={`/admin/settings/profile`}
-                  className={`flex items-center justify-center px-4 py-2 rounded-md transition-colors ${
-                    isGroupActive(["/settings"]) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
-                  }`}
-                  title="Configuración"
-                >
-                  <Settings className="h-5 w-5" />
-                </Link>
-              </li>
-            )} */}
-
-            {/* Y reemplazarla con: */}
             {!sidebarOpen && (
               <li className="hidden md:block">
                 <TooltipProvider delayDuration={300}>
@@ -497,7 +470,9 @@ function AdminLayoutContent({
                       <Link
                         href={`/admin/settings/profile`}
                         className={`flex items-center justify-center px-4 py-2 rounded-md transition-colors ${
-                          isGroupActive(["/settings"]) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
+                          isGroupActive(["/settings"])
+                            ? "bg-primary text-primary-foreground"
+                            : "text-gray-300 hover:bg-gray-800 hover:text-white"
                         }`}
                       >
                         <Settings className="h-5 w-5" />
@@ -511,23 +486,6 @@ function AdminLayoutContent({
               </li>
             )}
 
-            {/* Hacer lo mismo para el enlace de Restaurante */}
-            {/* Buscar: */}
-            {/* {!sidebarOpen && (
-              <li className="hidden md:block">
-                <Link
-                  href={`/admin/restaurant/basic`}
-                  className={`flex items-center justify-center px-4 py-2 rounded-md transition-colors ${
-                    isGroupActive(["/restaurant"]) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
-                  }`}
-                  title="Restaurante"
-                >
-                  <Store className="h-5 w-5" />
-                </Link>
-              </li>
-            )} */}
-
-            {/* Y reemplazarla con: */}
             {!sidebarOpen && (
               <li className="hidden md:block">
                 <TooltipProvider delayDuration={300}>
@@ -536,7 +494,9 @@ function AdminLayoutContent({
                       <Link
                         href={`/admin/restaurant/basic`}
                         className={`flex items-center justify-center px-4 py-2 rounded-md transition-colors ${
-                          isGroupActive(["/restaurant"]) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
+                          isGroupActive(["/restaurant"])
+                            ? "bg-primary text-primary-foreground"
+                            : "text-gray-300 hover:bg-gray-800 hover:text-white"
                         }`}
                       >
                         <Store className="h-5 w-5" />
@@ -552,42 +512,44 @@ function AdminLayoutContent({
           </ul>
         </nav>
 
-        <div className="absolute bottom-0 w-full p-4 border-t bg-white">
+        <div className="absolute bottom-0 w-full p-4 border-t border-gray-700 bg-gray-800">
           {sidebarOpen ? (
             <>
               <div className="flex items-center mb-4">
-                <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center mr-2">
+                <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center mr-2 text-white">
                   {user?.email?.charAt(0).toUpperCase() || "U"}
                 </div>
                 <div className="truncate">
-                  <div className="font-medium truncate">{user?.email}</div>
-                  <div className="text-xs text-gray-500 flex items-center gap-2">
+                  <div className="font-medium truncate text-white">{user?.email}</div>
+                  <div className="text-xs text-gray-400 flex items-center gap-2">
                     <span>Administrador</span>
                     <PlanBadge />
                   </div>
                 </div>
               </div>
-              <Button variant="outline" className="w-full flex items-center justify-center" onClick={handleLogout}>
+              <Button
+                variant="outline"
+                className="w-full flex items-center justify-center bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600 hover:text-white"
+                onClick={handleLogout}
+              >
                 <LogOut className="mr-2 h-4 w-4" />
                 Cerrar Sesión
               </Button>
             </>
           ) : (
             <div className="flex flex-col items-center">
-              <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center mb-2">
+              <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center mb-2 text-white">
                 {user?.email?.charAt(0).toUpperCase() || "U"}
               </div>
-              {/* Finalmente, añadir tooltip al botón de cerrar sesión cuando el sidebar está colapsado */}
-              {/* Buscar: */}
-              {/* <Button variant="outline" size="icon" className="w-10 h-10" onClick={handleLogout} title="Cerrar Sesión">
-                <LogOut className="h-4 w-4" />
-              </Button> */}
-
-              {/* Y reemplazarla con: */}
               <TooltipProvider delayDuration={300}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="outline" size="icon" className="w-10 h-10" onClick={handleLogout}>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="w-10 h-10 bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600 hover:text-white"
+                      onClick={handleLogout}
+                    >
                       <LogOut className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
@@ -601,19 +563,19 @@ function AdminLayoutContent({
         </div>
       </div>
 
-      {/* Main content */}
+      {/* Main content con nuevo estilo en la barra superior */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white shadow-sm h-16 flex items-center px-4">
+        <header className="bg-gradient-to-r from-gray-800 to-gray-900 shadow-md h-16 flex items-center px-4 text-white">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-1 mr-4 rounded-md hover:bg-gray-200 md:hidden"
+            className="p-1 mr-4 rounded-md hover:bg-gray-700 text-gray-300 md:hidden"
             aria-label="Abrir menú"
           >
             <Menu size={24} />
           </button>
           <button
             onClick={toggleSidebar}
-            className="p-1 mr-4 rounded-md hover:bg-gray-200 hidden md:flex"
+            className="p-1 mr-4 rounded-md hover:bg-gray-700 text-gray-300 hidden md:flex"
             aria-label={sidebarOpen ? "Contraer menú" : "Expandir menú"}
           >
             {sidebarOpen ? <ChevronLeft size={24} /> : <ChevronRight size={24} />}
@@ -625,7 +587,6 @@ function AdminLayoutContent({
         </header>
 
         <main className="flex-1 overflow-auto p-4">
-          {/* Añadir el modal de alerta en lugar de la alerta normal */}
           <BranchAlertModal />
           {children}
         </main>
