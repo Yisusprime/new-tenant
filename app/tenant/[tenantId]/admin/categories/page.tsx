@@ -194,25 +194,23 @@ export default function CategoriesPage({ params }: { params: { tenantId: string 
                       <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
                       <span className="whitespace-nowrap">Subcategorías</span>
                     </Button>
-                    <div className="flex space-x-2 w-full sm:w-auto justify-between sm:justify-end mt-2 sm:mt-0">
+                    <div className="flex space-x-2 w-full sm:w-auto justify-end mt-2 sm:mt-0">
                       <Button
                         variant="outline"
-                        size="sm"
-                        className="flex-1 sm:flex-initial justify-center"
+                        size="icon"
+                        className="flex-none justify-center"
                         onClick={() => router.push(`/admin/categories/${category.id}`)}
                       >
-                        <Edit className="h-3.5 w-3.5 sm:mr-1.5" />
-                        <span className="hidden sm:inline">Editar</span>
+                        <Edit className="h-4 w-4" />
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
                             variant="outline"
-                            size="sm"
-                            className="flex-1 sm:flex-initial justify-center text-red-500 hover:text-red-600 hover:bg-red-50"
+                            size="icon"
+                            className="flex-none justify-center text-red-500 hover:text-red-600 hover:bg-red-50"
                           >
-                            <Trash className="h-3.5 w-3.5 sm:mr-1.5" />
-                            <span className="hidden sm:inline">Eliminar</span>
+                            <Trash className="h-4 w-4" />
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
