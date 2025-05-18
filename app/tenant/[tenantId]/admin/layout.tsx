@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { usePathname } from "next/navigation"
 import { doc, getDoc } from "firebase/firestore"
 import { onAuthStateChanged, signOut } from "firebase/auth"
@@ -43,6 +43,7 @@ import { AuthProvider } from "@/lib/context/auth-context"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { motion, AnimatePresence } from "framer-motion"
 
 // Componente para el selector de sucursales
 function BranchSelector() {
@@ -119,6 +120,40 @@ function PlanBadge() {
   )
 }
 
+// Componente para el recordatorio de pantalla completa
+function FullscreenReminder({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        transition={{ duration: 0.3 }}
+        className="absolute top-16 right-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-3 rounded-lg shadow-lg z-50 max-w-xs"
+      >
+        <div className="flex items-start">
+          <div className="flex-shrink-0 mr-2">
+            <Maximize className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-sm font-medium">¿Mejor experiencia?</p>
+            <p className="text-xs mt-1">Usa el modo pantalla completa para una mejor experiencia en tu dispositivo</p>
+            <div className="flex justify-end mt-2 space-x-2">
+              <button
+                onClick={onDismiss}
+                className="text-xs bg-white bg-opacity-20 hover:bg-opacity-30 px-2 py-1 rounded transition-colors"
+              >
+                No mostrar más
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="absolute -top-2 right-6 w-4 h-4 bg-blue-600 transform rotate-45"></div>
+      </motion.div>
+    </AnimatePresence>
+  )
+}
+
 // Componente principal del layout
 function AdminLayoutContent({
   children,
@@ -145,10 +180,13 @@ function AdminLayoutContent({
     return true
   })
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [showFullscreenReminder, setShowFullscreenReminder] = useState(false)
+  const fullscreenButtonRef = useRef<HTMLButtonElement>(null)
   const [configOpen, setConfigOpen] = useState(false)
   const [restaurantConfigOpen, setRestaurantConfigOpen] = useState(false)
   const [headerVisible, setHeaderVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
+  const [isMobile, setIsMobile] = useState(false)
 
   // Función para actualizar el estado del sidebar
   const toggleSidebar = () => {
@@ -214,7 +252,27 @@ function AdminLayoutContent({
 
   useEffect(() => {
     // Solo aplicar en dispositivos móviles
-    if (typeof window === "undefined" || window.innerWidth >= 768) return
+    if (typeof window === "undefined") return
+
+    const checkMobile = () => {
+      const isMobileDevice = window.innerWidth < 768
+      setIsMobile(isMobileDevice)
+    }
+
+    // Verificar inicialmente
+    checkMobile()
+
+    // Verificar en cambios de tamaño
+    window.addEventListener("resize", checkMobile)
+
+    return () => {
+      window.removeEventListener("resize", checkMobile)
+    }
+  }, [])
+
+  useEffect(() => {
+    // Solo aplicar en dispositivos móviles
+    if (typeof window === "undefined" || !isMobile) return
 
     const controlHeader = () => {
       const currentScrollY = window.scrollY
@@ -243,11 +301,11 @@ function AdminLayoutContent({
     return () => {
       window.removeEventListener("scroll", controlHeader)
     }
-  }, [lastScrollY])
+  }, [lastScrollY, isMobile])
 
   useEffect(() => {
     // Solución para evitar que la barra de URL del navegador móvil cause problemas
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
+    if (typeof window !== "undefined" && isMobile) {
       // Establecer altura inicial
       const setAppHeight = () => {
         const doc = document.documentElement
@@ -266,7 +324,36 @@ function AdminLayoutContent({
         window.removeEventListener("orientationchange", setAppHeight)
       }
     }
-  }, [])
+  }, [isMobile])
+
+  // Verificar si se debe mostrar el recordatorio de pantalla completa
+  useEffect(() => {
+    if (typeof window !== "undefined" && isMobile) {
+      // Verificar si ya se ha mostrado antes
+      const hasSeenReminder = localStorage.getItem("fullscreenReminderSeen")
+
+      // Solo mostrar si:
+      // 1. No se ha visto antes
+      // 2. No está en modo pantalla completa
+      // 3. Es un dispositivo móvil
+      if (!hasSeenReminder && !isFullscreen) {
+        // Mostrar el recordatorio después de un breve retraso
+        const timer = setTimeout(() => {
+          setShowFullscreenReminder(true)
+        }, 2000)
+
+        return () => clearTimeout(timer)
+      }
+    }
+  }, [isFullscreen, isMobile])
+
+  const dismissFullscreenReminder = () => {
+    setShowFullscreenReminder(false)
+    // Marcar como visto para no mostrarlo de nuevo
+    if (typeof window !== "undefined") {
+      localStorage.setItem("fullscreenReminderSeen", "true")
+    }
+  }
 
   const handleLogout = async () => {
     try {
@@ -283,16 +370,28 @@ function AdminLayoutContent({
       if (document.documentElement.requestFullscreen) {
         document.documentElement
           .requestFullscreen()
-          .then(() => setIsFullscreen(true))
+          .then(() => {
+            setIsFullscreen(true)
+            // Marcar como visto el recordatorio si está activo
+            if (showFullscreenReminder) {
+              dismissFullscreenReminder()
+            }
+          })
           .catch((err) => console.error(`Error al intentar pantalla completa: ${err.message}`))
       } else if ((document.documentElement as any).webkitRequestFullscreen) {
         // Safari
         ;(document.documentElement as any).webkitRequestFullscreen()
         setIsFullscreen(true)
+        if (showFullscreenReminder) {
+          dismissFullscreenReminder()
+        }
       } else if ((document.documentElement as any).msRequestFullscreen) {
         // IE11
         ;(document.documentElement as any).msRequestFullscreen()
         setIsFullscreen(true)
+        if (showFullscreenReminder) {
+          dismissFullscreenReminder()
+        }
       }
     } else {
       // Salir del modo pantalla completa
@@ -407,10 +506,7 @@ function AdminLayoutContent({
   ]
 
   return (
-    <div
-      className="flex bg-gray-100"
-      style={{ height: "100%", position: "fixed", top: 0, left: 0, right: 0, bottom: 0 }}
-    >
+    <div className="flex bg-gray-100 min-h-screen">
       {/* Sidebar con nuevo estilo */}
       <div
         id="admin-sidebar"
@@ -682,9 +778,9 @@ function AdminLayoutContent({
       </div>
 
       {/* Main content con nuevo estilo en la barra superior */}
-      <div className="flex-1 flex flex-col overflow-hidden" style={{ height: "var(--app-height, 100%)" }}>
+      <div className="flex-1 flex flex-col">
         <header
-          className={`bg-gradient-to-r from-gray-800 to-gray-900 shadow-md h-16 flex items-center px-4 text-white fixed top-0 left-0 right-0 z-40 transition-transform duration-300 ease-in-out md:relative ${
+          className={`bg-gradient-to-r from-gray-800 to-gray-900 shadow-md h-16 flex items-center px-4 text-white sticky top-0 z-40 transition-transform duration-300 ease-in-out ${
             headerVisible ? "translate-y-0" : "-translate-y-full md:translate-y-0"
           }`}
         >
@@ -704,23 +800,28 @@ function AdminLayoutContent({
           </button>
           <h1 className="text-xl font-semibold">Panel de Administración</h1>
           <div className="ml-auto flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleFullscreen}
-              className="text-gray-300 hover:text-white hover:bg-gray-700"
-              title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
-            >
-              {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
-            </Button>
+            <div className="relative">
+              <Button
+                ref={fullscreenButtonRef}
+                variant="ghost"
+                size="icon"
+                onClick={toggleFullscreen}
+                className={`text-gray-300 hover:text-white hover:bg-gray-700 ${
+                  showFullscreenReminder ? "animate-pulse" : ""
+                }`}
+                title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+              >
+                {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+              </Button>
+
+              {/* Recordatorio de pantalla completa */}
+              {showFullscreenReminder && <FullscreenReminder onDismiss={dismissFullscreenReminder} />}
+            </div>
             <BranchSelector />
           </div>
         </header>
 
-        <main
-          className="flex-1 overflow-auto p-4 md:pt-4 pt-20"
-          style={{ height: "calc(var(--app-height, 100%) - 4rem)" }}
-        >
+        <main className="flex-1 p-4 scroll-container">
           <BranchAlertModal />
           {children}
         </main>
