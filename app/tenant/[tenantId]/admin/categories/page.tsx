@@ -99,7 +99,7 @@ export default function CategoriesPage({ params }: { params: { tenantId: string 
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
         <h1 className="text-2xl font-bold">Gestión de Categorías</h1>
         <Button onClick={() => router.push(`/admin/categories/new`)}>
           <Plus className="mr-2 h-4 w-4" /> Nueva Categoría
@@ -108,7 +108,7 @@ export default function CategoriesPage({ params }: { params: { tenantId: string 
 
       <NoBranchSelectedAlert />
 
-      <div className="relative mb-4">
+      <div className="relative mb-4 max-w-md">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
           type="text"
@@ -143,7 +143,7 @@ export default function CategoriesPage({ params }: { params: { tenantId: string 
             {filteredCategories.map((category) => {
               const subcategoriesCount = countSubcategories(category)
               return (
-                <Card key={category.id} className="overflow-hidden">
+                <Card key={category.id} className="overflow-hidden flex flex-col">
                   <div className="h-40 bg-muted relative">
                     {category.imageUrl ? (
                       <img
@@ -174,7 +174,7 @@ export default function CategoriesPage({ params }: { params: { tenantId: string 
                       {category.description || "Sin descripción"}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="px-4 pt-0 pb-2">
+                  <CardContent className="px-4 pt-0 pb-2 flex-grow">
                     <div className="flex items-center text-sm text-muted-foreground">
                       <Layers className="h-4 w-4 mr-1" />
                       {subcategoriesCount === 0
@@ -184,16 +184,17 @@ export default function CategoriesPage({ params }: { params: { tenantId: string 
                           : `${subcategoriesCount} subcategorías`}
                     </div>
                   </CardContent>
-                  <CardFooter className="p-4 pt-2 flex justify-between">
+                  <CardFooter className="p-4 pt-2 flex flex-col sm:flex-row gap-2">
                     <Button
                       variant="outline"
                       size="sm"
+                      className="w-full sm:w-auto justify-center"
                       onClick={() => router.push(`/admin/categories/${category.id}/subcategories`)}
                     >
                       <FolderOpen className="mr-2 h-4 w-4" />
-                      Subcategorías
+                      <span className="whitespace-nowrap">Subcategorías</span>
                     </Button>
-                    <div className="flex space-x-2">
+                    <div className="flex space-x-2 w-full sm:w-auto justify-end">
                       <Button
                         variant="outline"
                         size="icon"
