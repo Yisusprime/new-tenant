@@ -134,11 +134,11 @@ function AdminLayoutContent({
   const [isAdmin, setIsAdmin] = useState(false)
   const [tenantData, setTenantData] = useState<any>(null)
   const [sidebarOpen, setSidebarOpen] = useState(() => {
-    // En el cliente, verificar localStorage y tamaño de pantalla
+    // En el cliente, verificar tamaño de pantalla
     if (typeof window !== "undefined") {
-      // Si es móvil, iniciar cerrado
-      if (window.innerWidth < 768) return false
-      // Si hay preferencia guardada, usarla
+      // En móviles y tablets, iniciar cerrado
+      if (window.innerWidth < 1024) return false
+      // En PC, usar preferencia guardada o mostrar por defecto
       const saved = localStorage.getItem("sidebarOpen")
       return saved !== null ? saved === "true" : true
     }
@@ -222,16 +222,16 @@ function AdminLayoutContent({
   }, [tenantId])
 
   useEffect(() => {
-    // Cerrar sidebar automáticamente en móvil cuando cambia la ruta
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
+    // Cerrar sidebar automáticamente en móvil/tablet cuando cambia la ruta
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
       setSidebarOpen(false)
     }
   }, [pathname])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // Solo en móvil
-      if (typeof window !== "undefined" && window.innerWidth < 768 && sidebarOpen) {
+      // Solo en móvil y tablet
+      if (typeof window !== "undefined" && window.innerWidth < 1024 && sidebarOpen) {
         const sidebar = document.getElementById("admin-sidebar")
         if (sidebar && !sidebar.contains(event.target as Node)) {
           setSidebarOpen(false)
@@ -336,20 +336,20 @@ function AdminLayoutContent({
         id="admin-sidebar"
         className={`fixed inset-y-0 left-0 z-50 bg-gray-900 shadow-lg transform transition-transform duration-300 ease-in-out ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } md:relative md:translate-x-0 ${sidebarOpen ? "w-64" : "w-20"}`}
+        } lg:relative lg:translate-x-0 ${sidebarOpen ? "w-64" : "w-20"} lg:${sidebarOpen ? "w-64" : "w-20"}`}
       >
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-700 bg-gray-800">
-          <div className={`font-bold text-xl truncate text-white ${!sidebarOpen && "md:hidden"}`}>
+          <div className={`font-bold text-xl truncate text-white ${!sidebarOpen && "lg:hidden"}`}>
             {tenantData?.name || tenantId}
           </div>
           {!sidebarOpen && (
-            <div className="hidden md:flex justify-center w-full">
+            <div className="hidden lg:flex justify-center w-full">
               <span className="font-bold text-xl text-white">{(tenantData?.name || tenantId).charAt(0)}</span>
             </div>
           )}
           <button
             onClick={() => setSidebarOpen(false)}
-            className="p-1 rounded-md hover:bg-gray-700 text-gray-300 md:hidden"
+            className="p-1 rounded-md hover:bg-gray-700 text-gray-300 lg:hidden"
             aria-label="Cerrar menú"
           >
             <X size={20} />
@@ -361,7 +361,7 @@ function AdminLayoutContent({
             {menuItems.map((item, index) => {
               if (item.type === "separator") {
                 return (
-                  <li key={`sep-${index}`} className={`pt-2 pb-1 ${!sidebarOpen && "md:hidden"}`}>
+                  <li key={`sep-${index}`} className={`pt-2 pb-1 ${!sidebarOpen && "lg:hidden"}`}>
                     <div
                       className={`px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider ${!sidebarOpen && "hidden"}`}
                     >
@@ -411,7 +411,7 @@ function AdminLayoutContent({
             })}
 
             {/* Menú desplegable de configuración de usuario */}
-            <li className={!sidebarOpen ? "md:hidden" : ""}>
+            <li className={!sidebarOpen ? "lg:hidden" : ""}>
               <Collapsible
                 open={configOpen || isGroupActive(["/settings"])}
                 onOpenChange={setConfigOpen}
@@ -455,7 +455,7 @@ function AdminLayoutContent({
             </li>
 
             {/* Menú desplegable de configuración del restaurante */}
-            <li className={!sidebarOpen ? "md:hidden" : ""}>
+            <li className={!sidebarOpen ? "lg:hidden" : ""}>
               <Collapsible
                 open={restaurantConfigOpen || isGroupActive(["/restaurant"])}
                 onOpenChange={setRestaurantConfigOpen}
@@ -501,7 +501,7 @@ function AdminLayoutContent({
             </li>
 
             {!sidebarOpen && (
-              <li className="hidden md:block">
+              <li className="hidden lg:block">
                 <TooltipProvider delayDuration={300}>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -525,7 +525,7 @@ function AdminLayoutContent({
             )}
 
             {!sidebarOpen && (
-              <li className="hidden md:block">
+              <li className="hidden lg:block">
                 <TooltipProvider delayDuration={300}>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -606,14 +606,14 @@ function AdminLayoutContent({
         <header className="bg-gradient-to-r from-gray-800 to-gray-900 shadow-md h-16 flex items-center px-4 text-white">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-1 mr-4 rounded-md hover:bg-gray-700 text-gray-300 md:hidden"
+            className="p-1 mr-4 rounded-md hover:bg-gray-700 text-gray-300 lg:hidden"
             aria-label="Abrir menú"
           >
             <Menu size={24} />
           </button>
           <button
             onClick={toggleSidebar}
-            className="p-1 mr-4 rounded-md hover:bg-gray-700 text-gray-300 hidden md:flex"
+            className="p-1 mr-4 rounded-md hover:bg-gray-700 text-gray-300 hidden lg:flex"
             aria-label={sidebarOpen ? "Contraer menú" : "Expandir menú"}
           >
             {sidebarOpen ? <ChevronLeft size={24} /> : <ChevronRight size={24} />}
