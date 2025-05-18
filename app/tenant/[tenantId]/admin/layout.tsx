@@ -324,8 +324,10 @@ function AdminLayoutContent({
             {menuItems.map((item, index) => {
               if (item.type === "separator") {
                 return (
-                  <li key={`sep-${index}`} className="pt-2 pb-1">
-                    <div className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <li key={`sep-${index}`} className={`pt-2 pb-1 ${!sidebarOpen && "md:hidden"}`}>
+                    <div
+                      className={`px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider ${!sidebarOpen && "hidden"}`}
+                    >
                       {item.label}
                     </div>
                     <Separator className="my-1" />
