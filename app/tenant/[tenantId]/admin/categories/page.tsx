@@ -139,7 +139,7 @@ export default function CategoriesPage({ params }: { params: { tenantId: string 
         </div>
       ) : currentBranch ? (
         filteredCategories.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredCategories.map((category) => {
               const subcategoriesCount = countSubcategories(category)
               return (
@@ -188,24 +188,31 @@ export default function CategoriesPage({ params }: { params: { tenantId: string 
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full sm:w-auto justify-center"
+                      className="w-full sm:w-auto justify-center text-xs sm:text-sm"
                       onClick={() => router.push(`/admin/categories/${category.id}/subcategories`)}
                     >
-                      <FolderOpen className="mr-2 h-4 w-4" />
+                      <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
                       <span className="whitespace-nowrap">Subcategorías</span>
                     </Button>
-                    <div className="flex space-x-2 w-full sm:w-auto justify-end">
+                    <div className="flex space-x-2 w-full sm:w-auto justify-between sm:justify-end mt-2 sm:mt-0">
                       <Button
                         variant="outline"
-                        size="icon"
+                        size="sm"
+                        className="flex-1 sm:flex-initial justify-center"
                         onClick={() => router.push(`/admin/categories/${category.id}`)}
                       >
-                        <Edit className="h-4 w-4" />
+                        <Edit className="h-3.5 w-3.5 sm:mr-1.5" />
+                        <span className="hidden sm:inline">Editar</span>
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="outline" size="icon" className="text-red-500 hover:text-red-600">
-                            <Trash className="h-4 w-4" />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 sm:flex-initial justify-center text-red-500 hover:text-red-600 hover:bg-red-50"
+                          >
+                            <Trash className="h-3.5 w-3.5 sm:mr-1.5" />
+                            <span className="hidden sm:inline">Eliminar</span>
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>

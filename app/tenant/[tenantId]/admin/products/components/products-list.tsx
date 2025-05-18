@@ -254,7 +254,7 @@ export function ProductsList({ tenantId, branchId }: ProductsListProps) {
         </p>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
         {loading || loadingCategories ? (
           renderSkeletons()
         ) : !Array.isArray(filteredProducts) || filteredProducts.length === 0 ? (
@@ -284,13 +284,17 @@ export function ProductsList({ tenantId, branchId }: ProductsListProps) {
                 )}
                 <div className="absolute top-1 right-1 flex gap-0.5">
                   {!product.isActive && (
-                    <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-background/80 backdrop-blur-sm">
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] px-1 py-0 h-4 bg-background/90 backdrop-blur-sm border-red-200 text-red-600"
+                    >
                       Inactivo
                     </Badge>
                   )}
                   {product.isFeatured && (
-                    <Badge className="bg-amber-500 text-[10px] px-1 py-0 h-4 bg-background/80 backdrop-blur-sm">
-                      <Star className="h-2 w-2" />
+                    <Badge className="bg-amber-500 hover:bg-amber-600 text-white text-[10px] px-1 py-0 h-4">
+                      <Star className="h-2.5 w-2.5 mr-0.5" />
+                      Destacado
                     </Badge>
                   )}
                 </div>
@@ -344,14 +348,14 @@ export function ProductsList({ tenantId, branchId }: ProductsListProps) {
                   </DropdownMenu>
                 </div>
               </div>
-              <CardContent className="p-3">
-                <div className="space-y-1">
+              <CardContent className="p-4">
+                <div className="space-y-2">
                   <h3 className="font-medium text-sm leading-tight line-clamp-1" title={product.name}>
                     {product.name}
                   </h3>
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                     <p className="text-sm font-medium">${product.price.toFixed(2)}</p>
-                    <Badge variant="secondary" className="text-xs px-1 py-0 h-5">
+                    <Badge variant="secondary" className="text-xs px-1.5 py-0.5 h-5 w-fit">
                       {getCategoryName(product.categoryId)}
                     </Badge>
                   </div>
