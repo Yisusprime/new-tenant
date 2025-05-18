@@ -129,19 +129,21 @@ function FullscreenReminder({ onDismiss }: { onDismiss: () => void }) {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
         transition={{ duration: 0.3 }}
-        className="absolute top-16 right-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-3 rounded-lg shadow-lg z-50 max-w-xs"
+        className="absolute top-16 right-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-3 rounded-lg shadow-lg z-50 max-w-xs md:max-w-sm"
       >
         <div className="flex items-start">
           <div className="flex-shrink-0 mr-2">
             <Maximize className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-sm font-medium">¿Mejor experiencia?</p>
-            <p className="text-xs mt-1">Usa el modo pantalla completa para una mejor experiencia en tu dispositivo</p>
+            <p className="text-sm font-medium md:text-base">¿Mejor experiencia?</p>
+            <p className="text-xs mt-1 md:text-sm">
+              Usa el modo pantalla completa para una experiencia más inmersiva en tu dispositivo
+            </p>
             <div className="flex justify-end mt-2 space-x-2">
               <button
                 onClick={onDismiss}
-                className="text-xs bg-white bg-opacity-20 hover:bg-opacity-30 px-2 py-1 rounded transition-colors"
+                className="text-xs md:text-sm bg-white bg-opacity-20 hover:bg-opacity-30 px-2 py-1 rounded transition-colors"
               >
                 No mostrar más
               </button>
@@ -251,22 +253,24 @@ function AdminLayoutContent({
   }, [sidebarOpen])
 
   useEffect(() => {
-    // Solo aplicar en dispositivos móviles
+    // Aplicar en dispositivos móviles y tablets
     if (typeof window === "undefined") return
 
-    const checkMobile = () => {
-      const isMobileDevice = window.innerWidth < 768
-      setIsMobile(isMobileDevice)
+    const checkDeviceType = () => {
+      const width = window.innerWidth
+      // Considerar tablets (hasta 1024px) además de móviles
+      const isMobileOrTablet = width < 1024
+      setIsMobile(isMobileOrTablet)
     }
 
     // Verificar inicialmente
-    checkMobile()
+    checkDeviceType()
 
     // Verificar en cambios de tamaño
-    window.addEventListener("resize", checkMobile)
+    window.addEventListener("resize", checkDeviceType)
 
     return () => {
-      window.removeEventListener("resize", checkMobile)
+      window.removeEventListener("resize", checkDeviceType)
     }
   }, [])
 
