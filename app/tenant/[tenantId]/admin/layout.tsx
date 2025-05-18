@@ -510,15 +510,16 @@ function AdminLayoutContent({
   ]
 
   return (
-    <div className="flex bg-gray-100 min-h-screen">
-      {/* Sidebar con nuevo estilo */}
+    <div className="flex h-screen overflow-hidden bg-gray-100">
+      {/* Sidebar con nuevo estilo - ahora fijo */}
       <div
         id="admin-sidebar"
         className={`fixed inset-y-0 left-0 z-50 bg-gray-900 shadow-lg transform transition-transform duration-300 ease-in-out ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         } md:relative md:translate-x-0 ${sidebarOpen ? "w-64" : "w-20"}`}
+        style={{ height: "100vh", overflowY: "auto" }}
       >
-        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-700 bg-gray-800">
+        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-700 bg-gray-800 sticky top-0 z-10">
           <div className={`font-bold text-xl truncate text-white ${!sidebarOpen && "md:hidden"}`}>
             {tenantData?.name || tenantId}
           </div>
@@ -536,8 +537,8 @@ function AdminLayoutContent({
           </button>
         </div>
 
-        <nav className="mt-4 px-2 overflow-y-auto" style={{ maxHeight: "calc(100vh - 180px)" }}>
-          <ul className="space-y-1">
+        <nav className="px-2 overflow-y-auto" style={{ height: "calc(100vh - 180px)" }}>
+          <ul className="space-y-1 py-4">
             {menuItems.map((item, index) => {
               if (item.type === "separator") {
                 return (
@@ -781,12 +782,12 @@ function AdminLayoutContent({
         </div>
       </div>
 
-      {/* Main content con nuevo estilo en la barra superior */}
-      <div className="flex-1 flex flex-col">
+      {/* Main content con header fijo */}
+      <div className="flex-1 flex flex-col overflow-hidden">
         <header
-          className={`bg-gradient-to-r from-gray-800 to-gray-900 shadow-md h-16 flex items-center px-4 text-white sticky top-0 z-40 transition-transform duration-300 ease-in-out ${
-            headerVisible ? "translate-y-0" : "-translate-y-full md:translate-y-0"
-          }`}
+          className={`bg-gradient-to-r from-gray-800 to-gray-900 shadow-md h-16 flex items-center px-4 text-white fixed top-0 right-0 left-0 z-40 transition-transform duration-300 ease-in-out md:left-${
+            sidebarOpen ? "64" : "20"
+          } ${headerVisible ? "translate-y-0" : "-translate-y-full md:translate-y-0"}`}
         >
           <button
             onClick={() => setSidebarOpen(true)}
@@ -825,7 +826,14 @@ function AdminLayoutContent({
           </div>
         </header>
 
-        <main className="flex-1 p-4 scroll-container">
+        <main
+          className="flex-1 overflow-auto p-4 scroll-container"
+          style={{
+            marginTop: "64px", // Altura del header
+            height: "calc(100vh - 64px)",
+            paddingBottom: "2rem", // Espacio adicional al final
+          }}
+        >
           <BranchAlertModal />
           {children}
         </main>
