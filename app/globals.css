@@ -2,33 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --app-height: 100%;
-}
-
-html,
-body {
-  height: 100%;
-  /* Eliminamos estas propiedades que bloquean el scroll */
-  /* overflow: hidden; */
-  /* position: fixed; */
-  width: 100%;
-  /* Mantenemos esta propiedad para evitar el rebote pero permitimos scroll */
-  overscroll-behavior: contain;
-}
-
-#__next {
-  height: 100%;
-}
-
 body {
   font-family: Arial, Helvetica, sans-serif;
-}
-
-/* Clase específica para contenedores con scroll */
-.scroll-container {
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch; /* Para mejor scroll en iOS */
 }
 
 @layer utilities {
