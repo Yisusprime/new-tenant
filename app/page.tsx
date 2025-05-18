@@ -76,8 +76,10 @@ export default function LandingPage() {
       <main className="flex-1 relative z-10 pt-24">
         <section className="py-20 text-white">
           <div className="container mx-auto px-4 text-center">
-            <h1 className="text-6xl font-bold mb-6">Cada pago importa</h1>
-            <p className="text-xl mb-8 max-w-2xl mx-auto">Recibe y gestiona todos los pagos de tu negocio</p>
+            <h1 className="text-6xl font-bold mb-6">Tu restaurante online</h1>
+            <p className="text-xl mb-8 max-w-2xl mx-auto">
+              Sistema completo para gestionar pedidos, menús y clientes con tu propio subdominio personalizado
+            </p>
             <div className="flex gap-4 justify-center">
               <Button asChild size="lg" className="bg-white text-black hover:bg-gray-100 rounded-full px-6">
                 <Link href="/register">Habla con ventas</Link>
