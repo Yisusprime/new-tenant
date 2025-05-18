@@ -31,6 +31,8 @@ import {
   ChevronLeft,
   ChevronRight,
   DollarSign,
+  Maximize,
+  Minimize,
 } from "lucide-react"
 import Link from "next/link"
 import { BranchProvider, useBranch } from "@/lib/context/branch-context"
@@ -142,6 +144,7 @@ function AdminLayoutContent({
     }
     return true
   })
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const [configOpen, setConfigOpen] = useState(false)
   const [restaurantConfigOpen, setRestaurantConfigOpen] = useState(false)
   const [headerVisible, setHeaderVisible] = useState(true)
@@ -273,6 +276,60 @@ function AdminLayoutContent({
       console.error("Error al cerrar sesión:", error)
     }
   }
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      // Entrar en modo pantalla completa
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement
+          .requestFullscreen()
+          .then(() => setIsFullscreen(true))
+          .catch((err) => console.error(`Error al intentar pantalla completa: ${err.message}`))
+      } else if ((document.documentElement as any).webkitRequestFullscreen) {
+        // Safari
+        ;(document.documentElement as any).webkitRequestFullscreen()
+        setIsFullscreen(true)
+      } else if ((document.documentElement as any).msRequestFullscreen) {
+        // IE11
+        ;(document.documentElement as any).msRequestFullscreen()
+        setIsFullscreen(true)
+      }
+    } else {
+      // Salir del modo pantalla completa
+      if (document.exitFullscreen) {
+        document
+          .exitFullscreen()
+          .then(() => setIsFullscreen(false))
+          .catch((err) => console.error(`Error al salir de pantalla completa: ${err.message}`))
+      } else if ((document as any).webkitExitFullscreen) {
+        // Safari
+        ;(document as any).webkitExitFullscreen()
+        setIsFullscreen(false)
+      } else if ((document as any).msExitFullscreen) {
+        // IE11
+        ;(document as any).msExitFullscreen()
+        setIsFullscreen(false)
+      }
+    }
+  }
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange)
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange)
+    document.addEventListener("mozfullscreenchange", handleFullscreenChange)
+    document.addEventListener("MSFullscreenChange", handleFullscreenChange)
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange)
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange)
+      document.removeEventListener("mozfullscreenchange", handleFullscreenChange)
+      document.removeEventListener("MSFullscreenChange", handleFullscreenChange)
+    }
+  }, [])
 
   // Verificar si la ruta actual está activa
   const isActive = (path: string) => {
@@ -646,7 +703,16 @@ function AdminLayoutContent({
             {sidebarOpen ? <ChevronLeft size={24} /> : <ChevronRight size={24} />}
           </button>
           <h1 className="text-xl font-semibold">Panel de Administración</h1>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleFullscreen}
+              className="text-gray-300 hover:text-white hover:bg-gray-700"
+              title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+            >
+              {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+            </Button>
             <BranchSelector />
           </div>
         </header>
