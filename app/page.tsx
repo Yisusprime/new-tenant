@@ -4,22 +4,60 @@ import { Button } from "@/components/ui/button"
 export default function LandingPage() {
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="border-b">
+      <header className="bg-black text-white">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-2xl font-bold">Gastroo</div>
-          <nav className="flex gap-4">
-            <Link href="/" className="hover:underline">
-              Acerca de
-            </Link>
-            <Link href="/" className="hover:underline">
-              Contacto
-            </Link>
-          </nav>
+          <div className="text-2xl font-bold flex items-center">
+            <span className="mr-1">Gastroo</span>
+          </div>
+          <div className="flex items-center">
+            <nav className="hidden md:flex gap-6 mr-6">
+              <Link href="/" className="hover:text-gray-300">
+                Productos
+              </Link>
+              <Link href="/" className="hover:text-gray-300">
+                Docs
+              </Link>
+              <Link href="/" className="hover:text-gray-300">
+                Blog
+              </Link>
+              <Link href="/" className="hover:text-gray-300">
+                Research
+              </Link>
+              <Link href="/" className="hover:text-gray-300">
+                Ayuda
+              </Link>
+            </nav>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1 mr-2">
+                <span className="text-sm">Chile</span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="ml-1"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </div>
+              <Link href="/register" className="text-white hover:text-gray-300 text-sm">
+                Iniciar sesión
+              </Link>
+              <Button asChild size="sm" className="bg-white text-black hover:bg-gray-200">
+                <Link href="/register">Habla con ventas</Link>
+              </Button>
+            </div>
+          </div>
         </div>
       </header>
 
       <main className="flex-1">
-        <section className="py-20 bg-gradient-to-r from-purple-500 to-indigo-600 text-white">
+        <section className="py-20 bg-black text-white">
           <div className="container mx-auto px-4 text-center">
             <h1 className="text-5xl font-bold mb-6">Gestiona tu Restaurante en Línea</h1>
             <p className="text-xl mb-8 max-w-2xl mx-auto">
