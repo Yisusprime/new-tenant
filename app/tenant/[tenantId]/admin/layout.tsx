@@ -31,6 +31,8 @@ import {
   ChevronLeft,
   ChevronRight,
   DollarSign,
+  Maximize,
+  Minimize,
 } from "lucide-react"
 import Link from "next/link"
 import { BranchProvider, useBranch } from "@/lib/context/branch-context"
@@ -144,6 +146,7 @@ function AdminLayoutContent({
   })
   const [configOpen, setConfigOpen] = useState(false)
   const [restaurantConfigOpen, setRestaurantConfigOpen] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   // Función para actualizar el estado del sidebar
   const toggleSidebar = () => {
@@ -153,6 +156,41 @@ function AdminLayoutContent({
       localStorage.setItem("sidebarOpen", String(newState))
     }
   }
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement
+        .requestFullscreen()
+        .then(() => {
+          setIsFullscreen(true)
+        })
+        .catch((err) => {
+          console.error(`Error al intentar mostrar pantalla completa: ${err.message}`)
+        })
+    } else {
+      if (document.exitFullscreen) {
+        document
+          .exitFullscreen()
+          .then(() => {
+            setIsFullscreen(false)
+          })
+          .catch((err) => {
+            console.error(`Error al intentar salir de pantalla completa: ${err.message}`)
+          })
+      }
+    }
+  }
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange)
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange)
+    }
+  }, [])
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -581,7 +619,24 @@ function AdminLayoutContent({
             {sidebarOpen ? <ChevronLeft size={24} /> : <ChevronRight size={24} />}
           </button>
           <h1 className="text-xl font-semibold">Panel de Administración</h1>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-4">
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={toggleFullscreen}
+                    className="text-gray-300 hover:bg-gray-700 hover:text-white"
+                  >
+                    {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="font-medium">
+                  {isFullscreen ? "Salir de pantalla completa" : "Modo pantalla completa"}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <BranchSelector />
           </div>
         </header>
