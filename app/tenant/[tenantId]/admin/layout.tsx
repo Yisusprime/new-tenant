@@ -42,6 +42,9 @@ import { AuthProvider } from "@/lib/context/auth-context"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Separator } from "@/components/ui/separator"
 
+// Primero, añadir los imports necesarios para los tooltips
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+
 // Componente para el selector de sucursales
 function BranchSelector() {
   const { branches, currentBranch, setCurrentBranch, loading, error, hasActiveBranches } = useBranch()
@@ -334,18 +337,55 @@ function AdminLayoutContent({
                   </li>
                 )
               }
+              // Luego, modificar los elementos del menú principal para usar tooltips
+              // Buscar esta sección en el código:
+              // return (
+              //   <li key={item.path}>
+              //     <Link
+              //       href={`/admin${item.path}`}
+              //       className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+              //         isActive(item.path) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
+              //       }`}
+              //       title={item.label}
+              //     >
+              //       <item.icon className={`${sidebarOpen ? "mr-3" : "mx-auto"} h-5 w-5`} />
+              //       {sidebarOpen && <span>{item.label}</span>}
+              //     </Link>
+              //   </li>
+              // )
+
+              // Y reemplazarla con:
               return (
                 <li key={item.path}>
-                  <Link
-                    href={`/admin${item.path}`}
-                    className={`flex items-center px-4 py-2 rounded-md transition-colors ${
-                      isActive(item.path) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
-                    }`}
-                    title={item.label}
-                  >
-                    <item.icon className={`${sidebarOpen ? "mr-3" : "mx-auto"} h-5 w-5`} />
-                    {sidebarOpen && <span>{item.label}</span>}
-                  </Link>
+                  {!sidebarOpen ? (
+                    <TooltipProvider delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Link
+                            href={`/admin${item.path}`}
+                            className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+                              isActive(item.path) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
+                            }`}
+                          >
+                            <item.icon className="mx-auto h-5 w-5" />
+                          </Link>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="font-medium">
+                          {item.label}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ) : (
+                    <Link
+                      href={`/admin${item.path}`}
+                      className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+                        isActive(item.path) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
+                      }`}
+                    >
+                      <item.icon className="mr-3 h-5 w-5" />
+                      <span>{item.label}</span>
+                    </Link>
+                  )}
                 </li>
               )
             })}
@@ -432,7 +472,9 @@ function AdminLayoutContent({
               </Collapsible>
             </li>
 
-            {!sidebarOpen && (
+            {/* También modificar los enlaces de Configuración y Restaurante cuando el sidebar está colapsado */}
+            {/* Buscar esta sección: */}
+            {/* {!sidebarOpen && (
               <li className="hidden md:block">
                 <Link
                   href={`/admin/settings/profile`}
@@ -444,9 +486,34 @@ function AdminLayoutContent({
                   <Settings className="h-5 w-5" />
                 </Link>
               </li>
+            )} */}
+
+            {/* Y reemplazarla con: */}
+            {!sidebarOpen && (
+              <li className="hidden md:block">
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link
+                        href={`/admin/settings/profile`}
+                        className={`flex items-center justify-center px-4 py-2 rounded-md transition-colors ${
+                          isGroupActive(["/settings"]) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
+                        }`}
+                      >
+                        <Settings className="h-5 w-5" />
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="font-medium">
+                      Configuración
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </li>
             )}
 
-            {!sidebarOpen && (
+            {/* Hacer lo mismo para el enlace de Restaurante */}
+            {/* Buscar: */}
+            {/* {!sidebarOpen && (
               <li className="hidden md:block">
                 <Link
                   href={`/admin/restaurant/basic`}
@@ -457,6 +524,29 @@ function AdminLayoutContent({
                 >
                   <Store className="h-5 w-5" />
                 </Link>
+              </li>
+            )} */}
+
+            {/* Y reemplazarla con: */}
+            {!sidebarOpen && (
+              <li className="hidden md:block">
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link
+                        href={`/admin/restaurant/basic`}
+                        className={`flex items-center justify-center px-4 py-2 rounded-md transition-colors ${
+                          isGroupActive(["/restaurant"]) ? "bg-primary text-primary-foreground" : "hover:bg-gray-100"
+                        }`}
+                      >
+                        <Store className="h-5 w-5" />
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="font-medium">
+                      Restaurante
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </li>
             )}
           </ul>
@@ -487,9 +577,25 @@ function AdminLayoutContent({
               <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center mb-2">
                 {user?.email?.charAt(0).toUpperCase() || "U"}
               </div>
-              <Button variant="outline" size="icon" className="w-10 h-10" onClick={handleLogout} title="Cerrar Sesión">
+              {/* Finalmente, añadir tooltip al botón de cerrar sesión cuando el sidebar está colapsado */}
+              {/* Buscar: */}
+              {/* <Button variant="outline" size="icon" className="w-10 h-10" onClick={handleLogout} title="Cerrar Sesión">
                 <LogOut className="h-4 w-4" />
-              </Button>
+              </Button> */}
+
+              {/* Y reemplazarla con: */}
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="icon" className="w-10 h-10" onClick={handleLogout}>
+                      <LogOut className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="font-medium">
+                    Cerrar Sesión
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           )}
         </div>
