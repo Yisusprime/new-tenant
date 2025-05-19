@@ -1,5 +1,7 @@
 "use client"
 
+import { Badge } from "@/components/ui/badge"
+
 import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
 import { useBranch } from "@/lib/context/branch-context"
@@ -12,13 +14,16 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Trash2, Plus, Save, Calculator, FileText, ChefHat, Percent, DollarSign } from "lucide-react"
+import { Trash2, Plus, Save, Calculator, FileText, ChefHat, Percent, DollarSign, Search, Package } from "lucide-react"
 import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, getDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase/client"
 import { toast } from "@/components/ui/use-toast"
 import { formatCurrency } from "@/lib/utils"
 import { useRestaurantConfig } from "@/lib/hooks/use-restaurant-config"
 import { QuickCalculatorModal } from "@/components/quick-calculator-modal"
+import { getInventoryItems } from "@/lib/services/inventory-service"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import type { InventoryItem } from "@/lib/types/inventory"
 
 // Tipos para la calculadora
 interface Ingredient {
@@ -27,6 +32,7 @@ interface Ingredient {
   cost: number
   unit: string
   quantity: number
+  inventoryItemId?: string // ID del item de inventario relacionado
 }
 
 interface Recipe {
@@ -64,6 +70,10 @@ export default function CostCalculatorPage() {
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([])
+  const [filteredInventoryItems, setFilteredInventoryItems] = useState<InventoryItem[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
+  const [inventoryDialogOpen, setInventoryDialogOpen] = useState(false)
 
   // Estado para la receta actual
   const [currentRecipe, setCurrentRecipe] = useState<Recipe>({
@@ -96,8 +106,25 @@ export default function CostCalculatorPage() {
   useEffect(() => {
     if (currentBranch?.id) {
       loadRecipes()
+      loadInventoryItems()
     }
   }, [currentBranch])
+
+  // Filtrar items de inventario cuando cambia la búsqueda
+  useEffect(() => {
+    if (searchQuery.trim() === "") {
+      setFilteredInventoryItems(inventoryItems)
+    } else {
+      const query = searchQuery.toLowerCase()
+      const filtered = inventoryItems.filter(
+        (item) =>
+          item.name.toLowerCase().includes(query) ||
+          item.category.toLowerCase().includes(query) ||
+          item.description?.toLowerCase().includes(query),
+      )
+      setFilteredInventoryItems(filtered)
+    }
+  }, [searchQuery, inventoryItems])
 
   // Función para cargar recetas
   const loadRecipes = async () => {
@@ -121,6 +148,24 @@ export default function CostCalculatorPage() {
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Función para cargar items del inventario
+  const loadInventoryItems = async () => {
+    if (!currentBranch?.id) return
+
+    try {
+      const items = await getInventoryItems(params.tenantId, currentBranch.id)
+      setInventoryItems(items)
+      setFilteredInventoryItems(items)
+    } catch (error) {
+      console.error("Error al cargar inventario:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo cargar el inventario",
+        variant: "destructive",
+      })
     }
   }
 
@@ -151,6 +196,29 @@ export default function CostCalculatorPage() {
       cost: 0,
       unit: "g",
       quantity: 0,
+    })
+  }
+
+  // Función para agregar un ingrediente desde el inventario
+  const addIngredientFromInventory = (item: InventoryItem) => {
+    const ingredient: Ingredient = {
+      id: Date.now().toString(),
+      name: item.name,
+      cost: item.costPerUnit,
+      unit: item.unit,
+      quantity: 1, // Cantidad predeterminada
+      inventoryItemId: item.id,
+    }
+
+    setCurrentRecipe({
+      ...currentRecipe,
+      ingredients: [...currentRecipe.ingredients, ingredient],
+    })
+
+    setInventoryDialogOpen(false)
+    toast({
+      title: "Ingrediente agregado",
+      description: `${item.name} ha sido agregado a la receta`,
     })
   }
 
@@ -346,6 +414,13 @@ export default function CostCalculatorPage() {
     setActiveTab("calculator")
   }
 
+  // Abrir diálogo de inventario
+  const openInventoryDialog = () => {
+    setSearchQuery("")
+    setFilteredInventoryItems(inventoryItems)
+    setInventoryDialogOpen(true)
+  }
+
   // Calcular resultados para mostrar
   const results = calculateCosts()
 
@@ -432,7 +507,13 @@ export default function CostCalculatorPage() {
             {/* Ingredientes */}
             <Card className="md:col-span-2">
               <CardHeader>
-                <CardTitle>Ingredientes</CardTitle>
+                <div className="flex justify-between items-center">
+                  <CardTitle>Ingredientes</CardTitle>
+                  <Button variant="outline" size="sm" onClick={openInventoryDialog} className="flex items-center gap-2">
+                    <Package className="h-4 w-4" />
+                    <span>Agregar desde Inventario</span>
+                  </Button>
+                </div>
                 <CardDescription>Agregue todos los ingredientes y sus costos</CardDescription>
               </CardHeader>
               <CardContent>
@@ -530,7 +611,14 @@ export default function CostCalculatorPage() {
                       <TableBody>
                         {currentRecipe.ingredients.map((ingredient) => (
                           <TableRow key={ingredient.id}>
-                            <TableCell>{ingredient.name}</TableCell>
+                            <TableCell>
+                              {ingredient.name}
+                              {ingredient.inventoryItemId && (
+                                <Badge variant="outline" className="ml-2">
+                                  Inventario
+                                </Badge>
+                              )}
+                            </TableCell>
                             <TableCell>
                               {ingredient.quantity} {ingredient.unit}
                             </TableCell>
@@ -749,6 +837,71 @@ export default function CostCalculatorPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Diálogo para seleccionar items del inventario */}
+      <Dialog open={inventoryDialogOpen} onOpenChange={setInventoryDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Seleccionar Ingrediente del Inventario</DialogTitle>
+            <DialogDescription>Seleccione un item del inventario para agregarlo como ingrediente</DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <div className="mb-4 relative">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar items..."
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            {filteredInventoryItems.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nombre</TableHead>
+                    <TableHead>Categoría</TableHead>
+                    <TableHead>Stock</TableHead>
+                    <TableHead>Costo Unitario</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredInventoryItems.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">{item.name}</TableCell>
+                      <TableCell>{item.category}</TableCell>
+                      <TableCell>
+                        {item.currentStock} {item.unit}
+                      </TableCell>
+                      <TableCell>{formatCurrency(item.costPerUnit, currencyCode)}</TableCell>
+                      <TableCell>
+                        <Button variant="outline" size="sm" onClick={() => addIngredientFromInventory(item)}>
+                          Agregar
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-center py-4 text-muted-foreground">
+                {searchQuery
+                  ? "No se encontraron items que coincidan con la búsqueda"
+                  : "No hay items en el inventario"}
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => setInventoryDialogOpen(false)}>
+              Cerrar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
