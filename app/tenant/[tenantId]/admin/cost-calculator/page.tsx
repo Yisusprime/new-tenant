@@ -649,20 +649,26 @@ export default function CostCalculatorPage() {
                     </div>
                     <Separator />
                     <div className="flex justify-between font-bold">
-                      <span>Costo Total:</span>
+                      <span>Costo Total de la Receta:</span>
                       <span>{formatCurrency(results.totalCost, currencyCode)}</span>
                     </div>
                     <div className="flex justify-between font-bold">
-                      <span>Costo por Porción:</span>
+                      <span>Costo por Porción ({currentRecipe.servings} porciones):</span>
                       <span>{formatCurrency(results.costPerServing, currencyCode)}</span>
                     </div>
                     <Separator />
                     <div className="flex justify-between text-lg font-bold">
-                      <span>Precio Sugerido:</span>
+                      <span>Precio Sugerido por Porción:</span>
                       <span className="text-green-600">{formatCurrency(results.suggestedPrice, currencyCode)}</span>
                     </div>
+                    <div className="flex justify-between text-lg font-bold">
+                      <span>Precio Total de Venta (todas las porciones):</span>
+                      <span className="text-green-600">
+                        {formatCurrency(results.suggestedPrice * currentRecipe.servings, currencyCode)}
+                      </span>
+                    </div>
                     <p className="text-xs text-muted-foreground">
-                      Incluye {currentRecipe.profitMarginPercentage}% de margen de ganancia
+                      Incluye {currentRecipe.profitMarginPercentage}% de margen de ganancia sobre el costo por porción
                     </p>
                   </div>
 
@@ -699,7 +705,8 @@ export default function CostCalculatorPage() {
                       <TableHead>Porciones</TableHead>
                       <TableHead>Costo Total</TableHead>
                       <TableHead>Costo por Porción</TableHead>
-                      <TableHead>Precio Sugerido</TableHead>
+                      <TableHead>Precio por Porción</TableHead>
+                      <TableHead>Precio Total</TableHead>
                       <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -710,8 +717,9 @@ export default function CostCalculatorPage() {
                         <TableCell>{recipe.servings}</TableCell>
                         <TableCell>{formatCurrency(recipe.totalCost || 0, currencyCode)}</TableCell>
                         <TableCell>{formatCurrency(recipe.costPerServing || 0, currencyCode)}</TableCell>
+                        <TableCell>{formatCurrency(recipe.suggestedPrice || 0, currencyCode)}</TableCell>
                         <TableCell className="text-green-600">
-                          {formatCurrency(recipe.suggestedPrice || 0, currencyCode)}
+                          {formatCurrency((recipe.suggestedPrice || 0) * recipe.servings, currencyCode)}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
