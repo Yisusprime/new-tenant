@@ -34,6 +34,7 @@ import {
   Maximize,
   Minimize,
   Calculator,
+  Package,
 } from "lucide-react"
 import Link from "next/link"
 import { BranchProvider, useBranch } from "@/lib/context/branch-context"
@@ -308,6 +309,7 @@ function AdminLayoutContent({
     { path: "/products", label: "Productos", icon: Store },
     { path: "/categories", label: "Categorías", icon: FolderTree },
     { path: "/cost-calculator", label: "Calculadora de Costos", icon: Calculator },
+    { path: "/inventory", label: "Inventario", icon: Package },
     { path: "/branches", label: "Sucursales", icon: MapPin },
     { type: "separator", label: "Configuración" },
     { path: "/plans", label: "Planes", icon: CreditCard },

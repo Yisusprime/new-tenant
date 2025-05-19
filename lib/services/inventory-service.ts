@@ -16,7 +16,7 @@ import type { InventoryItem, PurchaseRecord, InventoryCategory, InventoryMovemen
 // Función para obtener todos los items del inventario
 export async function getInventoryItems(tenantId: string, branchId: string): Promise<InventoryItem[]> {
   try {
-    const itemsCollection = collection(db, `tenants/${tenantId}/branches/${branchId}/inventory/items`)
+    const itemsCollection = collection(db, `tenants/${tenantId}/branches/${branchId}/inventory_items`)
     const snapshot = await getDocs(itemsCollection)
     return snapshot.docs.map((doc) => ({
       id: doc.id,
@@ -35,7 +35,7 @@ export async function getInventoryItem(
   itemId: string,
 ): Promise<InventoryItem | null> {
   try {
-    const itemRef = doc(db, `tenants/${tenantId}/branches/${branchId}/inventory/items/${itemId}`)
+    const itemRef = doc(db, `tenants/${tenantId}/branches/${branchId}/inventory_items/${itemId}`)
     const snapshot = await getDoc(itemRef)
 
     if (!snapshot.exists()) {
@@ -59,7 +59,7 @@ export async function createInventoryItem(
   item: Omit<InventoryItem, "id" | "lastUpdated">,
 ): Promise<InventoryItem> {
   try {
-    const itemsCollection = collection(db, `tenants/${tenantId}/branches/${branchId}/inventory/items`)
+    const itemsCollection = collection(db, `tenants/${tenantId}/branches/${branchId}/inventory_items`)
     const newItem = {
       ...item,
       lastUpdated: new Date().toISOString(),
@@ -85,7 +85,7 @@ export async function updateInventoryItem(
   updates: Partial<InventoryItem>,
 ): Promise<InventoryItem> {
   try {
-    const itemRef = doc(db, `tenants/${tenantId}/branches/${branchId}/inventory/items/${itemId}`)
+    const itemRef = doc(db, `tenants/${tenantId}/branches/${branchId}/inventory_items/${itemId}`)
 
     const updatedData = {
       ...updates,
@@ -109,7 +109,7 @@ export async function updateInventoryItem(
 // Función para eliminar un item del inventario
 export async function deleteInventoryItem(tenantId: string, branchId: string, itemId: string): Promise<void> {
   try {
-    const itemRef = doc(db, `tenants/${tenantId}/branches/${branchId}/inventory/items/${itemId}`)
+    const itemRef = doc(db, `tenants/${tenantId}/branches/${branchId}/inventory_items/${itemId}`)
     await deleteDoc(itemRef)
   } catch (error) {
     console.error("Error al eliminar item del inventario:", error)
@@ -125,7 +125,7 @@ export async function registerPurchase(
 ): Promise<PurchaseRecord> {
   try {
     // 1. Registrar la compra
-    const purchasesCollection = collection(db, `tenants/${tenantId}/branches/${branchId}/inventory/purchases`)
+    const purchasesCollection = collection(db, `tenants/${tenantId}/branches/${branchId}/inventory_purchases`)
     const purchaseData = {
       ...purchase,
       date: purchase.date || new Date().toISOString(),
@@ -134,7 +134,7 @@ export async function registerPurchase(
     const purchaseRef = await addDoc(purchasesCollection, purchaseData)
 
     // 2. Actualizar el stock y costo del item
-    const itemRef = doc(db, `tenants/${tenantId}/branches/${branchId}/inventory/items/${purchase.itemId}`)
+    const itemRef = doc(db, `tenants/${tenantId}/branches/${branchId}/inventory_items/${purchase.itemId}`)
     const itemSnapshot = await getDoc(itemRef)
 
     if (itemSnapshot.exists()) {
@@ -183,7 +183,7 @@ export async function getItemPurchaseHistory(
   itemId: string,
 ): Promise<PurchaseRecord[]> {
   try {
-    const purchasesCollection = collection(db, `tenants/${tenantId}/branches/${branchId}/inventory/purchases`)
+    const purchasesCollection = collection(db, `tenants/${tenantId}/branches/${branchId}/inventory_purchases`)
     const q = query(purchasesCollection, where("itemId", "==", itemId), orderBy("date", "desc"))
 
     const snapshot = await getDocs(q)
@@ -205,7 +205,7 @@ export async function registerInventoryMovement(
   movement: Omit<InventoryMovement, "id">,
 ): Promise<InventoryMovement> {
   try {
-    const movementsCollection = collection(db, `tenants/${tenantId}/branches/${branchId}/inventory/movements`)
+    const movementsCollection = collection(db, `tenants/${tenantId}/branches/${branchId}/inventory_movements`)
     const movementData = {
       ...movement,
       date: movement.date || new Date().toISOString(),
@@ -215,7 +215,7 @@ export async function registerInventoryMovement(
 
     // Si no es una compra (que ya actualiza el stock), actualizar el stock del item
     if (movement.type !== "purchase") {
-      const itemRef = doc(db, `tenants/${tenantId}/branches/${branchId}/inventory/items/${movement.itemId}`)
+      const itemRef = doc(db, `tenants/${tenantId}/branches/${branchId}/inventory_items/${movement.itemId}`)
       const itemSnapshot = await getDoc(itemRef)
 
       if (itemSnapshot.exists()) {
@@ -246,7 +246,7 @@ export async function getItemMovements(
   itemId: string,
 ): Promise<InventoryMovement[]> {
   try {
-    const movementsCollection = collection(db, `tenants/${tenantId}/branches/${branchId}/inventory/movements`)
+    const movementsCollection = collection(db, `tenants/${tenantId}/branches/${branchId}/inventory_movements`)
     const q = query(movementsCollection, where("itemId", "==", itemId), orderBy("date", "desc"))
 
     const snapshot = await getDocs(q)
@@ -264,7 +264,7 @@ export async function getItemMovements(
 // Función para obtener categorías de inventario
 export async function getInventoryCategories(tenantId: string, branchId: string): Promise<InventoryCategory[]> {
   try {
-    const categoriesCollection = collection(db, `tenants/${tenantId}/branches/${branchId}/inventory/categories`)
+    const categoriesCollection = collection(db, `tenants/${tenantId}/branches/${branchId}/inventory_categories`)
     const snapshot = await getDocs(categoriesCollection)
 
     return snapshot.docs.map((doc) => ({
@@ -284,7 +284,7 @@ export async function createInventoryCategory(
   category: Omit<InventoryCategory, "id">,
 ): Promise<InventoryCategory> {
   try {
-    const categoriesCollection = collection(db, `tenants/${tenantId}/branches/${branchId}/inventory/categories`)
+    const categoriesCollection = collection(db, `tenants/${tenantId}/branches/${branchId}/inventory_categories`)
     const docRef = await addDoc(categoriesCollection, category)
 
     return {
