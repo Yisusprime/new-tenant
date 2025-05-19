@@ -16,6 +16,9 @@ import { Trash2, Plus, Save, Calculator, FileText, ChefHat, Percent, DollarSign 
 import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, getDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase/client"
 import { toast } from "@/components/ui/use-toast"
+import { formatCurrency } from "@/lib/utils"
+import { useRestaurantConfig } from "@/lib/hooks/use-restaurant-config"
+import { QuickCalculatorModal } from "@/components/quick-calculator-modal"
 
 // Tipos para la calculadora
 interface Ingredient {
@@ -80,6 +83,14 @@ export default function CostCalculatorPage() {
     unit: "g",
     quantity: 0,
   })
+
+  // Obtener la configuración del restaurante para el formato de moneda
+  const { data: restaurantConfig } = useRestaurantConfig(params.tenantId, "basicInfo", {
+    currencyCode: "CLP",
+  })
+
+  // Obtener el código de moneda configurado
+  const currencyCode = restaurantConfig?.currencyCode || "CLP"
 
   // Cargar recetas guardadas
   useEffect(() => {
@@ -351,6 +362,9 @@ export default function CostCalculatorPage() {
             Calcule con precisión los costos de sus recetas y establezca precios rentables
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          <QuickCalculatorModal />
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -520,8 +534,8 @@ export default function CostCalculatorPage() {
                             <TableCell>
                               {ingredient.quantity} {ingredient.unit}
                             </TableCell>
-                            <TableCell>${ingredient.cost.toFixed(2)}</TableCell>
-                            <TableCell>${(ingredient.cost * ingredient.quantity).toFixed(2)}</TableCell>
+                            <TableCell>{formatCurrency(ingredient.cost, currencyCode)}</TableCell>
+                            <TableCell>{formatCurrency(ingredient.cost * ingredient.quantity, currencyCode)}</TableCell>
                             <TableCell>
                               <Button variant="ghost" size="icon" onClick={() => removeIngredient(ingredient.id)}>
                                 <Trash2 className="h-4 w-4 text-red-500" />
@@ -619,33 +633,33 @@ export default function CostCalculatorPage() {
                   <div className="space-y-2 pt-2">
                     <div className="flex justify-between">
                       <span>Costo de Ingredientes:</span>
-                      <span className="font-medium">${results.ingredientsCost.toFixed(2)}</span>
+                      <span className="font-medium">{formatCurrency(results.ingredientsCost, currencyCode)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Costo de Mano de Obra:</span>
-                      <span className="font-medium">${currentRecipe.laborCost.toFixed(2)}</span>
+                      <span className="font-medium">{formatCurrency(currentRecipe.laborCost, currencyCode)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Subtotal:</span>
-                      <span className="font-medium">${results.subtotal.toFixed(2)}</span>
+                      <span className="font-medium">{formatCurrency(results.subtotal, currencyCode)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Costos Indirectos ({currentRecipe.overheadPercentage}%):</span>
-                      <span className="font-medium">${results.overhead.toFixed(2)}</span>
+                      <span className="font-medium">{formatCurrency(results.overhead, currencyCode)}</span>
                     </div>
                     <Separator />
                     <div className="flex justify-between font-bold">
                       <span>Costo Total:</span>
-                      <span>${results.totalCost.toFixed(2)}</span>
+                      <span>{formatCurrency(results.totalCost, currencyCode)}</span>
                     </div>
                     <div className="flex justify-between font-bold">
                       <span>Costo por Porción:</span>
-                      <span>${results.costPerServing.toFixed(2)}</span>
+                      <span>{formatCurrency(results.costPerServing, currencyCode)}</span>
                     </div>
                     <Separator />
                     <div className="flex justify-between text-lg font-bold">
                       <span>Precio Sugerido:</span>
-                      <span className="text-green-600">${results.suggestedPrice.toFixed(2)}</span>
+                      <span className="text-green-600">{formatCurrency(results.suggestedPrice, currencyCode)}</span>
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Incluye {currentRecipe.profitMarginPercentage}% de margen de ganancia
@@ -694,9 +708,11 @@ export default function CostCalculatorPage() {
                       <TableRow key={recipe.id}>
                         <TableCell className="font-medium">{recipe.name}</TableCell>
                         <TableCell>{recipe.servings}</TableCell>
-                        <TableCell>${recipe.totalCost?.toFixed(2)}</TableCell>
-                        <TableCell>${recipe.costPerServing?.toFixed(2)}</TableCell>
-                        <TableCell className="text-green-600">${recipe.suggestedPrice?.toFixed(2)}</TableCell>
+                        <TableCell>{formatCurrency(recipe.totalCost || 0, currencyCode)}</TableCell>
+                        <TableCell>{formatCurrency(recipe.costPerServing || 0, currencyCode)}</TableCell>
+                        <TableCell className="text-green-600">
+                          {formatCurrency(recipe.suggestedPrice || 0, currencyCode)}
+                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             <Button variant="outline" size="sm" onClick={() => loadRecipeForEdit(recipe.id!)}>
