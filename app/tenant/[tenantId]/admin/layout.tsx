@@ -33,6 +33,7 @@ import {
   DollarSign,
   Maximize,
   Minimize,
+  Calculator,
 } from "lucide-react"
 import Link from "next/link"
 import { BranchProvider, useBranch } from "@/lib/context/branch-context"
@@ -306,6 +307,7 @@ function AdminLayoutContent({
     { path: "/cash-register", label: "Caja", icon: DollarSign },
     { path: "/products", label: "Productos", icon: Store },
     { path: "/categories", label: "Categorías", icon: FolderTree },
+    { path: "/cost-calculator", label: "Calculadora de Costos", icon: Calculator },
     { path: "/branches", label: "Sucursales", icon: MapPin },
     { type: "separator", label: "Configuración" },
     { path: "/plans", label: "Planes", icon: CreditCard },
