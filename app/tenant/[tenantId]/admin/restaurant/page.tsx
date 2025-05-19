@@ -25,6 +25,7 @@ import {
   Utensils,
   DollarSign,
   Share2,
+  BarChart,
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { useBranch } from "@/lib/context/branch-context"
@@ -64,6 +65,15 @@ const configSections = [
     color: "blue",
   },
   {
+    id: "currency",
+    label: "Moneda e Impuestos",
+    path: "/admin/restaurant/currency",
+    icon: DollarSign,
+    description: "Configuración de moneda e IVA",
+    category: "general",
+    color: "blue",
+  },
+  {
     id: "service",
     label: "Métodos de Servicio",
     path: "/admin/restaurant/service",
@@ -87,8 +97,8 @@ const configSections = [
     path: "/admin/restaurant/tables",
     icon: Table,
     description: "Configuración de mesas disponibles",
-    category: "operations",
-    color: "amber",
+    category: "management",
+    color: "purple",
   },
   {
     id: "payment",
@@ -122,6 +132,7 @@ const configSections = [
 const categories = [
   { id: "general", label: "Información General", icon: Info, color: "blue" },
   { id: "operations", label: "Operaciones", icon: Coffee, color: "amber" },
+  { id: "management", label: "Gestión", icon: BarChart, color: "purple" },
   { id: "payments", label: "Pagos y Envíos", icon: DollarSign, color: "green" },
 ]
 
@@ -317,7 +328,7 @@ export default function RestaurantConfigPage({
             <ScrollArea className="h-[calc(100%-73px)]">
               <div className="p-2">
                 <Tabs value={activeCategory} onValueChange={setActiveCategory} className="w-full">
-                  <TabsList className="grid grid-cols-3 mb-4">
+                  <TabsList className="grid grid-cols-4 mb-4">
                     {categories.map((category) => {
                       const CategoryIcon = category.icon
                       return (
@@ -344,7 +355,15 @@ export default function RestaurantConfigPage({
                           </div>
                           <Progress
                             value={categoryItems.length ? (completedCount / categoryItems.length) * 100 : 0}
-                            className={`h-1.5 ${category.color === "blue" ? "bg-blue-100" : category.color === "amber" ? "bg-amber-100" : "bg-green-100"}`}
+                            className={`h-1.5 ${
+                              category.color === "blue"
+                                ? "bg-blue-100"
+                                : category.color === "amber"
+                                  ? "bg-amber-100"
+                                  : category.color === "purple"
+                                    ? "bg-purple-100"
+                                    : "bg-green-100"
+                            }`}
                           />
                         </div>
 
@@ -362,7 +381,9 @@ export default function RestaurantConfigPage({
                             >
                               <div className="flex items-center w-full">
                                 <section.icon
-                                  className={`mr-2 h-4 w-4 ${isCompleted ? `text-${section.color}-500` : "text-muted-foreground"}`}
+                                  className={`mr-2 h-4 w-4 ${
+                                    isCompleted ? `text-${section.color}-500` : "text-muted-foreground"
+                                  }`}
                                 />
                                 <span className="flex-1">{section.label}</span>
                                 {isCompleted ? (
@@ -439,7 +460,9 @@ export default function RestaurantConfigPage({
                             <CardHeader className={cn("p-4", isCompleted ? `bg-${section.color}-50` : "bg-muted/30")}>
                               <div className="flex items-center">
                                 <section.icon
-                                  className={`h-5 w-5 mr-2 ${isCompleted ? `text-${section.color}-500` : "text-muted-foreground"}`}
+                                  className={`h-5 w-5 mr-2 ${
+                                    isCompleted ? `text-${section.color}-500` : "text-muted-foreground"
+                                  }`}
                                 />
                                 <div className="flex-1">
                                   <CardTitle className="text-base">{section.label}</CardTitle>

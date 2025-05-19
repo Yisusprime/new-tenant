@@ -20,6 +20,8 @@ import {
   Table,
   Share2,
   Utensils,
+  DollarSign,
+  BarChart,
 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
@@ -36,6 +38,7 @@ interface Step {
   icon: React.ElementType
   description: string
   color: string
+  category: string
 }
 
 export function RestaurantConfigSteps({
@@ -62,6 +65,7 @@ export function RestaurantConfigSteps({
       icon: Store,
       description: "Nombre, descripción y logo del restaurante",
       color: "blue",
+      category: "general",
     },
     {
       id: "contact",
@@ -70,6 +74,16 @@ export function RestaurantConfigSteps({
       icon: User,
       description: "Teléfono, email y persona de contacto",
       color: "blue",
+      category: "general",
+    },
+    {
+      id: "currency",
+      label: "Moneda e Impuestos",
+      path: `/admin/restaurant/currency`,
+      icon: DollarSign,
+      description: "Configuración de moneda e IVA",
+      color: "blue",
+      category: "general",
     },
     {
       id: "service",
@@ -78,6 +92,7 @@ export function RestaurantConfigSteps({
       icon: Utensils,
       description: "Opciones de servicio disponibles",
       color: "amber",
+      category: "operations",
     },
     {
       id: "location",
@@ -86,6 +101,7 @@ export function RestaurantConfigSteps({
       icon: MapPin,
       description: "Dirección y ubicación en el mapa",
       color: "blue",
+      category: "general",
     },
     {
       id: "hours",
@@ -94,6 +110,7 @@ export function RestaurantConfigSteps({
       icon: Clock,
       description: "Horarios de apertura y cierre",
       color: "amber",
+      category: "operations",
     },
     {
       id: "tables",
@@ -101,7 +118,8 @@ export function RestaurantConfigSteps({
       path: `/admin/restaurant/tables`,
       icon: Table,
       description: "Configuración de mesas disponibles",
-      color: "amber",
+      color: "purple",
+      category: "management",
     },
     {
       id: "payment",
@@ -110,6 +128,7 @@ export function RestaurantConfigSteps({
       icon: CreditCard,
       description: "Métodos de pago aceptados",
       color: "green",
+      category: "payments",
     },
     {
       id: "delivery",
@@ -118,6 +137,7 @@ export function RestaurantConfigSteps({
       icon: Truck,
       description: "Configuración de entrega a domicilio",
       color: "green",
+      category: "payments",
     },
     {
       id: "social",
@@ -126,7 +146,16 @@ export function RestaurantConfigSteps({
       icon: Share2,
       description: "Enlaces a redes sociales",
       color: "blue",
+      category: "general",
     },
+  ]
+
+  // Categorías para agrupar los pasos
+  const categories = [
+    { id: "general", label: "Información General", icon: Store, color: "blue" },
+    { id: "operations", label: "Operaciones", icon: Clock, color: "amber" },
+    { id: "management", label: "Gestión", icon: BarChart, color: "purple" },
+    { id: "payments", label: "Pagos y Envíos", icon: CreditCard, color: "green" },
   ]
 
   // Cargar los pasos completados desde localStorage
@@ -250,55 +279,64 @@ export function RestaurantConfigSteps({
               </div>
 
               <ScrollArea className="flex-1 pr-3">
-                <div className="space-y-1">
-                  {steps.map((step, index) => {
-                    const isActive = step.id === currentStep
-                    const isCompleted = completedSteps.includes(step.id)
-                    const StepIcon = step.icon
+                <div className="space-y-4">
+                  {categories.map((category) => (
+                    <div key={category.id} className="space-y-1">
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2">
+                        {category.label}
+                      </h4>
+                      {steps
+                        .filter((step) => step.category === category.id)
+                        .map((step, index) => {
+                          const isActive = step.id === currentStep
+                          const isCompleted = completedSteps.includes(step.id)
+                          const StepIcon = step.icon
 
-                    return (
-                      <Button
-                        key={step.id}
-                        variant={isActive ? "default" : isCompleted ? "outline" : "ghost"}
-                        size="sm"
-                        className={cn(
-                          "w-full justify-start text-left h-auto py-2",
-                          isActive ? "pointer-events-none" : "",
-                          isCompleted && !isActive
-                            ? `border-${step.color}-200 text-${step.color}-700 hover:bg-${step.color}-50`
-                            : "",
-                        )}
-                        onClick={() => router.push(step.path)}
-                      >
-                        <div className="flex items-center w-full">
-                          <div
-                            className={`flex items-center justify-center w-6 h-6 rounded-full mr-2 text-xs font-medium ${
-                              isActive
-                                ? "bg-primary text-primary-foreground"
-                                : isCompleted
-                                  ? `bg-${step.color}-100 text-${step.color}-700`
-                                  : "bg-muted text-muted-foreground"
-                            }`}
-                          >
-                            {isCompleted && !isActive ? (
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                            ) : (
-                              <StepIcon className="h-3.5 w-3.5" />
-                            )}
-                          </div>
-                          <span className="flex-1 text-sm">{step.label}</span>
-                          {isCompleted && !isActive && (
-                            <Badge
-                              variant="outline"
-                              className={`bg-${step.color}-50 border-${step.color}-200 text-${step.color}-700 text-xs py-0 px-1.5`}
+                          return (
+                            <Button
+                              key={step.id}
+                              variant={isActive ? "default" : isCompleted ? "outline" : "ghost"}
+                              size="sm"
+                              className={cn(
+                                "w-full justify-start text-left h-auto py-2",
+                                isActive ? "pointer-events-none" : "",
+                                isCompleted && !isActive
+                                  ? `border-${step.color}-200 text-${step.color}-700 hover:bg-${step.color}-50`
+                                  : "",
+                              )}
+                              onClick={() => router.push(step.path)}
                             >
-                              Completado
-                            </Badge>
-                          )}
-                        </div>
-                      </Button>
-                    )
-                  })}
+                              <div className="flex items-center w-full">
+                                <div
+                                  className={`flex items-center justify-center w-6 h-6 rounded-full mr-2 text-xs font-medium ${
+                                    isActive
+                                      ? "bg-primary text-primary-foreground"
+                                      : isCompleted
+                                        ? `bg-${step.color}-100 text-${step.color}-700`
+                                        : "bg-muted text-muted-foreground"
+                                  }`}
+                                >
+                                  {isCompleted && !isActive ? (
+                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                  ) : (
+                                    <StepIcon className="h-3.5 w-3.5" />
+                                  )}
+                                </div>
+                                <span className="flex-1 text-sm">{step.label}</span>
+                                {isCompleted && !isActive && (
+                                  <Badge
+                                    variant="outline"
+                                    className={`bg-${step.color}-50 border-${step.color}-200 text-${step.color}-700 text-xs py-0 px-1.5`}
+                                  >
+                                    Completado
+                                  </Badge>
+                                )}
+                              </div>
+                            </Button>
+                          )
+                        })}
+                    </div>
+                  ))}
                 </div>
               </ScrollArea>
 
