@@ -1,16 +1,5 @@
 import { db } from "@/lib/firebase/client"
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  orderBy,
-} from "firebase/firestore"
+import { collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, query, where } from "firebase/firestore"
 import type { InventoryItem, PurchaseRecord, InventoryCategory, InventoryMovement } from "@/lib/types/inventory"
 
 // Función para obtener todos los items del inventario
@@ -184,14 +173,23 @@ export async function getItemPurchaseHistory(
 ): Promise<PurchaseRecord[]> {
   try {
     const purchasesCollection = collection(db, `tenants/${tenantId}/branches/${branchId}/inventory_purchases`)
-    const q = query(purchasesCollection, where("itemId", "==", itemId), orderBy("date", "desc"))
+    // Usamos solo el filtro where sin orderBy para evitar necesitar un índice compuesto
+    const q = query(purchasesCollection, where("itemId", "==", itemId))
 
     const snapshot = await getDocs(q)
 
-    return snapshot.docs.map((doc) => ({
+    // Ordenamos los resultados en memoria después de obtenerlos
+    const results = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     })) as PurchaseRecord[]
+
+    // Ordenar por fecha descendente (más reciente primero)
+    return results.sort((a, b) => {
+      const dateA = new Date(a.date).getTime()
+      const dateB = new Date(b.date).getTime()
+      return dateB - dateA
+    })
   } catch (error) {
     console.error("Error al obtener historial de compras:", error)
     throw error
@@ -247,14 +245,23 @@ export async function getItemMovements(
 ): Promise<InventoryMovement[]> {
   try {
     const movementsCollection = collection(db, `tenants/${tenantId}/branches/${branchId}/inventory_movements`)
-    const q = query(movementsCollection, where("itemId", "==", itemId), orderBy("date", "desc"))
+    // Usamos solo el filtro where sin orderBy para evitar necesitar un índice compuesto
+    const q = query(movementsCollection, where("itemId", "==", itemId))
 
     const snapshot = await getDocs(q)
 
-    return snapshot.docs.map((doc) => ({
+    // Ordenamos los resultados en memoria después de obtenerlos
+    const results = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     })) as InventoryMovement[]
+
+    // Ordenar por fecha descendente (más reciente primero)
+    return results.sort((a, b) => {
+      const dateA = new Date(a.date).getTime()
+      const dateB = new Date(b.date).getTime()
+      return dateB - dateA
+    })
   } catch (error) {
     console.error("Error al obtener movimientos del item:", error)
     throw error
