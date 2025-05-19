@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { getRestaurantConfig, initializeRestaurantConfig } from "@/lib/services/restaurant-config-service"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -13,7 +13,6 @@ import {
   Clock,
   CreditCard,
   Truck,
-  Globe,
   Coffee,
   Table,
   CheckCircle,
@@ -22,6 +21,10 @@ import {
   Loader2,
   PanelLeft,
   PanelRight,
+  Info,
+  Utensils,
+  DollarSign,
+  Share2,
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { useBranch } from "@/lib/context/branch-context"
@@ -29,6 +32,7 @@ import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
 
 // Definir los grupos de configuración
 const configSections = [
@@ -39,6 +43,7 @@ const configSections = [
     icon: Store,
     description: "Nombre, descripción y logo del restaurante",
     category: "general",
+    color: "blue",
   },
   {
     id: "contact",
@@ -47,6 +52,7 @@ const configSections = [
     icon: Phone,
     description: "Teléfono, email y WhatsApp",
     category: "general",
+    color: "blue",
   },
   {
     id: "location",
@@ -55,14 +61,16 @@ const configSections = [
     icon: MapPin,
     description: "Dirección y zonas de cobertura",
     category: "general",
+    color: "blue",
   },
   {
     id: "service",
     label: "Métodos de Servicio",
     path: "/admin/restaurant/service",
-    icon: Coffee,
+    icon: Utensils,
     description: "Opciones de servicio disponibles",
     category: "operations",
+    color: "amber",
   },
   {
     id: "hours",
@@ -71,6 +79,7 @@ const configSections = [
     icon: Clock,
     description: "Horarios de apertura y cierre",
     category: "operations",
+    color: "amber",
   },
   {
     id: "tables",
@@ -79,6 +88,7 @@ const configSections = [
     icon: Table,
     description: "Configuración de mesas disponibles",
     category: "operations",
+    color: "amber",
   },
   {
     id: "payment",
@@ -87,6 +97,7 @@ const configSections = [
     icon: CreditCard,
     description: "Formas de pago aceptadas",
     category: "payments",
+    color: "green",
   },
   {
     id: "delivery",
@@ -95,21 +106,23 @@ const configSections = [
     icon: Truck,
     description: "Configuración de entrega a domicilio",
     category: "payments",
+    color: "green",
   },
   {
     id: "social",
     label: "Redes Sociales",
     path: "/admin/restaurant/social",
-    icon: Globe,
+    icon: Share2,
     description: "Enlaces a redes sociales",
     category: "general",
+    color: "blue",
   },
 ]
 
 const categories = [
-  { id: "general", label: "Información General" },
-  { id: "operations", label: "Operaciones" },
-  { id: "payments", label: "Pagos y Envíos" },
+  { id: "general", label: "Información General", icon: Info, color: "blue" },
+  { id: "operations", label: "Operaciones", icon: Coffee, color: "amber" },
+  { id: "payments", label: "Pagos y Envíos", icon: DollarSign, color: "green" },
 ]
 
 export default function RestaurantConfigPage({
@@ -221,6 +234,19 @@ export default function RestaurantConfigPage({
     }
   }
 
+  // Obtener el color de categoría
+  const getCategoryColor = (categoryId: string) => {
+    const category = categories.find((c) => c.id === categoryId)
+    return category?.color || "gray"
+  }
+
+  // Obtener el color de fondo para una tarjeta según su categoría y estado
+  const getCardBgColor = (category: string, isCompleted: boolean) => {
+    const baseColor = getCategoryColor(category)
+    if (isCompleted) return `bg-${baseColor}-50 border-${baseColor}-200`
+    return "bg-muted/30 border-gray-200"
+  }
+
   // Si todavía se están cargando las sucursales, mostramos un indicador de carga
   if (branchLoading) {
     return (
@@ -292,18 +318,37 @@ export default function RestaurantConfigPage({
               <div className="p-2">
                 <Tabs value={activeCategory} onValueChange={setActiveCategory} className="w-full">
                   <TabsList className="grid grid-cols-3 mb-4">
-                    {categories.map((category) => (
-                      <TabsTrigger key={category.id} value={category.id} className="text-xs">
-                        {category.label}
-                      </TabsTrigger>
-                    ))}
+                    {categories.map((category) => {
+                      const CategoryIcon = category.icon
+                      return (
+                        <TabsTrigger key={category.id} value={category.id} className="text-xs">
+                          <CategoryIcon className="h-3.5 w-3.5 mr-1.5" />
+                          {category.label}
+                        </TabsTrigger>
+                      )
+                    })}
                   </TabsList>
 
-                  {categories.map((category) => (
-                    <TabsContent key={category.id} value={category.id} className="mt-0 space-y-1">
-                      {configSections
-                        .filter((section) => section.category === category.id)
-                        .map((section) => {
+                  {categories.map((category) => {
+                    const categoryItems = configSections.filter((section) => section.category === category.id)
+                    const completedCount = categoryItems.filter((item) => isStepCompleted(item.id)).length
+
+                    return (
+                      <TabsContent key={category.id} value={category.id} className="mt-0 space-y-1">
+                        <div className="mb-2 px-1">
+                          <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                            <span>Completado</span>
+                            <span>
+                              {completedCount}/{categoryItems.length}
+                            </span>
+                          </div>
+                          <Progress
+                            value={categoryItems.length ? (completedCount / categoryItems.length) * 100 : 0}
+                            className={`h-1.5 ${category.color === "blue" ? "bg-blue-100" : category.color === "amber" ? "bg-amber-100" : "bg-green-100"}`}
+                          />
+                        </div>
+
+                        {categoryItems.map((section) => {
                           const isCompleted = isStepCompleted(section.id)
                           return (
                             <Button
@@ -311,15 +356,17 @@ export default function RestaurantConfigPage({
                               variant="ghost"
                               className={cn(
                                 "w-full justify-start text-left font-normal h-auto py-2",
-                                isCompleted && "text-green-600",
+                                isCompleted && `text-${section.color}-600`,
                               )}
                               onClick={() => router.push(section.path)}
                             >
                               <div className="flex items-center w-full">
-                                <section.icon className="mr-2 h-4 w-4" />
+                                <section.icon
+                                  className={`mr-2 h-4 w-4 ${isCompleted ? `text-${section.color}-500` : "text-muted-foreground"}`}
+                                />
                                 <span className="flex-1">{section.label}</span>
                                 {isCompleted ? (
-                                  <CheckCircle className="h-4 w-4 text-green-600" />
+                                  <CheckCircle className={`h-4 w-4 text-${section.color}-500`} />
                                 ) : (
                                   <ChevronRight className="h-4 w-4 opacity-50" />
                                 )}
@@ -327,8 +374,9 @@ export default function RestaurantConfigPage({
                             </Button>
                           )
                         })}
-                    </TabsContent>
-                  ))}
+                      </TabsContent>
+                    )
+                  })}
                 </Tabs>
 
                 {!config || Object.keys(config).length === 0 ? (
@@ -360,42 +408,76 @@ export default function RestaurantConfigPage({
               </Button>
             ) : null}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {configSections.map((section) => {
-                const isCompleted = isStepCompleted(section.id)
-                return (
-                  <Card
-                    key={section.id}
-                    className={cn(
-                      "overflow-hidden transition-all hover:shadow-md",
-                      isCompleted ? "border-green-200" : "border-gray-200",
-                    )}
-                  >
-                    <CardContent className="p-0">
-                      <div
-                        className={cn("flex items-center p-4 border-b", isCompleted ? "bg-green-50" : "bg-muted/30")}
-                      >
-                        <section.icon className="h-5 w-5 mr-2 text-muted-foreground" />
-                        <div className="flex-1">
-                          <h3 className="font-medium">{section.label}</h3>
-                          <p className="text-xs text-muted-foreground">{section.description}</p>
-                        </div>
-                        {isCompleted ? <CheckCircle className="h-4 w-4 text-green-600" /> : null}
-                      </div>
-                      <div className="p-4 flex justify-end">
-                        <Button
-                          variant={isCompleted ? "outline" : "default"}
-                          size="sm"
-                          onClick={() => router.push(section.path)}
-                        >
-                          {isCompleted ? "Editar" : "Configurar"}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
+            <Tabs defaultValue="general" className="w-full">
+              <TabsList className="w-full mb-6">
+                {categories.map((category) => {
+                  const CategoryIcon = category.icon
+                  return (
+                    <TabsTrigger key={category.id} value={category.id} className="flex-1">
+                      <CategoryIcon className="h-4 w-4 mr-2" />
+                      {category.label}
+                    </TabsTrigger>
+                  )
+                })}
+              </TabsList>
+
+              {categories.map((category) => (
+                <TabsContent key={category.id} value={category.id}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {configSections
+                      .filter((section) => section.category === category.id)
+                      .map((section) => {
+                        const isCompleted = isStepCompleted(section.id)
+                        return (
+                          <Card
+                            key={section.id}
+                            className={cn(
+                              "overflow-hidden transition-all hover:shadow-md",
+                              isCompleted ? `border-${section.color}-200` : "border-gray-200",
+                            )}
+                          >
+                            <CardHeader className={cn("p-4", isCompleted ? `bg-${section.color}-50` : "bg-muted/30")}>
+                              <div className="flex items-center">
+                                <section.icon
+                                  className={`h-5 w-5 mr-2 ${isCompleted ? `text-${section.color}-500` : "text-muted-foreground"}`}
+                                />
+                                <div className="flex-1">
+                                  <CardTitle className="text-base">{section.label}</CardTitle>
+                                  <CardDescription>{section.description}</CardDescription>
+                                </div>
+                                {isCompleted && (
+                                  <Badge
+                                    variant="outline"
+                                    className={`bg-${section.color}-100 text-${section.color}-700 border-${section.color}-200`}
+                                  >
+                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                    Completado
+                                  </Badge>
+                                )}
+                              </div>
+                            </CardHeader>
+                            <CardFooter className="p-4 flex justify-end">
+                              <Button
+                                variant={isCompleted ? "outline" : "default"}
+                                size="sm"
+                                onClick={() => router.push(section.path)}
+                                className={
+                                  isCompleted
+                                    ? `border-${section.color}-200 text-${section.color}-700 hover:bg-${section.color}-50`
+                                    : ""
+                                }
+                              >
+                                {isCompleted ? "Editar" : "Configurar"}
+                                <ChevronRight className="h-4 w-4 ml-1" />
+                              </Button>
+                            </CardFooter>
+                          </Card>
+                        )
+                      })}
+                  </div>
+                </TabsContent>
+              ))}
+            </Tabs>
           </div>
         </div>
       ) : (

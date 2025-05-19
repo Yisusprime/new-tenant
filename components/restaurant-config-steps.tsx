@@ -4,7 +4,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import {
   Store,
   User,
@@ -12,13 +12,14 @@ import {
   MapPin,
   Clock,
   CreditCard,
-  Globe,
   CheckCircle2,
   Loader2,
   ArrowLeft,
   ArrowRight,
   Save,
   Table,
+  Share2,
+  Utensils,
 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
@@ -26,6 +27,7 @@ import { useBranch } from "@/lib/context/branch-context"
 import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
 import { useToast } from "@/components/ui/use-toast"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Badge } from "@/components/ui/badge"
 
 interface Step {
   id: string
@@ -33,6 +35,7 @@ interface Step {
   path: string
   icon: React.ElementType
   description: string
+  color: string
 }
 
 export function RestaurantConfigSteps({
@@ -50,7 +53,7 @@ export function RestaurantConfigSteps({
   const { currentBranch } = useBranch()
   const { toast } = useToast()
 
-  // Definir los pasos de configuración con descripciones
+  // Definir los pasos de configuración con descripciones y colores
   const steps: Step[] = [
     {
       id: "basic",
@@ -58,6 +61,7 @@ export function RestaurantConfigSteps({
       path: `/admin/restaurant/basic`,
       icon: Store,
       description: "Nombre, descripción y logo del restaurante",
+      color: "blue",
     },
     {
       id: "contact",
@@ -65,13 +69,15 @@ export function RestaurantConfigSteps({
       path: `/admin/restaurant/contact`,
       icon: User,
       description: "Teléfono, email y persona de contacto",
+      color: "blue",
     },
     {
       id: "service",
       label: "Métodos de Servicio",
       path: `/admin/restaurant/service`,
-      icon: Truck,
+      icon: Utensils,
       description: "Opciones de servicio disponibles",
+      color: "amber",
     },
     {
       id: "location",
@@ -79,6 +85,7 @@ export function RestaurantConfigSteps({
       path: `/admin/restaurant/location`,
       icon: MapPin,
       description: "Dirección y ubicación en el mapa",
+      color: "blue",
     },
     {
       id: "hours",
@@ -86,6 +93,7 @@ export function RestaurantConfigSteps({
       path: `/admin/restaurant/hours`,
       icon: Clock,
       description: "Horarios de apertura y cierre",
+      color: "amber",
     },
     {
       id: "tables",
@@ -93,6 +101,7 @@ export function RestaurantConfigSteps({
       path: `/admin/restaurant/tables`,
       icon: Table,
       description: "Configuración de mesas disponibles",
+      color: "amber",
     },
     {
       id: "payment",
@@ -100,6 +109,7 @@ export function RestaurantConfigSteps({
       path: `/admin/restaurant/payment`,
       icon: CreditCard,
       description: "Métodos de pago aceptados",
+      color: "green",
     },
     {
       id: "delivery",
@@ -107,13 +117,15 @@ export function RestaurantConfigSteps({
       path: `/admin/restaurant/delivery`,
       icon: Truck,
       description: "Configuración de entrega a domicilio",
+      color: "green",
     },
     {
       id: "social",
       label: "Redes Sociales",
       path: `/admin/restaurant/social`,
-      icon: Globe,
+      icon: Share2,
       description: "Enlaces a redes sociales",
+      color: "blue",
     },
   ]
 
@@ -222,6 +234,12 @@ export function RestaurantConfigSteps({
         {/* Panel lateral con pasos */}
         <div className="w-full md:w-64 flex-shrink-0">
           <Card className="h-full">
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-lg">Configuración</CardTitle>
+              <CardDescription>
+                Paso {currentIndex + 1} de {steps.length}
+              </CardDescription>
+            </CardHeader>
             <CardContent className="p-3 h-full flex flex-col">
               <div className="mb-3 space-y-1">
                 <div className="flex justify-between text-sm">
@@ -236,6 +254,7 @@ export function RestaurantConfigSteps({
                   {steps.map((step, index) => {
                     const isActive = step.id === currentStep
                     const isCompleted = completedSteps.includes(step.id)
+                    const StepIcon = step.icon
 
                     return (
                       <Button
@@ -245,14 +264,37 @@ export function RestaurantConfigSteps({
                         className={cn(
                           "w-full justify-start text-left h-auto py-2",
                           isActive ? "pointer-events-none" : "",
+                          isCompleted && !isActive
+                            ? `border-${step.color}-200 text-${step.color}-700 hover:bg-${step.color}-50`
+                            : "",
                         )}
                         onClick={() => router.push(step.path)}
                       >
                         <div className="flex items-center w-full">
-                          <div className="flex items-center justify-center w-5 h-5 rounded-full mr-2 text-xs font-medium bg-muted">
-                            {isCompleted ? <CheckCircle2 className="h-3 w-3 text-green-500" /> : index + 1}
+                          <div
+                            className={`flex items-center justify-center w-6 h-6 rounded-full mr-2 text-xs font-medium ${
+                              isActive
+                                ? "bg-primary text-primary-foreground"
+                                : isCompleted
+                                  ? `bg-${step.color}-100 text-${step.color}-700`
+                                  : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {isCompleted && !isActive ? (
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                            ) : (
+                              <StepIcon className="h-3.5 w-3.5" />
+                            )}
                           </div>
                           <span className="flex-1 text-sm">{step.label}</span>
+                          {isCompleted && !isActive && (
+                            <Badge
+                              variant="outline"
+                              className={`bg-${step.color}-50 border-${step.color}-200 text-${step.color}-700 text-xs py-0 px-1.5`}
+                            >
+                              Completado
+                            </Badge>
+                          )}
                         </div>
                       </Button>
                     )
@@ -290,31 +332,31 @@ export function RestaurantConfigSteps({
         {/* Contenido principal */}
         <div className="flex-1">
           <Card className="h-full">
-            <CardContent className="p-4">
-              <div className="flex items-center mb-4">
-                {currentStepObj?.icon && <currentStepObj.icon className="mr-2 h-5 w-5 text-muted-foreground" />}
+            <CardHeader className="p-4 pb-2 border-b">
+              <div className="flex items-center">
+                {currentStepObj?.icon && (
+                  <div className={`p-2 rounded-md bg-${currentStepObj.color}-50 text-${currentStepObj.color}-500 mr-3`}>
+                    <currentStepObj.icon className="h-5 w-5" />
+                  </div>
+                )}
                 <div>
-                  <h2 className="text-lg font-medium">{currentStepObj?.label}</h2>
-                  <p className="text-sm text-muted-foreground">{currentStepObj?.description}</p>
+                  <CardTitle>{currentStepObj?.label}</CardTitle>
+                  <CardDescription>{currentStepObj?.description}</CardDescription>
                 </div>
               </div>
-
+            </CardHeader>
+            <CardContent className="p-4">
               <div className="space-y-4">
                 {/* Renderizar el contenido pasado como children */}
                 {children}
-
-                <div className="flex justify-end pt-4 border-t">
-                  <Button
-                    onClick={() => markStepAsCompleted(currentStep)}
-                    disabled={!currentBranch}
-                    className="ml-auto"
-                  >
-                    <Save className="mr-2 h-4 w-4" />
-                    Guardar Cambios
-                  </Button>
-                </div>
               </div>
             </CardContent>
+            <CardFooter className="flex justify-end p-4 border-t">
+              <Button onClick={() => markStepAsCompleted(currentStep)} disabled={!currentBranch} className="ml-auto">
+                <Save className="mr-2 h-4 w-4" />
+                Guardar Cambios
+              </Button>
+            </CardFooter>
           </Card>
         </div>
       </div>
