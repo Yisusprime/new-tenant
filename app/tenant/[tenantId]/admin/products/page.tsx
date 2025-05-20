@@ -17,7 +17,7 @@ export default function ProductsPage({
   const [activeTab, setActiveTab] = useState("products")
 
   return (
-    <PageContainer>
+    <PageContainer variant="wide">
       <div className="mb-6 flex justify-between items-center">
         <h1 className="text-2xl font-bold">Gestión de Productos</h1>
       </div>

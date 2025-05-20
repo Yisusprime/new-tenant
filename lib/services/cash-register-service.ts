@@ -584,3 +584,72 @@ export async function cancelSale(
     throw error
   }
 }
+
+// Función para obtener todos los movimientos de caja
+export async function getAllCashMovements(tenantId: string, branchId: string): Promise<CashMovement[]> {
+  try {
+    if (!tenantId || !branchId) {
+      throw new Error("Tenant ID y Branch ID son requeridos")
+    }
+
+    const movementsRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/cashMovements`)
+    const snapshot = await get(movementsRef)
+
+    if (!snapshot.exists()) {
+      return []
+    }
+
+    const movementsData = snapshot.val()
+    const movements = Object.entries(movementsData).map(([id, data]) => ({
+      id,
+      ...(data as any),
+    })) as CashMovement[]
+
+    // Ordenar por fecha de creación (más reciente primero)
+    return movements.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  } catch (error) {
+    console.error("Error al obtener todos los movimientos:", error)
+    throw error
+  }
+}
+
+// NUEVAS FUNCIONES REQUERIDAS
+
+// Función para obtener la caja activa de una sucursal
+export async function getActiveCashRegister(tenantId: string, branchId: string): Promise<CashRegister | null> {
+  try {
+    if (!tenantId || !branchId) {
+      throw new Error("Tenant ID y Branch ID son requeridos")
+    }
+
+    // Obtener las cajas abiertas usando la función existente
+    const openRegisters = await getOpenCashRegisters(tenantId, branchId)
+
+    // Si hay cajas abiertas, devolver la primera (más reciente)
+    return openRegisters.length > 0 ? openRegisters[0] : null
+  } catch (error) {
+    console.error("Error al obtener caja activa:", error)
+    throw error
+  }
+}
+
+// Función para obtener el historial de cajas de una sucursal
+export async function getCashRegisterHistory(tenantId: string, branchId: string, limit = 5): Promise<CashRegister[]> {
+  try {
+    if (!tenantId || !branchId) {
+      throw new Error("Tenant ID y Branch ID son requeridos")
+    }
+
+    // Obtener todas las cajas usando la función existente
+    const registers = await getCashRegisters(tenantId, branchId)
+
+    // Filtrar solo las cajas cerradas
+    const closedRegisters = registers.filter((register) => register.status === "closed")
+
+    // Devolver solo la cantidad solicitada
+    return closedRegisters.slice(0, limit)
+  } catch (error) {
+    console.error("Error al obtener historial de cajas:", error)
+    throw error
+  }
+}
