@@ -19,7 +19,6 @@ export function QuickCalculatorModal() {
   const [operation, setOperation] = useState<string | null>(null)
   const [prevValue, setPrevValue] = useState<number | null>(null)
   const [waitingForOperand, setWaitingForOperand] = useState(false)
-  const [history, setHistory] = useState<string[]>([])
   const [isOpen, setIsOpen] = useState(false)
 
   const dialogContentRef = useRef<HTMLDivElement>(null)
@@ -170,12 +169,7 @@ export function QuickCalculatorModal() {
           newValue = inputValue
       }
 
-      // Crear la expresión completa para el historial
-      const fullExpression = `${currentValue} ${operation} ${inputValue} = ${newValue}`
-
-      // Add to history when an operation is completed
       if (nextOperator === "=") {
-        setHistory((prev) => [fullExpression, ...prev].slice(0, 4))
         setExpression(`${newValue}`)
       } else {
         setExpression(`${newValue} ${nextOperator}`)
@@ -278,17 +272,6 @@ export function QuickCalculatorModal() {
           </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-1 gap-4">
-          {/* History */}
-          {history.length > 0 && (
-            <div className="bg-gray-100 p-3 rounded-md text-sm font-mono max-h-24 overflow-y-auto">
-              {history.map((item, index) => (
-                <div key={index} className="text-right text-gray-600 mb-1">
-                  {item}
-                </div>
-              ))}
-            </div>
-          )}
-
           {/* Expression Display */}
           <div className="bg-gray-50 p-2 rounded-md text-right text-sm font-mono h-8 flex items-center justify-end overflow-hidden text-gray-500">
             {expression || "0"}
