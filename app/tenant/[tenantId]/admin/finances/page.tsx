@@ -74,6 +74,16 @@ export default function FinancesPage() {
   const [deletingExpense, setDeletingExpense] = useState(false)
   const [excludeHistoricalExpenses, setExcludeHistoricalExpenses] = useState(true)
 
+  // Estados para la pestaña de ingresos
+  const [incomeSearchQuery, setIncomeSearchQuery] = useState("")
+  const [incomeDateFilter, setIncomeDateFilter] = useState<{ from: Date | undefined; to: Date | undefined }>({
+    from: undefined,
+    to: undefined,
+  })
+  const [incomeCurrentPage, setIncomeCurrentPage] = useState(1)
+  const [incomePerPage] = useState(10)
+  const [filteredIncomeMovements, setFilteredIncomeMovements] = useState<CashMovement[]>([])
+
   // Estados para diálogos
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false)
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false)
@@ -123,6 +133,11 @@ export default function FinancesPage() {
   useEffect(() => {
     filterExpenses()
   }, [searchQuery, categoryFilter, dateFilter, expenses, excludeHistoricalExpenses])
+
+  // Filtrar ingresos cuando cambian los filtros
+  useEffect(() => {
+    filterIncomeMovements()
+  }, [incomeSearchQuery, incomeDateFilter, cashMovements])
 
   // Función para cargar todos los datos
   const loadData = async () => {
@@ -203,6 +218,32 @@ export default function FinancesPage() {
     }
 
     setFilteredExpenses(filtered)
+  }
+
+  // Función para filtrar ingresos
+  const filterIncomeMovements = () => {
+    let filtered = cashMovements.filter((movement) => ["income", "sale"].includes(movement.type))
+
+    // Filtrar por búsqueda
+    if (incomeSearchQuery.trim() !== "") {
+      const query = incomeSearchQuery.toLowerCase()
+      filtered = filtered.filter(
+        (movement) =>
+          movement.description.toLowerCase().includes(query) ||
+          movement.paymentMethod.toLowerCase().includes(query) ||
+          (movement.reference && movement.reference.toLowerCase().includes(query)),
+      )
+    }
+
+    // Filtrar por fecha
+    if (incomeDateFilter.from) {
+      filtered = filtered.filter((movement) => new Date(movement.createdAt) >= new Date(incomeDateFilter.from!))
+    }
+    if (incomeDateFilter.to) {
+      filtered = filtered.filter((movement) => new Date(movement.createdAt) <= new Date(incomeDateFilter.to!))
+    }
+
+    setFilteredIncomeMovements(filtered)
   }
 
   // Función para crear o actualizar un gasto
@@ -835,46 +876,124 @@ export default function FinancesPage() {
               <CardDescription>
                 Los ingresos se registran automáticamente desde el módulo de Caja cuando se realizan ventas
               </CardDescription>
+
+              {/* Filtros y búsqueda para ingresos */}
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar ingresos..."
+                    className="pl-8"
+                    value={incomeSearchQuery}
+                    onChange={(e) => setIncomeSearchQuery(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex gap-2 items-center">
+                  <DatePicker
+                    selected={incomeDateFilter.from}
+                    onSelect={(date) => setIncomeDateFilter({ ...incomeDateFilter, from: date })}
+                    placeholder="Fecha inicio"
+                  />
+                  <span>-</span>
+                  <DatePicker
+                    selected={incomeDateFilter.to}
+                    onSelect={(date) => setIncomeDateFilter({ ...incomeDateFilter, to: date })}
+                    placeholder="Fecha fin"
+                  />
+                </div>
+
+                <div className="flex justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIncomeSearchQuery("")
+                      setIncomeDateFilter({ from: undefined, to: undefined })
+                      setIncomeCurrentPage(1)
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <Filter className="h-4 w-4" />
+                    Limpiar filtros
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               {loading ? (
                 <div className="text-center py-8">Cargando ingresos...</div>
-              ) : cashMovements.filter((m) => ["income", "sale"].includes(m.type)).length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Descripción</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Monto</TableHead>
-                      <TableHead>Método de Pago</TableHead>
-                      <TableHead>Referencia</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {cashMovements
-                      .filter((movement) => ["income", "sale"].includes(movement.type))
-                      .slice(0, 20)
-                      .map((movement) => (
-                        <TableRow key={movement.id}>
-                          <TableCell>{formatDate(movement.createdAt)}</TableCell>
-                          <TableCell className="font-medium">{movement.description}</TableCell>
-                          <TableCell>
-                            <Badge variant={movement.type === "sale" ? "default" : "secondary"}>
-                              {movement.type === "sale" ? "Venta" : "Ingreso"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-green-600">
-                            {formatCurrency(movement.amount, currencyCode)}
-                          </TableCell>
-                          <TableCell>{movement.paymentMethod}</TableCell>
-                          <TableCell>{movement.reference || "-"}</TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
+              ) : filteredIncomeMovements.length > 0 ? (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Descripción</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Monto</TableHead>
+                        <TableHead>Método de Pago</TableHead>
+                        <TableHead>Referencia</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredIncomeMovements
+                        .slice((incomeCurrentPage - 1) * incomePerPage, incomeCurrentPage * incomePerPage)
+                        .map((movement) => (
+                          <TableRow key={movement.id}>
+                            <TableCell>{formatDate(movement.createdAt)}</TableCell>
+                            <TableCell className="font-medium">{movement.description}</TableCell>
+                            <TableCell>
+                              <Badge variant={movement.type === "sale" ? "default" : "secondary"}>
+                                {movement.type === "sale" ? "Venta" : "Ingreso"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-green-600">
+                              {formatCurrency(movement.amount, currencyCode)}
+                            </TableCell>
+                            <TableCell>{movement.paymentMethod}</TableCell>
+                            <TableCell>{movement.reference || "-"}</TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+
+                  {/* Paginación */}
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="text-sm text-muted-foreground">
+                      Mostrando {Math.min(filteredIncomeMovements.length, (incomeCurrentPage - 1) * incomePerPage + 1)}{" "}
+                      a {Math.min(filteredIncomeMovements.length, incomeCurrentPage * incomePerPage)} de{" "}
+                      {filteredIncomeMovements.length} registros
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIncomeCurrentPage((prev) => Math.max(prev - 1, 1))}
+                        disabled={incomeCurrentPage === 1}
+                      >
+                        Anterior
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setIncomeCurrentPage((prev) =>
+                            Math.min(prev + 1, Math.ceil(filteredIncomeMovements.length / incomePerPage)),
+                          )
+                        }
+                        disabled={incomeCurrentPage >= Math.ceil(filteredIncomeMovements.length / incomePerPage)}
+                      >
+                        Siguiente
+                      </Button>
+                    </div>
+                  </div>
+                </>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">No hay ingresos registrados</div>
+                <div className="text-center py-8 text-muted-foreground">
+                  {incomeSearchQuery || incomeDateFilter.from || incomeDateFilter.to
+                    ? "No se encontraron ingresos que coincidan con los filtros"
+                    : "No hay ingresos registrados"}
+                </div>
               )}
             </CardContent>
             <CardFooter>
@@ -885,7 +1004,6 @@ export default function FinancesPage() {
           </Card>
         </TabsContent>
       </Tabs>
-
       {/* Diálogo para crear/editar gasto */}
       <Dialog open={expenseDialogOpen} onOpenChange={(open) => !savingExpense && setExpenseDialogOpen(open)}>
         <DialogContent className="sm:max-w-md">
