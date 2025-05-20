@@ -38,6 +38,7 @@ import {
   getExpenseCategories,
   createExpenseCategory,
   getFinancialSummary,
+  getAllCashMovements,
 } from "@/lib/services/finance-service"
 import { getInventoryItems } from "@/lib/services/inventory-service"
 import type { Expense, ExpenseCategory, FinancialSummary } from "@/lib/types/finance"
@@ -63,6 +64,7 @@ export default function FinancesPage() {
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([])
   const [cashMovements, setCashMovements] = useState<CashMovement[]>([])
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
 
   // Estados para diálogos
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false)
@@ -118,6 +120,7 @@ export default function FinancesPage() {
     if (!currentBranch?.id) return
 
     setLoading(true)
+    setRefreshing(true)
     try {
       // Cargar gastos
       const expensesData = await getExpenses(params.tenantId, currentBranch.id)
@@ -132,27 +135,18 @@ export default function FinancesPage() {
       const inventoryData = await getInventoryItems(params.tenantId, currentBranch.id)
       setInventoryItems(inventoryData)
 
-      // Cargar movimientos de caja (utilizando el servicio financiero para obtener todos los movimientos)
-      try {
-        // Obtener el resumen financiero que ya incluye los movimientos de caja
-        const summaryData = await getFinancialSummary(params.tenantId, currentBranch.id)
-        setFinancialSummary(summaryData)
-
-        // Extraer los movimientos de ingresos del resumen
-        const incomeMovements = summaryData.incomeMovements || []
-        setCashMovements(incomeMovements)
-      } catch (error) {
-        console.error("Error al cargar datos financieros:", error)
-        toast({
-          title: "Error",
-          description: "No se pudieron cargar los datos financieros",
-          variant: "destructive",
-        })
-      }
+      // Cargar movimientos de caja directamente desde Realtime Database
+      const movementsData = await getAllCashMovements(params.tenantId, currentBranch.id)
+      setCashMovements(movementsData)
 
       // Cargar resumen financiero
       const summaryData = await getFinancialSummary(params.tenantId, currentBranch.id)
       setFinancialSummary(summaryData)
+
+      toast({
+        title: "Datos actualizados",
+        description: "Los datos financieros se han actualizado correctamente",
+      })
     } catch (error) {
       console.error("Error al cargar datos:", error)
       toast({
@@ -162,6 +156,7 @@ export default function FinancesPage() {
       })
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   }
 
@@ -443,9 +438,9 @@ export default function FinancesPage() {
           <h1 className="text-3xl font-bold tracking-tight">Gestión Financiera</h1>
           <p className="text-muted-foreground">Controle sus gastos, ingresos y analice su rentabilidad</p>
         </div>
-        <Button onClick={loadData} variant="outline" className="flex items-center gap-2">
-          <RefreshCw className="h-4 w-4" />
-          Actualizar Datos
+        <Button onClick={loadData} variant="outline" className="flex items-center gap-2" disabled={refreshing}>
+          <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+          {refreshing ? "Actualizando..." : "Actualizar Datos"}
         </Button>
       </div>
 
