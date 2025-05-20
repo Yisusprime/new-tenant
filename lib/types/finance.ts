@@ -69,4 +69,5 @@ export interface FinancialSummary {
     income: number
     profit: number
   }[]
+  incomeMovements?: any[]
 }

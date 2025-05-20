@@ -1,6 +1,5 @@
 import { db } from "@/lib/firebase/client"
 import { collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, query, orderBy } from "firebase/firestore"
-import { getCashMovements } from "@/lib/services/cash-register-service"
 import type { Expense, ExpenseCategory, FinancialSummary } from "@/lib/types/finance"
 
 // Función para obtener todos los gastos
@@ -180,8 +179,8 @@ export async function getFinancialSummary(tenantId: string, branchId: string): P
     // Obtener todos los gastos
     const expenses = await getExpenses(tenantId, branchId)
 
-    // Obtener todos los movimientos de caja (para ingresos)
-    const cashMovements = await getCashMovements(tenantId, branchId, "all")
+    // Obtener todos los movimientos de caja de todas las cajas
+    const cashMovements = await getAllCashMovements(tenantId, branchId)
 
     // Obtener categorías de gastos
     const expenseCategories = await getExpenseCategories(tenantId, branchId)
@@ -231,6 +230,8 @@ export async function getFinancialSummary(tenantId: string, branchId: string): P
       expensesByCategory,
       incomeByCategory,
       monthlyData,
+      // Incluir los movimientos de ingresos para que estén disponibles en la UI
+      incomeMovements,
     }
   } catch (error) {
     console.error("Error al obtener resumen financiero:", error)
@@ -273,4 +274,35 @@ function getMonthlyData(expenses: Expense[], incomeMovements: any[]) {
   }
 
   return months.reverse()
+}
+
+// Función para obtener todos los movimientos de caja de todas las cajas
+async function getAllCashMovements(tenantId: string, branchId: string) {
+  try {
+    // Primero obtenemos todas las cajas
+    const registersCollection = collection(db, `tenants/${tenantId}/branches/${branchId}/cashRegisters`)
+    const registersSnapshot = await getDocs(registersCollection)
+
+    // Si no hay cajas, retornamos un array vacío
+    if (registersSnapshot.empty) {
+      return []
+    }
+
+    // Obtenemos todos los movimientos de todas las cajas
+    const movementsCollection = collection(db, `tenants/${tenantId}/branches/${branchId}/cashMovements`)
+    const movementsSnapshot = await getDocs(movementsCollection)
+
+    if (movementsSnapshot.empty) {
+      return []
+    }
+
+    // Convertimos los documentos a objetos
+    return movementsSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }))
+  } catch (error) {
+    console.error("Error al obtener todos los movimientos de caja:", error)
+    return []
+  }
 }

@@ -35,6 +35,7 @@ import {
   Minimize,
   Calculator,
   Package,
+  PieChart,
 } from "lucide-react"
 import Link from "next/link"
 import { BranchProvider, useBranch } from "@/lib/context/branch-context"
@@ -306,6 +307,7 @@ function AdminLayoutContent({
     { type: "separator", label: "Gestión" },
     { path: "/orders", label: "Pedidos", icon: ShoppingBag },
     { path: "/cash-register", label: "Caja", icon: DollarSign },
+    { path: "/finances", label: "Finanzas", icon: PieChart },
     { path: "/products", label: "Productos", icon: Store },
     { path: "/categories", label: "Categorías", icon: FolderTree },
     { path: "/cost-calculator", label: "Calculadora de Costos", icon: Calculator },

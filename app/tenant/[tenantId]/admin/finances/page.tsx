@@ -28,6 +28,7 @@ import {
   ArrowDownRight,
   Filter,
   Download,
+  RefreshCw,
 } from "lucide-react"
 import {
   getExpenses,
@@ -39,7 +40,6 @@ import {
   getFinancialSummary,
 } from "@/lib/services/finance-service"
 import { getInventoryItems } from "@/lib/services/inventory-service"
-import { getCashMovements } from "@/lib/services/cash-register-service"
 import type { Expense, ExpenseCategory, FinancialSummary } from "@/lib/types/finance"
 import type { InventoryItem } from "@/lib/types/inventory"
 import type { CashMovement } from "@/lib/types/cash-register"
@@ -132,9 +132,23 @@ export default function FinancesPage() {
       const inventoryData = await getInventoryItems(params.tenantId, currentBranch.id)
       setInventoryItems(inventoryData)
 
-      // Cargar movimientos de caja
-      const cashData = await getCashMovements(params.tenantId, currentBranch.id, "all")
-      setCashMovements(cashData)
+      // Cargar movimientos de caja (utilizando el servicio financiero para obtener todos los movimientos)
+      try {
+        // Obtener el resumen financiero que ya incluye los movimientos de caja
+        const summaryData = await getFinancialSummary(params.tenantId, currentBranch.id)
+        setFinancialSummary(summaryData)
+
+        // Extraer los movimientos de ingresos del resumen
+        const incomeMovements = summaryData.incomeMovements || []
+        setCashMovements(incomeMovements)
+      } catch (error) {
+        console.error("Error al cargar datos financieros:", error)
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los datos financieros",
+          variant: "destructive",
+        })
+      }
 
       // Cargar resumen financiero
       const summaryData = await getFinancialSummary(params.tenantId, currentBranch.id)
@@ -429,6 +443,10 @@ export default function FinancesPage() {
           <h1 className="text-3xl font-bold tracking-tight">Gestión Financiera</h1>
           <p className="text-muted-foreground">Controle sus gastos, ingresos y analice su rentabilidad</p>
         </div>
+        <Button onClick={loadData} variant="outline" className="flex items-center gap-2">
+          <RefreshCw className="h-4 w-4" />
+          Actualizar Datos
+        </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
