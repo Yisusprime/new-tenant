@@ -6,6 +6,7 @@ import { useBranch } from "@/lib/context/branch-context"
 import { NoBranchSelectedAlert } from "@/components/no-branch-selected-alert"
 import { ProductsList } from "./components/products-list"
 import { ProductExtrasList } from "./components/product-extras-list"
+import { PageContainer } from "@/components/page-container"
 
 export default function ProductsPage({
   params,
@@ -16,7 +17,7 @@ export default function ProductsPage({
   const [activeTab, setActiveTab] = useState("products")
 
   return (
-    <div>
+    <PageContainer>
       <div className="mb-6 flex justify-between items-center">
         <h1 className="text-2xl font-bold">Gestión de Productos</h1>
       </div>
@@ -41,6 +42,6 @@ export default function ProductsPage({
           </TabsContent>
         </Tabs>
       )}
-    </div>
+    </PageContainer>
   )
 }

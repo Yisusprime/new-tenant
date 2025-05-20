@@ -26,6 +26,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { PLAN_CONFIGS } from "@/lib/types/plans"
 import Link from "next/link"
+import { PageContainer } from "@/components/page-container"
 
 export default function BranchesPage({
   params,
@@ -127,7 +128,7 @@ export default function BranchesPage({
   }
 
   return (
-    <div>
+    <PageContainer>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Sucursales</h1>
 
@@ -326,6 +327,6 @@ export default function BranchesPage({
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   )
 }

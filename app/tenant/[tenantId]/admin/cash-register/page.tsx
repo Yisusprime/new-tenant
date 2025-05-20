@@ -34,6 +34,7 @@ import { useRouter } from "next/navigation"
 import { closeCashRegister } from "@/lib/services/cash-register-service"
 import { toast } from "@/components/ui/use-toast"
 import { CashAuditForm } from "@/components/cash-audit-form"
+import { PageContainer } from "@/components/page-container"
 
 export default function CashRegisterPage({ params }: { params: { tenantId: string } }) {
   const { tenantId } = params
@@ -257,7 +258,7 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
   }
 
   return (
-    <div className="space-y-6">
+    <PageContainer className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Gestor de Caja</h1>
         <div className="flex gap-2">
@@ -684,6 +685,6 @@ export default function CashRegisterPage({ params }: { params: { tenantId: strin
           )}
         </>
       )}
-    </div>
+    </PageContainer>
   )
 }

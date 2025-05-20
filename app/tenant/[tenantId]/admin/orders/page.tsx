@@ -22,6 +22,7 @@ import { VisualNotification } from "@/components/visual-notification"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { OpenCashRegisterDialog } from "../cash-register/components/open-cash-register-dialog"
 import { useRouter } from "next/navigation"
+import { PageContainer } from "@/components/page-container"
 
 export default function OrdersPage({ params }: { params: { tenantId: string } }) {
   const { tenantId } = params
@@ -215,7 +216,7 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
   }
 
   return (
-    <div className="space-y-6">
+    <PageContainer className="space-y-6">
       {/* Componente de notificación visual */}
       <VisualNotification
         show={showNotification}
@@ -379,6 +380,6 @@ export default function OrdersPage({ params }: { params: { tenantId: string } })
           />
         </>
       )}
-    </div>
+    </PageContainer>
   )
 }
