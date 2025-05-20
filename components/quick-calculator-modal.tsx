@@ -18,6 +18,7 @@ export function QuickCalculatorModal() {
   const [operation, setOperation] = useState<string | null>(null)
   const [prevValue, setPrevValue] = useState<number | null>(null)
   const [waitingForOperand, setWaitingForOperand] = useState(false)
+  const [history, setHistory] = useState<string[]>([])
 
   const clearAll = () => {
     setDisplay("0")
@@ -84,6 +85,12 @@ export function QuickCalculatorModal() {
           newValue = inputValue
       }
 
+      // Add to history when an operation is completed
+      if (nextOperator === "=") {
+        const calculation = `${currentValue} ${operation} ${inputValue} = ${newValue}`
+        setHistory((prev) => [calculation, ...prev].slice(0, 4))
+      }
+
       setPrevValue(newValue)
       setDisplay(String(newValue))
     }
@@ -100,7 +107,7 @@ export function QuickCalculatorModal() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline" size="icon" className="h-10 w-10">
+        <Button variant="ghost" size="icon" className="text-gray-300 hover:bg-gray-700 hover:text-white">
           <Calculator className="h-5 w-5" />
         </Button>
       </DialogTrigger>
@@ -110,6 +117,17 @@ export function QuickCalculatorModal() {
           <DialogDescription>Realice cálculos rápidos sin salir de la página</DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-1 gap-4">
+          {/* History */}
+          {history.length > 0 && (
+            <div className="bg-gray-100 p-3 rounded-md text-sm font-mono max-h-24 overflow-y-auto">
+              {history.map((item, index) => (
+                <div key={index} className="text-right text-gray-600 mb-1">
+                  {item}
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Display */}
           <div className="bg-muted p-4 rounded-md text-right text-2xl font-mono h-16 flex items-center justify-end overflow-hidden">
             {display}

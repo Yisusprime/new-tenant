@@ -46,6 +46,7 @@ import { AuthProvider } from "@/lib/context/auth-context"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { QuickCalculatorModal } from "@/components/quick-calculator-modal"
 
 // Componente para el selector de sucursales
 function BranchSelector() {
@@ -643,6 +644,7 @@ function AdminLayoutContent({
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+            <QuickCalculatorModal />
             <BranchSelector />
           </div>
         </header>
