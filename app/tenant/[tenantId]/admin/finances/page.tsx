@@ -29,6 +29,8 @@ import {
   Filter,
   Download,
   RefreshCw,
+  Loader2,
+  Info,
 } from "lucide-react"
 import {
   getExpenses,
@@ -45,6 +47,8 @@ import type { Expense, ExpenseCategory, FinancialSummary } from "@/lib/types/fin
 import type { InventoryItem } from "@/lib/types/inventory"
 import type { CashMovement } from "@/lib/types/cash-register"
 import { DatePicker } from "@/components/ui/date-picker"
+import { Switch } from "@/components/ui/switch"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 export default function FinancesPage() {
   const params = useParams<{ tenantId: string }>()
@@ -65,6 +69,10 @@ export default function FinancesPage() {
   const [cashMovements, setCashMovements] = useState<CashMovement[]>([])
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [savingExpense, setSavingExpense] = useState(false)
+  const [savingCategory, setSavingCategory] = useState(false)
+  const [deletingExpense, setDeletingExpense] = useState(false)
+  const [excludeHistoricalExpenses, setExcludeHistoricalExpenses] = useState(true)
 
   // Estados para diálogos
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false)
@@ -86,6 +94,7 @@ export default function FinancesPage() {
     status: "paid",
     attachmentUrl: "",
     notes: "",
+    isHistorical: false,
   })
 
   const [newCategory, setNewCategory] = useState<Omit<ExpenseCategory, "id">>({
@@ -113,7 +122,7 @@ export default function FinancesPage() {
   // Filtrar gastos cuando cambia la búsqueda o filtros
   useEffect(() => {
     filterExpenses()
-  }, [searchQuery, categoryFilter, dateFilter, expenses])
+  }, [searchQuery, categoryFilter, dateFilter, expenses, excludeHistoricalExpenses])
 
   // Función para cargar todos los datos
   const loadData = async () => {
@@ -164,6 +173,11 @@ export default function FinancesPage() {
   const filterExpenses = () => {
     let filtered = [...expenses]
 
+    // Filtrar gastos históricos si está activada la opción
+    if (excludeHistoricalExpenses) {
+      filtered = filtered.filter((expense) => !expense.isHistorical)
+    }
+
     // Filtrar por búsqueda
     if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase()
@@ -171,7 +185,7 @@ export default function FinancesPage() {
         (expense) =>
           expense.description.toLowerCase().includes(query) ||
           expense.category.toLowerCase().includes(query) ||
-          expense.reference.toLowerCase().includes(query),
+          expense.reference?.toLowerCase().includes(query),
       )
     }
 
@@ -204,6 +218,7 @@ export default function FinancesPage() {
       return
     }
 
+    setSavingExpense(true)
     try {
       if (selectedExpense) {
         // Actualizar gasto existente
@@ -232,6 +247,8 @@ export default function FinancesPage() {
         description: "No se pudo guardar el gasto",
         variant: "destructive",
       })
+    } finally {
+      setSavingExpense(false)
     }
   }
 
@@ -248,6 +265,7 @@ export default function FinancesPage() {
       return
     }
 
+    setSavingCategory(true)
     try {
       await createExpenseCategory(params.tenantId, currentBranch.id, newCategory)
       toast({
@@ -272,6 +290,8 @@ export default function FinancesPage() {
         description: "No se pudo crear la categoría",
         variant: "destructive",
       })
+    } finally {
+      setSavingCategory(false)
     }
   }
 
@@ -279,6 +299,7 @@ export default function FinancesPage() {
   const handleDeleteExpense = async () => {
     if (!currentBranch?.id || !selectedExpense) return
 
+    setDeletingExpense(true)
     try {
       await deleteExpense(params.tenantId, currentBranch.id, selectedExpense.id)
       toast({
@@ -297,6 +318,8 @@ export default function FinancesPage() {
         description: "No se pudo eliminar el gasto",
         variant: "destructive",
       })
+    } finally {
+      setDeletingExpense(false)
     }
   }
 
@@ -324,6 +347,7 @@ export default function FinancesPage() {
       status: expense.status || "paid",
       attachmentUrl: expense.attachmentUrl || "",
       notes: expense.notes || "",
+      isHistorical: expense.isHistorical || false,
     })
     setExpenseDialogOpen(true)
   }
@@ -350,13 +374,14 @@ export default function FinancesPage() {
       status: "paid",
       attachmentUrl: "",
       notes: "",
+      isHistorical: false,
     })
   }
 
   // Función para exportar datos a CSV
   const exportToCSV = () => {
     // Implementación básica de exportación a CSV
-    const headers = ["Fecha", "Descripción", "Categoría", "Monto", "Método de Pago", "Estado"]
+    const headers = ["Fecha", "Descripción", "Categoría", "Monto", "Método de Pago", "Estado", "Histórico"]
     const csvData = [
       headers.join(","),
       ...filteredExpenses.map((expense) =>
@@ -367,6 +392,7 @@ export default function FinancesPage() {
           expense.amount,
           expense.paymentMethod,
           expense.status,
+          expense.isHistorical ? "Sí" : "No",
         ].join(","),
       ),
     ].join("\n")
@@ -396,7 +422,12 @@ export default function FinancesPage() {
 
   // Calcular totales para el dashboard
   const calculateTotals = () => {
-    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0)
+    // Filtrar gastos históricos si está activada la opción
+    const filteredExpensesForCalculation = excludeHistoricalExpenses
+      ? expenses.filter((expense) => !expense.isHistorical)
+      : expenses
+
+    const totalExpenses = filteredExpensesForCalculation.reduce((sum, expense) => sum + expense.amount, 0)
 
     // Calcular ingresos (ventas) de los movimientos de caja
     const totalIncome = cashMovements
@@ -406,7 +437,7 @@ export default function FinancesPage() {
     // Calcular gastos por categoría para el gráfico
     const expensesByCategory = expenseCategories
       .map((category) => {
-        const amount = expenses
+        const amount = filteredExpensesForCalculation
           .filter((expense) => expense.category === category.name)
           .reduce((sum, expense) => sum + expense.amount, 0)
         return {
@@ -462,6 +493,30 @@ export default function FinancesPage() {
 
         {/* Dashboard Tab */}
         <TabsContent value="dashboard" className="mt-6">
+          <div className="mb-4 flex items-center gap-2">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="exclude-historical"
+                checked={excludeHistoricalExpenses}
+                onCheckedChange={setExcludeHistoricalExpenses}
+              />
+              <Label htmlFor="exclude-historical">Excluir gastos históricos</Label>
+            </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="max-w-xs">
+                    Los gastos históricos son aquellos que ya realizaste antes de comenzar a usar el sistema. Al
+                    excluirlos, obtienes una visión más precisa de tus finanzas actuales.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Tarjetas de resumen */}
             <Card>
@@ -547,12 +602,19 @@ export default function FinancesPage() {
                 <CardDescription>Últimos gastos registrados</CardDescription>
               </CardHeader>
               <CardContent>
-                {expenses.length > 0 ? (
+                {filteredExpenses.length > 0 ? (
                   <div className="space-y-4">
-                    {expenses.slice(0, 5).map((expense, index) => (
+                    {filteredExpenses.slice(0, 5).map((expense, index) => (
                       <div key={index} className="flex justify-between items-center">
                         <div>
-                          <p className="font-medium">{expense.description}</p>
+                          <p className="font-medium">
+                            {expense.description}
+                            {expense.isHistorical && (
+                              <Badge variant="outline" className="ml-2">
+                                Histórico
+                              </Badge>
+                            )}
+                          </p>
                           <p className="text-sm text-muted-foreground">{formatDate(expense.date)}</p>
                         </div>
                         <Badge style={{ backgroundColor: getCategoryColor(expense.category) }} className="text-white">
@@ -658,6 +720,30 @@ export default function FinancesPage() {
                   </Button>
                 </div>
               </div>
+
+              <div className="mt-4 flex items-center gap-2">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="exclude-historical-expenses"
+                    checked={excludeHistoricalExpenses}
+                    onCheckedChange={setExcludeHistoricalExpenses}
+                  />
+                  <Label htmlFor="exclude-historical-expenses">Excluir gastos históricos</Label>
+                </div>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">
+                        Los gastos históricos son aquellos que ya realizaste antes de comenzar a usar el sistema. Al
+                        excluirlos, obtienes una visión más precisa de tus finanzas actuales.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
             </CardHeader>
             <CardContent>
               {loading ? (
@@ -677,10 +763,15 @@ export default function FinancesPage() {
                   </TableHeader>
                   <TableBody>
                     {filteredExpenses.map((expense) => (
-                      <TableRow key={expense.id}>
+                      <TableRow key={expense.id} className={expense.isHistorical ? "bg-gray-50" : ""}>
                         <TableCell>{formatDate(expense.date)}</TableCell>
                         <TableCell className="font-medium">
                           {expense.description}
+                          {expense.isHistorical && (
+                            <Badge variant="outline" className="ml-2">
+                              Histórico
+                            </Badge>
+                          )}
                           {expense.inventoryItemId && (
                             <Badge variant="outline" className="ml-2">
                               Inventario: {getInventoryItemName(expense.inventoryItemId)}
@@ -796,7 +887,7 @@ export default function FinancesPage() {
       </Tabs>
 
       {/* Diálogo para crear/editar gasto */}
-      <Dialog open={expenseDialogOpen} onOpenChange={setExpenseDialogOpen}>
+      <Dialog open={expenseDialogOpen} onOpenChange={(open) => !savingExpense && setExpenseDialogOpen(open)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{selectedExpense ? "Editar Gasto" : "Nuevo Gasto"}</DialogTitle>
@@ -816,6 +907,7 @@ export default function FinancesPage() {
                   placeholder="Descripción del gasto"
                   value={newExpense.description}
                   onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
+                  disabled={savingExpense}
                 />
               </div>
 
@@ -832,6 +924,7 @@ export default function FinancesPage() {
                     placeholder="0.00"
                     value={newExpense.amount || ""}
                     onChange={(e) => setNewExpense({ ...newExpense, amount: Number(e.target.value) })}
+                    disabled={savingExpense}
                   />
                 </div>
               </div>
@@ -846,6 +939,7 @@ export default function FinancesPage() {
                     className="pl-8"
                     value={newExpense.date}
                     onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })}
+                    disabled={savingExpense}
                   />
                 </div>
               </div>
@@ -855,6 +949,7 @@ export default function FinancesPage() {
                 <Select
                   value={newExpense.category}
                   onValueChange={(value) => setNewExpense({ ...newExpense, category: value })}
+                  disabled={savingExpense}
                 >
                   <SelectTrigger id="expense-category">
                     <SelectValue placeholder="Seleccione una categoría" />
@@ -874,6 +969,7 @@ export default function FinancesPage() {
                 <Select
                   value={newExpense.paymentMethod}
                   onValueChange={(value) => setNewExpense({ ...newExpense, paymentMethod: value })}
+                  disabled={savingExpense}
                 >
                   <SelectTrigger id="expense-payment-method">
                     <SelectValue placeholder="Método de pago" />
@@ -893,6 +989,7 @@ export default function FinancesPage() {
                 <Select
                   value={newExpense.status}
                   onValueChange={(value) => setNewExpense({ ...newExpense, status: value })}
+                  disabled={savingExpense}
                 >
                   <SelectTrigger id="expense-status">
                     <SelectValue placeholder="Estado del gasto" />
@@ -911,6 +1008,7 @@ export default function FinancesPage() {
                   placeholder="Número de factura, boleta, etc."
                   value={newExpense.reference || ""}
                   onChange={(e) => setNewExpense({ ...newExpense, reference: e.target.value })}
+                  disabled={savingExpense}
                 />
               </div>
 
@@ -919,6 +1017,7 @@ export default function FinancesPage() {
                 <Select
                   value={newExpense.inventoryItemId || ""}
                   onValueChange={(value) => setNewExpense({ ...newExpense, inventoryItemId: value })}
+                  disabled={savingExpense}
                 >
                   <SelectTrigger id="expense-inventory-item">
                     <SelectValue placeholder="Seleccione un item (opcional)" />
@@ -938,28 +1037,63 @@ export default function FinancesPage() {
               </div>
 
               <div className="col-span-2">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="is-historical"
+                    checked={newExpense.isHistorical || false}
+                    onCheckedChange={(checked) => setNewExpense({ ...newExpense, isHistorical: checked })}
+                    disabled={savingExpense}
+                  />
+                  <Label htmlFor="is-historical">Marcar como gasto histórico</Label>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="max-w-xs">
+                          Marca esta opción si el gasto fue realizado antes de comenzar a usar el sistema. Los gastos
+                          históricos pueden excluirse de los cálculos de rentabilidad actual.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </div>
+
+              <div className="col-span-2">
                 <Label htmlFor="expense-notes">Notas (opcional)</Label>
                 <Input
                   id="expense-notes"
                   placeholder="Notas adicionales"
                   value={newExpense.notes || ""}
                   onChange={(e) => setNewExpense({ ...newExpense, notes: e.target.value })}
+                  disabled={savingExpense}
                 />
               </div>
             </div>
           </div>
 
           <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setExpenseDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setExpenseDialogOpen(false)} disabled={savingExpense}>
               Cancelar
             </Button>
-            <Button onClick={handleSaveExpense}>{selectedExpense ? "Actualizar" : "Guardar"}</Button>
+            <Button onClick={handleSaveExpense} disabled={savingExpense}>
+              {savingExpense ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {selectedExpense ? "Actualizando..." : "Guardando..."}
+                </>
+              ) : (
+                <>{selectedExpense ? "Actualizar" : "Guardar"}</>
+              )}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Diálogo para crear categoría */}
-      <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+      <Dialog open={categoryDialogOpen} onOpenChange={(open) => !savingCategory && setCategoryDialogOpen(open)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Nueva Categoría de Gasto</DialogTitle>
@@ -974,6 +1108,7 @@ export default function FinancesPage() {
                 placeholder="Nombre de la categoría"
                 value={newCategory.name}
                 onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                disabled={savingCategory}
               />
             </div>
 
@@ -984,6 +1119,7 @@ export default function FinancesPage() {
                 placeholder="Descripción de la categoría"
                 value={newCategory.description}
                 onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
+                disabled={savingCategory}
               />
             </div>
 
@@ -996,6 +1132,7 @@ export default function FinancesPage() {
                   className="w-12 h-10 p-1"
                   value={newCategory.color}
                   onChange={(e) => setNewCategory({ ...newCategory, color: e.target.value })}
+                  disabled={savingCategory}
                 />
                 <div
                   className="w-full h-10 rounded-md flex items-center justify-center text-white font-medium"
@@ -1008,16 +1145,25 @@ export default function FinancesPage() {
           </div>
 
           <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setCategoryDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setCategoryDialogOpen(false)} disabled={savingCategory}>
               Cancelar
             </Button>
-            <Button onClick={handleSaveCategory}>Crear Categoría</Button>
+            <Button onClick={handleSaveCategory} disabled={savingCategory}>
+              {savingCategory ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creando...
+                </>
+              ) : (
+                "Crear Categoría"
+              )}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Diálogo para confirmar eliminación */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <Dialog open={deleteDialogOpen} onOpenChange={(open) => !deletingExpense && setDeleteDialogOpen(open)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Confirmar Eliminación</DialogTitle>
@@ -1027,11 +1173,18 @@ export default function FinancesPage() {
           </DialogHeader>
 
           <div className="flex justify-end gap-3 mt-4">
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={deletingExpense}>
               Cancelar
             </Button>
-            <Button variant="destructive" onClick={handleDeleteExpense}>
-              Eliminar
+            <Button variant="destructive" onClick={handleDeleteExpense} disabled={deletingExpense}>
+              {deletingExpense ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                "Eliminar"
+              )}
             </Button>
           </div>
         </DialogContent>

@@ -13,6 +13,7 @@ export interface Expense {
   status: "paid" | "pending"
   attachmentUrl?: string
   notes?: string
+  isHistorical?: boolean
   createdAt: string
   updatedAt: string
 }
