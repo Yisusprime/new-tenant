@@ -86,7 +86,7 @@ function BranchSelector() {
           if (branch) setCurrentBranch(branch)
         }}
       >
-        <SelectTrigger className="w-[180px] bg-gray-800 border-gray-700 text-white">
+        <SelectTrigger className="w-[180px] bg-gray-800 border-gray-700 text-white sm:w-[180px] w-[120px]">
           <SelectValue placeholder="Seleccionar sucursal" />
         </SelectTrigger>
         <SelectContent>
@@ -625,8 +625,9 @@ function AdminLayoutContent({
           >
             {sidebarOpen ? <ChevronLeft size={24} /> : <ChevronRight size={24} />}
           </button>
-          <h1 className="text-xl font-semibold">Panel de Administración</h1>
-          <div className="ml-auto flex items-center gap-4">
+          <h1 className="text-xl font-semibold hidden md:block">Panel de Administración</h1>
+          <h1 className="text-lg font-semibold md:hidden">Panel Admin</h1>
+          <div className="ml-auto flex items-center gap-2 sm:gap-4">
             <TooltipProvider delayDuration={300}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -644,7 +645,18 @@ function AdminLayoutContent({
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            <QuickCalculatorModal />
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <QuickCalculatorModal />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="font-medium">
+                  Calculadora rápida
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <BranchSelector />
           </div>
         </header>
