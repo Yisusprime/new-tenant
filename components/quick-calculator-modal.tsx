@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -15,13 +15,18 @@ import { cn } from "@/lib/utils"
 
 export function QuickCalculatorModal() {
   const [display, setDisplay] = useState("0")
+  const [expression, setExpression] = useState("")
   const [operation, setOperation] = useState<string | null>(null)
   const [prevValue, setPrevValue] = useState<number | null>(null)
   const [waitingForOperand, setWaitingForOperand] = useState(false)
   const [history, setHistory] = useState<string[]>([])
+  const [isOpen, setIsOpen] = useState(false)
+
+  const dialogContentRef = useRef<HTMLDivElement>(null)
 
   const clearAll = () => {
     setDisplay("0")
+    setExpression("")
     setOperation(null)
     setPrevValue(null)
     setWaitingForOperand(false)
@@ -32,30 +37,107 @@ export function QuickCalculatorModal() {
     setWaitingForOperand(false)
   }
 
+  const deleteLastDigit = () => {
+    if (display.length > 1) {
+      const newDisplay = display.slice(0, -1)
+      setDisplay(newDisplay)
+
+      // Actualizar la expresión
+      if (operation) {
+        setExpression((prevExpression) => {
+          const parts = prevExpression.split(" ")
+          parts.pop() // Eliminar el último número
+          return [...parts, newDisplay].join(" ")
+        })
+      } else {
+        setExpression(newDisplay)
+      }
+    } else {
+      setDisplay("0")
+      if (!operation) {
+        setExpression("0")
+      }
+    }
+  }
+
   const toggleSign = () => {
     const newValue = Number.parseFloat(display) * -1
     setDisplay(String(newValue))
+
+    // Actualizar la expresión si estamos esperando un operando
+    if (waitingForOperand) {
+      setExpression((prevExpression) => {
+        const parts = prevExpression.split(" ")
+        parts.pop() // Eliminar el último número
+        return [...parts, newValue].join(" ")
+      })
+    } else {
+      setExpression(String(newValue))
+    }
   }
 
   const inputPercent = () => {
     const currentValue = Number.parseFloat(display)
     const newValue = currentValue / 100
     setDisplay(String(newValue))
+
+    // Actualizar la expresión si estamos esperando un operando
+    if (waitingForOperand) {
+      setExpression((prevExpression) => {
+        const parts = prevExpression.split(" ")
+        parts.pop() // Eliminar el último número
+        return [...parts, newValue].join(" ")
+      })
+    } else {
+      setExpression(String(newValue))
+    }
   }
 
   const inputDot = () => {
     if (!/\./.test(display)) {
-      setDisplay(display + ".")
-      setWaitingForOperand(false)
+      const newDisplay = display + "."
+      setDisplay(newDisplay)
+
+      // Actualizar la expresión
+      if (waitingForOperand) {
+        setExpression((prevExpression) => {
+          const parts = prevExpression.split(" ")
+          const lastPart = parts.pop() || "" // Obtener el último operador
+          return [...parts, lastPart, "0."].join(" ")
+        })
+        setWaitingForOperand(false)
+      } else {
+        setExpression(newDisplay)
+      }
     }
   }
 
   const inputDigit = (digit: string) => {
     if (waitingForOperand) {
       setDisplay(digit)
+
+      // Actualizar la expresión añadiendo el nuevo dígito después del operador
+      setExpression((prevExpression) => {
+        return prevExpression + " " + digit
+      })
+
       setWaitingForOperand(false)
     } else {
-      setDisplay(display === "0" ? digit : display + digit)
+      const newDisplay = display === "0" ? digit : display + digit
+      setDisplay(newDisplay)
+
+      // Actualizar la expresión
+      if (operation) {
+        // Si ya hay una operación, actualizar el segundo operando
+        setExpression((prevExpression) => {
+          const parts = prevExpression.split(" ")
+          parts.pop() // Eliminar el último número
+          return [...parts, newDisplay].join(" ")
+        })
+      } else {
+        // Si no hay operación, actualizar el primer operando
+        setExpression(newDisplay)
+      }
     }
   }
 
@@ -64,6 +146,7 @@ export function QuickCalculatorModal() {
 
     if (prevValue == null) {
       setPrevValue(inputValue)
+      setExpression(`${inputValue} ${nextOperator}`)
     } else if (operation) {
       const currentValue = prevValue || 0
       let newValue: number
@@ -76,19 +159,26 @@ export function QuickCalculatorModal() {
           newValue = currentValue - inputValue
           break
         case "×":
+        case "*":
           newValue = currentValue * inputValue
           break
         case "÷":
+        case "/":
           newValue = currentValue / inputValue
           break
         default:
           newValue = inputValue
       }
 
+      // Crear la expresión completa para el historial
+      const fullExpression = `${currentValue} ${operation} ${inputValue} = ${newValue}`
+
       // Add to history when an operation is completed
       if (nextOperator === "=") {
-        const calculation = `${currentValue} ${operation} ${inputValue} = ${newValue}`
-        setHistory((prev) => [calculation, ...prev].slice(0, 4))
+        setHistory((prev) => [fullExpression, ...prev].slice(0, 4))
+        setExpression(`${newValue}`)
+      } else {
+        setExpression(`${newValue} ${nextOperator}`)
       }
 
       setPrevValue(newValue)
@@ -96,25 +186,96 @@ export function QuickCalculatorModal() {
     }
 
     setWaitingForOperand(true)
-    setOperation(nextOperator)
+    setOperation(nextOperator === "=" ? null : nextOperator)
   }
 
   const handleEquals = () => {
     performOperation("=")
-    setOperation(null)
   }
 
+  // Manejador de eventos de teclado
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isOpen) return
+
+      // Prevenir comportamiento predeterminado para evitar que las teclas afecten la página
+      event.preventDefault()
+
+      const { key } = event
+
+      // Números
+      if (/^[0-9]$/.test(key)) {
+        inputDigit(key)
+      }
+      // Operadores
+      else if (key === "+") {
+        performOperation("+")
+      } else if (key === "-") {
+        performOperation("-")
+      } else if (key === "*") {
+        performOperation("×")
+      } else if (key === "/") {
+        performOperation("÷")
+      }
+      // Igual y Enter
+      else if (key === "=" || key === "Enter") {
+        handleEquals()
+      }
+      // Punto decimal
+      else if (key === "." || key === ",") {
+        inputDot()
+      }
+      // Escape para limpiar todo
+      else if (key === "Escape") {
+        clearAll()
+      }
+      // Backspace para borrar último dígito
+      else if (key === "Backspace") {
+        deleteLastDigit()
+      }
+      // Delete para limpiar display
+      else if (key === "Delete") {
+        clearDisplay()
+      }
+      // Porcentaje
+      else if (key === "%") {
+        inputPercent()
+      }
+    }
+
+    // Solo añadir el event listener cuando el modal está abierto
+    if (isOpen) {
+      window.addEventListener("keydown", handleKeyDown)
+    }
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [isOpen, display, operation, prevValue, waitingForOperand])
+
+  // Enfocar el diálogo cuando se abre
+  useEffect(() => {
+    if (isOpen && dialogContentRef.current) {
+      dialogContentRef.current.focus()
+    }
+  }, [isOpen])
+
   return (
-    <Dialog>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon" className="text-gray-300 hover:bg-gray-700 hover:text-white">
           <Calculator className="h-5 w-5" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[350px]">
+      <DialogContent ref={dialogContentRef} className="sm:max-w-[350px]" tabIndex={-1}>
         <DialogHeader>
           <DialogTitle>Calculadora Rápida</DialogTitle>
-          <DialogDescription>Realice cálculos rápidos sin salir de la página</DialogDescription>
+          <DialogDescription>
+            Realice cálculos rápidos sin salir de la página.
+            <span className="block mt-1 text-xs text-gray-500">
+              Puede usar el teclado numérico y los operadores (+, -, *, /, =, Enter, Backspace, Esc)
+            </span>
+          </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-1 gap-4">
           {/* History */}
@@ -128,7 +289,12 @@ export function QuickCalculatorModal() {
             </div>
           )}
 
-          {/* Display */}
+          {/* Expression Display */}
+          <div className="bg-gray-50 p-2 rounded-md text-right text-sm font-mono h-8 flex items-center justify-end overflow-hidden text-gray-500">
+            {expression || "0"}
+          </div>
+
+          {/* Result Display */}
           <div className="bg-muted p-4 rounded-md text-right text-2xl font-mono h-16 flex items-center justify-end overflow-hidden">
             {display}
           </div>
@@ -142,8 +308,8 @@ export function QuickCalculatorModal() {
             <Button variant="outline" className="aspect-square text-lg font-medium" onClick={clearDisplay}>
               C
             </Button>
-            <Button variant="outline" className="aspect-square text-lg font-medium" onClick={inputPercent}>
-              %
+            <Button variant="outline" className="aspect-square text-lg font-medium" onClick={deleteLastDigit}>
+              ⌫
             </Button>
             <Button
               variant={operation === "÷" ? "default" : "outline"}
