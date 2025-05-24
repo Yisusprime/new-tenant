@@ -37,27 +37,6 @@ export function ProductDetailModal({ isOpen, onClose, product, tenantId, branchI
     }
   }, [isOpen, product, branchId])
 
-  useEffect(() => {
-    if (isOpen) {
-      // Prevent body scroll when modal is open
-      document.body.style.overflow = "hidden"
-      document.body.style.position = "fixed"
-      document.body.style.width = "100%"
-    } else {
-      // Restore body scroll when modal is closed
-      document.body.style.overflow = "unset"
-      document.body.style.position = "unset"
-      document.body.style.width = "unset"
-    }
-
-    // Cleanup function to restore scroll on unmount
-    return () => {
-      document.body.style.overflow = "unset"
-      document.body.style.position = "unset"
-      document.body.style.width = "unset"
-    }
-  }, [isOpen])
-
   const loadProductExtras = async () => {
     if (!product || !branchId) return
 
@@ -157,14 +136,14 @@ export function ProductDetailModal({ isOpen, onClose, product, tenantId, branchI
   if (!isOpen || !product) return null
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-xl max-w-lg w-full max-h-[85vh] overflow-y-auto shadow-2xl transform transition-all duration-200 ease-out">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
         <div className="relative h-64 w-full">
           <Image
             src={product.imageUrl || "/placeholder.svg?height=256&width=512&query=food"}
             alt={product.name}
             fill
-            className="object-cover rounded-t-xl"
+            className="object-cover rounded-t-lg"
           />
           <button
             onClick={onClose}
