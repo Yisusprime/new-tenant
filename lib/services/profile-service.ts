@@ -1,6 +1,8 @@
 import { db, storage } from "@/lib/firebase/client"
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage"
+import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth"
+import { auth } from "@/lib/firebase/client"
 
 export interface UserProfile {
   userId: string
@@ -114,6 +116,40 @@ export async function deleteProfileImage(tenantId: string, userId: string): Prom
     })
   } catch (error) {
     console.error("Error al eliminar imagen de perfil:", error)
+    throw error
+  }
+}
+
+// Función para cambiar la contraseña del usuario
+export async function changeUserPassword(currentPassword: string, newPassword: string): Promise<void> {
+  try {
+    const user = auth.currentUser
+    if (!user || !user.email) {
+      throw new Error("No hay usuario autenticado")
+    }
+
+    // Crear credenciales para reautenticación
+    const credential = EmailAuthProvider.credential(user.email, currentPassword)
+
+    // Reautenticar al usuario
+    await reauthenticateWithCredential(user, credential)
+
+    // Actualizar la contraseña
+    await updatePassword(user, newPassword)
+  } catch (error) {
+    console.error("Error al cambiar contraseña:", error)
+
+    // Manejar errores específicos
+    if (error instanceof Error) {
+      if (error.message.includes("auth/wrong-password")) {
+        throw new Error("La contraseña actual es incorrecta")
+      } else if (error.message.includes("auth/weak-password")) {
+        throw new Error("La nueva contraseña es muy débil. Debe tener al menos 6 caracteres")
+      } else if (error.message.includes("auth/requires-recent-login")) {
+        throw new Error("Por seguridad, necesitas iniciar sesión nuevamente antes de cambiar la contraseña")
+      }
+    }
+
     throw error
   }
 }

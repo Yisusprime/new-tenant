@@ -4,7 +4,13 @@ import type React from "react"
 
 import { useEffect, useState, useRef } from "react"
 import { useAuth } from "@/lib/context/auth-context"
-import { getUserProfile, updateUserProfile, uploadProfileImage, type UserProfile } from "@/lib/services/profile-service"
+import {
+  getUserProfile,
+  updateUserProfile,
+  uploadProfileImage,
+  changeUserPassword,
+  type UserProfile,
+} from "@/lib/services/profile-service"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -15,7 +21,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, Camera, User, Mail, Phone, Briefcase, MapPin, Globe, Trash } from "lucide-react"
+import { Loader2, Camera, User, Mail, Phone, Briefcase, MapPin, Globe, Trash, Lock, Eye, EyeOff } from "lucide-react"
 
 export default function ProfilePage({
   params,
@@ -28,8 +34,14 @@ export default function ProfilePage({
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
+  const [changingPassword, setChangingPassword] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
+
+  // Estados para mostrar/ocultar contraseñas
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   // Formulario para datos personales
   const [personalForm, setPersonalForm] = useState({
@@ -53,6 +65,13 @@ export default function ProfilePage({
     notifications: true,
     darkMode: false,
     language: "es",
+  })
+
+  // Formulario para cambio de contraseña
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   })
 
   useEffect(() => {
@@ -213,6 +232,84 @@ export default function ProfilePage({
       })
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user) return
+
+    // Validaciones
+    if (!passwordForm.currentPassword) {
+      toast({
+        title: "Error",
+        description: "Debes ingresar tu contraseña actual",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!passwordForm.newPassword) {
+      toast({
+        title: "Error",
+        description: "Debes ingresar una nueva contraseña",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      toast({
+        title: "Error",
+        description: "La nueva contraseña debe tener al menos 6 caracteres",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "Las contraseñas no coinciden",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (passwordForm.currentPassword === passwordForm.newPassword) {
+      toast({
+        title: "Error",
+        description: "La nueva contraseña debe ser diferente a la actual",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setChangingPassword(true)
+
+      await changeUserPassword(passwordForm.currentPassword, passwordForm.newPassword)
+
+      // Limpiar el formulario
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      })
+
+      toast({
+        title: "Contraseña actualizada",
+        description: "Tu contraseña se ha cambiado correctamente",
+      })
+    } catch (error) {
+      console.error("Error al cambiar contraseña:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo cambiar la contraseña",
+        variant: "destructive",
+      })
+    } finally {
+      setChangingPassword(false)
     }
   }
 
@@ -422,10 +519,11 @@ export default function ProfilePage({
         {/* Formularios */}
         <div className="md:col-span-2">
           <Tabs defaultValue="personal" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="personal">Información Personal</TabsTrigger>
-              <TabsTrigger value="social">Redes Sociales</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="personal">Personal</TabsTrigger>
+              <TabsTrigger value="social">Redes</TabsTrigger>
               <TabsTrigger value="preferences">Preferencias</TabsTrigger>
+              <TabsTrigger value="security">Seguridad</TabsTrigger>
             </TabsList>
 
             {/* Pestaña de información personal */}
@@ -621,6 +719,108 @@ export default function ProfilePage({
                   <Button type="submit" form="preferences-form" disabled={saving}>
                     {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                     Guardar Cambios
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+
+            {/* Pestaña de seguridad */}
+            <TabsContent value="security">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Lock className="h-5 w-5" />
+                    Seguridad
+                  </CardTitle>
+                  <CardDescription>Cambia tu contraseña para mantener tu cuenta segura</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form id="security-form" onSubmit={handlePasswordSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="currentPassword">Contraseña actual</Label>
+                      <div className="relative">
+                        <Input
+                          id="currentPassword"
+                          type={showCurrentPassword ? "text" : "password"}
+                          value={passwordForm.currentPassword}
+                          onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                          placeholder="Ingresa tu contraseña actual"
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        >
+                          {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="newPassword">Nueva contraseña</Label>
+                      <div className="relative">
+                        <Input
+                          id="newPassword"
+                          type={showNewPassword ? "text" : "password"}
+                          value={passwordForm.newPassword}
+                          onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                          placeholder="Ingresa tu nueva contraseña"
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                        >
+                          {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      <p className="text-sm text-muted-foreground">La contraseña debe tener al menos 6 caracteres</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmPassword">Confirmar nueva contraseña</Label>
+                      <div className="relative">
+                        <Input
+                          id="confirmPassword"
+                          type={showConfirmPassword ? "text" : "password"}
+                          value={passwordForm.confirmPassword}
+                          onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                          placeholder="Confirma tu nueva contraseña"
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        >
+                          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <h4 className="font-medium text-blue-900 mb-2">Consejos para una contraseña segura:</h4>
+                      <ul className="text-sm text-blue-800 space-y-1">
+                        <li>• Usa al menos 8 caracteres</li>
+                        <li>• Incluye mayúsculas y minúsculas</li>
+                        <li>• Añade números y símbolos</li>
+                        <li>• Evita información personal</li>
+                      </ul>
+                    </div>
+                  </form>
+                </CardContent>
+                <CardFooter className="flex justify-end">
+                  <Button type="submit" form="security-form" disabled={changingPassword}>
+                    {changingPassword ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                    Cambiar Contraseña
                   </Button>
                 </CardFooter>
               </Card>
