@@ -46,21 +46,11 @@ export function ProductDetailModal({ isOpen, onClose, product, tenantId, branchI
       const extrasData = await getProductExtras(tenantId, branchId)
       // Filtrar solo extras activos
       const activeExtras = extrasData.filter((extra: any) => extra.isActive)
-
-      // NUEVO: Filtrar solo los extras asignados a este producto
-      let productExtras = activeExtras
-      if (product.availableExtras && product.availableExtras.length > 0) {
-        productExtras = activeExtras.filter((extra: any) => product.availableExtras.includes(extra.id))
-      } else {
-        // Si el producto no tiene extras asignados, mostrar array vacío
-        productExtras = []
-      }
-
-      setExtras(productExtras)
+      setExtras(activeExtras)
 
       // Inicializar el estado de selección
       const initialSelection: Record<string, boolean> = {}
-      productExtras.forEach((extra: any) => {
+      activeExtras.forEach((extra: any) => {
         initialSelection[extra.id] = false
       })
       setSelectedExtras(initialSelection)
