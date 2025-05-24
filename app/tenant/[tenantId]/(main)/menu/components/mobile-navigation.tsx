@@ -59,8 +59,8 @@ export function MobileNavigation() {
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 shadow-lg">
-      <div className="flex items-center justify-around h-14">
+    <div className="fixed bottom-0 left-0 right-0 bg-white/98 backdrop-blur-md border-t border-gray-200 z-50 shadow-2xl pb-safe">
+      <div className="flex items-center justify-around h-20">
         <Link href="/menu" className="flex flex-col items-center justify-center">
           <Home className="h-5 w-5 text-gray-500" />
           <span className="text-xs mt-1 text-gray-500">Inicio</span>
