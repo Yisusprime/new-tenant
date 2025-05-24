@@ -58,6 +58,14 @@ export function ProductForm({ tenantId, branchId, productId }: ProductFormProps)
   const [subcategories, setSubcategories] = useState<Subcategory[]>([])
   const [extras, setExtras] = useState<ProductExtra[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState("")
+
+  // Filtrar extras basado en el término de búsqueda
+  const filteredExtras = extras.filter(
+    (extra) =>
+      extra.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (extra.description && extra.description.toLowerCase().includes(searchTerm.toLowerCase())),
+  )
   const router = useRouter()
   const { toast } = useToast()
   const isEditing = !!productId
@@ -564,42 +572,118 @@ export function ProductForm({ tenantId, branchId, productId }: ProductFormProps)
                           <FormDescription>Selecciona los extras que se pueden agregar a este producto</FormDescription>
                         </div>
                         {extras.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">
-                            No hay extras disponibles. Crea extras en la sección de Extras Globales.
-                          </p>
+                          <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
+                            <p className="text-sm text-muted-foreground mb-2">No hay extras disponibles</p>
+                            <p className="text-xs text-muted-foreground">
+                              Crea extras en la sección de Extras Globales
+                            </p>
+                          </div>
                         ) : (
-                          <div className="space-y-2">
-                            {extras.map((extra) => (
-                              <FormField
-                                key={extra.id}
-                                control={form.control}
-                                name="availableExtras"
-                                render={({ field }) => {
-                                  return (
-                                    <FormItem key={extra.id} className="flex flex-row items-start space-x-3 space-y-0">
-                                      <FormControl>
-                                        <Checkbox
-                                          checked={field.value?.includes(extra.id)}
-                                          onCheckedChange={(checked) => {
-                                            return checked
-                                              ? field.onChange([...(field.value || []), extra.id])
-                                              : field.onChange(field.value?.filter((value) => value !== extra.id))
-                                          }}
-                                        />
-                                      </FormControl>
-                                      <div className="space-y-1 leading-none">
-                                        <FormLabel className="text-sm font-normal">
-                                          {extra.name} - ${extra.price.toFixed(2)}
-                                        </FormLabel>
-                                        {extra.description && (
-                                          <FormDescription className="text-xs">{extra.description}</FormDescription>
-                                        )}
+                          <div className="space-y-4">
+                            {/* Contador de extras seleccionados */}
+                            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                              <span className="text-sm font-medium">
+                                Extras seleccionados: {form.watch("availableExtras")?.length || 0} de{" "}
+                                {filteredExtras.length}
+                              </span>
+                              <div className="flex gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    const allExtraIds = filteredExtras.map((extra) => extra.id)
+                                    form.setValue("availableExtras", allExtraIds)
+                                  }}
+                                >
+                                  Seleccionar todos
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => form.setValue("availableExtras", [])}
+                                >
+                                  Deseleccionar todos
+                                </Button>
+                              </div>
+                            </div>
+
+                            {/* Grid de extras */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto border rounded-lg p-4">
+                              {filteredExtras.map((extra) => (
+                                <FormField
+                                  key={extra.id}
+                                  control={form.control}
+                                  name="availableExtras"
+                                  render={({ field }) => {
+                                    const isSelected = field.value?.includes(extra.id) || false
+                                    return (
+                                      <div
+                                        className={`relative border rounded-lg p-3 cursor-pointer transition-all hover:shadow-md ${
+                                          isSelected
+                                            ? "border-primary bg-primary/5 shadow-sm"
+                                            : "border-gray-200 hover:border-gray-300"
+                                        }`}
+                                        onClick={() => {
+                                          const currentValues = field.value || []
+                                          const newValues = isSelected
+                                            ? currentValues.filter((value) => value !== extra.id)
+                                            : [...currentValues, extra.id]
+                                          field.onChange(newValues)
+                                        }}
+                                      >
+                                        <FormControl>
+                                          <Checkbox
+                                            checked={isSelected}
+                                            onChange={() => {}} // Manejado por el onClick del div
+                                            className="absolute top-2 right-2"
+                                          />
+                                        </FormControl>
+
+                                        <div className="pr-8">
+                                          <div className="flex items-center gap-2 mb-1">
+                                            {extra.imageUrl && (
+                                              <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+                                                <Image
+                                                  src={extra.imageUrl || "/placeholder.svg"}
+                                                  alt={extra.name}
+                                                  width={32}
+                                                  height={32}
+                                                  className="w-full h-full object-cover"
+                                                />
+                                              </div>
+                                            )}
+                                            <div className="min-w-0 flex-1">
+                                              <h4 className="font-medium text-sm truncate">{extra.name}</h4>
+                                              <p className="text-sm font-semibold text-green-600">
+                                                ${extra.price.toFixed(2)}
+                                              </p>
+                                            </div>
+                                          </div>
+
+                                          {extra.description && (
+                                            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                                              {extra.description}
+                                            </p>
+                                          )}
+                                        </div>
                                       </div>
-                                    </FormItem>
-                                  )
-                                }}
+                                    )
+                                  }}
+                                />
+                              ))}
+                            </div>
+
+                            {/* Búsqueda rápida */}
+                            <div className="mt-4">
+                              <Input
+                                placeholder="Buscar extras..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="max-w-sm"
                               />
-                            ))}
+                            </div>
                           </div>
                         )}
                         <FormMessage />
