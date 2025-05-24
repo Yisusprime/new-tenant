@@ -12,6 +12,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
 import { useToast } from "@/components/ui/use-toast"
@@ -25,7 +26,6 @@ import {
   getProductExtras,
 } from "@/lib/services/product-service"
 import { type Category, type Subcategory, getCategories, getCategory } from "@/lib/services/category-service"
-import { ExtrasSelector } from "./extras-selector"
 
 // Esquema de validación para el formulario
 const productSchema = z.object({
@@ -568,11 +568,39 @@ export function ProductForm({ tenantId, branchId, productId }: ProductFormProps)
                             No hay extras disponibles. Crea extras en la sección de Extras Globales.
                           </p>
                         ) : (
-                          <ExtrasSelector
-                            extras={extras}
-                            selectedExtras={form.watch("availableExtras") || []}
-                            onSelectionChange={(selectedIds) => form.setValue("availableExtras", selectedIds)}
-                          />
+                          <div className="space-y-2">
+                            {extras.map((extra) => (
+                              <FormField
+                                key={extra.id}
+                                control={form.control}
+                                name="availableExtras"
+                                render={({ field }) => {
+                                  return (
+                                    <FormItem key={extra.id} className="flex flex-row items-start space-x-3 space-y-0">
+                                      <FormControl>
+                                        <Checkbox
+                                          checked={field.value?.includes(extra.id)}
+                                          onCheckedChange={(checked) => {
+                                            return checked
+                                              ? field.onChange([...(field.value || []), extra.id])
+                                              : field.onChange(field.value?.filter((value) => value !== extra.id))
+                                          }}
+                                        />
+                                      </FormControl>
+                                      <div className="space-y-1 leading-none">
+                                        <FormLabel className="text-sm font-normal">
+                                          {extra.name} - ${extra.price.toFixed(2)}
+                                        </FormLabel>
+                                        {extra.description && (
+                                          <FormDescription className="text-xs">{extra.description}</FormDescription>
+                                        )}
+                                      </div>
+                                    </FormItem>
+                                  )
+                                }}
+                              />
+                            ))}
+                          </div>
                         )}
                         <FormMessage />
                       </FormItem>
