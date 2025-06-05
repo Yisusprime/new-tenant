@@ -3,11 +3,7 @@
 import type React from "react"
 
 import { useState, useRef } from "react"
-import {
-  uploadRestaurantLogo,
-  deleteRestaurantLogo,
-  type RestaurantBasicInfo,
-} from "@/lib/services/restaurant-config-service"
+import { deleteRestaurantLogo, type RestaurantBasicInfo } from "@/lib/services/restaurant-config-service"
 import { RestaurantConfigSteps } from "@/components/restaurant-config-steps"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -101,10 +97,27 @@ export default function RestaurantBasicInfoPage({
     try {
       setUploadingLogo(true)
 
-      const logoUrl = await uploadRestaurantLogo(tenantId, currentBranch.id, file)
+      // Crear FormData para enviar el archivo
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("tenantId", tenantId)
+      formData.append("branchId", currentBranch.id)
+
+      // Subir el archivo usando la API
+      const response = await fetch("/api/upload/logo", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Error al subir el archivo")
+      }
+
+      const { url } = await response.json()
 
       // Actualizar el estado local
-      setBasicInfo((prev) => ({ ...prev, logo: logoUrl }))
+      setBasicInfo((prev) => ({ ...prev, logo: url }))
 
       toast({
         title: "Logo actualizado",
@@ -114,7 +127,7 @@ export default function RestaurantBasicInfoPage({
       console.error("Error al subir logo:", error)
       toast({
         title: "Error",
-        description: "No se pudo subir el logo",
+        description: error instanceof Error ? error.message : "No se pudo subir el logo",
         variant: "destructive",
       })
     } finally {
@@ -130,7 +143,7 @@ export default function RestaurantBasicInfoPage({
     try {
       setUploadingLogo(true)
 
-      await deleteRestaurantLogo(tenantId, currentBranch.id)
+      await deleteRestaurantLogo(tenantId, currentBranch.id, basicInfo.logo)
 
       // Actualizar el estado local
       setBasicInfo((prev) => ({ ...prev, logo: undefined }))

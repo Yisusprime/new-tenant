@@ -1,6 +1,6 @@
-import { db, storage } from "@/lib/firebase/client"
+import { db } from "@/lib/firebase/client"
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore"
-import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage"
+import { put, del } from "@vercel/blob"
 
 // Actualizar la interfaz RestaurantBasicInfo para incluir bannerImage, currencyCode y taxRate
 export interface RestaurantBasicInfo {
@@ -168,14 +168,14 @@ export async function uploadRestaurantLogo(tenantId: string, branchId: string, f
 
     console.log(`Subiendo logo para tenant: ${tenantId}, sucursal: ${branchId}`)
 
-    // Crear una referencia al archivo en Storage
-    const storageRef = ref(storage, `tenants/${tenantId}/branches/${branchId}/restaurant/logo`)
+    // Crear un nombre único para el archivo
+    const fileName = `tenants/${tenantId}/branches/${branchId}/restaurant/logo-${Date.now()}.${file.name.split(".").pop()}`
 
-    // Subir el archivo
-    await uploadBytes(storageRef, file)
-
-    // Obtener la URL de descarga
-    const downloadURL = await getDownloadURL(storageRef)
+    // Subir el archivo a Vercel Blob
+    const blob = await put(fileName, file, {
+      access: "public",
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    })
 
     // Actualizar la configuración con la nueva URL
     const configRef = doc(db, `tenants/${tenantId}/branches/${branchId}/config`, "restaurant")
@@ -185,7 +185,7 @@ export async function uploadRestaurantLogo(tenantId: string, branchId: string, f
       const currentConfig = configDoc.data() as RestaurantConfig
       const updatedBasicInfo = {
         ...currentConfig.basicInfo,
-        logo: downloadURL,
+        logo: blob.url,
       }
 
       await updateDoc(configRef, {
@@ -195,7 +195,7 @@ export async function uploadRestaurantLogo(tenantId: string, branchId: string, f
     }
 
     console.log(`Logo subido correctamente para sucursal ${branchId}`)
-    return downloadURL
+    return blob.url
   } catch (error) {
     console.error("Error al subir logo del restaurante:", error)
     throw error
@@ -203,7 +203,7 @@ export async function uploadRestaurantLogo(tenantId: string, branchId: string, f
 }
 
 // Función para eliminar el logo del restaurante
-export async function deleteRestaurantLogo(tenantId: string, branchId: string): Promise<void> {
+export async function deleteRestaurantLogo(tenantId: string, branchId: string, logoUrl?: string): Promise<void> {
   try {
     if (!branchId) {
       throw new Error("No se proporcionó ID de sucursal")
@@ -211,11 +211,17 @@ export async function deleteRestaurantLogo(tenantId: string, branchId: string): 
 
     console.log(`Eliminando logo para tenant: ${tenantId}, sucursal: ${branchId}`)
 
-    // Crear una referencia al archivo en Storage
-    const storageRef = ref(storage, `tenants/${tenantId}/branches/${branchId}/restaurant/logo`)
-
-    // Eliminar el archivo
-    await deleteObject(storageRef)
+    // Si tenemos la URL del logo, intentar eliminarlo de Blob
+    if (logoUrl) {
+      try {
+        await del(logoUrl, {
+          token: process.env.BLOB_READ_WRITE_TOKEN,
+        })
+      } catch (blobError) {
+        console.warn("Error al eliminar archivo de Blob:", blobError)
+        // Continuar con la actualización de la configuración aunque falle la eliminación del archivo
+      }
+    }
 
     // Actualizar la configuración para quitar la URL
     const configRef = doc(db, `tenants/${tenantId}/branches/${branchId}/config`, "restaurant")
@@ -250,14 +256,14 @@ export async function uploadRestaurantBanner(tenantId: string, branchId: string,
 
     console.log(`Subiendo banner para tenant: ${tenantId}, sucursal: ${branchId}`)
 
-    // Crear una referencia al archivo en Storage
-    const storageRef = ref(storage, `tenants/${tenantId}/branches/${branchId}/restaurant/banner`)
+    // Crear un nombre único para el archivo
+    const fileName = `tenants/${tenantId}/branches/${branchId}/restaurant/banner-${Date.now()}.${file.name.split(".").pop()}`
 
-    // Subir el archivo
-    await uploadBytes(storageRef, file)
-
-    // Obtener la URL de descarga
-    const downloadURL = await getDownloadURL(storageRef)
+    // Subir el archivo a Vercel Blob
+    const blob = await put(fileName, file, {
+      access: "public",
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    })
 
     // Actualizar la configuración con la nueva URL
     const configRef = doc(db, `tenants/${tenantId}/branches/${branchId}/config`, "restaurant")
@@ -267,7 +273,7 @@ export async function uploadRestaurantBanner(tenantId: string, branchId: string,
       const currentConfig = configDoc.data() as RestaurantConfig
       const updatedBasicInfo = {
         ...currentConfig.basicInfo,
-        bannerImage: downloadURL,
+        bannerImage: blob.url,
       }
 
       await updateDoc(configRef, {
@@ -277,7 +283,7 @@ export async function uploadRestaurantBanner(tenantId: string, branchId: string,
     }
 
     console.log(`Banner subido correctamente para sucursal ${branchId}`)
-    return downloadURL
+    return blob.url
   } catch (error) {
     console.error("Error al subir banner del restaurante:", error)
     throw error
