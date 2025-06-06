@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import { MapPin, Info, Star, Search, User, ShoppingBag } from "lucide-react"
+import { MapPin, Info, Star, Search, User, ShoppingBag, AlertCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { isRestaurantOpen } from "../utils/restaurant-hours"
 import { getAuth, onAuthStateChanged } from "firebase/auth"
-import { useRouter } from "next/navigation"
+import { useRouter, useParams } from "next/navigation"
+import { useCashRegisterStatus } from "@/lib/hooks/use-cash-register-status"
+import { useBranch } from "@/lib/hooks/use-branch"
 
 interface RestaurantHeaderProps {
   restaurantData: any
@@ -16,11 +18,19 @@ interface RestaurantHeaderProps {
 }
 
 export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick }: RestaurantHeaderProps) {
-  const [isOpen, setIsOpen] = useState(false)
+  const [isRestaurantHoursOpen, setIsRestaurantHoursOpen] = useState(false)
   const router = useRouter()
+  const params = useParams()
   const [user, setUser] = useState<any>(null)
   const auth = getAuth()
   const [imageError, setImageError] = useState({ logo: false, banner: false })
+
+  const tenantId = params.tenantId as string
+  const { selectedBranch } = useBranch()
+  const branchId = selectedBranch?.id || ""
+
+  // Hook para verificar estado de cajas registradoras
+  const { hasOpenCashRegister, isLoading: cashRegisterLoading } = useCashRegisterStatus(tenantId, branchId)
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -33,9 +43,14 @@ export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick
   useEffect(() => {
     if (restaurantConfig?.hours) {
       const open = isRestaurantOpen(restaurantConfig.hours.schedule)
-      setIsOpen(open)
+      setIsRestaurantHoursOpen(open)
     }
   }, [restaurantConfig])
+
+  // El restaurante está "abierto" solo si:
+  // 1. Los horarios del restaurante permiten estar abierto
+  // 2. Hay al menos una caja registradora abierta
+  const isOpen = isRestaurantHoursOpen && hasOpenCashRegister
 
   // Función para construir rutas correctamente
   const buildRoute = (path: string) => {
@@ -49,9 +64,9 @@ export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick
     // Extraer el tenantId de la URL actual
     const pathSegments = window.location.pathname.split("/")
     const tenantIdIndex = pathSegments.findIndex((segment) => segment === "tenant") + 1
-    const tenantId = pathSegments[tenantIdIndex]
+    const currentTenantId = pathSegments[tenantIdIndex]
 
-    return isSubdomain ? path : `/tenant/${tenantId}${path}`
+    return isSubdomain ? path : `/tenant/${currentTenantId}${path}`
   }
 
   const handleProfileClick = () => {
@@ -82,6 +97,18 @@ export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick
     setImageError((prev) => ({ ...prev, banner: true }))
   }
 
+  // Función para manejar el clic en el estado del restaurante
+  const handleStatusClick = () => {
+    if (!hasOpenCashRegister && isRestaurantHoursOpen) {
+      // Si no hay caja abierta pero el restaurante debería estar abierto por horarios,
+      // mostrar información sobre por qué está cerrado
+      onInfoClick()
+    } else {
+      // En otros casos, mostrar la información general del restaurante
+      onInfoClick()
+    }
+  }
+
   // Usar imágenes personalizadas o por defecto
   const bannerImage =
     restaurantConfig?.basicInfo?.bannerImage && !imageError.banner
@@ -94,6 +121,41 @@ export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick
   const restaurantName = restaurantData?.name || restaurantConfig?.basicInfo?.name || "Restaurante"
   const shortDescription = restaurantConfig?.basicInfo?.shortDescription || "Deliciosa comida para todos los gustos"
   const address = restaurantConfig?.location?.address || "Dirección no disponible"
+
+  // Determinar el texto y estilo del badge
+  const getStatusBadge = () => {
+    if (cashRegisterLoading) {
+      return {
+        text: "Verificando...",
+        className: "bg-gray-500/90 text-white border-gray-600",
+        icon: null,
+      }
+    }
+
+    if (!isRestaurantHoursOpen) {
+      return {
+        text: "Cerrado por horario",
+        className: "bg-red-500/90 text-white border-red-600",
+        icon: <div className="w-2 h-2 rounded-full mr-2 bg-white"></div>,
+      }
+    }
+
+    if (!hasOpenCashRegister) {
+      return {
+        text: "Cerrado - Sin caja abierta",
+        className: "bg-orange-500/90 text-white border-orange-600",
+        icon: <AlertCircle className="w-3 h-3 mr-2" />,
+      }
+    }
+
+    return {
+      text: "Abierto ahora",
+      className: "bg-green-500/90 text-white border-green-600",
+      icon: <div className="w-2 h-2 rounded-full mr-2 bg-white"></div>,
+    }
+  }
+
+  const statusBadge = getStatusBadge()
 
   return (
     <div className="bg-white relative">
@@ -155,16 +217,14 @@ export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick
 
           {/* Controles superiores */}
           <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center">
-            {/* Botón de abierto/cerrado en la esquina superior izquierda */}
+            {/* Botón de estado del restaurante */}
             <Badge
               variant="outline"
-              className={`px-3 py-1.5 text-sm font-medium rounded-full ${
-                isOpen ? "bg-green-500/90 text-white border-green-600" : "bg-red-500/90 text-white border-red-600"
-              }`}
-              onClick={onInfoClick}
+              className={`px-3 py-1.5 text-sm font-medium rounded-full cursor-pointer hover:opacity-80 transition-opacity ${statusBadge.className}`}
+              onClick={handleStatusClick}
             >
-              <div className={`w-2 h-2 rounded-full mr-2 ${isOpen ? "bg-white" : "bg-white"}`}></div>
-              {isOpen ? "Abierto ahora" : "Cerrado"}
+              {statusBadge.icon}
+              {statusBadge.text}
             </Badge>
 
             <div className="flex gap-2 md:hidden">
@@ -219,6 +279,16 @@ export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick
           <MapPin className="h-4 w-4 inline mr-1" />
           {address}
         </div>
+
+        {/* Mensaje adicional cuando no hay caja abierta */}
+        {isRestaurantHoursOpen && !hasOpenCashRegister && !cashRegisterLoading && (
+          <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+            <div className="flex items-center justify-center text-orange-700 text-sm">
+              <AlertCircle className="h-4 w-4 mr-2" />
+              <span>No se pueden recibir pedidos sin una caja abierta</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
