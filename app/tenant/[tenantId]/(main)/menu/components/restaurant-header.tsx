@@ -1,9 +1,13 @@
 "use client"
 
-import { useState } from "react"
-import { Search, User, ShoppingBag, Info, MapPin, Star, Clock } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect } from "react"
 import Image from "next/image"
+import { MapPin, Info, Star, Search, User, ShoppingBag } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { isRestaurantOpen } from "../utils/restaurant-hours"
+import { getAuth, onAuthStateChanged } from "firebase/auth"
+import { useRouter } from "next/navigation"
 
 interface RestaurantHeaderProps {
   restaurantData: any
@@ -12,24 +16,63 @@ interface RestaurantHeaderProps {
 }
 
 export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick }: RestaurantHeaderProps) {
+  const [isOpen, setIsOpen] = useState(false)
+  const router = useRouter()
+  const [user, setUser] = useState<any>(null)
+  const auth = getAuth()
   const [imageError, setImageError] = useState({ logo: false, banner: false })
 
-  // Obtener las URLs de las imágenes o usar las por defecto
-  const logoUrl =
-    restaurantConfig?.basicInfo?.logo && !imageError.logo
-      ? restaurantConfig.basicInfo.logo
-      : "/default-restaurant-logo.png"
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser)
+    })
 
-  const bannerUrl =
-    restaurantConfig?.basicInfo?.bannerImage && !imageError.banner
-      ? restaurantConfig.basicInfo.bannerImage
-      : "/default-restaurant-banner.png"
+    return () => unsubscribe()
+  }, [auth])
 
-  const restaurantName = restaurantConfig?.basicInfo?.name || restaurantData?.name || "Restaurante"
-  const shortDescription = restaurantConfig?.basicInfo?.shortDescription || "Deliciosa comida para ti"
+  useEffect(() => {
+    if (restaurantConfig?.hours) {
+      const open = isRestaurantOpen(restaurantConfig.hours.schedule)
+      setIsOpen(open)
+    }
+  }, [restaurantConfig])
 
-  // Verificar si el restaurante está abierto
-  const isOpen = true // Por ahora siempre abierto, puedes implementar lógica de horarios aquí
+  // Función para construir rutas correctamente
+  const buildRoute = (path: string) => {
+    // Si estamos en un subdominio, no necesitamos incluir /tenant/[tenantId]
+    const isSubdomain =
+      typeof window !== "undefined" &&
+      window.location.hostname.includes(".") &&
+      !window.location.hostname.startsWith("www.") &&
+      !window.location.hostname.startsWith("localhost")
+
+    // Extraer el tenantId de la URL actual
+    const pathSegments = window.location.pathname.split("/")
+    const tenantIdIndex = pathSegments.findIndex((segment) => segment === "tenant") + 1
+    const tenantId = pathSegments[tenantIdIndex]
+
+    return isSubdomain ? path : `/tenant/${tenantId}${path}`
+  }
+
+  const handleProfileClick = () => {
+    if (user) {
+      router.push(buildRoute("/menu/profile"))
+    } else {
+      router.push(buildRoute("/menu/login"))
+    }
+  }
+
+  const handleOrdersClick = () => {
+    if (user) {
+      router.push(buildRoute("/menu/orders"))
+    } else {
+      router.push(buildRoute("/menu/login?redirect=orders"))
+    }
+  }
+
+  const handleSearchClick = () => {
+    router.push(buildRoute("/menu/search"))
+  }
 
   const handleLogoError = () => {
     setImageError((prev) => ({ ...prev, logo: true }))
@@ -39,56 +82,112 @@ export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick
     setImageError((prev) => ({ ...prev, banner: true }))
   }
 
+  // Usar imágenes personalizadas o por defecto
+  const bannerImage =
+    restaurantConfig?.basicInfo?.bannerImage && !imageError.banner
+      ? restaurantConfig.basicInfo.bannerImage
+      : "/placeholder.svg?key=3wznk"
+
+  const logoImage =
+    restaurantConfig?.basicInfo?.logo && !imageError.logo ? restaurantConfig.basicInfo.logo : "/restaurant-logo.png"
+
+  const restaurantName = restaurantData?.name || restaurantConfig?.basicInfo?.name || "Restaurante"
+  const shortDescription = restaurantConfig?.basicInfo?.shortDescription || "Deliciosa comida para todos los gustos"
+  const address = restaurantConfig?.location?.address || "Dirección no disponible"
+
   return (
-    <div className="relative">
-      {/* Banner de fondo */}
-      <div className="relative h-48 md:h-64 overflow-hidden">
-        <Image
-          src={bannerUrl || "/placeholder.svg"}
-          alt={`Banner de ${restaurantName}`}
-          fill
-          className="object-cover"
-          onError={handleBannerError}
-          priority
-        />
-        {/* Overlay oscuro para mejor legibilidad */}
-        <div className="absolute inset-0 bg-black/20" />
-
-        {/* Header superior */}
-        <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center">
-          {/* Estado del restaurante */}
-          <div className="flex items-center">
-            <span
-              className={`px-3 py-1 rounded-full text-sm font-medium text-white ${
-                isOpen ? "bg-green-500" : "bg-red-500"
-              }`}
-            >
-              {isOpen ? "Abierto" : "Cerrado"}
-            </span>
-          </div>
-
-          {/* Iconos de navegación */}
-          <div className="flex items-center space-x-2">
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
-              <Search className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
-              <User className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
-              <ShoppingBag className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
+    <div className="bg-white relative">
+      {/* Botones de PC en la esquina superior derecha */}
+      <div className="absolute top-4 right-4 z-10 hidden md:flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="bg-white/80 backdrop-blur-sm rounded-full"
+          onClick={handleSearchClick}
+        >
+          <Search className="h-4 w-4 mr-2" />
+          Buscar
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="bg-white/80 backdrop-blur-sm rounded-full"
+          onClick={handleProfileClick}
+        >
+          {user ? (
+            <>
+              {user.photoURL ? (
+                <img src={user.photoURL || "/placeholder.svg"} alt="Perfil" className="h-4 w-4 rounded-full mr-2" />
+              ) : (
+                <User className="h-4 w-4 mr-2" />
+              )}
+              {user.displayName ? user.displayName.split(" ")[0] : "Perfil"}
+            </>
+          ) : (
+            <>
+              <User className="h-4 w-4 mr-2" />
+              Login
+            </>
+          )}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="bg-white/80 backdrop-blur-sm rounded-full"
+          onClick={handleOrdersClick}
+        >
+          <ShoppingBag className="h-4 w-4 mr-2" />
+          Pedidos
+        </Button>
       </div>
 
-      {/* Información del restaurante */}
-      <div className="relative bg-white px-4 py-6 -mt-8 mx-4 rounded-t-3xl shadow-lg">
-        {/* Logo del restaurante */}
-        <div className="absolute -top-12 left-1/2 transform -translate-x-1/2">
-          <div className="relative w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-lg bg-white">
+      {/* Banner con controles */}
+      <div className="relative">
+        <div className="relative h-40 w-full overflow-hidden">
+          <Image
+            src={bannerImage || "/placeholder.svg"}
+            alt={`Banner de ${restaurantName}`}
+            fill
+            className="object-cover"
+            onError={handleBannerError}
+            priority
+          />
+
+          {/* Controles superiores */}
+          <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center">
+            {/* Botón de abierto/cerrado en la esquina superior izquierda */}
+            <Badge
+              variant="outline"
+              className={`px-3 py-1.5 text-sm font-medium rounded-full ${
+                isOpen ? "bg-green-500/90 text-white border-green-600" : "bg-red-500/90 text-white border-red-600"
+              }`}
+              onClick={onInfoClick}
+            >
+              <div className={`w-2 h-2 rounded-full mr-2 ${isOpen ? "bg-white" : "bg-white"}`}></div>
+              {isOpen ? "Abierto ahora" : "Cerrado"}
+            </Badge>
+
+            <div className="flex gap-2 md:hidden">
+              <Button variant="outline" size="icon" className="bg-white/80 backdrop-blur-sm rounded-full h-10 w-10">
+                <Star className="h-5 w-5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="bg-white/80 backdrop-blur-sm rounded-full h-10 w-10"
+                onClick={onInfoClick}
+              >
+                <Info className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Logo superpuesto */}
+        <div className="absolute left-1/2 transform -translate-x-1/2 -bottom-12">
+          <div className="relative w-24 h-24 rounded-full border-4 border-white overflow-hidden bg-white shadow-md">
             <Image
-              src={logoUrl || "/placeholder.svg"}
+              src={logoImage || "/placeholder.svg"}
               alt={`Logo de ${restaurantName}`}
               fill
               className="object-cover"
@@ -96,48 +195,29 @@ export function RestaurantHeader({ restaurantData, restaurantConfig, onInfoClick
             />
           </div>
         </div>
+      </div>
 
-        {/* Contenido principal */}
-        <div className="pt-16 text-center">
-          {/* Nombre del restaurante */}
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">{restaurantName}</h1>
+      {/* Información del restaurante */}
+      <div className="mt-14 text-center px-4 pb-4">
+        <h1 className="text-2xl font-bold">{restaurantName}</h1>
 
-          {/* Descripción corta */}
-          {shortDescription && <p className="text-gray-600 mb-4 max-w-md mx-auto">{shortDescription}</p>}
-
-          {/* Información adicional */}
-          <div className="flex flex-wrap justify-center items-center gap-4 text-sm text-gray-500 mb-4">
-            {/* Calificación */}
-            <div className="flex items-center gap-1">
-              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-              <span className="font-medium">4.5</span>
-              <span>(200+)</span>
-            </div>
-
-            {/* Distancia */}
-            <div className="flex items-center gap-1">
-              <MapPin className="h-4 w-4" />
-              <span>0.9 km</span>
-            </div>
-
-            {/* Tiempo de entrega */}
-            <div className="flex items-center gap-1">
-              <Clock className="h-4 w-4" />
-              <span>30-45 min</span>
-            </div>
+        <div className="flex items-center justify-center gap-2 mt-2 text-sm text-gray-600">
+          <div className="flex items-center">
+            <Star className="h-4 w-4 text-yellow-500 mr-1" />
+            <span>4.5</span>
           </div>
-
-          {/* Dirección */}
-          <div className="flex items-center justify-center gap-1 text-sm text-gray-500 mb-4">
-            <MapPin className="h-4 w-4" />
-            <span>{restaurantConfig?.location?.address || "Dirección no disponible"}</span>
+          <span className="text-gray-300">•</span>
+          <span>(200+)</span>
+          <span className="text-gray-300">•</span>
+          <div className="flex items-center">
+            <MapPin className="h-4 w-4 mr-1" />
+            <span>0.9 km</span>
           </div>
+        </div>
 
-          {/* Botón de información */}
-          <Button variant="outline" size="sm" onClick={onInfoClick} className="flex items-center gap-2">
-            <Info className="h-4 w-4" />
-            Más información
-          </Button>
+        <div className="mt-2 text-sm text-gray-500">
+          <MapPin className="h-4 w-4 inline mr-1" />
+          {address}
         </div>
       </div>
     </div>
