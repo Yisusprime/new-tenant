@@ -5,112 +5,53 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatCurrency(amount: number, currencyCode = "CLP"): string {
-  return new Intl.NumberFormat("es-CL", {
+/**
+ * Formatea un valor numérico como moneda según la configuración regional
+ * @param value - El valor a formatear
+ * @param locale - La configuración regional (por defecto 'es-CL')
+ * @param currency - El código de moneda (por defecto 'CLP')
+ * @returns String formateado como moneda
+ */
+export function formatCurrency(value: number, locale = "es-CL", currency = "CLP"): string {
+  return new Intl.NumberFormat(locale, {
     style: "currency",
-    currency: currencyCode,
+    currency,
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount)
+  }).format(value)
 }
 
-export function formatDate(date: Date | string): string {
-  if (typeof date === "string") {
-    date = new Date(date)
-  }
-  return new Intl.DateTimeFormat("es-CL", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  }).format(date)
-}
+/**
+ * Formatea una fecha y hora según la configuración regional
+ * @param date - La fecha a formatear
+ * @param locale - La configuración regional (por defecto 'es-CL')
+ * @returns String formateado con fecha y hora
+ */
+export function formatDateTime(date: Date | string | number, locale = "es-CL"): string {
+  const dateObj = typeof date === "string" || typeof date === "number" ? new Date(date) : date
 
-export function formatDateTime(date: Date | string): string {
-  if (typeof date === "string") {
-    date = new Date(date)
-  }
-  return new Intl.DateTimeFormat("es-CL", {
+  return new Intl.DateTimeFormat(locale, {
     year: "numeric",
-    month: "long",
-    day: "numeric",
+    month: "2-digit",
+    day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(date)
+    hour12: true,
+  }).format(dateObj)
 }
 
-export function formatTime(date: Date | string): string {
-  if (typeof date === "string") {
-    date = new Date(date)
-  }
-  return new Intl.DateTimeFormat("es-CL", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date)
-}
+/**
+ * Formatea una fecha según la configuración regional
+ * @param date - La fecha a formatear
+ * @param locale - La configuración regional (por defecto 'es-CL')
+ * @returns String formateado con fecha
+ */
+export function formatDate(date: Date | string | number, locale = "es-CL"): string {
+  const dateObj = typeof date === "string" || typeof date === "number" ? new Date(date) : date
 
-export function generateOrderNumber(): string {
-  const timestamp = Date.now().toString().slice(-6)
-  const random = Math.floor(Math.random() * 1000)
-    .toString()
-    .padStart(3, "0")
-  return `${timestamp}${random}`
-}
-
-export function calculateTimeElapsed(startTime: string): number {
-  const start = new Date(startTime).getTime()
-  const now = new Date().getTime()
-  return Math.floor((now - start) / 1000) // Tiempo en segundos
-}
-
-export function formatTimeElapsed(seconds: number): string {
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  const remainingSeconds = seconds % 60
-
-  if (hours > 0) {
-    return `${hours}h ${minutes}m ${remainingSeconds}s`
-  } else if (minutes > 0) {
-    return `${minutes}m ${remainingSeconds}s`
-  } else {
-    return `${remainingSeconds}s`
-  }
-}
-
-export function getStatusColor(status: string): string {
-  switch (status) {
-    case "pending":
-      return "bg-yellow-500"
-    case "preparing":
-      return "bg-blue-500"
-    case "ready":
-      return "bg-green-500"
-    case "delivered":
-      return "bg-purple-500"
-    case "cancelled":
-      return "bg-red-500"
-    default:
-      return "bg-gray-500"
-  }
-}
-
-export function getStatusText(status: string): string {
-  switch (status) {
-    case "pending":
-      return "Pendiente"
-    case "preparing":
-      return "Preparando"
-    case "ready":
-      return "Listo"
-    case "delivered":
-      return "Entregado"
-    case "cancelled":
-      return "Cancelado"
-    default:
-      return "Desconocido"
-  }
-}
-
-export function truncateText(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text
-  return text.slice(0, maxLength) + "..."
+  return new Intl.DateTimeFormat(locale, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(dateObj)
 }

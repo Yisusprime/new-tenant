@@ -1,148 +1,86 @@
 "use client"
 
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
-import { Separator } from "@/components/ui/separator"
-import { Clock, MapPin, Phone, Mail, MessageSquare, Facebook, Instagram, Twitter } from "lucide-react"
-import { formatSchedule } from "../utils/restaurant-hours"
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, useDisclosure } from "@nextui-org/react"
+import type { RestaurantConfig } from "@/app/tenant/[tenantId]/(main)/menu/types"
+import Image from "next/image"
+import { useState } from "react"
 
-interface RestaurantInfoModalProps {
-  open: boolean
-  onClose: () => void
-  restaurantData: any
-  restaurantConfig: any
+interface Props {
+  restaurantConfig: RestaurantConfig | undefined
 }
 
-export function RestaurantInfoModal({ open, onClose, restaurantData, restaurantConfig }: RestaurantInfoModalProps) {
-  const restaurantName = restaurantData?.name || restaurantConfig?.basicInfo?.name || "Restaurante"
-  const address = restaurantConfig?.location?.address || "Dirección no disponible"
-  const city = restaurantConfig?.location?.city || ""
-  const region = restaurantConfig?.location?.region || ""
-  const fullAddress = [address, city, region].filter(Boolean).join(", ")
+export const RestaurantInfoModal = ({ restaurantConfig }: Props) => {
+  const { isOpen, onOpen, onOpenChange } = useDisclosure()
+  const restaurantName = restaurantConfig?.basicInfo?.name || "Restaurant Name"
 
-  const phone = restaurantConfig?.contactInfo?.phone || "No disponible"
-  const email = restaurantConfig?.contactInfo?.email || "No disponible"
-  const whatsapp = restaurantConfig?.contactInfo?.whatsapp || null
+  const [imageError, setImageError] = useState({ logo: false, banner: false })
 
-  const facebook = restaurantConfig?.socialMedia?.facebook || null
-  const instagram = restaurantConfig?.socialMedia?.instagram || null
-  const twitter = restaurantConfig?.socialMedia?.twitter || null
+  const handleLogoError = () => {
+    setImageError((prev) => ({ ...prev, logo: true }))
+  }
 
-  const schedule = restaurantConfig?.hours?.schedule || []
+  const handleBannerError = () => {
+    setImageError((prev) => ({ ...prev, banner: true }))
+  }
+
+  const logoUrl =
+    restaurantConfig?.basicInfo?.logo && !imageError.logo
+      ? restaurantConfig.basicInfo.logo
+      : "/default-restaurant-logo.png"
+
+  const bannerUrl =
+    restaurantConfig?.basicInfo?.bannerImage && !imageError.banner
+      ? restaurantConfig.basicInfo.bannerImage
+      : "/default-restaurant-banner.png"
 
   return (
-    <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent side="left" className="w-full sm:max-w-sm overflow-y-auto">
-        <SheetHeader className="text-left">
-          <SheetTitle className="text-xl">{restaurantName}</SheetTitle>
-          <SheetDescription>Información del restaurante</SheetDescription>
-        </SheetHeader>
-
-        <div className="mt-6 space-y-6">
-          {/* Dirección */}
-          <div>
-            <h3 className="text-sm font-medium flex items-center">
-              <MapPin className="h-4 w-4 mr-2" />
-              Dirección
-            </h3>
-            <p className="mt-2 text-sm text-gray-600">{fullAddress}</p>
-          </div>
-
-          <Separator />
-
-          {/* Horarios */}
-          <div>
-            <h3 className="text-sm font-medium flex items-center">
-              <Clock className="h-4 w-4 mr-2" />
-              Horarios
-            </h3>
-            <div className="mt-2 space-y-2">
-              {schedule.length > 0 ? (
-                schedule.map((day: any) => (
-                  <div key={day.day} className="flex justify-between text-sm">
-                    <span className="font-medium">{day.day}</span>
-                    <span className="text-gray-600">{formatSchedule(day)}</span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-gray-600">Horarios no disponibles</p>
-              )}
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Contacto */}
-          <div>
-            <h3 className="text-sm font-medium">Contacto</h3>
-            <div className="mt-2 space-y-2">
-              <div className="flex items-center text-sm">
-                <Phone className="h-4 w-4 mr-2 text-gray-500" />
-                <span>{phone}</span>
-              </div>
-
-              <div className="flex items-center text-sm">
-                <Mail className="h-4 w-4 mr-2 text-gray-500" />
-                <span>{email}</span>
-              </div>
-
-              {whatsapp && (
-                <div className="flex items-center text-sm">
-                  <MessageSquare className="h-4 w-4 mr-2 text-gray-500" />
-                  <span>{whatsapp}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Redes sociales */}
-          {(facebook || instagram || twitter) && (
+    <>
+      <Button onPress={onOpen} variant="light">
+        Restaurant Info
+      </Button>
+      <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="lg">
+        <ModalContent>
+          {(onClose) => (
             <>
-              <Separator />
-
-              <div>
-                <h3 className="text-sm font-medium">Redes sociales</h3>
-                <div className="mt-2 space-y-2">
-                  {facebook && (
-                    <a
-                      href={facebook}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center text-sm text-blue-600 hover:underline"
-                    >
-                      <Facebook className="h-4 w-4 mr-2" />
-                      <span>Facebook</span>
-                    </a>
-                  )}
-
-                  {instagram && (
-                    <a
-                      href={instagram}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center text-sm text-pink-600 hover:underline"
-                    >
-                      <Instagram className="h-4 w-4 mr-2" />
-                      <span>Instagram</span>
-                    </a>
-                  )}
-
-                  {twitter && (
-                    <a
-                      href={twitter}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center text-sm text-blue-400 hover:underline"
-                    >
-                      <Twitter className="h-4 w-4 mr-2" />
-                      <span>Twitter</span>
-                    </a>
-                  )}
+              <ModalHeader className="flex flex-col gap-1">{restaurantName}</ModalHeader>
+              <ModalBody>
+                <div className="relative w-full h-60">
+                  <Image
+                    src={bannerUrl || "/placeholder.svg"}
+                    alt={`Banner de ${restaurantName}`}
+                    fill
+                    className="object-cover"
+                    onError={handleBannerError}
+                  />
                 </div>
-              </div>
+                <div className="flex items-center mt-4">
+                  <div className="relative w-20 h-20 mr-4">
+                    <Image
+                      src={logoUrl || "/placeholder.svg"}
+                      alt={`Logo de ${restaurantName}`}
+                      fill
+                      className="object-cover rounded-full"
+                      onError={handleLogoError}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-lg font-semibold">{restaurantName}</p>
+                    <p className="text-sm text-gray-500">{restaurantConfig?.basicInfo?.cuisine || "Cuisine Type"}</p>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <p className="text-base">{restaurantConfig?.basicInfo?.description || "No description available."}</p>
+                </div>
+              </ModalBody>
+              <ModalFooter>
+                <Button color="primary" onPress={onClose}>
+                  Close
+                </Button>
+              </ModalFooter>
             </>
           )}
-        </div>
-      </SheetContent>
-    </Sheet>
+        </ModalContent>
+      </Modal>
+    </>
   )
 }

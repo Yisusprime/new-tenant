@@ -1,6 +1,5 @@
 import { db } from "@/lib/firebase/client"
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore"
-import { put, del } from "@vercel/blob"
 
 // Actualizar la interfaz RestaurantBasicInfo para incluir bannerImage, currencyCode y taxRate
 export interface RestaurantBasicInfo {
@@ -159,7 +158,7 @@ export async function updateRestaurantConfigSection<T>(
   }
 }
 
-// Función para subir el logo del restaurante
+// Función para subir el logo del restaurante usando Vercel Blob
 export async function uploadRestaurantLogo(tenantId: string, branchId: string, file: File): Promise<string> {
   try {
     if (!branchId) {
@@ -168,14 +167,25 @@ export async function uploadRestaurantLogo(tenantId: string, branchId: string, f
 
     console.log(`Subiendo logo para tenant: ${tenantId}, sucursal: ${branchId}`)
 
-    // Crear un nombre único para el archivo
-    const fileName = `tenants/${tenantId}/branches/${branchId}/restaurant/logo-${Date.now()}.${file.name.split(".").pop()}`
+    // Crear FormData para enviar el archivo
+    const formData = new FormData()
+    formData.append("file", file)
+    formData.append("tenantId", tenantId)
+    formData.append("branchId", branchId)
+    formData.append("type", "logo")
 
-    // Subir el archivo a Vercel Blob
-    const blob = await put(fileName, file, {
-      access: "public",
-      token: process.env.BLOB_READ_WRITE_TOKEN,
+    // Subir el archivo usando la API
+    const response = await fetch("/api/upload/restaurant-image", {
+      method: "POST",
+      body: formData,
     })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || "Error al subir el archivo")
+    }
+
+    const { url } = await response.json()
 
     // Actualizar la configuración con la nueva URL
     const configRef = doc(db, `tenants/${tenantId}/branches/${branchId}/config`, "restaurant")
@@ -185,7 +195,7 @@ export async function uploadRestaurantLogo(tenantId: string, branchId: string, f
       const currentConfig = configDoc.data() as RestaurantConfig
       const updatedBasicInfo = {
         ...currentConfig.basicInfo,
-        logo: blob.url,
+        logo: url,
       }
 
       await updateDoc(configRef, {
@@ -195,7 +205,7 @@ export async function uploadRestaurantLogo(tenantId: string, branchId: string, f
     }
 
     console.log(`Logo subido correctamente para sucursal ${branchId}`)
-    return blob.url
+    return url
   } catch (error) {
     console.error("Error al subir logo del restaurante:", error)
     throw error
@@ -214,8 +224,12 @@ export async function deleteRestaurantLogo(tenantId: string, branchId: string, l
     // Si tenemos la URL del logo, intentar eliminarlo de Blob
     if (logoUrl) {
       try {
-        await del(logoUrl, {
-          token: process.env.BLOB_READ_WRITE_TOKEN,
+        await fetch("/api/upload/restaurant-image", {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ url: logoUrl }),
         })
       } catch (blobError) {
         console.warn("Error al eliminar archivo de Blob:", blobError)
@@ -247,7 +261,7 @@ export async function deleteRestaurantLogo(tenantId: string, branchId: string, l
   }
 }
 
-// Añadir función para subir el banner del restaurante
+// Función para subir el banner del restaurante usando Vercel Blob
 export async function uploadRestaurantBanner(tenantId: string, branchId: string, file: File): Promise<string> {
   try {
     if (!branchId) {
@@ -256,14 +270,25 @@ export async function uploadRestaurantBanner(tenantId: string, branchId: string,
 
     console.log(`Subiendo banner para tenant: ${tenantId}, sucursal: ${branchId}`)
 
-    // Crear un nombre único para el archivo
-    const fileName = `tenants/${tenantId}/branches/${branchId}/restaurant/banner-${Date.now()}.${file.name.split(".").pop()}`
+    // Crear FormData para enviar el archivo
+    const formData = new FormData()
+    formData.append("file", file)
+    formData.append("tenantId", tenantId)
+    formData.append("branchId", branchId)
+    formData.append("type", "banner")
 
-    // Subir el archivo a Vercel Blob
-    const blob = await put(fileName, file, {
-      access: "public",
-      token: process.env.BLOB_READ_WRITE_TOKEN,
+    // Subir el archivo usando la API
+    const response = await fetch("/api/upload/restaurant-image", {
+      method: "POST",
+      body: formData,
     })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || "Error al subir el archivo")
+    }
+
+    const { url } = await response.json()
 
     // Actualizar la configuración con la nueva URL
     const configRef = doc(db, `tenants/${tenantId}/branches/${branchId}/config`, "restaurant")
@@ -273,7 +298,7 @@ export async function uploadRestaurantBanner(tenantId: string, branchId: string,
       const currentConfig = configDoc.data() as RestaurantConfig
       const updatedBasicInfo = {
         ...currentConfig.basicInfo,
-        bannerImage: blob.url,
+        bannerImage: url,
       }
 
       await updateDoc(configRef, {
@@ -283,9 +308,58 @@ export async function uploadRestaurantBanner(tenantId: string, branchId: string,
     }
 
     console.log(`Banner subido correctamente para sucursal ${branchId}`)
-    return blob.url
+    return url
   } catch (error) {
     console.error("Error al subir banner del restaurante:", error)
+    throw error
+  }
+}
+
+// Función para eliminar el banner del restaurante
+export async function deleteRestaurantBanner(tenantId: string, branchId: string, bannerUrl?: string): Promise<void> {
+  try {
+    if (!branchId) {
+      throw new Error("No se proporcionó ID de sucursal")
+    }
+
+    console.log(`Eliminando banner para tenant: ${tenantId}, sucursal: ${branchId}`)
+
+    // Si tenemos la URL del banner, intentar eliminarlo de Blob
+    if (bannerUrl) {
+      try {
+        await fetch("/api/upload/restaurant-image", {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ url: bannerUrl }),
+        })
+      } catch (blobError) {
+        console.warn("Error al eliminar archivo de Blob:", blobError)
+        // Continuar con la actualización de la configuración aunque falle la eliminación del archivo
+      }
+    }
+
+    // Actualizar la configuración para quitar la URL
+    const configRef = doc(db, `tenants/${tenantId}/branches/${branchId}/config`, "restaurant")
+    const configDoc = await getDoc(configRef)
+
+    if (configDoc.exists()) {
+      const currentConfig = configDoc.data() as RestaurantConfig
+      const updatedBasicInfo = {
+        ...currentConfig.basicInfo,
+        bannerImage: "",
+      }
+
+      await updateDoc(configRef, {
+        basicInfo: updatedBasicInfo,
+        updatedAt: new Date().toISOString(),
+      })
+    }
+
+    console.log(`Banner eliminado correctamente para sucursal ${branchId}`)
+  } catch (error) {
+    console.error("Error al eliminar banner del restaurante:", error)
     throw error
   }
 }
