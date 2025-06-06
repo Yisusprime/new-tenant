@@ -1,6 +1,8 @@
 "use client"
 
 import { createContext, useContext, useState, type ReactNode } from "react"
+import { useRestaurantStatus } from "@/lib/context/restaurant-status-context"
+import { toast } from "sonner"
 
 export interface CartItem {
   id: string
@@ -24,14 +26,27 @@ const CartContext = createContext<CartContextType | undefined>(undefined)
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
+  const { canAcceptOrders, statusMessage } = useRestaurantStatus()
 
   const addItem = (item: CartItem) => {
+    // Verificar si el restaurante puede aceptar pedidos
+    if (!canAcceptOrders) {
+      toast.error("No se pueden agregar productos al carrito", {
+        description: `El restaurante está ${statusMessage.toLowerCase()}`,
+      })
+      return
+    }
+
     setItems((prevItems) => {
       const existingItem = prevItems.find((i) => i.id === item.id)
       if (existingItem) {
         return prevItems.map((i) => (i.id === item.id ? { ...i, quantity: (i.quantity || 1) + 1 } : i))
       }
       return [...prevItems, { ...item, quantity: 1 }]
+    })
+
+    toast.success("Producto agregado al carrito", {
+      description: item.name,
     })
   }
 
@@ -44,6 +59,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
       removeItem(itemId)
       return
     }
+
+    // Verificar si el restaurante puede aceptar pedidos al aumentar cantidad
+    if (!canAcceptOrders) {
+      toast.error("No se pueden modificar productos", {
+        description: `El restaurante está ${statusMessage.toLowerCase()}`,
+      })
+      return
+    }
+
     setItems((prevItems) => prevItems.map((item) => (item.id === itemId ? { ...item, quantity } : item)))
   }
 
