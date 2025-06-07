@@ -102,20 +102,6 @@ export async function createCashRegister(
     // Guardar la caja en Realtime Database
     await set(newRegisterRef, newRegister)
 
-    // Si hay un balance inicial mayor a 0, registrarlo como un movimiento de ingreso
-    if (registerData.initialBalance > 0) {
-      console.log("💰 Registrando balance inicial como movimiento de ingreso:", registerData.initialBalance)
-
-      await createCashMovement(tenantId, branchId, userId, {
-        registerId,
-        type: "deposit",
-        amount: registerData.initialBalance,
-        description: `Balance inicial de caja: ${registerData.name}`,
-        paymentMethod: "cash",
-        reference: `Apertura de caja ${registerData.name}`,
-      })
-    }
-
     return {
       id: registerId,
       ...newRegister,
@@ -292,13 +278,6 @@ export async function createCashMovement(
       throw new Error("Tenant ID, Branch ID, User ID y Register ID son requeridos")
     }
 
-    console.log("💰 Creando movimiento de caja:", {
-      tenantId,
-      branchId,
-      userId,
-      movementData,
-    })
-
     const timestamp = new Date().toISOString()
     const movementsRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/cashMovements`)
     const registerRef = ref(
@@ -346,8 +325,6 @@ export async function createCashMovement(
       createdBy: userId,
     }
 
-    console.log("💾 Guardando movimiento:", newMovement)
-
     // Guardar el movimiento en Realtime Database
     await set(newMovementRef, newMovement)
 
@@ -357,18 +334,12 @@ export async function createCashMovement(
       updatedAt: timestamp,
     })
 
-    console.log("✅ Movimiento creado exitosamente:", {
-      id: movementId,
-      newBalance,
-      balanceChange,
-    })
-
     return {
       id: movementId,
       ...newMovement,
     } as CashMovement
   } catch (error) {
-    console.error("❌ Error al crear movimiento:", error)
+    console.error("Error al crear movimiento:", error)
     throw error
   }
 }
