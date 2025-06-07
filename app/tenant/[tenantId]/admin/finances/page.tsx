@@ -146,40 +146,30 @@ export default function FinancesPage() {
     setLoading(true)
     setRefreshing(true)
     try {
-      console.log("Cargando datos financieros para:", {
-        tenantId: params.tenantId,
-        branchId: currentBranch.id,
-      })
-
       // Cargar gastos
       const expensesData = await getExpenses(params.tenantId, currentBranch.id)
-      console.log("Gastos cargados:", expensesData.length)
       setExpenses(expensesData)
       setFilteredExpenses(expensesData)
 
       // Cargar categorías de gastos
       const categoriesData = await getExpenseCategories(params.tenantId, currentBranch.id)
-      console.log("Categorías cargadas:", categoriesData.length)
       setExpenseCategories(categoriesData)
 
       // Cargar items de inventario
       const inventoryData = await getInventoryItems(params.tenantId, currentBranch.id)
-      console.log("Items de inventario cargados:", inventoryData.length)
       setInventoryItems(inventoryData)
 
       // Cargar movimientos de caja directamente desde Realtime Database
       const movementsData = await getAllCashMovements(params.tenantId, currentBranch.id)
-      console.log("Movimientos de caja cargados:", movementsData.length)
       setCashMovements(movementsData)
 
       // Cargar resumen financiero
       const summaryData = await getFinancialSummary(params.tenantId, currentBranch.id)
-      console.log("Resumen financiero cargado:", summaryData)
       setFinancialSummary(summaryData)
 
       toast({
         title: "Datos actualizados",
-        description: `Cargados: ${expensesData.length} gastos, ${movementsData.length} movimientos de caja`,
+        description: "Los datos financieros se han actualizado correctamente",
       })
     } catch (error) {
       console.error("Error al cargar datos:", error)
@@ -684,61 +674,6 @@ export default function FinancesPage() {
                 </Button>
               </CardFooter>
             </Card>
-
-            {/* Tarjeta de debugging - solo mostrar en desarrollo */}
-            {process.env.NODE_ENV === "development" && (
-              <Card className="md:col-span-3">
-                <CardHeader>
-                  <CardTitle>Información de Debug</CardTitle>
-                  <CardDescription>Información técnica para debugging</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div>
-                      <p className="font-medium">Gastos:</p>
-                      <p>{expenses.length} registros</p>
-                    </div>
-                    <div>
-                      <p className="font-medium">Movimientos de Caja:</p>
-                      <p>{cashMovements.length} registros</p>
-                    </div>
-                    <div>
-                      <p className="font-medium">Ingresos (Filtrados):</p>
-                      <p>
-                        {cashMovements.filter((m) => ["income", "sale", "deposit"].includes(m.type)).length} registros
-                      </p>
-                    </div>
-                    <div>
-                      <p className="font-medium">Total Calculado:</p>
-                      <p>
-                        {formatCurrency(
-                          cashMovements
-                            .filter((m) => ["income", "sale", "deposit"].includes(m.type))
-                            .reduce((sum, m) => sum + m.amount, 0),
-                          currencyCode,
-                        )}
-                      </p>
-                    </div>
-                  </div>
-
-                  {cashMovements.length > 0 && (
-                    <div className="mt-4">
-                      <p className="font-medium mb-2">Últimos 5 movimientos de caja:</p>
-                      <div className="space-y-1 text-xs">
-                        {cashMovements.slice(0, 5).map((movement, index) => (
-                          <div key={index} className="flex justify-between">
-                            <span>
-                              {movement.type} - {movement.description}
-                            </span>
-                            <span>{formatCurrency(movement.amount, currencyCode)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
           </div>
         </TabsContent>
 
