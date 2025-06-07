@@ -179,25 +179,72 @@ export async function createExpenseCategory(
 // Función para obtener todos los movimientos de caja de todas las cajas desde Realtime Database
 export async function getAllCashMovements(tenantId: string, branchId: string): Promise<CashMovement[]> {
   try {
+    console.log("🔍 Obteniendo movimientos de caja para:", { tenantId, branchId })
+
     // Obtener todos los movimientos de caja desde Realtime Database
     const movementsRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/cashMovements`)
     const snapshot = await get(movementsRef)
 
     if (!snapshot.exists()) {
+      console.log(
+        "❌ No se encontraron movimientos de caja en la ruta:",
+        `tenants/${tenantId}/branches/${branchId}/cashMovements`,
+      )
       return []
     }
 
     // Convertir los datos a un array de objetos
     const movementsData = snapshot.val()
+    console.log("📊 Datos raw de movimientos:", movementsData)
+
     const movements = Object.entries(movementsData).map(([id, data]) => ({
       id,
       ...(data as any),
     })) as CashMovement[]
 
+    console.log("✅ Movimientos procesados:", movements.length)
+    console.log("📋 Detalle de movimientos:", movements)
+
+    // Filtrar solo los movimientos que son ingresos para debugging
+    const incomeMovements = movements.filter((movement) => ["income", "sale", "deposit"].includes(movement.type))
+    console.log("💰 Movimientos de ingreso encontrados:", incomeMovements.length)
+    console.log("💰 Detalle de ingresos:", incomeMovements)
+
     // Ordenar por fecha de creación (más reciente primero)
     return movements.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   } catch (error) {
-    console.error("Error al obtener movimientos de caja:", error)
+    console.error("❌ Error al obtener movimientos de caja:", error)
+    return []
+  }
+}
+
+// Función para obtener todas las cajas registradoras para debugging
+export async function getAllCashRegisters(tenantId: string, branchId: string): Promise<any[]> {
+  try {
+    console.log("🏦 Obteniendo cajas registradoras para:", { tenantId, branchId })
+
+    const registersRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/cashRegisters`)
+    const snapshot = await get(registersRef)
+
+    if (!snapshot.exists()) {
+      console.log("❌ No se encontraron cajas registradoras")
+      return []
+    }
+
+    const registersData = snapshot.val()
+    console.log("🏦 Datos raw de cajas:", registersData)
+
+    const registers = Object.entries(registersData).map(([id, data]) => ({
+      id,
+      ...(data as any),
+    }))
+
+    console.log("✅ Cajas procesadas:", registers.length)
+    console.log("📋 Detalle de cajas:", registers)
+
+    return registers
+  } catch (error) {
+    console.error("❌ Error al obtener cajas registradoras:", error)
     return []
   }
 }
@@ -205,11 +252,19 @@ export async function getAllCashMovements(tenantId: string, branchId: string): P
 // Función para obtener el resumen financiero
 export async function getFinancialSummary(tenantId: string, branchId: string): Promise<FinancialSummary> {
   try {
+    console.log("📊 Generando resumen financiero para:", { tenantId, branchId })
+
     // Obtener todos los gastos
     const expenses = await getExpenses(tenantId, branchId)
+    console.log("💸 Gastos encontrados:", expenses.length)
 
     // Obtener todos los movimientos de caja de todas las cajas desde Realtime Database
     const cashMovements = await getAllCashMovements(tenantId, branchId)
+    console.log("💰 Movimientos de caja encontrados:", cashMovements.length)
+
+    // Obtener todas las cajas para debugging
+    const cashRegisters = await getAllCashRegisters(tenantId, branchId)
+    console.log("🏦 Cajas registradoras encontradas:", cashRegisters.length)
 
     // Obtener categorías de gastos
     const expenseCategories = await getExpenseCategories(tenantId, branchId)
@@ -218,8 +273,22 @@ export async function getFinancialSummary(tenantId: string, branchId: string): P
     const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0)
 
     // Calcular ingresos (ventas) de los movimientos de caja
-    const incomeMovements = cashMovements.filter((movement) => ["income", "sale"].includes(movement.type))
+    const incomeMovements = cashMovements.filter((movement) => ["income", "sale", "deposit"].includes(movement.type))
     const totalIncome = incomeMovements.reduce((sum, movement) => sum + movement.amount, 0)
+
+    console.log("💰 Cálculo de ingresos:", {
+      totalMovements: cashMovements.length,
+      incomeMovements: incomeMovements.length,
+      totalIncome,
+      incomeMovementsDetail: incomeMovements,
+    })
+
+    // Si no hay movimientos pero hay cajas con balance inicial, considerar esos balances
+    let totalInitialBalance = 0
+    if (incomeMovements.length === 0 && cashRegisters.length > 0) {
+      totalInitialBalance = cashRegisters.reduce((sum, register) => sum + (register.initialBalance || 0), 0)
+      console.log("🏦 Balance inicial total de cajas:", totalInitialBalance)
+    }
 
     // Calcular gastos por categoría
     const expensesByCategory = expenseCategories
@@ -243,26 +312,43 @@ export async function getFinancialSummary(tenantId: string, branchId: string): P
         color: "#10B981",
       },
       {
+        category: "Depósitos",
+        amount: incomeMovements.filter((m) => m.type === "deposit").reduce((sum, m) => sum + m.amount, 0),
+        color: "#3B82F6",
+      },
+      {
         category: "Otros Ingresos",
         amount: incomeMovements.filter((m) => m.type === "income").reduce((sum, m) => sum + m.amount, 0),
-        color: "#3B82F6",
+        color: "#8B5CF6",
+      },
+      {
+        category: "Balance Inicial",
+        amount: totalInitialBalance,
+        color: "#F59E0B",
       },
     ].filter((item) => item.amount > 0)
 
     // Calcular datos mensuales (últimos 6 meses)
     const monthlyData = getMonthlyData(expenses, incomeMovements)
 
-    return {
+    // El total de ingresos incluye los movimientos + balance inicial si no hay movimientos
+    const finalTotalIncome = totalIncome > 0 ? totalIncome : totalInitialBalance
+
+    const summary = {
       totalExpenses,
-      totalIncome,
-      profit: totalIncome - totalExpenses,
+      totalIncome: finalTotalIncome,
+      profit: finalTotalIncome - totalExpenses,
       expensesByCategory,
       incomeByCategory,
       monthlyData,
       incomeMovements,
     }
+
+    console.log("📊 Resumen financiero generado:", summary)
+
+    return summary
   } catch (error) {
-    console.error("Error al obtener resumen financiero:", error)
+    console.error("❌ Error al obtener resumen financiero:", error)
     throw error
   }
 }
