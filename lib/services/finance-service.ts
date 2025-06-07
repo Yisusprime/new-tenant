@@ -179,11 +179,14 @@ export async function createExpenseCategory(
 // Función para obtener todos los movimientos de caja de todas las cajas desde Realtime Database
 export async function getAllCashMovements(tenantId: string, branchId: string): Promise<CashMovement[]> {
   try {
+    console.log("Obteniendo movimientos de caja para:", { tenantId, branchId })
+
     // Obtener todos los movimientos de caja desde Realtime Database
     const movementsRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/cashMovements`)
     const snapshot = await get(movementsRef)
 
     if (!snapshot.exists()) {
+      console.log("No se encontraron movimientos de caja")
       return []
     }
 
@@ -193,6 +196,13 @@ export async function getAllCashMovements(tenantId: string, branchId: string): P
       id,
       ...(data as any),
     })) as CashMovement[]
+
+    console.log("Movimientos encontrados:", movements.length)
+
+    // Filtrar solo los movimientos que son ingresos
+    const incomeMovements = movements.filter((movement) => ["income", "sale", "deposit"].includes(movement.type))
+
+    console.log("Movimientos de ingreso:", incomeMovements.length)
 
     // Ordenar por fecha de creación (más reciente primero)
     return movements.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -205,11 +215,15 @@ export async function getAllCashMovements(tenantId: string, branchId: string): P
 // Función para obtener el resumen financiero
 export async function getFinancialSummary(tenantId: string, branchId: string): Promise<FinancialSummary> {
   try {
+    console.log("Generando resumen financiero para:", { tenantId, branchId })
+
     // Obtener todos los gastos
     const expenses = await getExpenses(tenantId, branchId)
+    console.log("Gastos encontrados:", expenses.length)
 
     // Obtener todos los movimientos de caja de todas las cajas desde Realtime Database
     const cashMovements = await getAllCashMovements(tenantId, branchId)
+    console.log("Movimientos de caja encontrados:", cashMovements.length)
 
     // Obtener categorías de gastos
     const expenseCategories = await getExpenseCategories(tenantId, branchId)
@@ -218,8 +232,13 @@ export async function getFinancialSummary(tenantId: string, branchId: string): P
     const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0)
 
     // Calcular ingresos (ventas) de los movimientos de caja
-    const incomeMovements = cashMovements.filter((movement) => ["income", "sale"].includes(movement.type))
+    const incomeMovements = cashMovements.filter((movement) => ["income", "sale", "deposit"].includes(movement.type))
     const totalIncome = incomeMovements.reduce((sum, movement) => sum + movement.amount, 0)
+
+    console.log("Ingresos calculados:", {
+      totalMovements: incomeMovements.length,
+      totalIncome,
+    })
 
     // Calcular gastos por categoría
     const expensesByCategory = expenseCategories
@@ -243,16 +262,21 @@ export async function getFinancialSummary(tenantId: string, branchId: string): P
         color: "#10B981",
       },
       {
+        category: "Depósitos",
+        amount: incomeMovements.filter((m) => m.type === "deposit").reduce((sum, m) => sum + m.amount, 0),
+        color: "#3B82F6",
+      },
+      {
         category: "Otros Ingresos",
         amount: incomeMovements.filter((m) => m.type === "income").reduce((sum, m) => sum + m.amount, 0),
-        color: "#3B82F6",
+        color: "#8B5CF6",
       },
     ].filter((item) => item.amount > 0)
 
     // Calcular datos mensuales (últimos 6 meses)
     const monthlyData = getMonthlyData(expenses, incomeMovements)
 
-    return {
+    const summary = {
       totalExpenses,
       totalIncome,
       profit: totalIncome - totalExpenses,
@@ -261,6 +285,10 @@ export async function getFinancialSummary(tenantId: string, branchId: string): P
       monthlyData,
       incomeMovements,
     }
+
+    console.log("Resumen financiero generado:", summary)
+
+    return summary
   } catch (error) {
     console.error("Error al obtener resumen financiero:", error)
     throw error

@@ -278,6 +278,13 @@ export async function createCashMovement(
       throw new Error("Tenant ID, Branch ID, User ID y Register ID son requeridos")
     }
 
+    console.log("Creando movimiento de caja:", {
+      tenantId,
+      branchId,
+      userId,
+      movementData,
+    })
+
     const timestamp = new Date().toISOString()
     const movementsRef = ref(realtimeDb, `tenants/${tenantId}/branches/${branchId}/cashMovements`)
     const registerRef = ref(
@@ -325,6 +332,8 @@ export async function createCashMovement(
       createdBy: userId,
     }
 
+    console.log("Guardando movimiento:", newMovement)
+
     // Guardar el movimiento en Realtime Database
     await set(newMovementRef, newMovement)
 
@@ -332,6 +341,12 @@ export async function createCashMovement(
     await update(registerRef, {
       currentBalance: newBalance,
       updatedAt: timestamp,
+    })
+
+    console.log("Movimiento creado exitosamente:", {
+      id: movementId,
+      newBalance,
+      balanceChange,
     })
 
     return {
