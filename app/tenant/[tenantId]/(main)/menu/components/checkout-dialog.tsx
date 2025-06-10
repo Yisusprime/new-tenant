@@ -1,165 +1,231 @@
 "use client"
 
-import { useState } from "react"
-import { useCart } from "../context/cart-context"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useState, useEffect } from "react"
+import { useCart } from "@/hooks/use-cart"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Separator } from "@/components/ui/separator"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Separator } from "@/components/ui/separator"
+import { useToast } from "@/components/ui/use-toast"
 import { createOrder } from "@/lib/services/order-service"
-import { toast } from "@/components/ui/use-toast"
-import { formatCurrency } from "@/lib/utils"
-import { Loader2, CreditCard, Banknote, Smartphone, MapPin, User, Phone, Mail } from "lucide-react"
-import type { OrderFormData, OrderType, DeliveryAddress } from "@/lib/types/order"
-import Image from "next/image"
+import { getRestaurantConfig } from "@/lib/services/restaurant-config-service"
+import { ArrowLeft, ArrowRight, CreditCard, DollarSign } from "lucide-react"
+import type { OrderFormData } from "@/lib/types/order"
 
 interface CheckoutDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   tenantId: string
   branchId: string
-  restaurantConfig?: any
 }
 
-export function CheckoutDialog({ open, onOpenChange, tenantId, branchId, restaurantConfig }: CheckoutDialogProps) {
-  const { items, totalPrice, clearCart } = useCart()
-  const [loading, setLoading] = useState(false)
-  const [currentStep, setCurrentStep] = useState(1)
+type Step = "order-type" | "customer-info" | "payment" | "summary"
 
-  // Datos del pedido
-  const [orderType, setOrderType] = useState<OrderType>("takeaway")
+export function CheckoutDialog({ open, onOpenChange, tenantId, branchId }: CheckoutDialogProps) {
+  const { items, getTotalPrice, clearCart } = useCart()
+  const { toast } = useToast()
+  const [currentStep, setCurrentStep] = useState<Step>("order-type")
+  const [loading, setLoading] = useState(false)
+  const [restaurantConfig, setRestaurantConfig] = useState<any>(null)
+
+  // Form data
+  const [orderType, setOrderType] = useState<string>("")
   const [customerName, setCustomerName] = useState("")
   const [customerPhone, setCustomerPhone] = useState("")
-  const [customerEmail, setCustomerEmail] = useState("")
+  const [deliveryAddress, setDeliveryAddress] = useState("")
   const [paymentMethod, setPaymentMethod] = useState("")
-  const [deliveryAddress, setDeliveryAddress] = useState<DeliveryAddress>({
-    street: "",
-    number: "",
-    city: "",
-    zipCode: "",
-    notes: "",
-  })
+  const [needsChange, setNeedsChange] = useState(false)
+  const [cashAmount, setCashAmount] = useState("")
+  const [notes, setNotes] = useState("")
 
-  // Calcular totales
-  const subtotal = totalPrice
-  const taxRate = restaurantConfig?.basicInfo?.taxRate || 0.19
-  const taxIncluded = restaurantConfig?.basicInfo?.taxIncluded !== false
-  const taxEnabled = restaurantConfig?.basicInfo?.taxEnabled !== false
+  const totalPrice = getTotalPrice()
+  const changeAmount = needsChange && cashAmount ? Number.parseFloat(cashAmount) - totalPrice : 0
 
-  let tax = 0
-  if (taxEnabled && !taxIncluded) {
-    tax = Math.round(subtotal * taxRate)
+  // Cargar configuración del restaurante
+  useEffect(() => {
+    if (open && tenantId && branchId) {
+      loadRestaurantConfig()
+    }
+  }, [open, tenantId, branchId])
+
+  const loadRestaurantConfig = async () => {
+    try {
+      const config = await getRestaurantConfig(tenantId, branchId)
+      setRestaurantConfig(config)
+    } catch (error) {
+      console.error("Error loading restaurant config:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo cargar la configuración del restaurante",
+        variant: "destructive",
+      })
+    }
   }
 
-  const total = subtotal + tax
+  const resetForm = () => {
+    setCurrentStep("order-type")
+    setOrderType("")
+    setCustomerName("")
+    setCustomerPhone("")
+    setDeliveryAddress("")
+    setPaymentMethod("")
+    setNeedsChange(false)
+    setCashAmount("")
+    setNotes("")
+  }
+
+  const handleNext = () => {
+    switch (currentStep) {
+      case "order-type":
+        setCurrentStep("customer-info")
+        break
+      case "customer-info":
+        setCurrentStep("payment")
+        break
+      case "payment":
+        setCurrentStep("summary")
+        break
+    }
+  }
+
+  const handleBack = () => {
+    switch (currentStep) {
+      case "customer-info":
+        setCurrentStep("order-type")
+        break
+      case "payment":
+        setCurrentStep("customer-info")
+        break
+      case "summary":
+        setCurrentStep("payment")
+        break
+    }
+  }
+
+  const sendToWhatsApp = (order: any) => {
+    // Format the order details for WhatsApp
+    let message = `*Nuevo Pedido ${order.orderNumber}*\n\n`
+
+    // Customer info
+    message += `*Cliente:* ${customerName}\n`
+    message += `*Teléfono:* ${customerPhone}\n`
+
+    // Order type
+    const orderTypeLabel = getAvailableOrderTypes().find((t) => t.value === orderType)?.label || orderType
+    message += `*Tipo de pedido:* ${orderTypeLabel}\n`
+
+    // Delivery address if applicable
+    if (orderType === "delivery" && deliveryAddress) {
+      message += `*Dirección:* ${deliveryAddress}\n`
+    }
+
+    // Payment method
+    const paymentMethodLabel =
+      getAvailablePaymentMethods().find((m) => m.value === paymentMethod)?.label || paymentMethod
+    message += `*Método de pago:* ${paymentMethodLabel}\n`
+
+    // Cash payment details if applicable
+    if (paymentMethod === "cash" && needsChange) {
+      message += `*Paga con:* $${cashAmount} (Vuelto: $${changeAmount.toFixed(2)})\n`
+    }
+
+    // Items
+    message += `\n*Productos:*\n`
+    items.forEach((item) => {
+      message += `- ${item.quantity}x ${item.name}: $${item.subtotal.toFixed(2)}\n`
+    })
+
+    // Total
+    message += `\n*Total:* $${totalPrice.toFixed(2)}\n`
+
+    // Notes if any
+    if (notes) {
+      message += `\n*Notas:* ${notes}\n`
+    }
+
+    // Encode the message for URL
+    const encodedMessage = encodeURIComponent(message)
+
+    // Get restaurant phone from config or use a default
+    const restaurantPhone = restaurantConfig?.contactInfo?.phone || ""
+
+    // Create WhatsApp URL
+    const whatsappUrl = `https://wa.me/${restaurantPhone}?text=${encodedMessage}`
+
+    // Open WhatsApp in a new tab
+    window.open(whatsappUrl, "_blank")
+  }
 
   const handleSubmitOrder = async () => {
+    if (!orderType || !customerName || !customerPhone || !paymentMethod) {
+      toast({
+        title: "Error",
+        description: "Por favor completa todos los campos requeridos",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (paymentMethod === "cash" && needsChange) {
+      const amount = Number.parseFloat(cashAmount)
+      if (!amount || amount < totalPrice) {
+        toast({
+          title: "Error",
+          description: "El monto en efectivo debe ser mayor o igual al total",
+          variant: "destructive",
+        })
+        return
+      }
+    }
+
+    setLoading(true)
+
     try {
-      setLoading(true)
-
-      // Validaciones básicas
-      if (!customerName.trim()) {
-        toast({
-          title: "Error",
-          description: "El nombre del cliente es requerido",
-          variant: "destructive",
-        })
-        return
-      }
-
-      if (!customerPhone.trim()) {
-        toast({
-          title: "Error",
-          description: "El teléfono del cliente es requerido",
-          variant: "destructive",
-        })
-        return
-      }
-
-      if (!paymentMethod) {
-        toast({
-          title: "Error",
-          description: "Selecciona un método de pago",
-          variant: "destructive",
-        })
-        return
-      }
-
-      // Validar dirección para delivery
-      if (orderType === "delivery") {
-        if (!deliveryAddress.street.trim() || !deliveryAddress.number.trim() || !deliveryAddress.city.trim()) {
-          toast({
-            title: "Error",
-            description: "Completa todos los campos de la dirección de entrega",
-            variant: "destructive",
-          })
-          return
-        }
-      }
-
-      // Convertir items del carrito al formato de OrderItem
-      const orderItems = items.map((item) => ({
-        id: item.id,
-        productId: item.id,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity || 1,
-        subtotal: item.price * (item.quantity || 1),
-      }))
-
-      // Preparar datos del pedido
       const orderData: OrderFormData = {
-        type: orderType,
-        items: orderItems,
-        customerName: customerName.trim(),
-        customerPhone: customerPhone.trim(),
-        customerEmail: customerEmail.trim() || undefined,
+        type: orderType as any,
+        items: items.map((item) => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          subtotal: item.subtotal,
+          extras: item.extras || [],
+          notes: item.notes,
+        })),
+        customerName,
+        customerPhone,
+        // Email removed
+        deliveryAddress: orderType === "delivery" ? deliveryAddress : undefined,
         paymentMethod,
-        subtotal,
-        tax,
-        total,
-        taxIncluded,
-        taxEnabled,
+        cashPayment:
+          paymentMethod === "cash" && needsChange
+            ? {
+                needsChange,
+                amountPaid: Number.parseFloat(cashAmount),
+                changeAmount,
+              }
+            : undefined,
+        notes: notes || undefined,
       }
 
-      // Agregar dirección de entrega si es delivery
-      if (orderType === "delivery") {
-        orderData.deliveryAddress = deliveryAddress
-      }
-
-      // Crear el pedido
       const newOrder = await createOrder(tenantId, branchId, orderData)
 
-      // Limpiar carrito y cerrar modal
+      toast({
+        title: "¡Pedido creado!",
+        description: "Tu pedido ha sido enviado al restaurante",
+      })
+
+      // Send to WhatsApp
+      sendToWhatsApp(newOrder)
+
       clearCart()
       onOpenChange(false)
-
-      // Resetear formulario
-      setCurrentStep(1)
-      setCustomerName("")
-      setCustomerPhone("")
-      setCustomerEmail("")
-      setPaymentMethod("")
-      setDeliveryAddress({
-        street: "",
-        number: "",
-        city: "",
-        zipCode: "",
-        notes: "",
-      })
-
-      toast({
-        title: "¡Pedido creado exitosamente!",
-        description: `Tu pedido ${newOrder.orderNumber} ha sido enviado al restaurante`,
-        variant: "default",
-      })
+      resetForm()
     } catch (error) {
-      console.error("Error al crear pedido:", error)
+      console.error("Error creating order:", error)
       toast({
         title: "Error",
         description: "No se pudo crear el pedido. Inténtalo de nuevo.",
@@ -170,359 +236,246 @@ export function CheckoutDialog({ open, onOpenChange, tenantId, branchId, restaur
     }
   }
 
-  const nextStep = () => {
-    if (currentStep === 1) {
-      if (!orderType) {
-        toast({
-          title: "Error",
-          description: "Selecciona el tipo de pedido",
-          variant: "destructive",
-        })
-        return
-      }
-    }
+  const getAvailableOrderTypes = () => {
+    if (!restaurantConfig?.serviceInfo) return []
 
-    if (currentStep === 2) {
-      if (!customerName.trim() || !customerPhone.trim()) {
-        toast({
-          title: "Error",
-          description: "Completa los datos del cliente",
-          variant: "destructive",
-        })
-        return
-      }
+    const types = []
+    if (restaurantConfig.serviceInfo.takeaway) types.push({ value: "takeaway", label: "Para llevar" })
+    if (restaurantConfig.serviceInfo.delivery) types.push({ value: "delivery", label: "Delivery" })
+    if (restaurantConfig.serviceInfo.dineIn) types.push({ value: "dine-in", label: "Consumir en local" })
 
-      if (
-        orderType === "delivery" &&
-        (!deliveryAddress.street.trim() || !deliveryAddress.number.trim() || !deliveryAddress.city.trim())
-      ) {
-        toast({
-          title: "Error",
-          description: "Completa la dirección de entrega",
-          variant: "destructive",
-        })
-        return
-      }
-    }
-
-    setCurrentStep(currentStep + 1)
+    return types
   }
 
-  const prevStep = () => {
-    setCurrentStep(currentStep - 1)
+  const getAvailablePaymentMethods = () => {
+    if (!restaurantConfig?.paymentInfo) return []
+
+    const methods = []
+    if (restaurantConfig.paymentInfo.cash) methods.push({ value: "cash", label: "Efectivo", icon: DollarSign })
+    if (restaurantConfig.paymentInfo.card) methods.push({ value: "card", label: "Tarjeta", icon: CreditCard })
+
+    return methods
+  }
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case "order-type":
+        return (
+          <div className="space-y-4">
+            <div>
+              <Label className="text-base font-medium">¿Cómo quieres recibir tu pedido?</Label>
+              <RadioGroup value={orderType} onValueChange={setOrderType} className="mt-3">
+                {getAvailableOrderTypes().map((type) => (
+                  <div key={type.value} className="flex items-center space-x-2">
+                    <RadioGroupItem value={type.value} id={type.value} />
+                    <Label htmlFor={type.value}>{type.label}</Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+          </div>
+        )
+
+      case "customer-info":
+        return (
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="customerName">Nombre completo *</Label>
+              <Input
+                id="customerName"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Tu nombre completo"
+              />
+            </div>
+            <div>
+              <Label htmlFor="customerPhone">Teléfono *</Label>
+              <Input
+                id="customerPhone"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                placeholder="Tu número de teléfono"
+              />
+            </div>
+            {orderType === "delivery" && (
+              <div>
+                <Label htmlFor="deliveryAddress">Dirección de entrega *</Label>
+                <Textarea
+                  id="deliveryAddress"
+                  value={deliveryAddress}
+                  onChange={(e) => setDeliveryAddress(e.target.value)}
+                  placeholder="Dirección completa para la entrega"
+                />
+              </div>
+            )}
+          </div>
+        )
+
+      case "payment":
+        return (
+          <div className="space-y-4">
+            <div>
+              <Label className="text-base font-medium">Método de pago</Label>
+              <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="mt-3">
+                {getAvailablePaymentMethods().map((method) => (
+                  <div key={method.value} className="flex items-center space-x-2">
+                    <RadioGroupItem value={method.value} id={method.value} />
+                    <Label htmlFor={method.value} className="flex items-center gap-2">
+                      <method.icon className="h-4 w-4" />
+                      {method.label}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+
+            {paymentMethod === "cash" && (
+              <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="needsChange"
+                    checked={needsChange}
+                    onChange={(e) => setNeedsChange(e.target.checked)}
+                    className="rounded"
+                  />
+                  <Label htmlFor="needsChange">Necesito vuelto</Label>
+                </div>
+
+                {needsChange && (
+                  <div>
+                    <Label htmlFor="cashAmount">¿Con cuánto vas a pagar?</Label>
+                    <Input
+                      id="cashAmount"
+                      type="number"
+                      value={cashAmount}
+                      onChange={(e) => setCashAmount(e.target.value)}
+                      placeholder="Monto en efectivo"
+                      min={totalPrice}
+                      step="0.01"
+                    />
+                    {cashAmount && Number.parseFloat(cashAmount) >= totalPrice && (
+                      <p className="text-sm text-green-600 mt-1">Vuelto: ${changeAmount.toFixed(2)}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div>
+              <Label htmlFor="notes">Notas adicionales (opcional)</Label>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Instrucciones especiales para tu pedido"
+              />
+            </div>
+          </div>
+        )
+
+      case "summary":
+        return (
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-medium mb-2">Resumen del pedido</h3>
+              <div className="space-y-2">
+                {items.map((item) => (
+                  <div key={item.id} className="flex justify-between text-sm">
+                    <span>
+                      {item.quantity}x {item.name}
+                    </span>
+                    <span>${item.subtotal.toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+              <Separator className="my-2" />
+              <div className="flex justify-between font-medium">
+                <span>Total</span>
+                <span>${totalPrice.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2 text-sm">
+              <div>
+                <strong>Tipo:</strong> {getAvailableOrderTypes().find((t) => t.value === orderType)?.label}
+              </div>
+              <div>
+                <strong>Cliente:</strong> {customerName}
+              </div>
+              <div>
+                <strong>Teléfono:</strong> {customerPhone}
+              </div>
+              {orderType === "delivery" && (
+                <div>
+                  <strong>Dirección:</strong> {deliveryAddress}
+                </div>
+              )}
+              <div>
+                <strong>Pago:</strong> {getAvailablePaymentMethods().find((m) => m.value === paymentMethod)?.label}
+              </div>
+              {paymentMethod === "cash" && needsChange && (
+                <div>
+                  <strong>Paga con:</strong> ${cashAmount} (Vuelto: ${changeAmount.toFixed(2)})
+                </div>
+              )}
+              {notes && (
+                <div>
+                  <strong>Notas:</strong> {notes}
+                </div>
+              )}
+            </div>
+          </div>
+        )
+    }
+  }
+
+  const canProceed = () => {
+    switch (currentStep) {
+      case "order-type":
+        return orderType !== ""
+      case "customer-info":
+        return customerName && customerPhone && (orderType !== "delivery" || deliveryAddress)
+      case "payment":
+        return paymentMethod && (!needsChange || (cashAmount && Number.parseFloat(cashAmount) >= totalPrice))
+      case "summary":
+        return true
+      default:
+        return false
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Finalizar Pedido</DialogTitle>
+          <DialogTitle>Finalizar pedido</DialogTitle>
+          <DialogDescription>Completa los datos para confirmar tu pedido</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Indicador de pasos */}
-          <div className="flex items-center justify-center space-x-4">
-            {[1, 2, 3].map((step) => (
-              <div key={step} className="flex items-center">
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    step <= currentStep ? "bg-primary text-primary-foreground" : "bg-gray-200 text-gray-600"
-                  }`}
-                >
-                  {step}
-                </div>
-                {step < 3 && <div className={`w-8 h-0.5 ${step < currentStep ? "bg-primary" : "bg-gray-200"}`} />}
-              </div>
-            ))}
-          </div>
+          {renderStepContent()}
 
-          {/* Paso 1: Tipo de pedido */}
-          {currentStep === 1 && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Tipo de pedido</h3>
-              <RadioGroup value={orderType} onValueChange={(value) => setOrderType(value as OrderType)}>
-                <div className="flex items-center space-x-2 p-4 border rounded-lg">
-                  <RadioGroupItem value="takeaway" id="takeaway" />
-                  <Label htmlFor="takeaway" className="flex-1 cursor-pointer">
-                    <div className="font-medium">Para llevar</div>
-                    <div className="text-sm text-gray-600">Recoger en el restaurante</div>
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2 p-4 border rounded-lg">
-                  <RadioGroupItem value="delivery" id="delivery" />
-                  <Label htmlFor="delivery" className="flex-1 cursor-pointer">
-                    <div className="font-medium">Delivery</div>
-                    <div className="text-sm text-gray-600">Entrega a domicilio</div>
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2 p-4 border rounded-lg">
-                  <RadioGroupItem value="local" id="local" />
-                  <Label htmlFor="local" className="flex-1 cursor-pointer">
-                    <div className="font-medium">Consumir en local</div>
-                    <div className="text-sm text-gray-600">Comer en el restaurante</div>
-                  </Label>
-                </div>
-              </RadioGroup>
-            </div>
-          )}
-
-          {/* Paso 2: Datos del cliente */}
-          {currentStep === 2 && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Datos del cliente</h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="customerName">
-                    <User className="h-4 w-4 inline mr-1" />
-                    Nombre completo *
-                  </Label>
-                  <Input
-                    id="customerName"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="Ingresa tu nombre"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="customerPhone">
-                    <Phone className="h-4 w-4 inline mr-1" />
-                    Teléfono *
-                  </Label>
-                  <Input
-                    id="customerPhone"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="Ingresa tu teléfono"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="customerEmail">
-                  <Mail className="h-4 w-4 inline mr-1" />
-                  Email (opcional)
-                </Label>
-                <Input
-                  id="customerEmail"
-                  type="email"
-                  value={customerEmail}
-                  onChange={(e) => setCustomerEmail(e.target.value)}
-                  placeholder="Ingresa tu email"
-                />
-              </div>
-
-              {/* Dirección de entrega para delivery */}
-              {orderType === "delivery" && (
-                <div className="space-y-4 p-4 border rounded-lg">
-                  <h4 className="font-medium flex items-center">
-                    <MapPin className="h-4 w-4 mr-1" />
-                    Dirección de entrega
-                  </h4>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="md:col-span-2 space-y-2">
-                      <Label htmlFor="street">Calle *</Label>
-                      <Input
-                        id="street"
-                        value={deliveryAddress.street}
-                        onChange={(e) => setDeliveryAddress({ ...deliveryAddress, street: e.target.value })}
-                        placeholder="Nombre de la calle"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="number">Número *</Label>
-                      <Input
-                        id="number"
-                        value={deliveryAddress.number}
-                        onChange={(e) => setDeliveryAddress({ ...deliveryAddress, number: e.target.value })}
-                        placeholder="Número"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="city">Ciudad *</Label>
-                      <Input
-                        id="city"
-                        value={deliveryAddress.city}
-                        onChange={(e) => setDeliveryAddress({ ...deliveryAddress, city: e.target.value })}
-                        placeholder="Ciudad"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="zipCode">Código postal</Label>
-                      <Input
-                        id="zipCode"
-                        value={deliveryAddress.zipCode}
-                        onChange={(e) => setDeliveryAddress({ ...deliveryAddress, zipCode: e.target.value })}
-                        placeholder="Código postal"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="notes">Notas adicionales</Label>
-                    <Textarea
-                      id="notes"
-                      value={deliveryAddress.notes}
-                      onChange={(e) => setDeliveryAddress({ ...deliveryAddress, notes: e.target.value })}
-                      placeholder="Instrucciones especiales para la entrega"
-                      rows={2}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Paso 3: Resumen y pago */}
-          {currentStep === 3 && (
-            <div className="space-y-6">
-              <h3 className="text-lg font-medium">Resumen del pedido</h3>
-
-              {/* Resumen de productos */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Productos</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {items.map((item) => (
-                    <div key={item.id} className="flex items-center space-x-3">
-                      <div className="relative h-12 w-12 rounded-md overflow-hidden">
-                        <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-medium text-sm">{item.name}</h4>
-                        <p className="text-xs text-gray-600">
-                          {item.quantity} x {formatCurrency(item.price)}
-                        </p>
-                      </div>
-                      <div className="text-sm font-medium">{formatCurrency(item.price * (item.quantity || 1))}</div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-
-              {/* Información del cliente */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Información del pedido</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Tipo:</span>
-                    <Badge variant="outline">
-                      {orderType === "takeaway"
-                        ? "Para llevar"
-                        : orderType === "delivery"
-                          ? "Delivery"
-                          : "Consumir en local"}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Cliente:</span>
-                    <span className="text-sm">{customerName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Teléfono:</span>
-                    <span className="text-sm">{customerPhone}</span>
-                  </div>
-                  {customerEmail && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Email:</span>
-                      <span className="text-sm">{customerEmail}</span>
-                    </div>
-                  )}
-                  {orderType === "delivery" && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Dirección:</span>
-                      <span className="text-sm text-right">
-                        {deliveryAddress.street} {deliveryAddress.number}, {deliveryAddress.city}
-                      </span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Método de pago */}
-              <div className="space-y-3">
-                <Label>Método de pago</Label>
-                <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <div className="flex items-center space-x-2 p-3 border rounded-lg">
-                    <RadioGroupItem value="cash" id="cash" />
-                    <Label htmlFor="cash" className="flex items-center cursor-pointer">
-                      <Banknote className="h-4 w-4 mr-2" />
-                      Efectivo
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2 p-3 border rounded-lg">
-                    <RadioGroupItem value="card" id="card" />
-                    <Label htmlFor="card" className="flex items-center cursor-pointer">
-                      <CreditCard className="h-4 w-4 mr-2" />
-                      Tarjeta
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2 p-3 border rounded-lg">
-                    <RadioGroupItem value="transfer" id="transfer" />
-                    <Label htmlFor="transfer" className="flex items-center cursor-pointer">
-                      <Smartphone className="h-4 w-4 mr-2" />
-                      Transferencia
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              {/* Totales */}
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Subtotal:</span>
-                      <span>{formatCurrency(subtotal)}</span>
-                    </div>
-                    {taxEnabled && !taxIncluded && (
-                      <div className="flex justify-between">
-                        <span>IVA ({Math.round(taxRate * 100)}%):</span>
-                        <span>{formatCurrency(tax)}</span>
-                      </div>
-                    )}
-                    <Separator />
-                    <div className="flex justify-between font-bold text-lg">
-                      <span>Total:</span>
-                      <span>{formatCurrency(total)}</span>
-                    </div>
-                    {taxEnabled && taxIncluded && <p className="text-xs text-gray-600 text-right">IVA incluido</p>}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {/* Botones de navegación */}
-          <div className="flex justify-between pt-4">
-            <Button variant="outline" onClick={prevStep} disabled={currentStep === 1}>
-              Anterior
-            </Button>
-
-            {currentStep < 3 ? (
-              <Button onClick={nextStep}>Siguiente</Button>
-            ) : (
-              <Button onClick={handleSubmitOrder} disabled={loading || !paymentMethod} className="min-w-[120px]">
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Enviando...
-                  </>
-                ) : (
-                  "Confirmar Pedido"
-                )}
+          <div className="flex justify-between">
+            {currentStep !== "order-type" && (
+              <Button variant="outline" onClick={handleBack}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Atrás
               </Button>
             )}
+
+            <div className="ml-auto">
+              {currentStep === "summary" ? (
+                <Button onClick={handleSubmitOrder} disabled={loading}>
+                  {loading ? "Enviando..." : "Confirmar pedido"}
+                </Button>
+              ) : (
+                <Button onClick={handleNext} disabled={!canProceed()}>
+                  Siguiente
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </DialogContent>
