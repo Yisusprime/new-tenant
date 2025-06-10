@@ -1,14 +1,10 @@
-import type React from "react"
-import { CartProvider } from "./context/cart-context"
+import type { ReactNode } from "react"
 
-export default function MenuLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function MenuLayout({ children }: { children: ReactNode }) {
   return (
-    <CartProvider>
-      <div className="min-h-screen bg-gray-50">{children}</div>
-    </CartProvider>
+    <div className="min-h-screen flex flex-col">
+      {/* Contenido principal */}
+      <main className="flex-1">{children}</main>
+    </div>
   )
 }
