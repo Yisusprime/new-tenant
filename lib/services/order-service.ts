@@ -214,7 +214,6 @@ export async function createOrder(tenantId: string, branchId: string, orderData:
       deliveryAddress: orderData.deliveryAddress || null,
       paymentMethod: orderData.paymentMethod || null,
       paymentStatus: "pending",
-      cashPayment: orderData.cashPayment || null,
       createdAt: timestamp,
       updatedAt: timestamp,
     }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useCart } from "@/hooks/use-cart"
+import { useCart } from "../context/cart-context"
 import { ShoppingCart, Minus, Plus, X, ChevronUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
@@ -9,14 +9,11 @@ import { CheckoutDialog } from "./checkout-dialog"
 import { useParams } from "next/navigation"
 
 export function Cart() {
-  const { items, getTotalItems, getTotalPrice, updateQuantity, removeItem } = useCart()
+  const { items, totalItems, totalPrice, updateQuantity, removeItem } = useCart()
   const [isOpen, setIsOpen] = useState(false)
   const [isMinimized, setIsMinimized] = useState(true)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const params = useParams()
-
-  const totalItems = getTotalItems()
-  const totalPrice = getTotalPrice()
 
   // Abrir automáticamente el carrito cuando se agrega un producto
   useEffect(() => {
@@ -79,7 +76,7 @@ export function Cart() {
                   size="icon"
                   variant="outline"
                   className="h-8 w-8 rounded-full"
-                  onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                  onClick={() => updateQuantity(item.id, (item.quantity || 1) - 1)}
                 >
                   <Minus className="h-4 w-4" />
                 </Button>
@@ -88,7 +85,7 @@ export function Cart() {
                   size="icon"
                   variant="outline"
                   className="h-8 w-8 rounded-full"
-                  onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                  onClick={() => updateQuantity(item.id, (item.quantity || 1) + 1)}
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
@@ -138,7 +135,7 @@ export function Cart() {
                       size="icon"
                       variant="outline"
                       className="h-8 w-8 rounded-full"
-                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                      onClick={() => updateQuantity(item.id, (item.quantity || 1) - 1)}
                     >
                       <Minus className="h-4 w-4" />
                     </Button>
@@ -147,7 +144,7 @@ export function Cart() {
                       size="icon"
                       variant="outline"
                       className="h-8 w-8 rounded-full"
-                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                      onClick={() => updateQuantity(item.id, (item.quantity || 1) + 1)}
                     >
                       <Plus className="h-4 w-4" />
                     </Button>
@@ -172,7 +169,7 @@ export function Cart() {
         open={checkoutOpen}
         onOpenChange={setCheckoutOpen}
         tenantId={params.tenantId as string}
-        branchId="default"
+        branchId="default" // Puedes obtener esto del contexto si tienes múltiples sucursales
       />
     </>
   )
