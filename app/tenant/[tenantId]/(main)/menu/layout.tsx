@@ -1,10 +1,17 @@
-import type { ReactNode } from "react"
+"use client"
 
-export default function MenuLayout({ children }: { children: ReactNode }) {
-  return (
-    <div className="min-h-screen flex flex-col">
-      {/* Contenido principal */}
-      <main className="flex-1">{children}</main>
-    </div>
-  )
+import type React from "react"
+
+import { useRestaurantConfig } from "@/lib/hooks/use-restaurant-config"
+import { useParams } from "next/navigation"
+
+interface MenuLayoutProps {
+  children: React.ReactNode
+}
+
+export default function MenuLayout({ children }: MenuLayoutProps) {
+  const { tenantId } = useParams()
+  const { config: restaurantConfig } = useRestaurantConfig(tenantId as string, "default")
+
+  return <>{children}</>
 }

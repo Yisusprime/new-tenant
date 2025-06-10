@@ -5,11 +5,15 @@ import { useCart } from "../context/cart-context"
 import { ShoppingCart, Minus, Plus, X, ChevronUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
+import { CheckoutDialog } from "./checkout-dialog"
+import { useParams } from "next/navigation"
 
 export function Cart() {
   const { items, totalItems, totalPrice, updateQuantity, removeItem } = useCart()
   const [isOpen, setIsOpen] = useState(false)
   const [isMinimized, setIsMinimized] = useState(true)
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
+  const params = useParams()
 
   // Abrir automáticamente el carrito cuando se agrega un producto
   useEffect(() => {
@@ -98,7 +102,9 @@ export function Cart() {
             <span>Subtotal:</span>
             <span>${totalPrice.toFixed(2)}</span>
           </div>
-          <Button className="w-full">Proceder al pago</Button>
+          <Button className="w-full" onClick={() => setCheckoutOpen(true)} disabled={totalItems === 0}>
+            Proceder al pago
+          </Button>
         </div>
       </div>
 
@@ -152,11 +158,19 @@ export function Cart() {
                 <span>Subtotal:</span>
                 <span>${totalPrice.toFixed(2)}</span>
               </div>
-              <Button className="w-full">Proceder al pago</Button>
+              <Button className="w-full" onClick={() => setCheckoutOpen(true)} disabled={totalItems === 0}>
+                Proceder al pago
+              </Button>
             </div>
           </div>
         </div>
       )}
+      <CheckoutDialog
+        open={checkoutOpen}
+        onOpenChange={setCheckoutOpen}
+        tenantId={params.tenantId as string}
+        branchId="default" // Puedes obtener esto del contexto si tienes múltiples sucursales
+      />
     </>
   )
 }
