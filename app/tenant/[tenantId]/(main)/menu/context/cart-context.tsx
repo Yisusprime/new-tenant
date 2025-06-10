@@ -2,24 +2,17 @@
 
 import { createContext, useContext, useState, type ReactNode } from "react"
 
-export interface CartExtra {
-  id: string
-  name: string
-  price: number
-}
-
 export interface CartItem {
   id: string
   name: string
   price: number
   image?: string
-  quantity: number
-  extras?: CartExtra[]
+  quantity?: number
 }
 
 interface CartContextType {
   items: CartItem[]
-  addItem: (item: Omit<CartItem, "quantity"> & { quantity?: number }) => void
+  addItem: (item: CartItem) => void
   removeItem: (itemId: string) => void
   updateQuantity: (itemId: string, quantity: number) => void
   clearCart: () => void
@@ -32,43 +25,18 @@ const CartContext = createContext<CartContextType | undefined>(undefined)
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
 
-  const addItem = (item: Omit<CartItem, "quantity"> & { quantity?: number }) => {
+  const addItem = (item: CartItem) => {
     setItems((prevItems) => {
-      // Crear un ID único que incluya los extras para diferenciar productos con diferentes extras
-      const itemKey = `${item.id}-${
-        item.extras
-          ?.map((e) => e.id)
-          .sort()
-          .join(",") || "no-extras"
-      }`
-
-      const existingItemIndex = prevItems.findIndex((i) => {
-        const existingKey = `${i.id}-${
-          i.extras
-            ?.map((e) => e.id)
-            .sort()
-            .join(",") || "no-extras"
-        }`
-        return existingKey === itemKey
-      })
-
-      if (existingItemIndex >= 0) {
-        // Si el item ya existe (mismo producto con mismos extras), incrementar cantidad
-        const updatedItems = [...prevItems]
-        updatedItems[existingItemIndex] = {
-          ...updatedItems[existingItemIndex],
-          quantity: updatedItems[existingItemIndex].quantity + (item.quantity || 1),
-        }
-        return updatedItems
-      } else {
-        // Si es un item nuevo, agregarlo
-        return [...prevItems, { ...item, quantity: item.quantity || 1 }]
+      const existingItem = prevItems.find((i) => i.id === item.id)
+      if (existingItem) {
+        return prevItems.map((i) => (i.id === item.id ? { ...i, quantity: (i.quantity || 1) + 1 } : i))
       }
+      return [...prevItems, { ...item, quantity: 1 }]
     })
   }
 
   const removeItem = (itemId: string) => {
-    setItems((prevItems) => prevItems.filter((item, index) => `${item.id}-${index}` !== itemId))
+    setItems((prevItems) => prevItems.filter((item) => item.id !== itemId))
   }
 
   const updateQuantity = (itemId: string, quantity: number) => {
@@ -76,21 +44,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
       removeItem(itemId)
       return
     }
-    setItems((prevItems) =>
-      prevItems.map((item, index) => (`${item.id}-${index}` === itemId ? { ...item, quantity } : item)),
-    )
+    setItems((prevItems) => prevItems.map((item) => (item.id === itemId ? { ...item, quantity } : item)))
   }
 
   const clearCart = () => {
     setItems([])
   }
 
-  const totalItems = items.reduce((total, item) => total + item.quantity, 0)
+  const totalItems = items.reduce((total, item) => total + (item.quantity || 1), 0)
 
-  const totalPrice = items.reduce((total, item) => {
-    const itemPrice = item.price + (item.extras?.reduce((sum, extra) => sum + extra.price, 0) || 0)
-    return total + itemPrice * item.quantity
-  }, 0)
+  const totalPrice = items.reduce((total, item) => total + item.price * (item.quantity || 1), 0)
 
   return (
     <CartContext.Provider
@@ -116,6 +79,3 @@ export function useCart() {
   }
   return context
 }
-
-// Alias para compatibilidad
-export const CartContextProvider = CartProvider
