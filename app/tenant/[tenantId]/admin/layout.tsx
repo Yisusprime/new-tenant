@@ -309,13 +309,14 @@ function AdminLayoutContent({
     { path: "/orders", label: "Pedidos", icon: ShoppingBag },
     { path: "/cash-register", label: "Caja", icon: DollarSign },
     { path: "/finances", label: "Finanzas", icon: PieChart },
-      { type: "separator", label: "Menu" },
+    { type: "separator", label: "Menu" },
     { path: "/products", label: "Productos", icon: Store },
     { path: "/categories", label: "Categorías", icon: FolderTree },
-      { type: "separator", label: "Beta" },
+    { path: "/menu", label: "Ir a menu", icon: FolderTree },
+    { type: "separator", label: "Beta" },
     { path: "/cost-calculator", label: "Calculadora de Costos", icon: Calculator },
     { path: "/inventory", label: "Inventario", icon: Package },
-    
+
     { type: "separator", label: "Configuración" },
     { path: "/plans", label: "Planes", icon: CreditCard },
     { path: "/branches", label: "Sucursales", icon: MapPin },
@@ -345,9 +346,9 @@ function AdminLayoutContent({
         id="admin-sidebar"
         className={`fixed inset-y-0 left-0 z-50 bg-gray-900 shadow-lg transform transition-transform duration-300 ease-in-out ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:relative lg:translate-x-0 ${sidebarOpen ? "w-64" : "w-20"} lg:${sidebarOpen ? "w-64" : "w-20"}`}
+        } lg:relative lg:translate-x-0 ${sidebarOpen ? "w-64" : "w-20"} lg:${sidebarOpen ? "w-64" : "w-20"} flex flex-col`}
       >
-        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-700 bg-gray-800">
+        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-700 bg-gray-800 flex-shrink-0">
           <div className={`font-bold text-xl truncate text-white ${!sidebarOpen && "lg:hidden"}`}>
             {tenantData?.name || tenantId}
           </div>
@@ -365,7 +366,7 @@ function AdminLayoutContent({
           </button>
         </div>
 
-        <nav className="mt-4 px-2 overflow-y-auto" style={{ maxHeight: "calc(100vh - 180px)" }}>
+        <nav className="flex-1 mt-4 px-2 overflow-y-auto overflow-x-hidden">
           <ul className="space-y-1">
             {menuItems.map((item, index) => {
               if (item.type === "separator") {
@@ -559,7 +560,7 @@ function AdminLayoutContent({
           </ul>
         </nav>
 
-        <div className="absolute bottom-0 w-full p-4 border-t border-gray-700 bg-gray-800">
+        <div className="flex-shrink-0 w-full p-4 border-t border-gray-700 bg-gray-800">
           {sidebarOpen ? (
             <>
               <div className="flex items-center mb-4">
