@@ -36,7 +36,6 @@ export const BranchProvider = ({ children, tenantId }: { children: React.ReactNo
   const [hasBranches, setHasBranches] = useState(false)
   const { user } = useAuth()
 
-  // Modificar el useEffect para asegurar que se seleccione una sucursal por defecto
   useEffect(() => {
     if (!tenantId) {
       setLoading(false)
@@ -66,14 +65,7 @@ export const BranchProvider = ({ children, tenantId }: { children: React.ReactNo
           // Verificar que la sucursal guardada esté activa
           const savedBranch = savedBranchId ? activeBranches.find((b) => b.id === savedBranchId) : null
 
-          // IMPORTANTE: Siempre establecer una sucursal por defecto
-          const defaultBranch = savedBranch || activeBranches[0]
-          setCurrentBranch(defaultBranch)
-
-          // Guardar la sucursal seleccionada en localStorage
-          if (defaultBranch && !savedBranchId) {
-            localStorage.setItem(`${tenantId}_currentBranch`, defaultBranch.id)
-          }
+          setCurrentBranch(savedBranch || activeBranches[0])
         } else {
           // Si no hay sucursales activas, establecer currentBranch como null
           setCurrentBranch(null)
