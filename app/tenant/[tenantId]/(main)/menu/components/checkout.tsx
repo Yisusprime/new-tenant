@@ -87,7 +87,12 @@ export function Checkout({ isOpen, onClose, cartItems, totalPrice, onOrderComple
 
   // Obtener servicios disponibles
   const getAvailableServices = () => {
-    if (!restaurantConfig?.serviceMethods) return []
+    console.log("serviceMethods:", restaurantConfig?.serviceMethods)
+
+    if (!restaurantConfig?.serviceMethods) {
+      console.log("No hay métodos de servicio configurados")
+      return []
+    }
 
     const services = []
     if (restaurantConfig.serviceMethods.dineIn) {
@@ -99,20 +104,31 @@ export function Checkout({ isOpen, onClose, cartItems, totalPrice, onOrderComple
     if (restaurantConfig.serviceMethods.takeout) {
       services.push({ id: "takeout", name: "Para Llevar", icon: Clock })
     }
+
+    console.log("Servicios filtrados:", services)
     return services
   }
 
   // Obtener métodos de pago disponibles
   const getAvailablePaymentMethods = () => {
-    if (!restaurantConfig?.paymentMethods?.methods) return []
+    console.log("restaurantConfig:", restaurantConfig)
+    console.log("paymentMethods:", restaurantConfig?.paymentMethods)
 
-    return restaurantConfig.paymentMethods.methods
+    if (!restaurantConfig?.paymentMethods?.methods) {
+      console.log("No hay métodos de pago configurados")
+      return []
+    }
+
+    const methods = restaurantConfig.paymentMethods.methods
       .filter((method) => method.isActive)
       .map((method) => ({
         id: method.id,
         name: method.name,
         icon: getPaymentIcon(method.id),
       }))
+
+    console.log("Métodos de pago filtrados:", methods)
+    return methods
   }
 
   const getPaymentIcon = (methodId: string) => {
@@ -268,7 +284,8 @@ export function Checkout({ isOpen, onClose, cartItems, totalPrice, onOrderComple
     )
   }
 
-  if (!restaurantConfig) {
+  // Si no hay configuración Y ya terminó de cargar, mostrar error
+  if (!restaurantConfig && !loading) {
     return (
       <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg p-6 text-center">
@@ -280,8 +297,12 @@ export function Checkout({ isOpen, onClose, cartItems, totalPrice, onOrderComple
     )
   }
 
+  // Si llegamos aquí, tenemos configuración válida
   const availableServices = getAvailableServices()
   const availablePaymentMethods = getAvailablePaymentMethods()
+
+  console.log("Servicios disponibles:", availableServices)
+  console.log("Métodos de pago disponibles:", availablePaymentMethods)
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
