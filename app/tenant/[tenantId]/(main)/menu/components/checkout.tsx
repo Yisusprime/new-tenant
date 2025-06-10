@@ -53,7 +53,10 @@ export function Checkout({ isOpen, onClose, cartItems, totalPrice, onOrderComple
   // Cargar configuración del restaurante
   useEffect(() => {
     async function loadConfig() {
-      if (!currentBranch) return
+      if (!currentBranch) {
+        setLoading(false)
+        return
+      }
 
       try {
         setLoading(true)
@@ -76,7 +79,30 @@ export function Checkout({ isOpen, onClose, cartItems, totalPrice, onOrderComple
     }
   }, [isOpen, tenantId, currentBranch, toast])
 
-  // Obtener servicios disponibles
+  if (!isOpen) return null
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+        <div className="bg-white rounded-lg p-6">
+          <div className="text-center">Cargando...</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!restaurantConfig && !loading) {
+    return (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg p-6 text-center">
+          <h3 className="text-lg font-semibold mb-2">Error de Configuración</h3>
+          <p className="text-gray-600 mb-4">No se pudo cargar la configuración del restaurante</p>
+          <Button onClick={onClose}>Cerrar</Button>
+        </div>
+      </div>
+    )
+  }
+
   const getAvailableServices = () => {
     if (!restaurantConfig?.serviceMethods) return []
 
@@ -92,6 +118,9 @@ export function Checkout({ isOpen, onClose, cartItems, totalPrice, onOrderComple
     }
     return services
   }
+
+  const availableServices = getAvailableServices()
+  const availablePaymentMethods = getAvailablePaymentMethods()
 
   // Obtener métodos de pago disponibles
   const getAvailablePaymentMethods = () => {
@@ -213,21 +242,6 @@ export function Checkout({ isOpen, onClose, cartItems, totalPrice, onOrderComple
       })
     }
   }
-
-  if (!isOpen) return null
-
-  if (loading) {
-    return (
-      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-        <div className="bg-white rounded-lg p-6">
-          <div className="text-center">Cargando...</div>
-        </div>
-      </div>
-    )
-  }
-
-  const availableServices = getAvailableServices()
-  const availablePaymentMethods = getAvailablePaymentMethods()
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">

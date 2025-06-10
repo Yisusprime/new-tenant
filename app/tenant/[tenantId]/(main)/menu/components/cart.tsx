@@ -24,7 +24,7 @@ export function Cart() {
 
   if (totalItems === 0) {
     return (
-      <div className="fixed bottom-4 right-4 z-40">
+      <div className="fixed bottom-20 right-4 z-40">
         <Button size="lg" className="rounded-full shadow-lg" disabled>
           <ShoppingCart className="h-5 w-5 mr-2" />
           Carrito (0)
@@ -36,7 +36,7 @@ export function Cart() {
   return (
     <>
       {/* Botón flotante del carrito */}
-      <div className="fixed bottom-4 right-4 z-40">
+      <div className="fixed bottom-20 right-4 z-40">
         <Button size="lg" className="rounded-full shadow-lg" onClick={() => setIsOpen(true)}>
           <ShoppingCart className="h-5 w-5 mr-2" />
           Carrito ({totalItems})
