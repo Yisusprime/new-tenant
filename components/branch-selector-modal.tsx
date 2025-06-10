@@ -16,11 +16,20 @@ export function BranchSelectorModal() {
   // 2. Hay más de una sucursal activa
   // 3. No estamos en estado de carga
   useEffect(() => {
-    if (!loading && hasActiveBranches && !currentBranch && branches.length > 1) {
-      setOpen(true)
-    } else if (!loading && hasActiveBranches && !currentBranch && branches.length === 1) {
-      // Si solo hay una sucursal, seleccionarla automáticamente
-      setCurrentBranch(branches[0])
+    if (!loading) {
+      if (hasActiveBranches) {
+        if (!currentBranch && branches.length > 1) {
+          // Si hay múltiples sucursales y ninguna seleccionada, mostrar el modal
+          setOpen(true)
+        } else if (!currentBranch && branches.length === 1) {
+          // Si solo hay una sucursal, seleccionarla automáticamente
+          const activeBranch = branches.find((b) => b.isActive)
+          if (activeBranch) {
+            console.log("Seleccionando automáticamente la única sucursal activa:", activeBranch.name)
+            setCurrentBranch(activeBranch)
+          }
+        }
+      }
     }
   }, [loading, hasActiveBranches, currentBranch, branches, setCurrentBranch])
 

@@ -56,16 +56,34 @@ export function Checkout({ isOpen, onClose, cartItems, totalPrice, onOrderComple
   // Cargar configuración del restaurante
   useEffect(() => {
     async function loadConfig() {
-      if (!currentBranch) {
-        console.log("No hay sucursal seleccionada")
-        setLoading(false)
-        return
-      }
-
       try {
         setLoading(true)
+
+        if (!currentBranch) {
+          console.error("No hay sucursal seleccionada para cargar la configuración")
+          toast({
+            title: "Error",
+            description: "No se pudo seleccionar una sucursal. Por favor, recarga la página.",
+            variant: "destructive",
+          })
+          setLoading(false)
+          return
+        }
+
         console.log(`Obteniendo configuración para tenant: ${tenantId}, sucursal: ${currentBranch.id}`)
         const config = await getRestaurantConfig(tenantId, currentBranch.id)
+
+        if (!config) {
+          console.error(`No se encontró configuración para la sucursal ${currentBranch.id}`)
+          toast({
+            title: "Error",
+            description: "No se encontró la configuración del restaurante para esta sucursal",
+            variant: "destructive",
+          })
+          setLoading(false)
+          return
+        }
+
         console.log(`Configuración obtenida para sucursal ${currentBranch.id}:`, config)
         setRestaurantConfig(config)
       } catch (error) {
@@ -214,7 +232,16 @@ export function Checkout({ isOpen, onClose, cartItems, totalPrice, onOrderComple
     if (!currentBranch) {
       toast({
         title: "Error",
-        description: "No hay sucursal seleccionada",
+        description: "No hay sucursal seleccionada. Por favor, recarga la página e intenta nuevamente.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!restaurantConfig) {
+      toast({
+        title: "Error",
+        description: "No se pudo cargar la configuración del restaurante",
         variant: "destructive",
       })
       return
@@ -248,6 +275,8 @@ export function Checkout({ isOpen, onClose, cartItems, totalPrice, onOrderComple
       }
 
       console.log("Creando pedido:", orderData)
+      console.log("Tenant ID:", tenantId)
+      console.log("Branch ID:", currentBranch.id)
 
       // Crear el pedido en Firebase
       const newOrder = await createOrder(tenantId, currentBranch.id, orderData)
