@@ -309,14 +309,16 @@ function AdminLayoutContent({
     { path: "/orders", label: "Pedidos", icon: ShoppingBag },
     { path: "/cash-register", label: "Caja", icon: DollarSign },
     { path: "/finances", label: "Finanzas", icon: PieChart },
+      { type: "separator", label: "Menu" },
     { path: "/products", label: "Productos", icon: Store },
     { path: "/categories", label: "Categorías", icon: FolderTree },
+      { type: "separator", label: "Beta" },
     { path: "/cost-calculator", label: "Calculadora de Costos", icon: Calculator },
     { path: "/inventory", label: "Inventario", icon: Package },
-    { path: "/branches", label: "Sucursales", icon: MapPin },
+    
     { type: "separator", label: "Configuración" },
     { path: "/plans", label: "Planes", icon: CreditCard },
-    { type: "separator", label: "Herramientas" },
+    { path: "/branches", label: "Sucursales", icon: MapPin },
     { path: "/debug", label: "Depuración", icon: AlertCircle },
   ]
 
