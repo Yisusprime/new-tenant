@@ -5,8 +5,8 @@ import "./globals.css"
 import "./print.css"
 
 export const metadata: Metadata = {
-  title: "Gastroo",
-  description: "Administrador de restaurantes",
+  title: "v0 App",
+  description: "Created with v0",
   generator: "v0.dev",
 }
 
@@ -16,7 +16,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="es">
+    <html lang="en">
       <body>{children}</body>
     </html>
   )
