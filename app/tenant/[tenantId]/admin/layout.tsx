@@ -48,6 +48,17 @@ import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { QuickCalculatorModal } from "@/components/quick-calculator-modal"
 
+// Estilos para ocultar scrollbar
+const scrollbarHideStyles = `
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+`
+
 // Componente para el selector de sucursales
 function BranchSelector() {
   const { branches, currentBranch, setCurrentBranch, loading, error, hasActiveBranches } = useBranch()
@@ -312,7 +323,7 @@ function AdminLayoutContent({
     { type: "separator", label: "Menu" },
     { path: "/products", label: "Productos", icon: Store },
     { path: "/categories", label: "Categorías", icon: FolderTree },
-    { path: "/menu", label: "Ir a menu", icon: FolderTree },
+    { path: "/../menu", label: "Ir a menú", icon: FolderTree },
     { type: "separator", label: "Beta" },
     { path: "/cost-calculator", label: "Calculadora de Costos", icon: Calculator },
     { path: "/inventory", label: "Inventario", icon: Package },
@@ -341,6 +352,9 @@ function AdminLayoutContent({
 
   return (
     <div className="flex h-screen bg-gray-100">
+      <style jsx global>
+        {scrollbarHideStyles}
+      </style>
       {/* Sidebar con nuevo estilo */}
       <div
         id="admin-sidebar"
@@ -366,7 +380,7 @@ function AdminLayoutContent({
           </button>
         </div>
 
-        <nav className="flex-1 mt-4 px-2 overflow-y-auto overflow-x-hidden">
+        <nav className="flex-1 mt-4 px-2 overflow-y-auto overflow-x-hidden scrollbar-hide">
           <ul className="space-y-1">
             {menuItems.map((item, index) => {
               if (item.type === "separator") {
