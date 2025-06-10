@@ -79,3 +79,6 @@ export function useCart() {
   }
   return context
 }
+
+// Alias para compatibilidad
+export const CartContextProvider = CartProvider

@@ -55,3 +55,33 @@ export function formatDate(date: Date | string | number, locale = "es-CL"): stri
     day: "2-digit",
   }).format(dateObj)
 }
+
+/**
+ * Obtiene el ID de la sucursal actual desde localStorage o contexto
+ * @returns El ID de la sucursal actual o null si no está disponible
+ */
+export function getCurrentBranchId(): string | null {
+  if (typeof window === "undefined") return null
+
+  try {
+    const branchId = localStorage.getItem("currentBranchId")
+    return branchId
+  } catch (error) {
+    console.error("Error getting current branch ID:", error)
+    return null
+  }
+}
+
+/**
+ * Establece el ID de la sucursal actual en localStorage
+ * @param branchId - El ID de la sucursal a establecer
+ */
+export function setCurrentBranchId(branchId: string): void {
+  if (typeof window === "undefined") return
+
+  try {
+    localStorage.setItem("currentBranchId", branchId)
+  } catch (error) {
+    console.error("Error setting current branch ID:", error)
+  }
+}

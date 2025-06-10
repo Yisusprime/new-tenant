@@ -1,10 +1,19 @@
-import type { ReactNode } from "react"
+import type React from "react"
+import { CartProvider } from "@/components/providers/cart-provider"
+import { CartContextProvider } from "./context/cart-context"
 
-export default function MenuLayout({ children }: { children: ReactNode }) {
+export default function MenuLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode
+  params: { tenantId: string }
+}) {
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Contenido principal */}
-      <main className="flex-1">{children}</main>
-    </div>
+    <CartProvider>
+      <CartContextProvider>
+        <div className="min-h-screen bg-gray-50">{children}</div>
+      </CartContextProvider>
+    </CartProvider>
   )
 }

@@ -1,15 +1,19 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useCart } from "../context/cart-context"
+import { useCart } from "@/components/providers/cart-provider"
 import { ShoppingCart, Minus, Plus, X, ChevronUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
+import { CheckoutModal } from "./checkout-modal"
+import { CheckoutProvider } from "../context/checkout-context"
 
 export function Cart() {
-  const { items, totalItems, totalPrice, updateQuantity, removeItem } = useCart()
+  const { state, updateQuantity, removeItem } = useCart()
+  const { items, totalItems, totalPrice } = state
   const [isOpen, setIsOpen] = useState(false)
   const [isMinimized, setIsMinimized] = useState(true)
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
 
   // Abrir automáticamente el carrito cuando se agrega un producto
   useEffect(() => {
@@ -98,7 +102,9 @@ export function Cart() {
             <span>Subtotal:</span>
             <span>${totalPrice.toFixed(2)}</span>
           </div>
-          <Button className="w-full">Proceder al pago</Button>
+          <Button className="w-full" onClick={() => setCheckoutOpen(true)}>
+            Proceder al pago
+          </Button>
         </div>
       </div>
 
@@ -152,11 +158,26 @@ export function Cart() {
                 <span>Subtotal:</span>
                 <span>${totalPrice.toFixed(2)}</span>
               </div>
-              <Button className="w-full">Proceder al pago</Button>
+              <Button
+                className="w-full"
+                onClick={() => {
+                  setIsOpen(false)
+                  setCheckoutOpen(true)
+                }}
+              >
+                Proceder al pago
+              </Button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Modal de checkout */}
+      <CheckoutProvider tenantId="" branchId="">
+        <CheckoutModal open={checkoutOpen} onOpenChange={setCheckoutOpen} tenantId="" branchId="" />
+      </CheckoutProvider>
     </>
   )
 }
+
+export default Cart
