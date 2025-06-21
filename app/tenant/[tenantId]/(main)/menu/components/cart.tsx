@@ -43,12 +43,12 @@ export function Cart() {
 
       {/* Carrito para PC (panel inferior) */}
       <div
-        className={`hidden md:block fixed bottom-0 left-0 right-0 bg-white shadow-lg z-40 transition-transform duration-300 ${
-          isMinimized ? "transform translate-y-[calc(100%-60px)]" : ""
+        className={`hidden md:block fixed bottom-0 left-1/2 transform -translate-x-1/2 bg-white shadow-lg z-40 transition-all duration-300 rounded-t-lg border-l border-r border-t max-w-4xl w-full mx-4 ${
+          isMinimized ? "translate-y-[calc(100%-60px)]" : ""
         }`}
       >
         <div
-          className="flex items-center justify-between p-4 cursor-pointer border-b"
+          className="flex items-center justify-between p-4 cursor-pointer border-b bg-gray-50 rounded-t-lg"
           onClick={() => setIsMinimized(!isMinimized)}
         >
           <div className="flex items-center">
@@ -61,48 +61,59 @@ export function Cart() {
           </div>
         </div>
 
-        <div className="max-h-[50vh] overflow-y-auto p-4">
-          {items.map((item) => (
-            <div key={item.id} className="flex items-center py-2 border-b last:border-0">
-              <div className="relative h-16 w-16 rounded-md overflow-hidden mr-3">
-                <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
+        <div className="max-h-[40vh] overflow-y-auto p-4">
+          <div className="grid gap-3">
+            {items.map((item) => (
+              <div key={item.id} className="flex items-center py-3 px-4 bg-gray-50 rounded-lg">
+                <div className="relative h-14 w-14 rounded-md overflow-hidden mr-4 flex-shrink-0">
+                  <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
+                </div>
+                <div className="flex-grow min-w-0">
+                  <h4 className="font-medium text-sm truncate">{item.name}</h4>
+                  <p className="text-sm text-gray-600">${item.price.toFixed(2)}</p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-8 w-8 rounded-full"
+                    onClick={() => updateQuantity(item.id, (item.quantity || 1) - 1)}
+                  >
+                    <Minus className="h-3 w-3" />
+                  </Button>
+                  <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-8 w-8 rounded-full"
+                    onClick={() => updateQuantity(item.id, (item.quantity || 1) + 1)}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 ml-1 text-red-500 hover:text-red-700 hover:bg-red-50"
+                    onClick={() => removeItem(item.id)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-              <div className="flex-grow">
-                <h4 className="font-medium">{item.name}</h4>
-                <p className="text-sm text-gray-600">${item.price.toFixed(2)}</p>
-              </div>
-              <div className="flex items-center">
-                <Button
-                  size="icon"
-                  variant="outline"
-                  className="h-8 w-8 rounded-full"
-                  onClick={() => updateQuantity(item.id, (item.quantity || 1) - 1)}
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-                <span className="mx-2 w-6 text-center">{item.quantity}</span>
-                <Button
-                  size="icon"
-                  variant="outline"
-                  className="h-8 w-8 rounded-full"
-                  onClick={() => updateQuantity(item.id, (item.quantity || 1) + 1)}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-                <Button size="icon" variant="ghost" className="h-8 w-8 ml-2" onClick={() => removeItem(item.id)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
-        <div className="p-4 border-t">
-          <div className="flex justify-between mb-2">
-            <span>Subtotal:</span>
-            <span>${totalPrice.toFixed(2)}</span>
+        <div className="p-4 border-t bg-white rounded-b-lg">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-lg font-medium">Subtotal:</span>
+            <span className="text-lg font-bold">${totalPrice.toFixed(2)}</span>
           </div>
-          <Button className="w-full" onClick={() => setCheckoutOpen(true)} disabled={totalItems === 0}>
+          <Button
+            className="w-full h-12 text-base font-medium"
+            onClick={() => setCheckoutOpen(true)}
+            disabled={totalItems === 0}
+          >
             Proceder al pago
           </Button>
         </div>
